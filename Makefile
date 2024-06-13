@@ -958,28 +958,6 @@ else
 	OPENACC_MESSAGE="MPAS was built without OpenACC accelerator support."
 endif
 
-ifneq ($(wildcard .mpas_core_*), ) # CHECK FOR BUILT CORE
-
-ifneq ($(wildcard .mpas_core_$(CORE)), ) # CHECK FOR SAME CORE AS ATTEMPTED BUILD.
-	override AUTOCLEAN=false
-	CONTINUE=true
-else
-	LAST_CORE=`cat .mpas_core_*`
-
-ifeq "$(AUTOCLEAN)" "true" # CHECK FOR CLEAN PRIOR TO BUILD OF A NEW CORE.
-	CONTINUE=true
-	AUTOCLEAN_MESSAGE="Infrastructure was cleaned prior to building ."
-else
-	CONTINUE=false
-endif # END OF AUTOCLEAN CHECK
-
-endif # END OF CORE=LAST_CORE CHECK
-
-else
-
-	override AUTOCLEAN=false
-	CONTINUE=true
-endif # END IF BUILT CORE CHECK
 
 ifneq ($(wildcard namelist.$(NAMELIST_SUFFIX)), ) # Check for generated namelist file.
 	NAMELIST_MESSAGE="A default namelist file (namelist.$(NAMELIST_SUFFIX).defaults) has been generated, but namelist.$(NAMELIST_SUFFIX) has not been modified."
@@ -1036,12 +1014,120 @@ report_builds:
 	@echo "CORE=$(CORE)"
 endif
 
-ifeq "$(CONTINUE)" "true"
 all: mpas_main
-else
-all: clean_core
+
 endif
 
+#
+# The rebuild_check target determines whether the shared framework or $(CORE) were
+# previously compiled with incompatible options, and stops the build with an error
+# message if so.
+#
+rebuild_check:
+	@#
+	@# Write current build options to a file .build_opts.tmp, to later be
+	@# compared with build options use for the shared framework or core.
+	@# Only build options that affect compatibility are written, while options
+	@# like $(RM), $(BUILD_TARGET), and $(CORE) are not.
+	@#
+	$(shell printf "FC=$(FC)\n$\
+	CC=$(CC)\n$\
+	CXX=$(CXX)\n$\
+	SFC=$(SFC)\n$\
+	SCC=$(SCC)\n$\
+	CFLAGS=$(CFLAGS)\n$\
+	CXXFLAGS=$(CXXFLAGS)\n$\
+	FFLAGS=$(FFLAGS)\n$\
+	LDFLAGS=$(LDFLAGS)\n$\
+	CPPFLAGS=$(CPPFLAGS)\n$\
+	LIBS=$(LIBS)\n$\
+	CPPINCLUDES=$(CPPINCLUDES)\n$\
+	FCINCLUDES=$(FCINCLUDES)\n$\
+	OPENMP=$(OPENMP)\n$\
+	OPENMP_OFFLOAD=$(OPENMP_OFFLOAD)\n$\
+	OPENACC=$(OPENACC)\n$\
+	TAU=$(TAU)\n$\
+	PICFLAG=$(PICFLAG)\n$\
+	TIMER_LIB=$(TIMER_LIB)\n$\
+	GEN_F90=$(GEN_F90)\n" | sed 's/-DMPAS_EXE_NAME=[^[:space:]]*//' | sed 's/-DMPAS_NAMELIST_SUFFIX=[^[:space:]]*//' | sed 's/-DCORE_[^[:space:]]*//' | sed 's/-DMPAS_GIT_VERSION=[^[:space:]]*//' > .build_opts.tmp )
+
+	@#
+	@# PREV_BUILD is set to "OK" if the shared framework and core are either
+	@# clean or were previously compiled with compatible options. Otherwise,
+	@# PREV_BUILD is set to "shared framework" if the shared framework was
+	@# built with incompatible options, or "$(CORE) core" if the core was
+	@# built with incompatible options.
+	@#
+	$(eval PREV_BUILD := $(shell $\
+		if [ -f ".build_opts.framework" ]; then $\
+			cmp -s .build_opts.tmp .build_opts.framework; $\
+			if [ $$? -eq 0 ]; then $\
+				stat=0; $\
+			else $\
+				stat=1; $\
+				x="shared framework"; $\
+				if [ "$(AUTOCLEAN)" = "true" ]; then $\
+					cp .build_opts.tmp .build_opts.framework; $\
+				fi; $\
+			fi $\
+		else $\
+			stat=0; $\
+			cp .build_opts.tmp .build_opts.framework; $\
+		fi; $\
+                : ; $\
+                : At this this point, stat is already set, and we should only ; $\
+                : set it to 1 but never to 0, as that might mask an incompatibility ; $\
+                : in the framework build. ; $\
+                : ; $\
+		if [ -f ".build_opts.$(CORE)" ]; then $\
+			cmp -s .build_opts.tmp .build_opts.$(CORE); $\
+			if [ $$? -ne 0 ]; then $\
+				stat=1; $\
+				if [ "$$x" = "" ]; then $\
+					x="$(CORE) core"; $\
+				else $\
+					x="$$x and $(CORE) core"; $\
+				fi; $\
+				if [ "$(AUTOCLEAN)" = "true" ]; then $\
+					cp .build_opts.tmp .build_opts.$(CORE); $\
+				fi; $\
+			fi; $\
+		else $\
+			if [ $$stat -eq 0 ]; then $\
+				cp .build_opts.tmp .build_opts.$(CORE); $\
+			fi; $\
+		fi; $\
+		rm -f .build_opts.tmp; $\
+		if [ $$stat -eq 1 ]; then $\
+			printf "$$x"; $\
+		else $\
+			printf "OK"; $\
+		fi; $\
+	))
+
+	$(if $(findstring and,$(PREV_BUILD)),$(eval VERB=were),$(eval VERB=was))
+ifeq "$(AUTOCLEAN)" "true"
+	$(if $(findstring framework,$(PREV_BUILD)),$(eval AUTOCLEAN_DEPS+=clean_shared))
+	$(if $(findstring core,$(PREV_BUILD)),$(eval AUTOCLEAN_DEPS+=clean_core))
+	$(if $(findstring OK,$(PREV_BUILD)), $(eval override AUTOCLEAN=false), )
+	$(eval AUTOCLEAN_MESSAGE=The $(PREV_BUILD) $(VERB) cleaned and re-compiled.)
+else
+	$(if $(findstring OK,$(PREV_BUILD)), \
+	, \
+	$(info ************************************************************************) \
+	$(info The $(PREV_BUILD) $(VERB) previously compiled with ) \
+	$(info incompatible options. Please do one of the following:) \
+	$(info ) \
+	$(info   - Clean the $(CORE) core, which will also cause the shared) \
+	$(info     framework to be cleaned; then compile the $(CORE) core.) \
+	$(info ) \
+	$(info   or)\
+	$(info ) \
+	$(info   - Add AUTOCLEAN=true to the build command to automatically clean) \
+	$(info     and re-compile the $(PREV_BUILD).) \
+	$(info ) \
+	$(info ************************************************************************) \
+	$(error ))
 endif
 
 
@@ -1289,19 +1375,15 @@ mpi_f08_test:
 	$(if $(findstring 1,$(MPAS_MPI_F08)), $(info mpi_f08 module detected.))
 
 ifneq "$(PIO)" ""
-MAIN_DEPS = openmp_test openacc_test pio_test mpi_f08_test
+MAIN_DEPS = rebuild_check openmp_test openacc_test pio_test mpi_f08_test
 override CPPFLAGS += "-DMPAS_PIO_SUPPORT"
 else
-MAIN_DEPS = openmp_test openacc_test mpi_f08_test
+MAIN_DEPS = rebuild_check openmp_test openacc_test mpi_f08_test
 IO_MESSAGE = "Using the SMIOL library."
 override CPPFLAGS += "-DMPAS_SMIOL_SUPPORT"
 endif
 
-
 mpas_main: $(MAIN_DEPS)
-ifeq "$(AUTOCLEAN)" "true"
-	$(RM) .mpas_core_*
-endif
 	cd src; $(MAKE) FC="$(FC)" \
                  CC="$(CC)" \
                  CXX="$(CXX)" \
@@ -1320,11 +1402,11 @@ endif
                  FCINCLUDES="$(FCINCLUDES)" \
                  CORE="$(CORE)"\
                  AUTOCLEAN="$(AUTOCLEAN)" \
+                 AUTOCLEAN_DEPS="$(AUTOCLEAN_DEPS)" \
                  GEN_F90="$(GEN_F90)" \
                  NAMELIST_SUFFIX="$(NAMELIST_SUFFIX)" \
                  EXE_NAME="$(EXE_NAME)"
 
-	@echo "$(EXE_NAME)" > .mpas_core_$(CORE)
 	if [ -e src/$(EXE_NAME) ]; then mv src/$(EXE_NAME) .; fi
 	( cd src/core_$(CORE); $(MAKE) ROOT_DIR="$(PWD)" post_build )
 	@echo "*******************************************************************************"
@@ -1346,11 +1428,13 @@ endif
 	@echo $(IO_MESSAGE)
 	@echo "*******************************************************************************"
 clean:
-	cd src; $(MAKE) clean RM="$(RM)" CORE="$(CORE)"
-	$(RM) .mpas_core_*
+	cd src; $(MAKE) clean RM="$(RM)" CORE="$(CORE)" AUTOCLEAN="$(AUTOCLEAN)"
 	$(RM) $(EXE_NAME)
 	$(RM) namelist.$(NAMELIST_SUFFIX).defaults
 	$(RM) streams.$(NAMELIST_SUFFIX).defaults
+	if [ -f .build_opts.framework ]; then $(RM) .build_opts.framework; fi
+	if [ -f .build_opts.$(CORE) ]; then $(RM) .build_opts.$(CORE); fi
+
 core_error:
 	@echo ""
 	@echo "*******************************************************************************"
@@ -1360,26 +1444,6 @@ core_error:
 	@echo ""
 	exit 1
 error: errmsg
-
-clean_core:
-	@echo ""
-	@echo "*******************************************************************************"
-	@echo " The MPAS infrastructure is currently built for the $(LAST_CORE) core."
-	@echo " Before building the $(CORE) core, please do one of the following."
-	@echo ""
-	@echo ""
-	@echo " To remove the $(LAST_CORE)_model executable and clean the MPAS infrastructure, run:"
-	@echo "      make clean CORE=$(LAST_CORE)"
-	@echo ""
-	@echo " To preserve all executables except $(CORE)_model and clean the MPAS infrastructure, run:"
-	@echo "      make clean CORE=$(CORE)"
-	@echo ""
-	@echo " Alternatively, AUTOCLEAN=true can be appended to the make command to force a clean,"
-	@echo " build a new $(CORE)_model executable, and preserve all other executables."
-	@echo ""
-	@echo "*******************************************************************************"
-	@echo ""
-	exit 1
 
 else # CORE IF
 
@@ -1408,7 +1472,7 @@ errmsg:
 	@echo "    DEBUG=true    - builds debug version. Default is optimized version."
 	@echo "    USE_PAPI=true - builds version using PAPI for timers. Default is off."
 	@echo "    TAU=true      - builds version using TAU hooks for profiling. Default is off."
-	@echo "    AUTOCLEAN=true    - forces a clean of infrastructure prior to build new core."
+	@echo "    AUTOCLEAN=true - Enables automatic cleaning and re-compilation of code as needed."
 	@echo "    GEN_F90=true  - Generates intermediate .f90 files through CPP, and builds with them."
 	@echo "    TIMER_LIB=opt - Selects the timer library interface to be used for profiling the model. Options are:"
 	@echo "                    TIMER_LIB=native - Uses native built-in timers in MPAS"

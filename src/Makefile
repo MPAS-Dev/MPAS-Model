@@ -6,12 +6,6 @@ include Makefile.in.$(ESM)
 
 else
 
-ifeq "$(AUTOCLEAN)" "true"
-AUTOCLEAN_DEPS=clean_shared
-else
-AUTOCLEAN_DEPS=
-endif
-
 all: mpas
 
 mpas: $(AUTOCLEAN_DEPS) externals frame ops dycore drver
@@ -45,18 +39,24 @@ dycore: $(AUTOCLEAN_DEPS) build_tools externals frame ops
 clean: clean_shared clean_core
 
 clean_core:
+ifeq "$(AUTOCLEAN)" "true"
+	$(info )
+	$(info *********************************************************************************************)
+	$(info The $(CORE) core will be cleaned and re-compiled.)
+	$(info *********************************************************************************************)
+	$(info )
+endif
 	if [ -d core_$(CORE) ] ; then \
 	   ( cd core_$(CORE); $(MAKE) clean ) \
 	fi;
 
 clean_shared:
 ifeq "$(AUTOCLEAN)" "true"
-	@echo ""
-	@echo "*********************************************************************************************"
-	@echo "The MPAS infrastructure is currently built for a core different from $(CORE)."
-	@echo "The infrastructure will be cleaned and re-built for the $(CORE) core."
-	@echo "*********************************************************************************************"
-	@echo ""
+	$(info )
+	$(info *********************************************************************************************)
+	$(info The infrastructure will be cleaned and re-compiled.)
+	$(info *********************************************************************************************)
+	$(info )
 endif
 	$(RM) libframework.a libops.a libdycore.a lib$(CORE).a *.o
 	( cd tools; $(MAKE) clean )
