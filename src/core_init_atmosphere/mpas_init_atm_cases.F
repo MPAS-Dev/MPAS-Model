@@ -19,7 +19,7 @@ module init_atm_cases
    use mpas_timer
    use mpas_init_atm_static
    use mpas_init_atm_surface
-   use mpas_init_atm_thompson_aerosols
+   use mpas_init_atm_thompson_aerosols, only: init_atm_thompson_aerosols, init_atm_thompson_aerosols_lbc
    use mpas_atmphys_constants, only: svpt0,svp1,svp2,svp3
    use mpas_atmphys_functions
    use mpas_atmphys_initialize_real
@@ -329,6 +329,7 @@ module init_atm_cases
 
                call init_atm_case_lbc(timeString, block_ptr, mesh, nCells, nEdges, nVertLevels, fg, state, &
                                       diag, lbc_state, block_ptr % dimensions, block_ptr % configs)
+               call init_atm_thompson_aerosols_lbc(timeString, mesh, diag, state, lbc_state)
 
                block_ptr => block_ptr % next
             end do

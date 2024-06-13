@@ -454,6 +454,9 @@
                         <var name="zb" packages="met_stage_in"/>
                         <var name="zb3" packages="met_stage_in"/>
                         <var name="dss" packages="met_stage_in"/>
+                        <var name="nifa_gocart_clim" packages="met_stage_in"/>
+                        <var name="nwfa_gocart_clim" packages="met_stage_in"/>
+                        <var name="pwif_gocart_clim" packages="met_stage_in"/>
 		</stream>
 
 		<stream name="output" 
@@ -591,9 +594,9 @@
                         <var name="q2" packages="met_stage_out"/>
                         <var name="rh2" packages="met_stage_out"/>
                         <var name="t2m" packages="met_stage_out"/>
-                        <var name="nifa_gocart_clim" packages="met_stage_out"/>
-                        <var name="nwfa_gocart_clim" packages="met_stage_out"/>
-                        <var name="pwif_gocart_clim" packages="met_stage_out"/>
+                        <var name="nifa_gocart_clim" packages="met_stage_out;mp_thompson_aers_in"/>
+                        <var name="nwfa_gocart_clim" packages="met_stage_out;mp_thompson_aers_in"/>
+                        <var name="pwif_gocart_clim" packages="met_stage_out;mp_thompson_aers_in"/>
 		</stream>
 
 		<stream name="surface" 

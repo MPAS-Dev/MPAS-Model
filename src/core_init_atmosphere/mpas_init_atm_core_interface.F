@@ -216,7 +216,7 @@ module init_atm_core_interface
 
          mp_thompson_aers_in = .false.
          inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
-         if(lexist) mp_thompson_aers_in = .true.
+         if((lexist .and. met_stage_out) .or. (lexist .and. met_stage_in)) mp_thompson_aers_in = .true.
 
       else if (config_init_case == 8) then
          gwd_stage_in = .false.
@@ -237,6 +237,10 @@ module init_atm_core_interface
          vertical_stage_out = .false.
          met_stage_in = .true.
          met_stage_out = .true.
+
+         mp_thompson_aers_in = .false.
+         inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
+         if((lexist .and. met_stage_out) .or. (lexist .and. met_stage_in)) mp_thompson_aers_in = .true.
 
          initial_conds = .false.   ! Also, turn off the initial_conds package to avoid writing the IC "output" stream
 
