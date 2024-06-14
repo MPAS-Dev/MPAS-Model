@@ -1573,11 +1573,11 @@
 
                         <var name="nifa" array_group="number" units="nb kg^{-1}"
                              description="Ice-friendly aerosol number concentration"
-                             packages="bl_mynn_in;mp_thompson_aers_in"/>
+                             packages="mp_thompson_aers_in"/>
 
                         <var name="nwfa" array_group="number" units="nb kg^{-1}"
                              description="Water-friendly aerosol number concentration"
-                             packages="bl_mynn_in;mp_thompson_aers_in"/>
+                             packages="mp_thompson_aers_in"/>
                 </var_array>
 #endif
 
@@ -1915,11 +1915,11 @@
 
                         <var name="tend_nifa" name_in_code="nifa" array_group="number" units="nb m^{-3} s^{-1}"
                              description="Tendency of ice-friendly aerosol number concentration multiplied by dry air density divided by d(zeta)/dz"
-                             packages="bl_mynn_in;mp_thompson_aers_in"/>
+                             packages="mp_thompson_aers_in"/>
 
                         <var name="tend_nwfa" name_in_code="nwfa" array_group="number" units="nb m^{-3} s^{-1}"
                              description="Tendency of water-friendly aerosol number concentration multiplied by dry air density divided by d(zeta)/dz"
-                             packages="bl_mynn_in;mp_thompson_aers_in"/>
+                             packages="mp_thompson_aers_in"/>
                 </var_array>
 #endif
         </var_struct>

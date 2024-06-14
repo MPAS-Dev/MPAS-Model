@@ -77,11 +77,12 @@
  type(mpas_pool_type),intent(in):: configs
 
 !local pointers:
- character(len=StrKIND),pointer:: pbl_scheme
+ character(len=StrKIND),pointer:: microp_scheme,pbl_scheme
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
+ call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
+ call mpas_pool_get_config(configs,'config_pbl_scheme'   ,pbl_scheme   )
 
  if(.not.allocated(psfc_p) ) allocate(psfc_p(ims:ime,jms:jme)         )
  if(.not.allocated(ptop_p) ) allocate(ptop_p(ims:ime,jms:jme)         )
@@ -114,15 +115,20 @@
  if(.not.allocated(qs_p)   ) allocate(qs_p(ims:ime,kms:kme,jms:jme)   )
  if(.not.allocated(qg_p)   ) allocate(qg_p(ims:ime,kms:kme,jms:jme)   )
 
- pbl_select: select case(trim(pbl_scheme))
-    case("bl_mynn")
-       if(.not.allocated(nc_p)  ) allocate(nc_p(ims:ime,kms:kme,jms:jme)  )
-       if(.not.allocated(ni_p)  ) allocate(ni_p(ims:ime,kms:kme,jms:jme)  )
+ microp_select: select case(trim(microp_scheme))
+    case("mp_thompson_aerosols")
        if(.not.allocated(nifa_p)) allocate(nifa_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(nwfa_p)) allocate(nwfa_p(ims:ime,kms:kme,jms:jme))
 
     case default
+ end select microp_select
 
+ pbl_select: select case(trim(pbl_scheme))
+    case("bl_mynn")
+       if(.not.allocated(nc_p)) allocate(nc_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(ni_p)) allocate(ni_p(ims:ime,kms:kme,jms:jme))
+
+    case default
  end select pbl_select
 
 !... arrays used for calculating the hydrostatic pressure and exner function:
@@ -144,11 +150,12 @@
  type(mpas_pool_type),intent(in):: configs
 
 !local pointers:
- character(len=StrKIND),pointer:: pbl_scheme
+ character(len=StrKIND),pointer:: microp_scheme,pbl_scheme
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
+ call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
+ call mpas_pool_get_config(configs,'config_pbl_scheme'   ,pbl_scheme   )
 
  if(allocated(psfc_p)  ) deallocate(psfc_p  )
  if(allocated(ptop_p)  ) deallocate(ptop_p  )
@@ -181,15 +188,20 @@
  if(allocated(qs_p)    ) deallocate(qs_p    )
  if(allocated(qg_p)    ) deallocate(qg_p    )
 
- pbl_select: select case(trim(pbl_scheme))
-    case("bl_mynn")
-       if(allocated(nc_p)  ) deallocate(nc_p  )
-       if(allocated(ni_p)  ) deallocate(ni_p  )
+ microp_select: select case(trim(microp_scheme))
+    case("mp_thompson_aerosols")
        if(allocated(nifa_p)) deallocate(nifa_p)
        if(allocated(nwfa_p)) deallocate(nwfa_p)
 
     case default
+ end select microp_select
 
+ pbl_select: select case(trim(pbl_scheme))
+    case("bl_mynn")
+       if(allocated(nc_p)) deallocate(nc_p)
+       if(allocated(ni_p)) deallocate(ni_p)
+
+    case default
  end select pbl_select
 
  if(allocated(psfc_hyd_p)  ) deallocate(psfc_hyd_p  )
@@ -219,7 +231,7 @@
  type(mpas_pool_type),intent(inout):: diag_physics
 
 !local pointers:
- character(len=StrKIND),pointer:: pbl_scheme
+ character(len=StrKIND),pointer:: microp_scheme,pbl_scheme
 
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
  integer,pointer:: index_nc,index_ni,index_nifa,index_nwfa
@@ -252,7 +264,8 @@
 !call mpas_log_write('kts=$i kte=$i',intArgs=(/kts,kte/))
 
 !initialization:
- call mpas_pool_get_config(configs,'config_pbl_scheme',pbl_scheme)
+ call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
+ call mpas_pool_get_config(configs,'config_pbl_scheme'   ,pbl_scheme   )
 
  call mpas_pool_get_array(mesh,'latCell',latCell)
  call mpas_pool_get_array(mesh,'lonCell',lonCell)
@@ -324,6 +337,26 @@
  enddo
  enddo
 
+ microp_select: select case(trim(microp_scheme))
+    case("mp_thompson_aerosols")
+       nullify(nifa)
+       nullify(nwfa)
+       call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
+       call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
+       nifa => scalars(index_nifa,:,:)
+       nwfa => scalars(index_nwfa,:,:)
+       do j = jts,jte
+          do k = kts,kte
+             do i = its,ite
+                nifa_p(i,k,j) = max(0.,nifa(k,i))
+                nwfa_p(i,k,j) = max(0.,nwfa(k,i))
+             enddo
+          enddo
+       enddo
+
+    case default
+ end select microp_select
+
  pbl_select: select case(trim(pbl_scheme))
     case("bl_mynn")
        do j = jts,jte
@@ -331,8 +364,6 @@
              do i = its,ite
                 nc_p(i,k,j)   = 0._RKIND
                 ni_p(i,k,j)   = 0._RKIND
-                nifa_p(i,k,j) = 0._RKIND
-                nwfa_p(i,k,j) = 0._RKIND
              enddo
           enddo
        enddo
@@ -350,22 +381,14 @@
           enddo
        endif
        !initializes nc_p, nifa_p, and nwfa_p when running the option "mp_thompson_aerosols":
-       if(f_nc .and. f_nifa .and. f_nwfa) then
+       if(f_nc) then
           nullify(nc)
-          nullify(nifa)
-          nullify(nwfa)
-          call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
-          call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
-          call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
+          call mpas_pool_get_dimension(state,'index_nc',index_nc)
           nc   => scalars(index_nc,:,:)
-          nifa => scalars(index_nifa,:,:)
-          nwfa => scalars(index_nwfa,:,:)
           do j = jts,jte
              do k = kts,kte
                 do i = its,ite
                    nc_p(i,k,j)   = max(0.,nc(k,i)  )
-                   nifa_p(i,k,j) = max(0.,nifa(k,i))
-                   nwfa_p(i,k,j) = max(0.,nwfa(k,i))
                 enddo
              enddo
           enddo
