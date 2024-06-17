@@ -212,6 +212,22 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: invAreaCell
       integer, dimension(:), pointer :: bdyMaskCell
       integer, dimension(:), pointer :: bdyMaskEdge
+      real (kind=RKIND), dimension(:), pointer :: invDvEdge
+      real (kind=RKIND), dimension(:), pointer :: dcEdge
+      real (kind=RKIND), dimension(:), pointer :: invDcEdge
+      integer, dimension(:,:), pointer :: edgesOnEdge
+      integer, dimension(:,:), pointer :: edgesOnVertex
+      integer, dimension(:,:), pointer :: edgesOnVertex_sign
+      integer, dimension(:), pointer :: nEdgesOnEdge
+      integer, dimension(:,:), pointer :: weightsOnEdge
+      integer, dimension(:,:), pointer :: cellsOnVertex
+      integer, dimension(:,:), pointer :: verticesOnCell
+      integer, dimension(:,:), pointer :: verticesOnEdge
+      real (kind=RKIND), dimension(:), pointer :: invAreaTriangle
+      integer, dimension(:,:), pointer :: kiteForCell
+      real (kind=RKIND), dimension(:,:), pointer :: kiteAreasOnVertex
+      real (kind=RKIND), dimension(:), pointer :: fEdge
+      real (kind=RKIND), dimension(:), pointer :: fVertex
 #endif
 
 
@@ -271,6 +287,54 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
       !$acc enter data copyin(bdyMaskEdge)
+
+      call mpas_pool_get_array(mesh, 'invDvEdge', invDvEdge)
+      !$acc enter data copyin(invDvEdge)
+
+      call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
+      !$acc enter data copyin(dcEdge)
+
+      call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
+      !$acc enter data copyin(invDcEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnEdge', edgesOnEdge)
+      !$acc enter data copyin(edgesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnVertex', edgesOnVertex)
+      !$acc enter data copyin(edgesOnVertex)
+
+      call mpas_pool_get_array(mesh, 'edgesOnVertex_sign', edgesOnVertex_sign)
+      !$acc enter data copyin(edgesOnVertex_sign)
+
+      call mpas_pool_get_array(mesh, 'nEdgesOnEdge', nEdgesOnEdge)
+      !$acc enter data copyin(nEdgesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
+      !$acc enter data copyin(weightsOnEdge)
+
+      call mpas_pool_get_array(mesh, 'cellsOnVertex', cellsOnVertex)
+      !$acc enter data copyin(cellsOnVertex)
+
+      call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
+      !$acc enter data copyin(verticesOnCell)
+
+      call mpas_pool_get_array(mesh, 'verticesOnEdge', verticesOnEdge)
+      !$acc enter data copyin(verticesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'invAreaTriangle', invAreaTriangle)
+      !$acc enter data copyin(invAreaTriangle)
+
+      call mpas_pool_get_array(mesh, 'kiteForCell', kiteForCell)
+      !$acc enter data copyin(kiteForCell)
+
+      call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
+      !$acc enter data copyin(kiteAreasOnVertex)
+
+      call mpas_pool_get_array(mesh, 'fVertex', fVertex)
+      !$acc enter data copyin(fVertex)
+
+      call mpas_pool_get_array(mesh, 'fEdge', fEdge)
+      !$acc enter data copyin(fEdge)
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -319,6 +383,22 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: invAreaCell
       integer, dimension(:), pointer :: bdyMaskCell
       integer, dimension(:), pointer :: bdyMaskEdge
+      real (kind=RKIND), dimension(:), pointer :: invDvEdge
+      real (kind=RKIND), dimension(:), pointer :: dcEdge
+      real (kind=RKIND), dimension(:), pointer :: invDcEdge
+      integer, dimension(:,:), pointer :: edgesOnEdge
+      integer, dimension(:,:), pointer :: edgesOnVertex
+      integer, dimension(:,:), pointer :: edgesOnVertex_sign
+      integer, dimension(:), pointer :: nEdgesOnEdge
+      integer, dimension(:,:), pointer :: weightsOnEdge
+      integer, dimension(:,:), pointer :: cellsOnVertex
+      integer, dimension(:,:), pointer :: verticesOnCell
+      integer, dimension(:,:), pointer :: verticesOnEdge
+      real (kind=RKIND), dimension(:), pointer :: invAreaTriangle
+      integer, dimension(:,:), pointer :: kiteForCell
+      real (kind=RKIND), dimension(:,:), pointer :: kiteAreasOnVertex
+      real (kind=RKIND), dimension(:), pointer :: fEdge
+      real (kind=RKIND), dimension(:), pointer :: fVertex
 #endif
 
 
@@ -378,6 +458,54 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
       !$acc exit data delete(bdyMaskEdge)
+
+      call mpas_pool_get_array(mesh, 'invDvEdge', invDvEdge)
+      !$acc exit data delete(invDvEdge)
+
+      call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
+      !$acc exit data delete(dcEdge)
+
+      call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
+      !$acc exit data delete(invDcEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnEdge', edgesOnEdge)
+      !$acc exit data delete(edgesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnVertex', edgesOnVertex)
+      !$acc exit data delete(edgesOnVertex)
+
+      call mpas_pool_get_array(mesh, 'edgesOnVertex_sign', edgesOnVertex_sign)
+      !$acc exit data delete(edgesOnVertex_sign)
+
+      call mpas_pool_get_array(mesh, 'nEdgesOnEdge', nEdgesOnEdge)
+      !$acc exit data delete(nEdgesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
+      !$acc exit data delete(weightsOnEdge)
+
+      call mpas_pool_get_array(mesh, 'cellsOnVertex', cellsOnVertex)
+      !$acc exit data delete(cellsOnVertex)
+
+      call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
+      !$acc exit data delete(verticesOnCell)
+
+      call mpas_pool_get_array(mesh, 'verticesOnEdge', verticesOnEdge)
+      !$acc exit data delete(verticesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'invAreaTriangle', invAreaTriangle)
+      !$acc exit data delete(invAreaTriangle)
+
+      call mpas_pool_get_array(mesh, 'kiteForCell', kiteForCell)
+      !$acc exit data delete(kiteForCell)
+
+      call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
+      !$acc exit data delete(kiteAreasOnVertex)
+
+      call mpas_pool_get_array(mesh, 'fVertex', fVertex)
+      !$acc exit data delete(fVertex)
+
+      call mpas_pool_get_array(mesh, 'fEdge', fEdge)
+      !$acc exit data delete(fEdge)
 #endif
 
    end subroutine mpas_atm_dynamics_finalize
