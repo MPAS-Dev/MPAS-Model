@@ -5683,7 +5683,9 @@ module atm_time_integration
       ! Compute circulation and relative vorticity at each vertex
       !
       do iVertex=vertexStart,vertexEnd
-         vorticity(1:nVertLevels,iVertex) = 0.0
+         do k=1,nVertLevels
+            vorticity(k,iVertex) = 0.0_RKIND
+         end do
          do i=1,vertexDegree
             iEdge = edgesOnVertex(i,iVertex)
             s = edgesOnVertex_sign(i,iVertex) * dcEdge(iEdge)
@@ -5703,7 +5705,9 @@ module atm_time_integration
       ! Compute the divergence at each cell center
       !
       do iCell=cellStart,cellEnd
-         divergence(1:nVertLevels,iCell) = 0.0
+         do k=1,nVertLevels
+            divergence(k,iCell) = 0.0_RKIND
+         end do
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
             s = edgesOnCell_sign(i,iCell) * dvEdge(iEdge)
@@ -5727,7 +5731,9 @@ module atm_time_integration
       ! Replace 2.0 with 2 in exponentiation to avoid outside chance that
       ! compiler will actually allow "float raised to float" operation
       do iCell=cellStart,cellEnd
-         ke(1:nVertLevels,iCell) = 0.0
+         do k=1,nVertLevels
+            ke(k,iCell) = 0.0_RKIND
+         end do
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
             do k=1,nVertLevels
@@ -5803,7 +5809,9 @@ module atm_time_integration
 
       if (reconstruct_v) then
         do iEdge = edgeStart,edgeEnd
-          v(1:nVertLevels,iEdge) = 0.0
+          do k = 1,nVertLevels
+            v(k,iEdge) = 0.0_RKIND
+          end do
           do i=1,nEdgesOnEdge(iEdge)
             eoe = edgesOnEdge(i,iEdge)
 !DIR$ IVDEP
@@ -5849,23 +5857,25 @@ module atm_time_integration
 
       if (config_apvm_upwinding > 0.0) then
 
-      !
-      ! Compute pv at cell centers
-      !    ( this computes pv_cell for all real cells )
-      !  only needed for APVM upwinding
-      !
-      do iCell=cellStart,cellEnd
-         pv_cell(1:nVertLevels,iCell) = 0.0
-         r = invAreaCell(iCell)
-         do i=1,nEdgesOnCell(iCell)
-            iVertex = verticesOnCell(i,iCell)
-            j = kiteForCell(i,iCell)
-!DIR$ IVDEP
+         !
+         ! Compute pv at cell centers
+         !    ( this computes pv_cell for all real cells )
+         !  only needed for APVM upwinding
+         !
+         do iCell=cellStart,cellEnd
             do k = 1,nVertLevels
-               pv_cell(k,iCell) = pv_cell(k,iCell) + kiteAreasOnVertex(j,iVertex) * pv_vertex(k,iVertex) * r
+               pv_cell(k,iCell) = 0.0_RKIND
+            end do
+            r = invAreaCell(iCell)
+            do i=1,nEdgesOnCell(iCell)
+               iVertex = verticesOnCell(i,iCell)
+               j = kiteForCell(i,iCell)
+!DIR$ IVDEP
+               do k = 1,nVertLevels
+                  pv_cell(k,iCell) = pv_cell(k,iCell) + kiteAreasOnVertex(j,iVertex) * pv_vertex(k,iVertex) * r
+               end do
             end do
          end do
-      end do
 
 
 !$OMP BARRIER
