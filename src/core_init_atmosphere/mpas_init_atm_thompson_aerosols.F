@@ -254,7 +254,7 @@
 
 !open intermediate file:
  istatus = 0
- call read_gocart_init(trim(filename_gocart),istatus)
+ call read_met_init(trim(filename_gocart),.true.,'not needed',istatus)
  if(istatus /= 0) then
     call mpas_log_write('********************************************************************************')
     call mpas_log_write('Error opening gocart file '//trim(filename_gocart))
@@ -295,7 +295,7 @@
 
 !read gocart data:
  istatus = 0
- call read_gocart_init(trim(filename_gocart),istatus)
+ call read_met_init(trim(filename_gocart),.true.,'not needed',istatus)
  if(istatus /= 0) then
     call mpas_log_write('********************************************************************************')
     call mpas_log_write('Error opening gocart file '// trim(filename_gocart))
@@ -853,36 +853,6 @@
 !call mpas_log_write('--- end subroutine init_lbc_gocart:')
 
  end subroutine init_atm_thompson_aerosols_lbc
-
-!=================================================================================================================
- subroutine read_gocart_init(fg_source,istatus)
-!=================================================================================================================
-
-!input arguments:
- character(len=*),intent(in):: fg_source
-
-!output arguments:
- integer,intent(out):: istatus
-
-!local variables:
- logical:: is_used
- integer:: io_status
-
-!-----------------------------------------------------------------------------------------------------------------
-
- istatus = 0
-
- do input_unit = 10, 100
-    inquire(unit=input_unit,opened=is_used)
-    if (.not. is_used) exit
- end do
- if(input_unit > 100) &
-    call mpas_log_write('Error: In read_gocart_init(), couldn''t find an available Fortran unit.')
- open(unit=input_unit, file=trim(fg_source), status='old', form='unformatted', iostat=io_status)
-
- if (io_status > 0) istatus = 1
-
- end subroutine read_gocart_init
 
 !=================================================================================================================
  end module mpas_init_atm_thompson_aerosols
