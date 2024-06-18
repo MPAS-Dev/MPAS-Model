@@ -820,6 +820,9 @@
 
  integer,intent(in):: time_lev
  real(kind=RKIND),intent(in):: xtime_s
+ real(kind=RKIND),pointer:: co2_content
+ real(kind=RKIND),pointer:: ch4_content
+ real(kind=RKIND),pointer:: n2o_content
 
 !inout arguments:
  type(mpas_pool_type),intent(inout):: state
@@ -835,12 +838,16 @@
 !local variables:
  integer:: o3input
  real(kind=RKIND):: radt,xtime_m
+ real :: co2_local, ch4_local, n2o_local
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write(' --- enter subroutine driver_radiation_lw: ')
 
  call mpas_pool_get_config(configs,'config_o3climatology' ,config_o3climatology)
  call mpas_pool_get_config(configs,'config_radt_lw_scheme',radt_lw_scheme      )
+ call mpas_pool_get_config(configs,'co2_content', co2_content     )
+ call mpas_pool_get_config(configs,'n2o_content', n2o_content     )
+ call mpas_pool_get_config(configs,'ch4_content', ch4_content     )
 
 !copy MPAS arrays to local arrays:
  call radiation_lw_from_MPAS(xtime_s,configs,mesh,state,time_lev,diag_physics,atm_input,sfc_input,its,ite)
@@ -851,6 +858,14 @@
     case ("rrtmg_lw")
        o3input = 0
        if(config_o3climatology) o3input = 2
+       co2_local = co2_content
+       n2o_local = n2o_content
+       ch4_local = ch4_content
+!!$OMP SINGLE
+!call mpas_log_write('co2_local $r',realArgs=(/co2_local/))
+!call mpas_log_write('ch4_local $r',realArgs=(/ch4_local/))
+!call mpas_log_write('n2o_local $r',realArgs=(/n2o_local/))
+!!$OMP END SINGLE
 
        call mpas_timer_start('RRTMG_lw')
        call rrtmg_lwrad( &
@@ -872,8 +887,8 @@
             lwupbc     = lwupbc_p      , lwdnb     = lwdnb_p     , lwdnbc   = lwdnbc_p , &
             ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,      &
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,      &
-            its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte        &
-                       )
+            its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte ,      &
+            co2_local = co2_local , n2o_local = n2o_local, ch4_local = ch4_local         )
        call mpas_timer_stop('RRTMG_lw')
 
     case ("cam_lw")

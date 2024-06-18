@@ -11484,8 +11484,8 @@ CONTAINS
                        lwupflx, lwupflxc, lwdnflx, lwdnflxc,      &
                        ids,ide, jds,jde, kds,kde,                 & 
                        ims,ime, jms,jme, kms,kme,                 &
-                       its,ite, jts,jte, kts,kte                  &
-                       )
+                       its,ite, jts,jte, kts,kte,                 &
+                       co2_local, n2o_local, ch4_local)
 
  implicit none
 
@@ -11565,13 +11565,13 @@ CONTAINS
 !--- set trace gas volume mixing ratios, 2005 values, IPCC (2007):
 !carbon dioxide (379 ppmv)
  real :: co2
- data co2 / 379.e-6 / 
+ real :: co2_local
 !methane (1774 ppbv)
  real :: ch4
- data ch4 / 1774.e-9 / 
+ real :: ch4_local
 !nitrous oxide (319 ppbv)
  real :: n2o
- data n2o / 319.e-9 / 
+ real :: n2o_local
 !cfc-11 (251 ppt)
  real :: cfc11
  data cfc11 / 0.251e-9 / 
@@ -11642,6 +11642,9 @@ CONTAINS
 
 !--- all fields are ordered vertically from bottom to top (pressures are in mb):
  ncol = 1
+ co2 = co2_local
+ n2o = n2o_local
+ ch4 = ch4_local
 
 !--- initialize option for the calculation of the cloud optical properties:
  icld     = 2 ! with clouds using maximum/random cloud overlap in subroutine mcica_subcol_lw. 

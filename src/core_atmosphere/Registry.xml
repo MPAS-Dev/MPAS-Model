@@ -2129,6 +2129,21 @@
                      description="configuration for long-wave radiation schemes"
                      possible_values="`suite',`rrtmg_lw',`cam_lw',`off'"/>
 
+                <nml_option name="co2_content" type="real" default_value="410.E-06" in_defaults="false"
+                     units="ppm"
+                     description="Mean CO2 content in the atmosphere for RRTMG"
+                     possible_values="Positive real values"/>
+
+                <nml_option name="n2o_content" type="real" default_value="330.E-09" in_defaults="false"
+                     units="ppb"
+                     description="Mean N2O content in the atmosphere for RRTMG"
+                     possible_values="Positive real values"/>
+
+                <nml_option name="ch4_content" type="real" default_value="1850.E-09" in_defaults="false"
+                     units="ppb"
+                     description="Mean CH4 content in the atmosphere for RRTMG"
+                     possible_values="Positive real values"/>
+
                 <nml_option name="config_radt_sw_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration for short-wave radiation schemes"
