@@ -9877,7 +9877,7 @@ CONTAINS
                        swupb,swupbc,swdnb,swdnbc,                      &
                        swupflx, swupflxc, swdnflx, swdnflxc,           &
                        swddir,swddni,swddif,                           &
-                       yr,                                             &
+                       co2,                                            &
                        ids,ide, jds,jde, kds,kde,                      & 
                        ims,ime, jms,jme, kms,kme,                      &
                        its,ite, jts,jte, kts,kte                       &
@@ -9892,7 +9892,7 @@ CONTAINS
                       ims,ime, jms,jme, kms,kme, &
                       its,ite, jts,jte, kts,kte
  integer,intent(in):: icloud,has_reqc,has_reqi,has_reqs
- integer,intent(in):: julday,yr
+ integer,intent(in):: julday
  integer,intent(in),optional:: o3input
 
  real,intent(in):: radt,degrad,xtime,declin,solcon,gmt
@@ -10005,9 +10005,6 @@ CONTAINS
   data amdo2 / 0.905190 /
 
 !-----------------------------------------------------------------------------------------------------------------
-
-! Annual function for co2 in WRF v4.2
-      co2 = (280. + 90.*exp(0.02*(yr-2000)))*1.e-6
 
 !--- all fields are ordered vertically from bottom to top (pressures are in mb):
  ncol = 1

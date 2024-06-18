@@ -11482,7 +11482,7 @@ CONTAINS
                        lwupt,lwuptc,lwdnt,lwdntc,                 &
                        lwupb,lwupbc,lwdnb,lwdnbc,                 &
                        lwupflx, lwupflxc, lwdnflx, lwdnflxc,      &
-                       yr,                                        &
+                       co2,                                       &
                        ids,ide, jds,jde, kds,kde,                 & 
                        ims,ime, jms,jme, kms,kme,                 &
                        its,ite, jts,jte, kts,kte                  &
@@ -11498,7 +11498,6 @@ CONTAINS
                       its,ite, jts,jte, kts,kte
  integer,intent(in):: icloud,has_reqc,has_reqi,has_reqs
  integer,intent(in),optional:: o3input
- integer,intent(in):: yr
 
  real,intent(in),dimension(ims:ime,jms:jme):: emiss,tsk,snow,xice,xland
  real,intent(in),dimension(ims:ime,kms:kme,jms:jme):: t3d,p3d,pi3d
@@ -11641,9 +11640,6 @@ CONTAINS
              249.89,246.67,243.48,240.25,236.66,233.86/	
 
 !-----------------------------------------------------------------------------------------------------------------
-
-! Annual function for co2 in WRF v4.2
- co2 = (280. + 90.*exp(0.02*(yr-2000)))*1.e-6
 
 !--- all fields are ordered vertically from bottom to top (pressures are in mb):
  ncol = 1
