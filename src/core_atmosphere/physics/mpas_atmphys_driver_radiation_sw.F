@@ -16,6 +16,7 @@
  use mpas_atmphys_camrad_init
  use mpas_atmphys_rrtmg_swinit
  use mpas_atmphys_vars
+ use mpas_atmphys_functions, only: co2_estimate
  
 !wrf physics:
  use module_ra_cam
@@ -733,6 +734,7 @@
 !local variables:
  integer:: o3input
  real(kind=RKIND):: radt,xtime_m
+ real(kind=RKIND):: co2
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write(' --- enter subroutine driver_radiation_sw: $i',intArgs=(/itimestep/))
@@ -770,6 +772,7 @@
     case ("rrtmg_sw")
        o3input = 0
        if(config_o3climatology) o3input = 2
+       co2 = co2_estimate(year,curr_julday)
 
        call mpas_timer_start('RRTMG_sw')
        call rrtmg_swrad( &
@@ -792,6 +795,7 @@
               swdnt      = swdnt_p      , swdntc     = swdntc_p      , swupb    = swupb_p  , &
               swupbc     = swupbc_p     , swdnb      = swdnb_p       , swdnbc   = swdnbc_p , &
               swddir     = swddir_p     , swddni     = swddni_p      , swddif   = swddif_p , &
+              co2        = co2          ,                                                    &
               ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,        &
               ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,        &
               its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte          &

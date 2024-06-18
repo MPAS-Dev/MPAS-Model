@@ -9877,6 +9877,7 @@ CONTAINS
                        swupb,swupbc,swdnb,swdnbc,                      &
                        swupflx, swupflxc, swdnflx, swdnflxc,           &
                        swddir,swddni,swddif,                           &
+                       co2,                                            &
                        ids,ide, jds,jde, kds,kde,                      & 
                        ims,ime, jms,jme, kms,kme,                      &
                        its,ite, jts,jte, kts,kte                       &
@@ -9973,7 +9974,7 @@ CONTAINS
 !--- set trace gas volume mixing ratios, 2005 values, IPCC (2007):
 !carbon dioxide (379 ppmv)
  real :: co2
- data co2 / 379.e-6 / 
+!data co2 / 379.e-6 / 
 !methane (1774 ppbv)
  real :: ch4
  data ch4 / 1774.e-9 / 
