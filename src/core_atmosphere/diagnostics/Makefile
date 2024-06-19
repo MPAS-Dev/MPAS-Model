@@ -23,14 +23,15 @@ mpas_soundings.o:
 
 
 ################### Generally no need to modify below here ###################
+# MC -- added mpas_atmphys_packages.o 
 
-
-OBJS = mpas_atm_diagnostics_manager.o mpas_atm_diagnostics_utils.o
+OBJS = mpas_atm_diagnostics_manager.o mpas_atm_diagnostics_utils.o mpas_atm_diagnostics_packages.o
 
 all: $(DIAGNOSTIC_MODULES) $(OBJS)
 
 mpas_atm_diagnostics_manager.o: mpas_atm_diagnostics_utils.o $(DIAGNOSTIC_MODULES)
 
+mpas_atm_diagnostics_packages.o: mpas_atm_diagnostics_utils.o
 
 clean:
 	$(RM) *.o *.mod *.f90
