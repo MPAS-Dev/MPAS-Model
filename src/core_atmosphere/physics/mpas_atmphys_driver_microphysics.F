@@ -280,8 +280,8 @@
  integer:: errflg
 
 !-----------------------------------------------------------------------------------------------------------------
- call mpas_log_write(' ')
- call mpas_log_write('--- enter subroutine init_microphysics:')
+!call mpas_log_write(' ')
+!call mpas_log_write('--- enter subroutine init_microphysics:')
 
 !initialization of CCPP-compliant flags:
  errmsg = ' '
@@ -309,7 +309,7 @@
     case default
  end select microp_select
 
- call mpas_log_write('--- end subroutine init_microphysics:')
+!call mpas_log_write('--- end subroutine init_microphysics:')
 
  end subroutine init_microphysics
 

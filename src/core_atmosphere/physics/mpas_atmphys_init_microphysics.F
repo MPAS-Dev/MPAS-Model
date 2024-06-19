@@ -128,7 +128,7 @@
  real(kind=RKIND),dimension(:,:),allocatable:: hgt
 
 !-----------------------------------------------------------------------------------------------------------------
- call mpas_log_write('--- enter subroutine init_thompson_aerosols_forMPAS:')
+!call mpas_log_write('--- enter subroutine init_thompson_aerosols_forMPAS:')
 
  is_aerosol_aware = .true.
 
@@ -248,7 +248,7 @@
 !... deallocate local arrays:
  if(allocated(hgt)) deallocate(hgt)
 
- call mpas_log_write('--- end subroutine init_thompson_aerosols_forMPAS.')
+!call mpas_log_write('--- end subroutine init_thompson_aerosols_forMPAS.')
 
  end subroutine init_thompson_aerosols_forMPAS
 
