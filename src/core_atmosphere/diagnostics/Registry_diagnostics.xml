@@ -19,6 +19,20 @@
 <!-- soundings -->
 #include "Registry_soundings.xml"
 
+
+<!-- ........................................................................ -->
+<!-- Declare namelist config options for tendency and PV diagnostics packages -->
+<!-- ........................................................................ -->
+<nml_record name="diagnostics" in_defaults="false">
+
+    <!-- Namelist option for isobaric interpolation of model variables -->
+    <nml_option name="config_isobaric" type="logical" default_value="false" in_defaults="false"
+         units="-"
+         description="Logical for outputting model variables interpolated to isobaric levels"
+         possible_values=".true. for isobaric interpolation; .false. otherwise"/>
+
+</nml_record>
+
 <!-- ******************************* -->
 <!-- End includes from diagnostics -->
 <!-- ******************************* -->

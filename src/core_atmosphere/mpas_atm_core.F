@@ -597,6 +597,9 @@ module atm_core
       use mpas_atm_boundaries, only : mpas_atm_update_bdy_tend
       use mpas_atm_diagnostics_manager, only : mpas_atm_diag_update, mpas_atm_diag_compute, mpas_atm_diag_reset
    
+
+      use mpas_atm_halos, only: exchange_halo_group    ! MC TEST!!!!
+
       implicit none
    
       type (domain_type), intent(inout) :: domain
@@ -662,7 +665,7 @@ module atm_core
       call mpas_timer_start('diagnostic_fields')
       call mpas_atm_diag_reset()
       call mpas_atm_diag_update()
-      call mpas_atm_diag_compute()
+      call mpas_atm_diag_compute(domain, exchange_halo_group)
       call mpas_timer_stop('diagnostic_fields')
 
       call mpas_dmpar_get_time(diag_stop_time)
@@ -824,7 +827,7 @@ module atm_core
 
          call mpas_timer_start('diagnostic_fields')
          call mpas_atm_diag_update()
-         call mpas_atm_diag_compute()
+         call mpas_atm_diag_compute(domain, exchange_halo_group)
          call mpas_timer_stop('diagnostic_fields')
          call mpas_dmpar_get_time(diag_stop_time)
 

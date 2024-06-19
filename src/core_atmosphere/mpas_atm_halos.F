@@ -29,6 +29,8 @@ module mpas_atm_halos
    character(len=StrKIND), pointer, private :: config_halo_exch_method
    procedure (halo_exchange_routine), pointer :: exchange_halo_group
 
+   ! MC: added logicals for diagnostics packages     
+   logical, pointer :: config_isobaric      
 
    contains
 
@@ -59,6 +61,8 @@ module mpas_atm_halos
       type (domain_type), intent(inout) :: domain
       integer, intent(inout) :: ierr
 
+      ! MC: check for diagnostics packages
+      call mpas_pool_get_config(domain % blocklist % configs, 'config_isobaric', config_isobaric)
       !
       ! Determine from the namelist option config_halo_exch_method which halo exchange method to employ
       !
@@ -174,6 +178,19 @@ module mpas_atm_halos
          call mpas_dmpar_exch_group_add_field(domain, 'physics:cuten', 'rucuten', timeLevel=1, haloLayers=(/1,2/))
          call mpas_dmpar_exch_group_add_field(domain, 'physics:cuten', 'rvcuten', timeLevel=1, haloLayers=(/1,2/))
 #endif
+
+          !
+         ! MC: Set up halo exchange groups used by diagnostics packages
+         !
+
+         ! Isobaric interpolation
+         if (config_isobaric) then
+            call mpas_dmpar_exch_group_create(domain, 'isobaric:pressure_p')
+            call mpas_dmpar_exch_group_add_field(domain, 'isobaric:pressure_p', 'pressure_p', timeLevel=1, haloLayers=(/1,2/))
+
+            call mpas_dmpar_exch_group_create(domain, 'isobaric:vorticity')
+            call mpas_dmpar_exch_group_add_field(domain, 'isobaric:vorticity', 'vorticity', timeLevel=1, haloLayers=(/1,2/))
+         end if
 
          !
          ! Set routine to exchange a halo group
@@ -309,6 +326,21 @@ module mpas_atm_halos
 #endif
 
          !
+         ! MC: Set up halo exchange groups used by diagnostics packages
+         !
+
+         ! Isobaric interpolation
+         if (config_isobaric) then 
+            call mpas_halo_exch_group_create(domain, 'isobaric:pressure_p')
+            call mpas_halo_exch_group_add_field(domain, 'isobaric:pressure_p', 'pressure_p', timeLevel=1, haloLayers=(/1,2/)) 
+            call mpas_halo_exch_group_complete(domain, 'isobaric:pressure_p')
+
+            call mpas_halo_exch_group_create(domain, 'isobaric:vorticity')    
+            call mpas_halo_exch_group_add_field(domain, 'isobaric:vorticity', 'vorticity', timeLevel=1, haloLayers=(/1,2/))               
+            call mpas_halo_exch_group_complete(domain, 'isobaric:vorticity')
+         end if             
+
+         !
          ! Set routine to exchange a halo group
          !
          exchange_halo_group => mpas_halo_exch_group_full_halo_exch
@@ -388,6 +420,14 @@ module mpas_atm_halos
          call mpas_dmpar_exch_group_destroy(domain, 'physics:blten')
          call mpas_dmpar_exch_group_destroy(domain, 'physics:cuten')
 #endif
+         !
+         ! Destroy halo exchange groups used by diagnostics
+         !
+
+         if (config_isobaric) then
+            call mpas_dmpar_exch_group_destroy(domain, 'isobaric:pressure_p')
+            call mpas_dmpar_exch_group_destroy(domain, 'isobaric:vorticity')    
+         end if        
 
       else if (trim(config_halo_exch_method) == 'mpas_halo') then
 
@@ -424,6 +464,14 @@ module mpas_atm_halos
          call mpas_halo_exch_group_destroy(domain, 'physics:blten')
          call mpas_halo_exch_group_destroy(domain, 'physics:cuten')
 #endif
+
+         !
+         ! MC: Destroy halo exchange groups used by diagnostics  
+         !
+         if (config_isobaric) then
+            call mpas_halo_exch_group_destroy(domain, 'isobaric:pressure_p')  
+            call mpas_halo_exch_group_destroy(domain, 'isobaric:vorticity') 
+         end if 
 
          call mpas_halo_finalize(domain)
 

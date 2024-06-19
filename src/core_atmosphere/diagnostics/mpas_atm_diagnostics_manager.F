@@ -7,6 +7,30 @@
 !
 module mpas_atm_diagnostics_manager
 
+    use mpas_derived_types, only : domain_type     
+
+    ! MC: added new halo communication interface here for updated diagnostics
+    !     not sure if this is necessary or is the best approach to using those
+    !     routines in the diagnostics codes, but I didn't know how else to do it. This
+    !     approach essentially propagates modifications to all diag calculation
+    !     calls up to the mpas_atm_core.F code. 
+    !
+    ! Abstract interface for routine used to communicate halos of fields
+    ! in a named group
+    !
+    abstract interface
+       subroutine halo_exchange_routine(domain, halo_group, ierr)
+
+          use mpas_derived_types, only : domain_type
+
+          type (domain_type), intent(inout) :: domain
+          character(len=*), intent(in) :: halo_group
+          integer, intent(out), optional :: ierr
+
+       end subroutine halo_exchange_routine
+    end interface
+
+
     private
 
     public :: mpas_atm_diag_setup, &
@@ -54,7 +78,7 @@ module mpas_atm_diagnostics_manager
         call mpas_atm_diag_utils_init(stream_mgr)
 
         call diagnostic_template_setup(configs, structs, clock)
-        call isobaric_diagnostics_setup(structs, clock)
+        call isobaric_diagnostics_setup(configs, structs, clock)       ! MC modified with configs arg  
         call cloud_diagnostics_setup(structs, clock)
         call convective_diagnostics_setup(structs, clock)
         call pv_diagnostics_setup(structs, clock)
@@ -97,7 +121,7 @@ module mpas_atm_diagnostics_manager
     !>  MPAS_atm_diag_compute.
     !
     !-----------------------------------------------------------------------
-    subroutine mpas_atm_diag_compute()
+    subroutine mpas_atm_diag_compute(domain, exchange_halo_group)
 
         use mpas_diagnostic_template, only : diagnostic_template_compute
         use mpas_isobaric_diagnostics, only : isobaric_diagnostics_compute
@@ -108,9 +132,12 @@ module mpas_atm_diagnostics_manager
 
         implicit none
 
+        type (domain_type), intent(inout) :: domain                  ! MC added
+        procedure (halo_exchange_routine) :: exchange_halo_group     ! MC added
+
 
         call diagnostic_template_compute()
-        call isobaric_diagnostics_compute()
+        call isobaric_diagnostics_compute(domain, exchange_halo_group) ! MC modified for new halo   
         call cloud_diagnostics_compute()
         call convective_diagnostics_compute()
         call pv_diagnostics_compute()
