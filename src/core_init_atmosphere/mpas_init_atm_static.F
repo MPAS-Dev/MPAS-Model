@@ -89,11 +89,14 @@
  ! use module level variables for now...
  !
  integer (kind=I8KIND), dimension(:), pointer :: ter_integer
+ integer (kind=I8KIND), dimension(:,:), pointer :: soilcomp_int
+ real (kind=RKIND) :: soilcomp_msgval = 255.0_RKIND   ! Modified later based on index file for soilcomp
  integer, dimension(:), pointer :: lu_index
  integer, dimension(:), pointer :: soilcat_top
  integer, dimension(:), pointer :: nhs
  integer, dimension(:,:), allocatable:: ncat
- ! Landmask is used by the accumulation function for maxsnoalb so it needs to be a global variable
+ ! Landmask is used by the accumulation function for maxsnoalb and soilcomp,
+ ! so it needs to be a global variable
  integer, dimension(:), pointer :: landmask
 
  integer, pointer :: category_min
@@ -172,8 +175,6 @@
  real (kind=RKIND), dimension(:), pointer :: snoalb
  integer (kind=I8KIND), dimension(:), pointer :: snoalb_integer
  real (kind=RKIND), dimension(:), pointer :: shdmin, shdmax
- real (kind=RKIND), dimension(:), pointer :: soilcl1, soilcl2, soilcl3, soilcl4
- real (kind=RKIND), dimension(:,:), pointer :: soilcomp
  real (kind=RKIND), dimension(:,:), pointer :: greenfrac
  real (kind=RKIND), dimension(:,:), pointer :: albedo12m
  integer (kind=I8KIND), dimension(:,:), pointer :: albedo12m_int
@@ -203,13 +204,6 @@
  integer :: ierr
 
  real(kind=RKIND) :: max_diameter
-
-!--- for SOILCOMP, SOILCL1, SOILCL2, SOILCL3, AND SOILCL3:
- integer:: iPoint
- integer:: iTileStart,iTileEnd,jTileStart,jTileEnd
- real(kind=RKIND):: msgval
- real(kind=RKIND):: start_lat
- real(kind=RKIND):: start_lon
 
 !--------------------------------------------------------------------------------------------------
 
@@ -276,11 +270,6 @@
  call mpas_pool_get_array(mesh, 'albedo12m', albedo12m)
  call mpas_pool_get_array(mesh, 'shdmin', shdmin)
  call mpas_pool_get_array(mesh, 'shdmax', shdmax)
- call mpas_pool_get_array(mesh, 'soilcomp', soilcomp)
- call mpas_pool_get_array(mesh, 'soilcl1', soilcl1)
- call mpas_pool_get_array(mesh, 'soilcl2', soilcl2)
- call mpas_pool_get_array(mesh, 'soilcl3', soilcl3)
- call mpas_pool_get_array(mesh, 'soilcl4', soilcl4)
 
  call mpas_pool_get_config(mesh, 'on_a_sphere', on_a_sphere)
  call mpas_pool_get_config(mesh, 'sphere_radius', sphere_radius)
@@ -1182,402 +1171,53 @@
 
  call mpas_log_write('--- end interpolate ALBEDO12M')
 
-
 !
 ! Interpolate SOILCOMP
 !
- nx = 1206
- ny = 1206
- nz = 8
- isigned     = 0
- endian      = 0
- wordsize    = 1
- scalefactor = 0.5
- msgval      = real(255.0,kind=R4KIND)*real(scalefactor,kind=R4KIND)
- fillval     = 0.0
- allocate(rarray(nx,ny,nz))
- allocate(nhs(nCells))
- nhs(:) = 0
- soilcomp(:,:) = 0.0
-
- rarray_ptr = c_loc(rarray)
-
- start_lat = -89.995833
- start_lon = -179.995833
  geog_sub_path = 'soilgrids/soilcomp/'
-
- do jTileStart = 1,20401,ny-6
-    jTileEnd = jTileStart + ny - 1 - 6
-
-    do iTileStart=1,42001,nx-6
-       iTileEnd = iTileStart + nx - 1 - 6
-       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)//trim(geog_sub_path), &
-                    iTileStart,'-',iTileEnd,'.',jTileStart,'-',jTileEnd
-       call mpas_log_write(trim(fname))
-       call mpas_f_to_c_string(fname, c_fname)
-
-       call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian,wordsize,istatus)
-       call init_atm_check_read_error(istatus,fname)
-       rarray(:,:,:) = rarray(:,:,:)*real(scalefactor,kind=c_float)
-
-       iPoint = 1
-       do j=1,ny-3
-       do i=1,nx-3
-          lat_pt = start_lat + (jTileStart + j - 5) * 0.0083333333
-          lon_pt = start_lon + (iTileStart + i - 5) * 0.0083333333
-          lat_pt = lat_pt * PI / 180.0
-          lon_pt = lon_pt * PI / 180.0
-
-          iPoint = nearest_cell(lat_pt,lon_pt,iPoint,nCells,maxEdges, &
-                                nEdgesOnCell,cellsOnCell, &
-                                latCell,lonCell)
-
-          !
-          ! This field only matters for land cells, and for all but the outermost boundary cells,
-          ! we can safely assume that the nearest model grid cell contains the pixel (else, a different
-          ! cell would be nearest)
-          !
-          if (landmask(iPoint) == 1 .and. bdyMaskCell(iPoint) < nBdyLayers) then
-             do k=1,nz
-                if (rarray(i,j,k) == msgval) then
-                   rarray(i,j,k) = fillval
-                end if
-                soilcomp(k,iPoint) = soilcomp(k,iPoint) + rarray(i,j,k)
-             end do
-             nhs(iPoint) = nhs(iPoint) + 1
-
-          ! For outermost land cells, additional work is needed to verify that the pixel
-          ! actually lies within the nearest cell
-          else if (landmask(iPoint) == 1) then
-             zPixel = sphere_radius * sin(lat_pt)                  ! Model cell coordinates assume a "full" sphere radius
-             xPixel = sphere_radius * cos(lon_pt) * cos(lat_pt)    ! at this point, so we need to ues the same radius
-             yPixel = sphere_radius * sin(lon_pt) * cos(lat_pt)    ! for source pixel coordinates
-
-             if (mpas_in_cell(xPixel, yPixel, zPixel, xCell(iPoint), yCell(iPoint), zCell(iPoint), &
-                         nEdgesOnCell(iPoint), verticesOnCell(:,iPoint), xVertex, yVertex, zVertex)) then
-                do k=1,nz
-                   if (rarray(i,j,k) == msgval) then
-                      rarray(i,j,k) = fillval
-                   end if
-                   soilcomp(k,iPoint) = soilcomp(k,iPoint) + rarray(i,j,k)
-                end do
-                nhs(iPoint) = nhs(iPoint) + 1
-             end if
-          end if
-       end do
-       end do
-
-    end do
-
- end do
-
- do k = 1,nz
-    do iCell = 1,nCells
-       if(nhs(iCell) == 0) then
-          soilcomp(k,iCell) = fillval
-       else
-          soilcomp(k,iCell) = soilcomp(k,iCell) / real(nhs(iCell))
-       endif
-    end do
- end do
- deallocate(rarray)
- deallocate(nhs)
+ call mpas_log_write('--- start interpolate SOILCOMP')
+ call interp_soilcomp(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                     supersample_fac=supersample_fac_30s)
  call mpas_log_write('--- end interpolate SOILCOMP')
-
 
 !
 ! Interpolate SOILCL1
 !
- nx = 1200
- ny = 1200
- nz = 1
- isigned     = 0
- endian      = 0
- wordsize    = 1
- scalefactor = 1.0
- allocate(rarray(nx,ny,nz))
- soilcl1(:) = 0.0
-
- rarray_ptr = c_loc(rarray)
-
- start_lat = -89.995833
- start_lon = -179.995833
  geog_sub_path = 'soilgrids/texture_layer1/'
 
- do jTileStart = 1,20401,ny
-    jTileEnd = jTileStart + ny - 1
-
-    do iTileStart=1,42001,nx
-       iTileEnd = iTileStart + nx - 1
-       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)//trim(geog_sub_path), &
-                    iTileStart,'-',iTileEnd,'.',jTileStart,'-',jTileEnd
-       call mpas_log_write(trim(fname))
-       call mpas_f_to_c_string(fname, c_fname)
-
-       call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian,wordsize,istatus)
-       call init_atm_check_read_error(istatus,fname)
-       rarray(:,:,:) = rarray(:,:,:)*real(scalefactor,kind=c_float)
-
-       iPoint = 1
-       do j=1,ny
-       do i=1,nx
-          lat_pt = start_lat + (jTileStart + j - 2) * 0.0083333333
-          lon_pt = start_lon + (iTileStart + i - 2) * 0.0083333333
-          lat_pt = lat_pt * PI / 180.0
-          lon_pt = lon_pt * PI / 180.0
-
-          iPoint = nearest_cell(lat_pt,lon_pt,iPoint,nCells,maxEdges, &
-                                nEdgesOnCell,cellsOnCell, &
-                                latCell,lonCell)
-
-          !
-          ! For all but the outermost boundary cells, we can safely assume that the nearest
-          ! model grid cell contains the pixel (else, a different cell would be nearest)
-          !
-          if (bdyMaskCell(iPoint) < nBdyLayers) then
-             soilcl1(iPoint) = rarray(i,j,1)
-
-          ! For outermost land cells, additional work is needed to verify that the pixel
-          ! actually lies within the nearest cell
-          else if (landmask(iPoint) == 1) then
-             zPixel = sphere_radius * sin(lat_pt)                  ! Model cell coordinates assume a "full" sphere radius
-             xPixel = sphere_radius * cos(lon_pt) * cos(lat_pt)    ! at this point, so we need to ues the same radius
-             yPixel = sphere_radius * sin(lon_pt) * cos(lat_pt)    ! for source pixel coordinates
-
-             if (mpas_in_cell(xPixel, yPixel, zPixel, xCell(iPoint), yCell(iPoint), zCell(iPoint), &
-                         nEdgesOnCell(iPoint), verticesOnCell(:,iPoint), xVertex, yVertex, zVertex)) then
-                soilcl1(iPoint) = rarray(i,j,1)
-             end if
-          end if
-       end do
-       end do
-
-    end do
-
- end do
- deallocate(rarray)
+ call mpas_log_write('--- start interpolate SOILCL1')
+ call interp_soil_texture('soilcl1', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                          supersample_fac=supersample_fac_30s)
  call mpas_log_write('--- end interpolate SOILCL1')
-
 
 !
 ! Interpolate SOILCL2
 !
- nx = 1200
- ny = 1200
- nz = 1
- isigned     = 0
- endian      = 0
- wordsize    = 1
- scalefactor = 1.0
- allocate(rarray(nx,ny,nz))
- soilcl2(:) = 0.0
-
- rarray_ptr = c_loc(rarray)
-
- start_lat = -89.995833
- start_lon = -179.995833
  geog_sub_path = 'soilgrids/texture_layer2/'
 
- do jTileStart = 1,20401,ny
-    jTileEnd = jTileStart + ny - 1
-
-    do iTileStart=1,42001,nx
-       iTileEnd = iTileStart + nx - 1
-       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)//trim(geog_sub_path), &
-                    iTileStart,'-',iTileEnd,'.',jTileStart,'-',jTileEnd
-       call mpas_log_write(trim(fname))
-       call mpas_f_to_c_string(fname, c_fname)
-
-       call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian,wordsize,istatus)
-       call init_atm_check_read_error(istatus,fname)
-       rarray(:,:,:) = rarray(:,:,:)*real(scalefactor,kind=c_float)
-
-       iPoint = 1
-       do j=1,ny
-       do i=1,nx
-          lat_pt = start_lat + (jTileStart + j - 2) * 0.0083333333
-          lon_pt = start_lon + (iTileStart + i - 2) * 0.0083333333
-          lat_pt = lat_pt * PI / 180.0
-          lon_pt = lon_pt * PI / 180.0
-
-          iPoint = nearest_cell(lat_pt,lon_pt,iPoint,nCells,maxEdges, &
-                                nEdgesOnCell,cellsOnCell, &
-                                latCell,lonCell)
-
-          !
-          ! For all but the outermost boundary cells, we can safely assume that the nearest
-          ! model grid cell contains the pixel (else, a different cell would be nearest)
-          !
-          if (bdyMaskCell(iPoint) < nBdyLayers) then
-             soilcl2(iPoint) = rarray(i,j,1)
-
-          ! For outermost land cells, additional work is needed to verify that the pixel
-          ! actually lies within the nearest cell
-          else if (landmask(iPoint) == 1) then
-             zPixel = sphere_radius * sin(lat_pt)                  ! Model cell coordinates assume a "full" sphere radius
-             xPixel = sphere_radius * cos(lon_pt) * cos(lat_pt)    ! at this point, so we need to ues the same radius
-             yPixel = sphere_radius * sin(lon_pt) * cos(lat_pt)    ! for source pixel coordinates
-
-             if (mpas_in_cell(xPixel, yPixel, zPixel, xCell(iPoint), yCell(iPoint), zCell(iPoint), &
-                         nEdgesOnCell(iPoint), verticesOnCell(:,iPoint), xVertex, yVertex, zVertex)) then
-                soilcl2(iPoint) = rarray(i,j,1)
-             end if
-          end if
-       end do
-       end do
-
-    end do
-
- end do
- deallocate(rarray)
+ call mpas_log_write('--- start interpolate SOILCL2')
+ call interp_soil_texture('soilcl2', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                          supersample_fac=supersample_fac_30s)
  call mpas_log_write('--- end interpolate SOILCL2')
-
 
 !
 ! Interpolate SOILCL3
 !
- nx = 1200
- ny = 1200
- nz = 1
- isigned     = 0
- endian      = 0
- wordsize    = 1
- scalefactor = 1.0
- allocate(rarray(nx,ny,nz))
- soilcl3(:) = 0.0
-
- rarray_ptr = c_loc(rarray)
-
- start_lat = -89.995833
- start_lon = -179.995833
  geog_sub_path = 'soilgrids/texture_layer3/'
 
- do jTileStart = 1,20401,ny
-    jTileEnd = jTileStart + ny - 1
-
-    do iTileStart=1,42001,nx
-       iTileEnd = iTileStart + nx - 1
-       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)//trim(geog_sub_path), &
-                    iTileStart,'-',iTileEnd,'.',jTileStart,'-',jTileEnd
-       call mpas_log_write(trim(fname))
-       call mpas_f_to_c_string(fname, c_fname)
-
-       call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian,wordsize,istatus)
-       call init_atm_check_read_error(istatus,fname)
-       rarray(:,:,:) = rarray(:,:,:)*real(scalefactor,kind=c_float)
-
-       iPoint = 1
-       do j=1,ny
-       do i=1,nx
-          lat_pt = start_lat + (jTileStart + j - 2) * 0.0083333333
-          lon_pt = start_lon + (iTileStart + i - 2) * 0.0083333333
-          lat_pt = lat_pt * PI / 180.0
-          lon_pt = lon_pt * PI / 180.0
-
-          iPoint = nearest_cell(lat_pt,lon_pt,iPoint,nCells,maxEdges, &
-                                nEdgesOnCell,cellsOnCell, &
-                                latCell,lonCell)
-
-          !
-          ! For all but the outermost boundary cells, we can safely assume that the nearest
-          ! model grid cell contains the pixel (else, a different cell would be nearest)
-          !
-          if (bdyMaskCell(iPoint) < nBdyLayers) then
-             soilcl3(iPoint) = rarray(i,j,1)
-
-          ! For outermost land cells, additional work is needed to verify that the pixel
-          ! actually lies within the nearest cell
-          else if (landmask(iPoint) == 1) then
-             zPixel = sphere_radius * sin(lat_pt)                  ! Model cell coordinates assume a "full" sphere radius
-             xPixel = sphere_radius * cos(lon_pt) * cos(lat_pt)    ! at this point, so we need to ues the same radius
-             yPixel = sphere_radius * sin(lon_pt) * cos(lat_pt)    ! for source pixel coordinates
-
-             if (mpas_in_cell(xPixel, yPixel, zPixel, xCell(iPoint), yCell(iPoint), zCell(iPoint), &
-                         nEdgesOnCell(iPoint), verticesOnCell(:,iPoint), xVertex, yVertex, zVertex)) then
-                soilcl3(iPoint) = rarray(i,j,1)
-             end if
-          end if
-       end do
-       end do
-
-    end do
-
- end do
- deallocate(rarray)
+ call mpas_log_write('--- start interpolate SOILCL3')
+ call interp_soil_texture('soilcl3', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                          supersample_fac=supersample_fac_30s)
  call mpas_log_write('--- end interpolate SOILCL3')
-
 
 !
 ! Interpolate SOILCL4
 !
- nx = 1200
- ny = 1200
- nz = 1
- isigned     = 0
- endian      = 0
- wordsize    = 1
- scalefactor = 1.0
- allocate(rarray(nx,ny,nz))
- soilcl4(:) = 0.0
-
- rarray_ptr = c_loc(rarray)
-
- start_lat = -89.995833
- start_lon = -179.995833
  geog_sub_path = 'soilgrids/texture_layer4/'
 
- do jTileStart = 1,20401,ny
-    jTileEnd = jTileStart + ny - 1
-
-    do iTileStart=1,42001,nx
-       iTileEnd = iTileStart + nx - 1
-       write(fname,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(geog_data_path)//trim(geog_sub_path), &
-                    iTileStart,'-',iTileEnd,'.',jTileStart,'-',jTileEnd
-       call mpas_log_write(trim(fname))
-       call mpas_f_to_c_string(fname, c_fname)
-
-       call read_geogrid(c_fname,rarray_ptr,nx,ny,nz,isigned,endian,wordsize,istatus)
-       call init_atm_check_read_error(istatus, fname)
-       rarray(:,:,:) = rarray(:,:,:)*real(scalefactor,kind=c_float)
-
-       iPoint = 1
-       do j=1,ny
-       do i=1,nx
-          lat_pt = start_lat + (jTileStart + j - 2) * 0.0083333333
-          lon_pt = start_lon + (iTileStart + i - 2) * 0.0083333333
-          lat_pt = lat_pt * PI / 180.0
-          lon_pt = lon_pt * PI / 180.0
-
-          iPoint = nearest_cell(lat_pt,lon_pt,iPoint,nCells,maxEdges, &
-                                nEdgesOnCell,cellsOnCell, &
-                                latCell,lonCell)
-
-          !
-          ! For all but the outermost boundary cells, we can safely assume that the nearest
-          ! model grid cell contains the pixel (else, a different cell would be nearest)
-          !
-          if (bdyMaskCell(iPoint) < nBdyLayers) then
-             soilcl4(iPoint) = rarray(i,j,1)
-
-          ! For outermost land cells, additional work is needed to verify that the pixel
-          ! actually lies within the nearest cell
-          else if (landmask(iPoint) == 1) then
-             zPixel = sphere_radius * sin(lat_pt)                  ! Model cell coordinates assume a "full" sphere radius
-             xPixel = sphere_radius * cos(lon_pt) * cos(lat_pt)    ! at this point, so we need to ues the same radius
-             yPixel = sphere_radius * sin(lon_pt) * cos(lat_pt)    ! for source pixel coordinates
-
-             if (mpas_in_cell(xPixel, yPixel, zPixel, xCell(iPoint), yCell(iPoint), zCell(iPoint), &
-                         nEdgesOnCell(iPoint), verticesOnCell(:,iPoint), xVertex, yVertex, zVertex)) then
-                soilcl4(iPoint) = rarray(i,j,1)
-             end if
-          end if
-       end do
-       end do
-
-    end do
-
- end do
- deallocate(rarray)
+ call mpas_log_write('--- start interpolate SOILCL4')
+ call interp_soil_texture('soilcl4', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                          supersample_fac=supersample_fac_30s)
  call mpas_log_write('--- end interpolate SOILCL4')
 
 
@@ -1847,6 +1487,33 @@
 
  !***********************************************************************
  !
+ !  routine soilcomp_interp_accumulation
+ !
+ !> \brief  Accumulate soilcomp dataset values
+ !> \author Michael G. Duda
+ !> \date   31 May 2024
+ !> \details
+ !> This routine accumulates soilcomp values for the init_atm_map_static_data
+ !> routine.
+ !
+ !-----------------------------------------------------------------------
+ subroutine soilcomp_interp_accumulation(iCell, pixel)
+
+     integer, intent(in) ::iCell
+     integer (kind=I8KIND), dimension(:), intent(in) :: pixel
+
+     if (landmask(iCell) == 0) return
+
+     if (pixel(1) /= soilcomp_msgval) then
+         soilcomp_int(:,iCell) = soilcomp_int(:,iCell) + int(pixel(:), kind=I8KIND)
+         nhs(iCell) = nhs(iCell) + 1
+     end if
+
+ end subroutine soilcomp_interp_accumulation
+
+
+ !***********************************************************************
+ !
  !  routine interp_terrain
  !
  !> \brief   Interpolate terrain
@@ -1922,6 +1589,104 @@
     end if
 
  end subroutine interp_terrain
+
+ !***********************************************************************
+ !
+ !  routine interp_soilcomp
+ !
+ !> \brief  Interpolate the soilcomp field for Noah-MP
+ !> \author Michael G. Duda
+ !> \date   31 May 2024
+ !> \details
+ !> Interpolate soilcomp using the init_atm_map_static_data routine,
+ !> accumulating pixel values into cells using the soilcomp_interp_accumulation
+ !> method.
+ !>
+ !> The mesh argument is an mpas_pool that contains soilcomp as well as
+ !> the nCells dimension. kdtree is an initialized kdtree of (xCell, yCell, zCell),
+ !> and geog_data_path specifies the path to the soilcomp dataset.
+ !>
+ !> The supersample_fac argument specifies the supersampling factor to be
+ !> applied to the source dataset.
+ !
+ !-----------------------------------------------------------------------
+ subroutine interp_soilcomp(mesh, kdtree, geog_data_path, supersample_fac)
+
+    implicit none
+
+    ! Input variables
+    type (mpas_pool_type), intent(inout) :: mesh
+    type (mpas_kd_type), pointer, intent(in) :: kdtree
+    character (len=*), intent(in) :: geog_data_path
+    integer, intent(in), optional :: supersample_fac
+
+    ! Local variables
+    type (mpas_geotile_mgr_type) :: mgr
+    integer, pointer :: nCells, nSoilComps
+    real (kind=RKIND), pointer :: scalefactor
+    real (kind=RKIND), pointer :: missing_value
+
+    real (kind=RKIND), dimension(:,:), pointer :: soilcomp
+
+    integer :: iCell
+    integer :: ierr
+
+    ierr = mgr % init(trim(geog_data_path))
+    if (ierr /= 0) then
+        call mpas_log_write('Error occurred initializing interpolation for '//trim(geog_data_path), &
+                            messageType=MPAS_LOG_CRIT)
+
+        return ! Program execution should not reach this statement
+               ! since the preceding message is a critical error
+    end if
+
+    call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+    call mpas_pool_get_dimension(mesh, 'nSoilComps', nSoilComps)
+    call mpas_pool_get_array(mesh, 'soilcomp', soilcomp)
+
+    call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor)
+    call mpas_pool_get_config(mgr % pool, 'missing_value', missing_value)
+
+    soilcomp_msgval = missing_value
+
+    allocate(soilcomp_int(nSoilComps,nCells))
+    allocate(nhs(nCells))
+
+    !
+    ! Store tile values as a I8KIND integer temporarily to avoid floating
+    ! point round off differences and to have +/- 9.22x10^18 range of representative
+    ! values. For example, a 120 km mesh with a 1 meter data set with 6 decimal of
+    ! precision will allow for values of 180x10^12.
+    !
+    soilcomp(:,:) = 0.0
+    soilcomp_int(:,:) = 0
+    nhs(:) = 0
+
+    call init_atm_map_static_data(mesh, mgr, kdtree, continuous_interp_criteria, &
+                                  soilcomp_interp_accumulation, &
+                                  supersample_fac=supersample_fac)
+
+    do iCell = 1, nCells
+       if (nhs(iCell) > 0) then
+           soilcomp(:,iCell) = real(real(soilcomp_int(:,iCell), kind=R8KIND) &
+                                    / real(nhs(iCell), kind=R8KIND), kind=RKIND)
+       end if
+    end do
+    soilcomp(:,:) = soilcomp(:,:) * scalefactor
+
+    deallocate(soilcomp_int)
+    deallocate(nhs)
+
+    ierr = mgr % finalize()
+    if (ierr /= 0) then
+        call mpas_log_write('Error occurred finalizing interpolation for '//trim(geog_data_path), &
+                            messageType=MPAS_LOG_CRIT)
+
+        return ! Program execution should not reach this statement
+               ! since the preceding message is a critical error
+    end if
+
+ end subroutine interp_soilcomp
 
 !--------------------------------------------------------------------------------------------------
 ! Categorical interpolations - Landuse and Soiltype
@@ -2307,6 +2072,85 @@
      deallocate(soiltemp_1deg)
 
  end subroutine interp_soiltemp
+
+ !***********************************************************************
+ !
+ !  routine interp_soil_texture
+ !
+ !> \brief  Interpolate soil texture category for Noah-MP
+ !> \author Michael G. Duda
+ !> \date   31 May 2024
+ !> \details
+ !>  Interpolate soil texture category fields by using the init_atm_map_static_data
+ !>  routine, accumulating the pixel values into each cell using
+ !>  categorical_interp_accumulation.
+ !>
+ !>  The fieldname argument specifies the specific soil texture category
+ !>  field from the mesh pool onto which the dataset specified by geog_data_path
+ !>  should be remapped.
+ !>
+ !>  The mesh argument is an mpas_pool_type that contains the specified fieldname,
+ !>  kdtree is an initialized mpas_kd_type tree with (xCell, yCell, zCell), and
+ !>  supersample_fac is the supersampling factor to be applied to the source dataset.
+ !>
+ !-----------------------------------------------------------------------
+ subroutine interp_soil_texture(fieldname, mesh, kdtree, geog_data_path, supersample_fac)
+
+     implicit none
+
+     ! Input variables
+     character (len=*), intent(in) :: fieldname
+     type (mpas_pool_type), intent(inout) :: mesh
+     type (mpas_kd_type), pointer, intent(in) :: kdtree
+     character (len=*), intent(in) :: geog_data_path
+     integer, intent(in), optional :: supersample_fac
+
+     ! Local variables
+     real, dimension(:), pointer :: soilclx
+     type (mpas_geotile_mgr_type) :: mgr
+     integer, pointer :: nCells
+
+     integer :: iCell
+     integer :: ierr
+
+     ierr = mgr % init(trim(geog_data_path))
+     if (ierr /= 0) then
+         call mpas_log_write('Error occured initalizing interpolation for '//trim(geog_data_path), &
+                             messageType=MPAS_LOG_CRIT)
+         return
+     end if
+
+     call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+     call mpas_pool_get_array(mesh, trim(fieldname), soilclx)
+     call mpas_pool_get_config(mgr % pool, 'category_min', category_min)
+     call mpas_pool_get_config(mgr % pool, 'category_max', category_max)
+
+     allocate(ncat(category_min:category_max, nCells))
+     ncat(:,:) = 0
+
+     call init_atm_map_static_data(mesh, mgr, kdtree, categorical_interp_criteria, &
+                                   categorical_interp_accumulation, &
+                                   supersample_fac=supersample_fac)
+
+     do iCell = 1, nCells
+        ! Because maxloc returns the location of the maximum value of an array as if the
+        ! starting index of the array is 1, and dataset categories do not necessarily start
+        ! at 1, we need to use category_min to ensure the correct category location is chosen.
+        soilclx(iCell) = real(maxloc(ncat(:,iCell), dim=1) - 1 + category_min, kind=RKIND)
+     end do
+     deallocate(ncat)
+
+     ierr = mgr % finalize()
+     if (ierr /= 0) then
+         call mpas_log_write('Error occured finalizing interpolation for '//trim(geog_data_path), &
+                             messageType=MPAS_LOG_CRIT)
+         return
+     end if
+
+     nullify(category_min)
+     nullify(category_max)
+
+ end subroutine interp_soil_texture
 
 !==================================================================================================
  subroutine init_atm_check_read_error(istatus, fname)
