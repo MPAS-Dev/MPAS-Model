@@ -66,9 +66,11 @@
 
         <!-- Other variables -->
         <var name="mslp" type="real" dimensions="nCells Time" units="Pa"
-             description="Mean sea-level pressure"/>
-
+             description="Mean sea-level pressure"
+             packages="isobaric"/>      
+        
         <var name="meanT_500_300"    type="real" dimensions="nCells Time" units="K"
-             description="Mean temperature in the 500-300 hPa layer"/>
+             description="Mean temperature in the 500-300 hPa layer"
+             packages="isobaric"/>      
 
 </var_struct>
