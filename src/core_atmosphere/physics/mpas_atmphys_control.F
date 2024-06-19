@@ -78,6 +78,9 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2022-02-18.
 ! * added the option "sf_noahmp" to run the NOAH-MP land surface scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2022-07-15.
+! * in the mesoscale_reference suite, replaced the MM5 surface layer scheme with the MM5 revised surface layer
+!   scheme as the default option for config_sfclayer_scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2024-06-18.
 
 
  contains
@@ -132,7 +135,7 @@
     if (trim(config_radt_lw_scheme)    == 'suite') config_radt_lw_scheme    = 'rrtmg_lw'
     if (trim(config_radt_sw_scheme)    == 'suite') config_radt_sw_scheme    = 'rrtmg_sw'
     if (trim(config_radt_cld_scheme)   == 'suite') config_radt_cld_scheme   = 'cld_fraction'
-    if (trim(config_sfclayer_scheme)   == 'suite') config_sfclayer_scheme   = 'sf_monin_obukhov'
+    if (trim(config_sfclayer_scheme)   == 'suite') config_sfclayer_scheme   = 'sf_monin_obukhov_rev'
     if (trim(config_lsm_scheme)        == 'suite') config_lsm_scheme        = 'sf_noah'
 
  else if (trim(config_physics_suite) == 'convection_permitting') then
