@@ -211,9 +211,9 @@ module atm_core_interface
 #endif
 
 
-      ! MC ADDED
-      ! Tendency and PV diagnostics
-      !
+      ! 
+      ! Diagnostics packages
+      ! MC added
       local_ierr = diagnostics_setup_packages(configs, packages, iocontext)
       if (local_ierr /= 0) then
          ierr = ierr + 1
