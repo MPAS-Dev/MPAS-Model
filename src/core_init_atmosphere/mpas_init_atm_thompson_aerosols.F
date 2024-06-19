@@ -719,15 +719,16 @@
  end subroutine init_hinterp_gocart
  
 !=================================================================================================================
- subroutine init_atm_thompson_aerosols_lbc(timestamp,mesh,diag,state,lbc_state)
+ subroutine init_atm_thompson_aerosols_lbc(timestamp,timestart,block,mesh,diag,state,lbc_state)
 !=================================================================================================================
 
 !input arguments:
- character(len=StrKIND),intent(in):: timestamp
+ character(len=StrKIND),intent(in):: timestart,timestamp
  type(mpas_pool_type),intent(in):: diag
  type(mpas_pool_type),intent(in):: state
 
 !inout arguments:
+ type(block_type),intent(inout),target:: block
  type(mpas_pool_type),intent(inout):: mesh
  type(mpas_pool_type),intent(inout):: lbc_state
 
@@ -757,6 +758,13 @@
  filename_gocart = "QNWFA_QNIFA_SIGMA_MONTHLY.dat"
  inquire(file=filename_gocart,exist=lexist)
  if(.not. lexist) return
+
+
+!horizontally interpolate GOCART input when computing when the initial conditions at start time:
+ if(timestamp == timestart) then
+    call init_hinterp_gocart(block,mesh)
+ endif
+
 
  call mpas_pool_get_dimension(mesh,'nCells'       ,nCells       )
  call mpas_pool_get_dimension(mesh,'nGocartLevels',nGocartLevels)

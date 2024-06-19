@@ -79,7 +79,7 @@ module init_atm_cases
       type (MPAS_Time_type)  :: curr_time, stop_time, start_time
       type (MPAS_TimeInterval_type)  :: clock_interval, lbc_stream_interval, surface_stream_interval
       type (MPAS_TimeInterval_type)  :: time_since_start
-      character(len=StrKIND) :: timeString
+      character(len=StrKIND) :: timeStart,timeString
 
       integer, pointer :: nCells
       integer, pointer :: nEdges
@@ -329,7 +329,9 @@ module init_atm_cases
 
                call init_atm_case_lbc(timeString, block_ptr, mesh, nCells, nEdges, nVertLevels, fg, state, &
                                       diag, lbc_state, block_ptr % dimensions, block_ptr % configs)
-               call init_atm_thompson_aerosols_lbc(timeString, mesh, diag, state, lbc_state)
+
+               call mpas_get_time(start_time, dateTimeString=timeStart)
+               call init_atm_thompson_aerosols_lbc(timeString, timeStart, block_ptr, mesh, diag, state, lbc_state)
 
                block_ptr => block_ptr % next
             end do
