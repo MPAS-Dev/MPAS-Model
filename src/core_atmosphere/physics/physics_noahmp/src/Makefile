@@ -1,5 +1,11 @@
 .SUFFIXES: .F90 .o
 
+#
+# The Noah-MP code fails to build with the GNU compilers with -std=f2008,
+# so remove that flag here if it is present in FFLAGS
+#
+FFLAGS_NONSTD = $(shell printf "%s" "$(FFLAGS)" | sed -e 's/-std=f2008//g' )
+
 all: dummy src
 
 dummy:
@@ -337,5 +343,5 @@ clean:
 	$(RM) *.i
 
 .F90.o:
-	$(FC) $(CPPFLAGS) $(COREDEF) $(FFLAGS) -c $*.F90 $(CPPINCLUDES) $(FCINCLUDES) -I../utility -I../../../../framework
+	$(FC) $(CPPFLAGS) $(COREDEF) $(FFLAGS_NONSTD) -c $*.F90 $(CPPINCLUDES) $(FCINCLUDES) -I../utility -I../../../../framework
 
