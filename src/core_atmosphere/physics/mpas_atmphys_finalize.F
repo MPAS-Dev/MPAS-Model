@@ -49,8 +49,10 @@
  if(trim(config_lsm_scheme) == 'sf_noahmp') &
     call sf_noahmp_deallocate
 
- if(trim(config_microp_scheme) == 'mp_thompson') &
+ if(trim(config_microp_scheme) == 'mp_thompson'         .or. &
+    trim(config_microp_scheme) == 'mp_thompson_aerosols') then
     call mp_thompson_deallocate
+ endif
 
  end subroutine atmphys_finalize
 

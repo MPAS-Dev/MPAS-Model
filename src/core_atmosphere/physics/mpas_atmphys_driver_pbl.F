@@ -127,60 +127,61 @@
 
     case("bl_ysu")
        !from surface-layer model:
-       if(.not.allocated(br_p)          ) allocate(br_p(ims:ime,jms:jme)                )
-       if(.not.allocated(ctopo_p)       ) allocate(ctopo_p(ims:ime,jms:jme)             )
-       if(.not.allocated(ctopo2_p)      ) allocate(ctopo2_p(ims:ime,jms:jme)            )
-       if(.not.allocated(delta_p)       ) allocate(delta_p(ims:ime,jms:jme)             )
-       if(.not.allocated(psih_p)        ) allocate(psih_p(ims:ime,jms:jme)              )
-       if(.not.allocated(psim_p)        ) allocate(psim_p(ims:ime,jms:jme)              )
-       if(.not.allocated(u10_p)         ) allocate(u10_p(ims:ime,jms:jme)               )
-       if(.not.allocated(v10_p)         ) allocate(v10_p(ims:ime,jms:jme)               )
-       if(.not.allocated(exch_p)        ) allocate(exch_p(ims:ime,kms:kme,jms:jme)      )
-       if(.not.allocated(wstar_p)       ) allocate(wstar_p(ims:ime,jms:jme)             )
+       if(.not.allocated(br_p)    ) allocate(br_p(ims:ime,jms:jme)          )
+       if(.not.allocated(ctopo_p) ) allocate(ctopo_p(ims:ime,jms:jme)       )
+       if(.not.allocated(ctopo2_p)) allocate(ctopo2_p(ims:ime,jms:jme)      )
+       if(.not.allocated(delta_p) ) allocate(delta_p(ims:ime,jms:jme)       )
+       if(.not.allocated(psih_p)  ) allocate(psih_p(ims:ime,jms:jme)        )
+       if(.not.allocated(psim_p)  ) allocate(psim_p(ims:ime,jms:jme)        )
+       if(.not.allocated(u10_p)   ) allocate(u10_p(ims:ime,jms:jme)         )
+       if(.not.allocated(v10_p)   ) allocate(v10_p(ims:ime,jms:jme)         )
+       if(.not.allocated(exch_p)  ) allocate(exch_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(wstar_p) ) allocate(wstar_p(ims:ime,jms:jme)       )
 
     case("bl_mynn")
-       if(.not.allocated(kbl_plume_p)   ) allocate(kbl_plume_p(ims:ime,jms:jme)         )
-
-       if(.not.allocated(dx_p)          ) allocate(dx_p(ims:ime,jms:jme)                )
-       if(.not.allocated(ch_p)          ) allocate(ch_p(ims:ime,jms:jme)                )
-       if(.not.allocated(qsfc_p)        ) allocate(qsfc_p(ims:ime,jms:jme)              )
-       if(.not.allocated(rmol_p)        ) allocate(rmol_p(ims:ime,jms:jme)              )
-       if(.not.allocated(tsk_p)         ) allocate(tsk_p(ims:ime,jms:jme)               )
-       if(.not.allocated(maxwidthbl_p)  ) allocate(maxwidthbl_p(ims:ime,jms:jme)        )
-       if(.not.allocated(maxmfbl_p)     ) allocate(maxmfbl_p(ims:ime,jms:jme)           )
-       if(.not.allocated(zbl_plume_p)   ) allocate(zbl_plume_p(ims:ime,jms:jme)         )
-
-       if(.not.allocated(cov_p)         ) allocate(cov_p(ims:ime,kms:kme,jms:jme)       )
-       if(.not.allocated(qke_p)         ) allocate(qke_p(ims:ime,kms:kme,jms:jme)       )
-       if(.not.allocated(qsq_p)         ) allocate(qsq_p(ims:ime,kms:kme,jms:jme)       )
-       if(.not.allocated(tsq_p)         ) allocate(tsq_p(ims:ime,kms:kme,jms:jme)       )
-       if(.not.allocated(qkeadv_p)      ) allocate(qkeadv_p(ims:ime,kms:kme,jms:jme)    )
-       if(.not.allocated(elpbl_p)       ) allocate(elpbl_p(ims:ime,kms:kme,jms:jme)     )
-       if(.not.allocated(tkepbl_p)      ) allocate(tkepbl_p(ims:ime,kms:kme,jms:jme)    )
-       if(.not.allocated(sh3d_p)        ) allocate(sh3d_p(ims:ime,kms:kme,jms:jme)      )
-       if(.not.allocated(sm3d_p)        ) allocate(sm3d_p(ims:ime,kms:kme,jms:jme)      )
-       if(.not.allocated(dqke_p)        ) allocate(dqke_p(ims:ime,kms:kme,jms:jme)      )
-       if(.not.allocated(qbuoy_p)       ) allocate(qbuoy_p(ims:ime,kms:kme,jms:jme)     )
-       if(.not.allocated(qdiss_p)       ) allocate(qdiss_p(ims:ime,kms:kme,jms:jme)     )
-       if(.not.allocated(qshear_p)      ) allocate(qshear_p(ims:ime,kms:kme,jms:jme)    )
-       if(.not.allocated(qwt_p)         ) allocate(qwt_p(ims:ime,kms:kme,jms:jme)       )
-       if(.not.allocated(qcbl_p)        ) allocate(qcbl_p(ims:ime,kms:kme,jms:jme)      )
-       if(.not.allocated(qibl_p)        ) allocate(qibl_p(ims:ime,kms:kme,jms:jme)      )
-       if(.not.allocated(cldfrabl_p)    ) allocate(cldfrabl_p(ims:ime,kms:kme,jms:jme)  )
-       if(.not.allocated(edmfa_p)       ) allocate(edmfa_p(ims:ime,kms:kme,jms:jme)     )
-       if(.not.allocated(edmfw_p)       ) allocate(edmfw_p(ims:ime,kms:kme,jms:jme)     )
-       if(.not.allocated(edmfqt_p)      ) allocate(edmfqt_p(ims:ime,kms:kme,jms:jme)    )
-       if(.not.allocated(edmfthl_p)     ) allocate(edmfthl_p(ims:ime,kms:kme,jms:jme)   )
-       if(.not.allocated(edmfent_p)     ) allocate(edmfent_p(ims:ime,kms:kme,jms:jme)   )
-       if(.not.allocated(edmfqc_p)      ) allocate(edmfqc_p(ims:ime,kms:kme,jms:jme)    )
-       if(.not.allocated(subthl_p)      ) allocate(subthl_p(ims:ime,kms:kme,jms:jme)    )
-       if(.not.allocated(subqv_p)       ) allocate(subqv_p(ims:ime,kms:kme,jms:jme)     )
-       if(.not.allocated(detthl_p)      ) allocate(detthl_p(ims:ime,kms:kme,jms:jme)    )
-       if(.not.allocated(detqv_p)       ) allocate(detqv_p(ims:ime,kms:kme,jms:jme)     )
+       if(.not.allocated(kbl_plume_p) ) allocate(kbl_plume_p(ims:ime,jms:jme)         )
+       if(.not.allocated(dx_p)        ) allocate(dx_p(ims:ime,jms:jme)                )
+       if(.not.allocated(ch_p)        ) allocate(ch_p(ims:ime,jms:jme)                )
+       if(.not.allocated(qsfc_p)      ) allocate(qsfc_p(ims:ime,jms:jme)              )
+       if(.not.allocated(rmol_p)      ) allocate(rmol_p(ims:ime,jms:jme)              )
+       if(.not.allocated(tsk_p)       ) allocate(tsk_p(ims:ime,jms:jme)               )
+       if(.not.allocated(maxwidthbl_p)) allocate(maxwidthbl_p(ims:ime,jms:jme)        )
+       if(.not.allocated(maxmfbl_p)   ) allocate(maxmfbl_p(ims:ime,jms:jme)           )
+       if(.not.allocated(zbl_plume_p) ) allocate(zbl_plume_p(ims:ime,jms:jme)         )
+       if(.not.allocated(cov_p)       ) allocate(cov_p(ims:ime,kms:kme,jms:jme)       )
+       if(.not.allocated(qke_p)       ) allocate(qke_p(ims:ime,kms:kme,jms:jme)       )
+       if(.not.allocated(qsq_p)       ) allocate(qsq_p(ims:ime,kms:kme,jms:jme)       )
+       if(.not.allocated(tsq_p)       ) allocate(tsq_p(ims:ime,kms:kme,jms:jme)       )
+       if(.not.allocated(qkeadv_p)    ) allocate(qkeadv_p(ims:ime,kms:kme,jms:jme)    )
+       if(.not.allocated(elpbl_p)     ) allocate(elpbl_p(ims:ime,kms:kme,jms:jme)     )
+       if(.not.allocated(tkepbl_p)    ) allocate(tkepbl_p(ims:ime,kms:kme,jms:jme)    )
+       if(.not.allocated(sh3d_p)      ) allocate(sh3d_p(ims:ime,kms:kme,jms:jme)      )
+       if(.not.allocated(sm3d_p)      ) allocate(sm3d_p(ims:ime,kms:kme,jms:jme)      )
+       if(.not.allocated(dqke_p)      ) allocate(dqke_p(ims:ime,kms:kme,jms:jme)      )
+       if(.not.allocated(qbuoy_p)     ) allocate(qbuoy_p(ims:ime,kms:kme,jms:jme)     )
+       if(.not.allocated(qdiss_p)     ) allocate(qdiss_p(ims:ime,kms:kme,jms:jme)     )
+       if(.not.allocated(qshear_p)    ) allocate(qshear_p(ims:ime,kms:kme,jms:jme)    )
+       if(.not.allocated(qwt_p)       ) allocate(qwt_p(ims:ime,kms:kme,jms:jme)       )
+       if(.not.allocated(qcbl_p)      ) allocate(qcbl_p(ims:ime,kms:kme,jms:jme)      )
+       if(.not.allocated(qibl_p)      ) allocate(qibl_p(ims:ime,kms:kme,jms:jme)      )
+       if(.not.allocated(cldfrabl_p)  ) allocate(cldfrabl_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(edmfa_p)     ) allocate(edmfa_p(ims:ime,kms:kme,jms:jme)     )
+       if(.not.allocated(edmfw_p)     ) allocate(edmfw_p(ims:ime,kms:kme,jms:jme)     )
+       if(.not.allocated(edmfqt_p)    ) allocate(edmfqt_p(ims:ime,kms:kme,jms:jme)    )
+       if(.not.allocated(edmfthl_p)   ) allocate(edmfthl_p(ims:ime,kms:kme,jms:jme)   )
+       if(.not.allocated(edmfent_p)   ) allocate(edmfent_p(ims:ime,kms:kme,jms:jme)   )
+       if(.not.allocated(edmfqc_p)    ) allocate(edmfqc_p(ims:ime,kms:kme,jms:jme)    )
+       if(.not.allocated(subthl_p)    ) allocate(subthl_p(ims:ime,kms:kme,jms:jme)    )
+       if(.not.allocated(subqv_p)     ) allocate(subqv_p(ims:ime,kms:kme,jms:jme)     )
+       if(.not.allocated(detthl_p)    ) allocate(detthl_p(ims:ime,kms:kme,jms:jme)    )
+       if(.not.allocated(detqv_p)     ) allocate(detqv_p(ims:ime,kms:kme,jms:jme)     )
 
        !additional tendencies:
-       if(.not.allocated(rqsblten_p)    ) allocate(rqsblten_p(ims:ime,kms:kme,jms:jme)  )
-       if(.not.allocated(rniblten_p)    ) allocate(rniblten_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(rqsblten_p)  ) allocate(rqsblten_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(rncblten_p)  ) allocate(rncblten_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(rniblten_p)  ) allocate(rniblten_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(rnifablten_p)) allocate(rnifablten_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(rnwfablten_p)) allocate(rnwfablten_p(ims:ime,kms:kme,jms:jme))
 
        !allocation of additional arrays:
        if(.not.allocated(pattern_spp_pbl)) allocate(pattern_spp_pbl(ims:ime,kms:kme,jms:jme))
@@ -235,60 +236,62 @@
 
     case("bl_ysu")
        !from surface-layer model:
-       if(allocated(br_p)          ) deallocate(br_p          )
-       if(allocated(ctopo_p)       ) deallocate(ctopo_p       )
-       if(allocated(ctopo2_p)      ) deallocate(ctopo2_p      )
-       if(allocated(delta_p)       ) deallocate(delta_p       )
-       if(allocated(psih_p)        ) deallocate(psih_p        )
-       if(allocated(psim_p)        ) deallocate(psim_p        )
-       if(allocated(u10_p)         ) deallocate(u10_p         )
-       if(allocated(v10_p)         ) deallocate(v10_p         )
-       if(allocated(exch_p)        ) deallocate(exch_p        )
-       if(allocated(wstar_p)       ) deallocate(wstar_p       )
+       if(allocated(br_p)    ) deallocate(br_p    )
+       if(allocated(ctopo_p) ) deallocate(ctopo_p )
+       if(allocated(ctopo2_p)) deallocate(ctopo2_p)
+       if(allocated(delta_p) ) deallocate(delta_p )
+       if(allocated(psih_p)  ) deallocate(psih_p  )
+       if(allocated(psim_p)  ) deallocate(psim_p  )
+       if(allocated(u10_p)   ) deallocate(u10_p   )
+       if(allocated(v10_p)   ) deallocate(v10_p   )
+       if(allocated(exch_p)  ) deallocate(exch_p  )
+       if(allocated(wstar_p) ) deallocate(wstar_p )
 
     case("bl_mynn")
-       if(allocated(kbl_plume_p)   ) deallocate(kbl_plume_p   )
+       if(allocated(kbl_plume_p) ) deallocate(kbl_plume_p )
+       if(allocated(dx_p)        ) deallocate(dx_p        )
+       if(allocated(ch_p)        ) deallocate(ch_p        )
+       if(allocated(qsfc_p)      ) deallocate(qsfc_p      )
+       if(allocated(rmol_p)      ) deallocate(rmol_p      )
+       if(allocated(tsk_p)       ) deallocate(tsk_p       )
+       if(allocated(maxwidthbl_p)) deallocate(maxwidthbl_p)
+       if(allocated(maxmfbl_p)   ) deallocate(maxmfbl_p   )
+       if(allocated(zbl_plume_p) ) deallocate(zbl_plume_p )
 
-       if(allocated(dx_p)          ) deallocate(dx_p          )
-       if(allocated(ch_p)          ) deallocate(ch_p          )
-       if(allocated(qsfc_p)        ) deallocate(qsfc_p        )
-       if(allocated(rmol_p)        ) deallocate(rmol_p        )
-       if(allocated(tsk_p)         ) deallocate(tsk_p         )
-       if(allocated(maxwidthbl_p)  ) deallocate(maxwidthbl_p  )
-       if(allocated(maxmfbl_p)     ) deallocate(maxmfbl_p     )
-       if(allocated(zbl_plume_p)   ) deallocate(zbl_plume_p   )
-
-       if(allocated(cov_p)         ) deallocate(cov_p         )
-       if(allocated(qke_p)         ) deallocate(qke_p         )
-       if(allocated(qsq_p)         ) deallocate(qsq_p         )
-       if(allocated(tsq_p)         ) deallocate(tsq_p         )
-       if(allocated(qkeadv_p)      ) deallocate(qkeadv_p      )
-       if(allocated(elpbl_p)       ) deallocate(elpbl_p       )
-       if(allocated(tkepbl_p)      ) deallocate(tkepbl_p      )
-       if(allocated(sh3d_p)        ) deallocate(sh3d_p        )
-       if(allocated(sm3d_p)        ) deallocate(sm3d_p        )
-       if(allocated(dqke_p)        ) deallocate(dqke_p        )
-       if(allocated(qbuoy_p)       ) deallocate(qbuoy_p       )
-       if(allocated(qdiss_p)       ) deallocate(qdiss_p       )
-       if(allocated(qshear_p)      ) deallocate(qshear_p      )
-       if(allocated(qwt_p)         ) deallocate(qwt_p         )
-       if(allocated(qcbl_p)        ) deallocate(qcbl_p        )
-       if(allocated(qibl_p)        ) deallocate(qibl_p        )
-       if(allocated(cldfrabl_p)    ) deallocate(cldfrabl_p    )
-       if(allocated(edmfa_p)       ) deallocate(edmfa_p       )
-       if(allocated(edmfw_p)       ) deallocate(edmfw_p       )
-       if(allocated(edmfqt_p)      ) deallocate(edmfqt_p      )
-       if(allocated(edmfthl_p)     ) deallocate(edmfthl_p     )
-       if(allocated(edmfent_p)     ) deallocate(edmfent_p     )
-       if(allocated(edmfqc_p)      ) deallocate(edmfqc_p      )
-       if(allocated(subthl_p)      ) deallocate(subthl_p      )
-       if(allocated(subqv_p)       ) deallocate(subqv_p       )
-       if(allocated(detthl_p)      ) deallocate(detthl_p      )
-       if(allocated(detqv_p)       ) deallocate(detqv_p       )
+       if(allocated(cov_p)       ) deallocate(cov_p       )
+       if(allocated(qke_p)       ) deallocate(qke_p       )
+       if(allocated(qsq_p)       ) deallocate(qsq_p       )
+       if(allocated(tsq_p)       ) deallocate(tsq_p       )
+       if(allocated(qkeadv_p)    ) deallocate(qkeadv_p    )
+       if(allocated(elpbl_p)     ) deallocate(elpbl_p     )
+       if(allocated(tkepbl_p)    ) deallocate(tkepbl_p    )
+       if(allocated(sh3d_p)      ) deallocate(sh3d_p      )
+       if(allocated(sm3d_p)      ) deallocate(sm3d_p      )
+       if(allocated(dqke_p)      ) deallocate(dqke_p      )
+       if(allocated(qbuoy_p)     ) deallocate(qbuoy_p     )
+       if(allocated(qdiss_p)     ) deallocate(qdiss_p     )
+       if(allocated(qshear_p)    ) deallocate(qshear_p    )
+       if(allocated(qwt_p)       ) deallocate(qwt_p       )
+       if(allocated(qcbl_p)      ) deallocate(qcbl_p      )
+       if(allocated(qibl_p)      ) deallocate(qibl_p      )
+       if(allocated(cldfrabl_p)  ) deallocate(cldfrabl_p  )
+       if(allocated(edmfa_p)     ) deallocate(edmfa_p     )
+       if(allocated(edmfw_p)     ) deallocate(edmfw_p     )
+       if(allocated(edmfqt_p)    ) deallocate(edmfqt_p    )
+       if(allocated(edmfthl_p)   ) deallocate(edmfthl_p   )
+       if(allocated(edmfent_p)   ) deallocate(edmfent_p   )
+       if(allocated(edmfqc_p)    ) deallocate(edmfqc_p    )
+       if(allocated(subthl_p)    ) deallocate(subthl_p    )
+       if(allocated(subqv_p)     ) deallocate(subqv_p     )
+       if(allocated(detthl_p)    ) deallocate(detthl_p    )
+       if(allocated(detqv_p)     ) deallocate(detqv_p     )
 
        !additional tendencies:
-       if(allocated(rqsblten_p)    ) deallocate(rqsblten_p    )
-       if(allocated(rniblten_p)    ) deallocate(rniblten_p    )
+       if(allocated(rqsblten_p)  ) deallocate(rqsblten_p  )
+       if(allocated(rncblten_p)  ) deallocate(rncblten_p  )
+       if(allocated(rniblten_p)  ) deallocate(rniblten_p  )
+       if(allocated(rnifablten_p)) deallocate(rnifablten_p)
+       if(allocated(rnwfablten_p)) deallocate(rnwfablten_p)
 
        !deallocation of additional arrays:
        if(allocated(pattern_spp_pbl)) deallocate(pattern_spp_pbl)
@@ -485,8 +488,11 @@
           qshear_p(i,k,j)   = 0._RKIND
           qwt_p(i,k,j)      = 0._RKIND
 
-          rqsblten_p(i,k,j) = 0._RKIND
-          rniblten_p(i,k,j) = 0._RKIND
+          rqsblten_p(i,k,j)   = 0._RKIND
+          rncblten_p(i,k,j)   = 0._RKIND
+          rniblten_p(i,k,j)   = 0._RKIND
+          rnifablten_p(i,k,j) = 0._RKIND
+          rnwfablten_p(i,k,j) = 0._RKIND
 
           pattern_spp_pbl(i,k,j) = 0._RKIND
        enddo
@@ -546,7 +552,7 @@
  real(kind=RKIND),dimension(:),pointer  :: hpbl
  real(kind=RKIND),dimension(:,:),pointer:: kzh,kzm,kzq
  real(kind=RKIND),dimension(:,:),pointer:: rublten,rvblten,rthblten,rqvblten,rqcblten,rqiblten,rqsblten
- real(kind=RKIND),dimension(:,:),pointer:: rniblten
+ real(kind=RKIND),dimension(:,:),pointer:: rncblten,rniblten,rnifablten,rnwfablten
 
 !local pointers for YSU scheme:
  real(kind=RKIND),dimension(:,:),pointer:: exch_h
@@ -649,7 +655,6 @@
        call mpas_pool_get_array(diag_physics,'det_qv'    ,det_qv    )
 
        call mpas_pool_get_array(tend_physics,'rqsblten'  ,rqsblten  )
-       call mpas_pool_get_array(tend_physics,'rniblten'  ,rniblten  )
 
        do j = jts,jte
        do k = kts,kte
@@ -683,10 +688,34 @@
           qwt(k,i)        = qwt_p(i,k,j)
 
           rqsblten(k,i)   = rqsblten_p(i,k,j)
-          rniblten(k,i)   = rniblten_p(i,k,j)
        enddo
        enddo
        enddo
+
+       if(f_ni) then
+          call mpas_pool_get_array(tend_physics,'rniblten',rniblten)
+          do j = jts,jte
+             do k = kts,kte
+                do i = its,ite
+                   rniblten(k,i) = rniblten_p(i,k,j)
+                enddo
+             enddo
+          enddo
+       endif
+       if(f_nc .and. f_nifa .and. f_nwfa) then
+          call mpas_pool_get_array(tend_physics,'rncblten'  ,rncblten  )
+          call mpas_pool_get_array(tend_physics,'rnifablten',rnifablten)
+          call mpas_pool_get_array(tend_physics,'rnwfablten',rnwfablten)
+          do j = jts,jte
+             do k = kts,kte
+                do i = its,ite
+                   rncblten(k,i)   = rncblten_p(i,k,j)
+                   rnifablten(k,i) = rnifablten_p(i,k,j)
+                   rnwfablten(k,i) = rnwfablten_p(i,k,j)
+                enddo
+             enddo
+          enddo
+       endif
 
     case default
 
@@ -713,10 +742,10 @@
  pbl_select: select case (trim(pbl_scheme))
 
     case("bl_mynn")
-       call mpas_log_write('--- enter subroutine bl_mynn_init:')
+!      call mpas_log_write('--- enter subroutine bl_mynn_init:')
        call bl_mynn_init(cp,cpv,cice,cliq,ep_1,ep_2,gravity,karman,P0,R_d,R_v,svp1,svp2,svp3,svpt0, &
                          xlf,xls,xlv,errmsg,errflg)
-       call mpas_log_write('--- end subroutine bl_mynn_mpas_init:')
+!      call mpas_log_write('--- end subroutine bl_mynn_init:')
 
     case default
 
@@ -873,58 +902,60 @@
 
        call mpas_timer_start('bl_mynn')
        call mynn_bl_driver( &
-                  f_qc       = f_qc         , f_qi     = f_qi       , f_qs        = f_qs             , &
-                  f_qoz      = f_qoz        , f_nc     = f_nc       , f_ni        = f_ni             , &
-                  f_nifa     = f_nifa       , f_nwfa   = f_nwfa     , f_nbca      = f_nbca           , &
-                  icloud_bl  = icloud_bl    , delt     = dt_pbl     , dx          = dx_p             , &
-                  xland      = xland_p      , ps       = psfc_p     , ts          = tsk_p            , &
-                  qsfc       = qsfc_p       , ust      = ust_p      , ch          = ch_p             , &
-                  hfx        = hfx_p        , qfx      = qfx_p      , rmol        = rmol_p           , &
-                  wspd       = wspd_p       , znt      = znt_p      , uoce        = uoce_p           , &
-                  voce       = voce_p       , dz       = dz_p       , u           = u_p              , &
-                  v          = v_p          , w        = w_p        , th          = th_p             , &
-                  tt         = t_p          , p        = pres_hyd_p , exner       = pi_p             , &
-                  rho        = rho_p        , qv       = qv_p       , qc          = qc_p             , &
-                  qi         = qi_p         , qs       = qs_p       , ni          = ni_p             , &
-                  rthraten   = rthraten_p   , pblh     = hpbl_p     , kpbl        = kpbl_p           , &
-                  cldfra_bl  = cldfrabl_p   , qc_bl    = qcbl_p     , qi_bl       = qibl_p           , &
-                  maxwidth   = maxwidthbl_p , maxmf    = maxmfbl_p  , ktop_plume  = kbl_plume_p      , &
-                  ztop_plume = zbl_plume_p  , dqke     = dqke_p     , qke_adv     = qkeadv_p         , &
-                  tsq        = tsq_p        , qsq      = qsq_p      , cov         = cov_p            , &
-                  el_pbl     = elpbl_p      , rublten  = rublten_p  , rvblten     = rvblten_p        , &
-                  rthblten   = rthblten_p   , rqvblten = rqvblten_p , rqcblten    = rqcblten_p       , &
-                  rqiblten   = rqiblten_p   , rqsblten = rqsblten_p , rniblten    = rniblten_p       , &
-                  edmf_a     = edmfa_p      , edmf_w   = edmfw_p    , edmf_qt     = edmfqt_p         , &
-                  edmf_thl   = edmfthl_p    , edmf_ent = edmfent_p  , edmf_qc     = edmfqc_p         , &
-                  sub_thl    = subthl_p     , sub_sqv  = subqv_p    , det_thl     = detthl_p         , &
-                  det_sqv    = detqv_p      , exch_h   = kzh_p      , exch_m      = kzm_p            , &
-                  qke        = qke_p        , qwt      = qwt_p      , qshear      = qshear_p         , &
-                  qbuoy      = qbuoy_p      , qdiss    = qdiss_p    , sh3d        = sh3d_p           , &
-                  sm3d       = sm3d_p       , spp_pbl  = spp_pbl    , pattern_spp = pattern_spp_pbl  , &
-                  do_restart         = config_do_restart   ,                                           &
-                  do_DAcycling       = config_do_DAcycling ,                                           &
-                  initflag           = initflag            ,                                           &
-                  bl_mynn_tkeadvect  = bl_mynn_tkeadvect   ,                                           &
-                  bl_mynn_tkebudget  = bl_mynn_tkebudget   ,                                           &
-                  bl_mynn_cloudpdf   = bl_mynn_cloudpdf    ,                                           &
-                  bl_mynn_mixlength  = bl_mynn_mixlength   ,                                           &
-                  bl_mynn_closure    = bl_mynn_closure     ,                                           &
-                  bl_mynn_stfunc     = bl_mynn_stfunc      ,                                           &
-                  bl_mynn_topdown    = bl_mynn_topdown     ,                                           &
-                  bl_mynn_scaleaware = bl_mynn_scaleaware  ,                                           &
-                  bl_mynn_dheat_opt  = bl_mynn_dheat_opt   ,                                           &
-                  bl_mynn_edmf       = bl_mynn_edmf        ,                                           &
-                  bl_mynn_edmf_dd    = bl_mynn_edmf_dd     ,                                           &
-                  bl_mynn_edmf_mom   = bl_mynn_edmf_mom    ,                                           &
-                  bl_mynn_edmf_tke   = bl_mynn_edmf_tke    ,                                           &
-                  bl_mynn_output     = bl_mynn_edmf_output ,                                           &
-                  bl_mynn_mixscalars = bl_mynn_mixscalars  ,                                           &
-                  bl_mynn_cloudmix   = bl_mynn_cloudmix    ,                                           &
-                  bl_mynn_mixqt      = bl_mynn_mixqt       ,                                           &
-                  ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,              &
-                  ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,              &
-                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte ,              &
-                  errmsg = errmsg , errflg = errflg                                                    &
+                  f_qc       = f_qc         , f_qi       = f_qi         , f_qs        = f_qs            , &
+                  f_qoz      = f_qoz        , f_nc       = f_nc         , f_ni        = f_ni            , &
+                  f_nifa     = f_nifa       , f_nwfa     = f_nwfa       , f_nbca      = f_nbca          , &
+                  icloud_bl  = icloud_bl    , delt       = dt_pbl       , dx          = dx_p            , &
+                  xland      = xland_p      , ps         = psfc_p       , ts          = tsk_p           , &
+                  qsfc       = qsfc_p       , ust        = ust_p        , ch          = ch_p            , &
+                  hfx        = hfx_p        , qfx        = qfx_p        , rmol        = rmol_p          , &
+                  wspd       = wspd_p       , znt        = znt_p        , uoce        = uoce_p          , &
+                  voce       = voce_p       , dz         = dz_p         , u           = u_p             , &
+                  v          = v_p          , w          = w_p          , th          = th_p            , &
+                  tt         = t_p          , p          = pres_hyd_p   , exner       = pi_p            , &
+                  rho        = rho_p        , qv         = qv_p         , qc          = qc_p            , &
+                  qi         = qi_p         , qs         = qs_p         , nc          = nc_p            , &
+                  ni         = ni_p         , nifa       = nifa_p       , nwfa        = nwfa_p          , &
+                  rthraten   = rthraten_p   , pblh       = hpbl_p       , kpbl        = kpbl_p          , &
+                  cldfra_bl  = cldfrabl_p   , qc_bl      = qcbl_p       , qi_bl       = qibl_p          , &
+                  maxwidth   = maxwidthbl_p , maxmf      = maxmfbl_p    , ktop_plume  = kbl_plume_p     , &
+                  ztop_plume = zbl_plume_p  , dqke       = dqke_p       , qke_adv     = qkeadv_p        , &
+                  tsq        = tsq_p        , qsq        = qsq_p        , cov         = cov_p           , &
+                  el_pbl     = elpbl_p      , rublten    = rublten_p    , rvblten     = rvblten_p       , &
+                  rthblten   = rthblten_p   , rqvblten   = rqvblten_p   , rqcblten    = rqcblten_p      , &
+                  rqiblten   = rqiblten_p   , rqsblten   = rqsblten_p   , rncblten    = rncblten_p      , &
+                  rniblten   = rniblten_p   , rnifablten = rnifablten_p , rnwfablten  = rnwfablten_p    , &
+                  edmf_a     = edmfa_p      , edmf_w     = edmfw_p      , edmf_qt     = edmfqt_p        , &
+                  edmf_thl   = edmfthl_p    , edmf_ent   = edmfent_p    , edmf_qc     = edmfqc_p        , &
+                  sub_thl    = subthl_p     , sub_sqv    = subqv_p      , det_thl     = detthl_p        , &
+                  det_sqv    = detqv_p      , exch_h     = kzh_p        , exch_m      = kzm_p           , &
+                  qke        = qke_p        , qwt        = qwt_p        , qshear      = qshear_p        , &
+                  qbuoy      = qbuoy_p      , qdiss      = qdiss_p      , sh3d        = sh3d_p          , &
+                  sm3d       = sm3d_p       , spp_pbl    = spp_pbl      , pattern_spp = pattern_spp_pbl , &
+                  do_restart         = config_do_restart   ,                                              &
+                  do_DAcycling       = config_do_DAcycling ,                                              &
+                  initflag           = initflag            ,                                              &
+                  bl_mynn_tkeadvect  = bl_mynn_tkeadvect   ,                                              &
+                  bl_mynn_tkebudget  = bl_mynn_tkebudget   ,                                              &
+                  bl_mynn_cloudpdf   = bl_mynn_cloudpdf    ,                                              &
+                  bl_mynn_mixlength  = bl_mynn_mixlength   ,                                              &
+                  bl_mynn_closure    = bl_mynn_closure     ,                                              &
+                  bl_mynn_stfunc     = bl_mynn_stfunc      ,                                              &
+                  bl_mynn_topdown    = bl_mynn_topdown     ,                                              &
+                  bl_mynn_scaleaware = bl_mynn_scaleaware  ,                                              &
+                  bl_mynn_dheat_opt  = bl_mynn_dheat_opt   ,                                              &
+                  bl_mynn_edmf       = bl_mynn_edmf        ,                                              &
+                  bl_mynn_edmf_dd    = bl_mynn_edmf_dd     ,                                              &
+                  bl_mynn_edmf_mom   = bl_mynn_edmf_mom    ,                                              &
+                  bl_mynn_edmf_tke   = bl_mynn_edmf_tke    ,                                              &
+                  bl_mynn_output     = bl_mynn_edmf_output ,                                              &
+                  bl_mynn_mixscalars = bl_mynn_mixscalars  ,                                              &
+                  bl_mynn_cloudmix   = bl_mynn_cloudmix    ,                                              &
+                  bl_mynn_mixqt      = bl_mynn_mixqt       ,                                              &
+                  ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,                 &
+                  ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,                 &
+                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte ,                 &
+                  errmsg = errmsg , errflg = errflg                                                       &
                           )
        call mpas_timer_stop('bl_mynn')
 !      call mpas_log_write('--- exit subroutine mynn_bl_driver:')

@@ -40,6 +40,8 @@
                      description="The number of atmospheric levels, always one more than the number of layers"/>
                 <dim name="nSoilComps" definition="8"
                      description="The number of soil textures as needed as input in the NOAH-MP land surface model"/>
+                <dim name="nGocartLevels" definition="namelist:config_gocartlevels"
+                     description="The number of prescribed pressure levels in the climatological GOCART data set"/>
                 <dim name="nMonths" definition="namelist:config_months"
                      description="The number of months in a year"/>
         </dims>
@@ -123,6 +125,11 @@
                 <nml_option name="config_nfgsoillevels"         type="integer"       default_value="4"
                      units="-"
                      description="The number of vertical soil levels in the first-guess dataset (case 7 only)"
+                     possible_values="Positive integer values"/>
+
+                <nml_option name="config_gocartlevels"          type="integer"       default_value="30"
+                     units="-"
+                     description="The number of vertical gocart levels in the climatological gocart data set"
                      possible_values="Positive integer values"/>
 
                 <nml_option name="config_months"                type="integer"       default_value="12"      in_defaults="false"
@@ -346,6 +353,7 @@
                 <package name="met_stage_in" description="Active only if meteorological fields are being interpolated"/>
                 <package name="met_stage_out" description="Active only if meteorological fields are being interpolated"/>
                 <package name="first_guess_field" description="3-d atmospheric or land-surface fields on first-guess levels"/>
+                <package name="mp_thompson_aers_in" description="initialization of GOCART-based Thompson water- and ice-friendly aerosols"/>
         </packages>
 
 
@@ -562,7 +570,7 @@
                         <var name="v_init" packages="met_stage_out"/>
                         <var name="t_init" packages="met_stage_out"/>
                         <var name="qv_init" packages="met_stage_out"/>
-                        <var_array name="scalars" packages="met_stage_out"/>
+                        <var_array name="scalars" packages="met_stage_out";mp_thompson_aers_in"/>
                         <var name="u" packages="met_stage_out"/>
                         <var name="w" packages="met_stage_out"/>
                         <var name="dz" packages="met_stage_out"/>
@@ -869,6 +877,19 @@
                      description="effective orographic length for north-westerly flow"
                      packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
 
+                <!-- GOCART aerosol fields -->
+                <var name="nifa_gocart_clim" type="real" dimensions="nMonths nGocartLevels nCells" units="nb kg^{-1}"
+                     description="climatological Gocart ice-friendly number concentration"
+                     packages="mp_thompson_aers_in"/>
+
+                <var name="nwfa_gocart_clim" type="real" dimensions="nMonths nGocartLevels nCells" units="nb kg^{-1}"
+                     description="climatological Gocart water-friendly number concentration"
+                     packages="mp_thompson_aers_in"/>
+
+                <var name="pwif_gocart_clim" type="real"  dimensions="nMonths nGocartLevels nCells" units="Pa"
+                     description="climatological Gocart pressure levels"
+                     packages="mp_thompson_aers_in"/>
+
                 <!-- description of the vertical grid structure -->
                 <var name="hx" type="real" dimensions="nVertLevelsP1 nCells" units="m"
                      description="terrain influence in vertical coordinate, $h_s(x,y,\zeta)$ in Klemp (MWR 2011)"
@@ -1004,6 +1025,14 @@
 
                         <var name="qr" array_group="moist" units="kg kg^{-1}"
                              description="Rain water mixing ratio"/>
+
+                        <var name="nifa" array_group="number" units="nb kg^{-1}"
+                             description="Gocart ice-friendly aerosol number concentration"
+                             packages="mp_thompson_aers_in"/>
+
+                        <var name="nwfa" array_group="number" units="nb kg^{-1}"
+                             description="Gocart water-friendly aerosol number concentration"
+                             packages="mp_thompson_aers_in"/>
                 </var_array>
 
                 <!-- Climatology for ocean mixed-layer depth -->
@@ -1038,6 +1067,14 @@
 
                         <var name="lbc_qr" array_group="moist" units="kg kg^{-1}"
                              description="Rain water mixing ratio on lateral boundary cells"/>
+
+                        <var name="lbc_nifa" array_group="number" units="nb kg^{-1}"
+                             description="Gocart ice-friendly aerosol number concentration on lateral boundary cells"
+                             packages="mp_thompson_aers_in"/>
+
+                        <var name="lbc_nwfa" array_group="number" units="nb kg^{-1}"
+                             description="Gocart water-friendly aerosol number concentration on lateral boundary cells"
+                             packages="mp_thompson_aers_in"/>
                 </var_array>
 
         </var_struct>
