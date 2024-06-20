@@ -5688,10 +5688,13 @@ module atm_time_integration
       !
       ! Compute height on cell edges at velocity locations
       !
+      !$acc parallel default(present)
+      !$acc loop gang
       do iEdge=edgeStart,edgeEnd
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
             h_edge(k,iEdge) = 0.5 * (h(k,cell1) + h(k,cell2))
          end do
@@ -5700,6 +5703,7 @@ module atm_time_integration
 !  it would be good to move this somewhere else?
 
          efac = dcEdge(iEdge)*dvEdge(iEdge)
+         !$acc loop vector
          do k=1,nVertLevels
             ke_edge(k,iEdge) = efac*u(k,iEdge)**2
          end do
@@ -5709,19 +5713,24 @@ module atm_time_integration
       !
       ! Compute circulation and relative vorticity at each vertex
       !
+      !$acc loop gang
       do iVertex=vertexStart,vertexEnd
+         !$acc loop vector
          do k=1,nVertLevels
             vorticity(k,iVertex) = 0.0_RKIND
          end do
+         !$acc loop seq
          do i=1,vertexDegree
             iEdge = edgesOnVertex(i,iVertex)
             s = edgesOnVertex_sign(i,iVertex) * dcEdge(iEdge)
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
                vorticity(k,iVertex) = vorticity(k,iVertex) + s * u(k,iEdge)
             end do
          end do
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
             vorticity(k,iVertex) = vorticity(k,iVertex) * invAreaTriangle(iVertex)
          end do
@@ -5731,23 +5740,29 @@ module atm_time_integration
       !
       ! Compute the divergence at each cell center
       !
+      !$acc loop gang
       do iCell=cellStart,cellEnd
+         !$acc loop vector
          do k=1,nVertLevels
             divergence(k,iCell) = 0.0_RKIND
          end do
+         !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
             s = edgesOnCell_sign(i,iCell) * dvEdge(iEdge)
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
               divergence(k,iCell) = divergence(k,iCell) + s * u(k,iEdge)
             end do
          end do
          r = invAreaCell(iCell)
+         !$acc loop vector
          do k = 1,nVertLevels
             divergence(k,iCell) = divergence(k,iCell) * r
          end do
       end do
+      !$acc end parallel
 
 
 !$OMP BARRIER
@@ -5757,22 +5772,29 @@ module atm_time_integration
       !
       ! Replace 2.0 with 2 in exponentiation to avoid outside chance that
       ! compiler will actually allow "float raised to float" operation
+      !$acc parallel
+      !$acc loop gang
       do iCell=cellStart,cellEnd
+         !$acc loop vector
          do k=1,nVertLevels
             ke(k,iCell) = 0.0_RKIND
          end do
+         !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
+            !$acc loop vector
             do k=1,nVertLevels
 !               ke(k,iCell) = ke(k,iCell) + 0.25 * dcEdge(iEdge) * dvEdge(iEdge) * u(k,iEdge)**2
                ke(k,iCell) = ke(k,iCell) + 0.25 * ke_edge(k,iEdge)
             end do
          end do
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
             ke(k,iCell) = ke(k,iCell) * invAreaCell(iCell)
          end do
       end do
+      !$acc end parallel
 
 
       if (hollingsworth) then
@@ -5783,8 +5805,11 @@ module atm_time_integration
 
          ! Replace 2.0 with 2 in exponentiation to avoid outside chance that
          ! compiler will actually allow "float raised to float" operation
+         !$acc parallel
+         !$acc loop gang
          do iVertex=vertexStart,vertexEnd
             r = 0.25 * invAreaTriangle(iVertex) 
+            !$acc loop vector
             do k=1,nVertLevels
 
 !               ke_vertex(k,iVertex) = (  dcEdge(EdgesOnVertex(1,iVertex))*dvEdge(EdgesOnVertex(1,iVertex))*u(k,EdgesOnVertex(1,iVertex))**2  &
@@ -5796,6 +5821,7 @@ module atm_time_integration
 
             end do
          end do
+         !$acc end parallel
 
 !$OMP BARRIER
 
@@ -5804,24 +5830,31 @@ module atm_time_integration
 
          ke_fact = 1.0 - .375
 
+         !$acc parallel
+         !$acc loop collapse(2)
          do iCell=cellStart,cellEnd
             do k=1,nVertLevels
                ke(k,iCell) = ke_fact * ke(k,iCell)
             end do
          end do
+         !$acc end parallel
 
 
+         !$acc loop gang
          do iCell=cellStart,cellEnd
             r = invAreaCell(iCell)
+            !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iVertex = verticesOnCell(i,iCell)
                j = kiteForCell(i,iCell)
 !DIR$ IVDEP
+               !$acc loop vector
                do k = 1,nVertLevels
                   ke(k,iCell) = ke(k,iCell) + (1.-ke_fact)*kiteAreasOnVertex(j,iVertex) * ke_vertex(k,iVertex) * r
                end do
             end do
          end do
+         !$acc end parallel
 
       end if
 
@@ -5835,18 +5868,24 @@ module atm_time_integration
       end if
 
       if (reconstruct_v) then
+        !$acc parallel
+        !$acc loop gang
         do iEdge = edgeStart,edgeEnd
+          !$acc loop vector
           do k = 1,nVertLevels
             v(k,iEdge) = 0.0_RKIND
           end do
+          !$acc loop seq
           do i=1,nEdgesOnEdge(iEdge)
             eoe = edgesOnEdge(i,iEdge)
 !DIR$ IVDEP
+            !$acc loop vector
             do k = 1,nVertLevels
               v(k,iEdge) = v(k,iEdge) + weightsOnEdge(i,iEdge) * u(k, eoe)
             end do
           end do
         end do
+        !$acc end parallel
       end if
 
       !
@@ -5855,6 +5894,8 @@ module atm_time_integration
       !
       ! Avoid dividing h_vertex by areaTriangle and move areaTriangle into
       ! numerator for the pv_vertex calculation
+      !$acc parallel
+      !$acc loop collapse(2)
       do iVertex = vertexStart,vertexEnd
 !DIR$ IVDEP
          do k=1,nVertLevels
@@ -5868,6 +5909,7 @@ module atm_time_integration
             pv_vertex(k,iVertex) = (fVertex(iVertex) + vorticity(k,iVertex))
          end do
       end do
+      !$acc end parallel
 
 !$OMP BARRIER
 
@@ -5875,12 +5917,15 @@ module atm_time_integration
       ! Compute pv at the edges
       !   ( this computes pv_edge at all edges bounding real cells )
       !
+      !$acc parallel
+      !$acc loop collapse(2)
       do iEdge = edgeStart,edgeEnd
 !DIR$ IVDEP
          do k=1,nVertLevels
             pv_edge(k,iEdge) =  0.5 * (pv_vertex(k,verticesOnEdge(1,iEdge)) + pv_vertex(k,verticesOnEdge(2,iEdge)))
          end do
       end do
+      !$acc end parallel
 
       if (config_apvm_upwinding > 0.0) then
 
@@ -5889,20 +5934,26 @@ module atm_time_integration
          !    ( this computes pv_cell for all real cells )
          !  only needed for APVM upwinding
          !
+         !$acc parallel
+         !$acc loop gang
          do iCell=cellStart,cellEnd
+            !$acc loop vector
             do k = 1,nVertLevels
                pv_cell(k,iCell) = 0.0_RKIND
             end do
             r = invAreaCell(iCell)
+            !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iVertex = verticesOnCell(i,iCell)
                j = kiteForCell(i,iCell)
 !DIR$ IVDEP
+               !$acc loop vector
                do k = 1,nVertLevels
                   pv_cell(k,iCell) = pv_cell(k,iCell) + kiteAreasOnVertex(j,iVertex) * pv_vertex(k,iVertex) * r
                end do
             end do
          end do
+         !$acc end parallel
 
 
 !$OMP BARRIER
@@ -5922,16 +5973,20 @@ module atm_time_integration
          ! Also precomputed inverses of dvEdge and dcEdge to avoid repeated divisions
          !
          r = config_apvm_upwinding * dt
+         !$acc parallel
+         !$acc loop gang
          do iEdge = edgeStart,edgeEnd
             r1 = 1.0_RKIND * invDvEdge(iEdge)
             r2 = 1.0_RKIND * invDcEdge(iEdge)
 !DIR$ IVDEP
+            !$acc loop vector
             do k = 1,nVertLevels
                gradPVt(k,iEdge) = (pv_vertex(k,verticesOnEdge(2,iEdge)) - pv_vertex(k,verticesOnEdge(1,iEdge))) * r1
                gradPVn(k,iEdge) = (pv_cell(k,cellsOnEdge(2,iEdge)) - pv_cell(k,cellsOnEdge(1,iEdge))) * r2
                pv_edge(k,iEdge) = pv_edge(k,iEdge) - r * (v(k,iEdge) * gradPVt(k,iEdge) + u(k,iEdge) * gradPVn(k,iEdge))
             end do
          end do
+         !$acc end parallel
 
       end if  ! apvm upwinding
 
