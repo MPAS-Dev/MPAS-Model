@@ -70,7 +70,7 @@ core_physics_noahmp:
 core_physics_init: $(OBJS_init)
 	ar -ru libphys.a $(OBJS_init)
 
-core_physics: core_physics_wrf
+core_physics: core_physics_wrf core_physics_noahmp
 	($(MAKE) phys_interface COREDEF="$(COREDEF)")
 	ar -ru libphys.a $(OBJS)
 
