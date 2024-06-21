@@ -32,7 +32,16 @@ module mpas_dmpar
 #ifdef _MPI
 #ifndef NOMPIMOD
 #ifdef MPAS_USE_MPI_F08
-   use mpi_f08
+   use mpi_f08, only : MPI_Comm, MPI_Datatype
+   use mpi_f08, only : MPI_INTEGER, MPI_2INTEGER, MPI_REAL, MPI_2REAL, MPI_DOUBLE_PRECISION, &
+                       MPI_2DOUBLE_PRECISION, MPI_CHARACTER, MPI_INTEGER8
+   use mpi_f08, only : MPI_COMM_SELF, MPI_COMM_WORLD, MPI_INFO_NULL, MPI_THREAD_SINGLE, &
+                       MPI_THREAD_SERIALIZED, MPI_THREAD_FUNNELED, MPI_THREAD_MULTIPLE, MPI_STATUS_IGNORE
+   use mpi_f08, only : MPI_Query_thread, MPI_Comm_dup
+   use mpi_f08, only : MPI_Init_thread , MPI_Init, MPI_Comm_rank, MPI_Comm_size, MPI_Finalize, &
+                       MPI_Comm_free, MPI_Abort, MPI_Bcast, MPI_Allreduce, MPI_Scatterv, MPI_Recv, &
+                       MPI_Send, MPI_Request, MPI_Irecv, MPI_Isend, MPI_Wait, MPI_Wtime, MPI_Test
+   use mpi_f08, only : MPI_SUM, MPI_MIN, MPI_MAX, MPI_MINLOC, MPI_MAXLOC
 #else
    use mpi
 #endif

@@ -486,7 +486,10 @@ module mpas_halo
     subroutine mpas_halo_exch_group_full_halo_exch(domain, groupName, iErr)
 
 #ifdef MPAS_USE_MPI_F08
-        use mpi_f08
+        use mpi_f08, only : MPI_Datatype, MPI_Comm
+        use mpi_f08, only : MPI_REAL, MPI_DOUBLE_PRECISION, MPI_REQUEST_NULL, &
+                            MPI_STATUS_IGNORE, MPI_STATUSES_IGNORE
+        use mpi_f08, only : MPI_Irecv, MPI_Isend, MPI_Waitany, MPI_Waitall
 #else
         use mpi
 #endif
