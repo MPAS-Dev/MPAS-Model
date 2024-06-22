@@ -5658,9 +5658,26 @@ module atm_time_integration
       logical :: reconstruct_v
 
 
+      MPAS_ACC_TIMER_START('compute_diagnostics_solve [ACC_data_xfer]')
+      !$acc enter data copyin(cellsOnEdge,dcEdge,dvEdge, &
+      !$acc                   edgesOnVertex,edgesOnVertex_sign,invAreaTriangle, &
+      !$acc                   nEdgesOnCell,edgesOnCell, &
+      !$acc                   edgesOnCell_sign,invAreaCell, &
+      !$acc                   invAreaTriangle,edgesOnVertex, &
+      !$acc                   verticesOnCell,kiteForCell,kiteAreasOnVertex, &
+      !$acc                   nEdgesOnEdge,edgesOnEdge,weightsOnEdge, &
+      !$acc                   fVertex, &
+      !$acc                   verticesOnEdge, &
+      !$acc                   invDvEdge,invDcEdge)
+      !$acc enter data copyin(u,h)
+      MPAS_ACC_TIMER_STOP('compute_diagnostics_solve [ACC_data_xfer]')
+
       !
       ! Compute height on cell edges at velocity locations
       !
+      MPAS_ACC_TIMER_START('compute_diagnostics_solve [ACC_data_xfer]')
+      !$acc enter data create(h_edge,ke_edge,vorticity,divergence)
+      MPAS_ACC_TIMER_STOP('compute_diagnostics_solve [ACC_data_xfer]')
       !$acc parallel default(present)
       !$acc loop gang
       do iEdge=edgeStart,edgeEnd
@@ -5745,7 +5762,10 @@ module atm_time_integration
       !
       ! Replace 2.0 with 2 in exponentiation to avoid outside chance that
       ! compiler will actually allow "float raised to float" operation
-      !$acc parallel
+      MPAS_ACC_TIMER_START('compute_diagnostics_solve [ACC_data_xfer]')
+      !$acc enter data create(ke)
+      MPAS_ACC_TIMER_STOP('compute_diagnostics_solve [ACC_data_xfer]')
+      !$acc parallel default(present)
       !$acc loop gang
       do iCell=cellStart,cellEnd
          !$acc loop vector
@@ -5770,6 +5790,9 @@ module atm_time_integration
       !$acc end parallel
 
 
+      MPAS_ACC_TIMER_START('compute_diagnostics_solve [ACC_data_xfer]')
+      !$acc enter data create(ke_vertex)
+      MPAS_ACC_TIMER_STOP('compute_diagnostics_solve [ACC_data_xfer]')
       if (hollingsworth) then
 
          ! Compute ke at cell vertices - AG's new KE construction, part 1
@@ -5778,7 +5801,7 @@ module atm_time_integration
 
          ! Replace 2.0 with 2 in exponentiation to avoid outside chance that
          ! compiler will actually allow "float raised to float" operation
-         !$acc parallel
+         !$acc parallel default(present)
          !$acc loop gang
          do iVertex=vertexStart,vertexEnd
             r = 0.25 * invAreaTriangle(iVertex) 
@@ -5803,14 +5826,13 @@ module atm_time_integration
 
          ke_fact = 1.0 - .375
 
-         !$acc parallel
+         !$acc parallel default(present)
          !$acc loop collapse(2)
          do iCell=cellStart,cellEnd
             do k=1,nVertLevels
                ke(k,iCell) = ke_fact * ke(k,iCell)
             end do
          end do
-         !$acc end parallel
 
 
          !$acc loop gang
@@ -5835,13 +5857,18 @@ module atm_time_integration
       ! Compute v (tangential) velocities following Thuburn et al JCP 2009
       ! The tangential velocity is only used to compute the Smagorinsky coefficient
 
+
       reconstruct_v = .true.
       if(present(rk_step)) then
         if(rk_step /= 3) reconstruct_v = .false.
       end if
 
+      MPAS_ACC_TIMER_START('compute_diagnostics_solve [ACC_data_xfer]')
+      !$acc enter data copyin(v)
+      MPAS_ACC_TIMER_STOP('compute_diagnostics_solve [ACC_data_xfer]')
+
       if (reconstruct_v) then
-        !$acc parallel
+        !$acc parallel default(present)
         !$acc loop gang
         do iEdge = edgeStart,edgeEnd
           !$acc loop vector
@@ -5867,7 +5894,10 @@ module atm_time_integration
       !
       ! Avoid dividing h_vertex by areaTriangle and move areaTriangle into
       ! numerator for the pv_vertex calculation
-      !$acc parallel
+      MPAS_ACC_TIMER_START('compute_diagnostics_solve [ACC_data_xfer]')
+      !$acc enter data create(pv_vertex)
+      MPAS_ACC_TIMER_STOP('compute_diagnostics_solve [ACC_data_xfer]')
+      !$acc parallel default(present)
       !$acc loop collapse(2)
       do iVertex = vertexStart,vertexEnd
 !DIR$ IVDEP
@@ -5890,7 +5920,10 @@ module atm_time_integration
       ! Compute pv at the edges
       !   ( this computes pv_edge at all edges bounding real cells )
       !
-      !$acc parallel
+      MPAS_ACC_TIMER_START('compute_diagnostics_solve [ACC_data_xfer]')
+      !$acc enter data create(pv_edge)
+      MPAS_ACC_TIMER_STOP('compute_diagnostics_solve [ACC_data_xfer]')
+      !$acc parallel default(present)
       !$acc loop collapse(2)
       do iEdge = edgeStart,edgeEnd
 !DIR$ IVDEP
@@ -5907,7 +5940,10 @@ module atm_time_integration
          !    ( this computes pv_cell for all real cells )
          !  only needed for APVM upwinding
          !
-         !$acc parallel
+         MPAS_ACC_TIMER_START('compute_diagnostics_solve [ACC_data_xfer]')
+         !$acc enter data create(pv_cell)
+         MPAS_ACC_TIMER_STOP('compute_diagnostics_solve [ACC_data_xfer]')
+         !$acc parallel default(present)
          !$acc loop gang
          do iCell=cellStart,cellEnd
             !$acc loop vector
@@ -5945,8 +5981,11 @@ module atm_time_integration
          ! Merged loops for calculating gradPVt, gradPVn and pv_edge
          ! Also precomputed inverses of dvEdge and dcEdge to avoid repeated divisions
          !
+         MPAS_ACC_TIMER_START('compute_diagnostics_solve [ACC_data_xfer]')
+         !$acc enter data copyin(gradPVt,gradPVn)
+         MPAS_ACC_TIMER_STOP('compute_diagnostics_solve [ACC_data_xfer]')
          r = config_apvm_upwinding * dt
-         !$acc parallel
+         !$acc parallel default(present)
          !$acc loop gang
          do iEdge = edgeStart,edgeEnd
             r1 = 1.0_RKIND * invDvEdge(iEdge)
@@ -5962,6 +6001,28 @@ module atm_time_integration
          !$acc end parallel
 
       end if  ! apvm upwinding
+
+
+      MPAS_ACC_TIMER_START('compute_diagnostics_solve [ACC_data_xfer]')
+      !$acc exit data delete(cellsOnEdge,dcEdge,dvEdge, &
+      !$acc                  edgesOnVertex,edgesOnVertex_sign,invAreaTriangle, &
+      !$acc                  nEdgesOnCell,edgesOnCell, &
+      !$acc                  edgesOnCell_sign,invAreaCell, &
+      !$acc                  invAreaTriangle,edgesOnVertex, &
+      !$acc                  verticesOnCell,kiteForCell,kiteAreasOnVertex, &
+      !$acc                  nEdgesOnEdge,edgesOnEdge,weightsOnEdge, &
+      !$acc                  verticesOnEdge, &
+      !$acc                  fVertex,invDvEdge,invDcEdge)
+      !$acc exit data delete(u,h)
+      !$acc exit data copyout(h_edge,ke_edge,vorticity,divergence, &
+      !$acc                   ke, &
+      !$acc                   ke_vertex, &
+      !$acc                   v, &
+      !$acc                   pv_vertex, &
+      !$acc                   pv_edge, &
+      !$acc                   pv_cell, &
+      !$acc                   gradPVt,gradPVn)
+      MPAS_ACC_TIMER_STOP('compute_diagnostics_solve [ACC_data_xfer]')
 
    end subroutine atm_compute_solve_diagnostics_work
 
