@@ -6,6 +6,7 @@ src/core_*/*.f90
 src/framework/*.f90
 src/driver/*.f90
 src/operators/*.f90
+src/core_atmosphere/physics/physics_mmm
 
 # All object files
 *.o
