@@ -1,5 +1,7 @@
 .SUFFIXES: .F90 .o
 
+.PHONY: src src_lib
+
 all: dummy src
 
 dummy:
@@ -132,6 +134,8 @@ OBJS =  ConstantDefineMod.o \
 	WaterMainGlacierMod.o
 
 src: $(OBJS)
+
+src_lib:
 	ar -ru ./../../libphys.a $(OBJS)
 
 # DEPENDENCIES:

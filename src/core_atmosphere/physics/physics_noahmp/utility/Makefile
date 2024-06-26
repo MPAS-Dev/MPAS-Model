@@ -1,5 +1,7 @@
 .SUFFIXES: .F90 .o
 
+.PHONY: utility utility_lib
+
 all: dummy utility
 
 dummy:
@@ -9,6 +11,8 @@ OBJS =  Machine.o \
 	CheckNanMod.o
 
 utility: $(OBJS)
+
+utility_lib:
 	ar -ru ./../../libphys.a $(OBJS)
 
 # DEPENDENCIES:

@@ -1,5 +1,7 @@
 .SUFFIXES: .o .F90
 
+.PHONY: driver driver_lib
+
 all: dummy driver
 
 dummy:
@@ -26,6 +28,8 @@ OBJS =  NoahmpSnowInitMod.o \
 	PedoTransferSR2006Mod.o
 
 driver: $(OBJS)
+
+driver_lib:
 	ar -ru ./../../../libphys.a $(OBJS)
 
 # DEPENDENCIES:
