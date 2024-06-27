@@ -572,7 +572,7 @@ module mpas_isobaric_diagnostics
         end do
         do iCell = nCells+1,nCells+1
             do k =1,nVertLevels
-               pressureCp1(k,iCell) = pressure(k,iCell) / 100._RKIND
+               pressureCp1(k,iCell) = pressure(k,iCell) 
             end do
         end do
 
@@ -625,7 +625,7 @@ module mpas_isobaric_diagnostics
         integer, dimension(:,:), intent(in) :: cellsOnVertex
         real (kind=RKIND), dimension(:,:), intent(in) :: kiteAreasOnVertex
         real (kind=RKIND), dimension(:),   intent(in) :: areaTriangle
-        real (kind=RKIND), dimension(:,:), intent(in) :: pressure
+        real (kind=RKIND), dimension(:,:), intent(in) :: pressure                         ! in hPa 
         real (kind=RKIND), dimension(:,:), intent(in) :: field
         integer, intent(in) :: num_iso_levels    
         real (kind=RKIND), dimension(:), intent(in) :: iso_levels
@@ -653,7 +653,7 @@ module mpas_isobaric_diagnostics
         end do
         do iCell = nCells+1,nCells+1
             do k =1,nVertLevels
-               pressureCp1(k,iCell) = pressure(k,iCell) / 100._RKIND
+               pressureCp1(k,iCell) = pressure(k,iCell) 
             end do
         end do
 
