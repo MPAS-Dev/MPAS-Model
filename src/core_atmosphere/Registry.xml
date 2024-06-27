@@ -2161,7 +2161,7 @@
                 <nml_option name="config_microp_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration for cloud microphysics schemes"
-                     possible_values="`suite',`mp_wsm6',`mp_thompson',`mp_kessler',`off'"/>
+                     possible_values="`suite',`mp_wsm6',`mp_thompson',`mp_thompson_aerosols', `mp_kessler',`off'"/>
 
                 <nml_option name="config_convection_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
