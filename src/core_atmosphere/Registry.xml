@@ -3284,11 +3284,11 @@
                      packages="mp_thompson_aers_in"/>
 
                 <var name="rnifampten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
-                     description="tendency of "ice-friendly" aerosol number concentration due to microphysics"
+                     description="tendency of ice-friendly aerosol number concentration due to microphysics"
                      packages="mp_thompson_aers_in"/>
 
                 <var name="rnwfampten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
-                     description="tendency of "water-friendly" aerosol number concentration due to microphysics"
+                     description="tendency of water-friendly aerosol number concentration due to microphysics"
                      packages="mp_thompson_aers_in"/>
 
                 <!-- ================================================================================================== -->
@@ -3573,7 +3573,7 @@
                           description="Ice mixing ratio increment"/>
 
                      <var name="qs_amb"  name_in_code="qs" array_group="moist" packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"
-                          " units="kg kg^{-1}"
+                          units="kg kg^{-1}"
                           description="Snow mixing ratio increment"/>
 
                      <var name="qg_amb"  name_in_code="qg" array_group="moist" packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"
