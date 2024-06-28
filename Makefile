@@ -549,10 +549,10 @@ endif
 
 
 ifneq "$(PNETCDF)" ""
-ifneq ($(wildcard $(PNETCDF)/lib), )
+ifneq ($(wildcard $(PNETCDF)/lib/libpnetcdf.*), )
 	PNETCDFLIBLOC = lib
 endif
-ifneq ($(wildcard $(PNETCDF)/lib64), )
+ifneq ($(wildcard $(PNETCDF)/lib64/libpnetcdf.*), )
 	PNETCDFLIBLOC = lib64
 endif
 	CPPINCLUDES += -I$(PNETCDF)/include
