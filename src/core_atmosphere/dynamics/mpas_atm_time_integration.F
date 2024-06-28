@@ -5878,42 +5878,58 @@ module atm_time_integration
       rcv = rgas / (cp-rgas)
       p0 = 1.e5  ! this should come from somewhere else...
 
+      !$acc parallel default(present)
+      !$acc loop gang
       do iCell=cellStart,cellEnd
+         !$acc loop vector
          do k=1,nVertLevels
             theta_m(k,iCell) = theta(k,iCell) * (1._RKIND + rvord * scalars(index_qv,k,iCell))
             rho_zz(k,iCell) = rho(k,iCell) / zz(k,iCell)
          end do
       end do
+      !$acc end parallel
 
 !$OMP BARRIER
 
+      !$acc parallel default(present)
+      !$acc loop gang
       do iEdge=edgeStart,edgeEnd
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
+         !$acc loop vector
          do k=1,nVertLevels
             ru(k,iEdge) = 0.5 * u(k,iEdge) * (rho_zz(k,cell1) + rho_zz(k,cell2))
          end do
       end do
+      !$acc end parallel
 
 !$OMP BARRIER
 
       ! Compute rw (i.e. rho_zz * omega) from rho_zz, w, and ru.
       ! We are reversing the procedure we use in subroutine atm_recover_large_step_variables.
       ! first, the piece that depends on w.
+      !$acc parallel default(present)
+      !$acc loop gang
       do iCell=cellStart,cellEnd
          rw(1,iCell) = 0.0
          rw(nVertLevels+1,iCell) = 0.0
+         !$acc loop vector
          do k=2,nVertLevels
             rw(k,iCell) = w(k,iCell)     &
                           * (fzp(k) * rho_zz(k-1,iCell) + fzm(k) * rho_zz(k,iCell)) &
                           * (fzp(k) * zz(k-1,iCell) + fzm(k) * zz(k,iCell))
          end do
       end do
+      !$acc end parallel
   
       ! next, the piece that depends on ru
+      !$acc parallel default(present)
+      !$acc loop gang
       do iCell=cellStart,cellEnd
+         !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
+            !$acc loop vector
             do k = 2,nVertLevels
                flux = (fzm(k)*ru(k,iEdge) + fzp(k)*ru(k-1,iEdge))
                rw(k,iCell) = rw(k,iCell)   &
@@ -5922,33 +5938,48 @@ module atm_time_integration
             end do
          end do
       end do
+      !$acc end parallel
 
+      !$acc parallel default(present)
+      !$acc loop collapse(2)
       do iCell=cellStart,cellEnd
          do k=1,nVertLevels
             rho_p(k,iCell) = rho_zz(k,iCell) - rho_base(k,iCell)
          end do
       end do
+      !$acc end parallel
 
+      !$acc parallel default(present)
+      !$acc loop collapse(2)
       do iCell=cellStart,cellEnd
          do k=1,nVertLevels
             rtheta_base(k,iCell) = theta_base(k,iCell) * rho_base(k,iCell)
          end do
       end do
+      !$acc end parallel
 
+      !$acc parallel default(present)
+      !$acc loop collapse(2)
       do iCell=cellStart,cellEnd
          do k=1,nVertLevels
             rtheta_p(k,iCell) = theta_m(k,iCell) * rho_p(k,iCell)  &
                                              + rho_base(k,iCell)   * (theta_m(k,iCell) - theta_base(k,iCell))
          end do
       end do
+      !$acc end parallel
 
+      !$acc parallel default(present)
+      !$acc loop collapse(2)
       do iCell=cellStart,cellEnd
          do k=1,nVertLevels
             exner(k,iCell) = (zz(k,iCell) * (rgas/p0) * (rtheta_p(k,iCell) + rtheta_base(k,iCell)))**rcv
             exner_base(k,iCell) = (zz(k,iCell) * (rgas/p0) * (rtheta_base(k,iCell)))**rcv  ! WCS addition 20180403
          end do
       end do
+      !$acc end parallel
 
+      !$acc parallel default(present)
+      !$acc loop collapse(2)
       do iCell=cellStart,cellEnd
          do k=1,nVertLevels
             pressure_p(k,iCell) = zz(k,iCell) * rgas &
@@ -5958,6 +5989,7 @@ module atm_time_integration
             pressure_base(k,iCell) = zz(k,iCell) * rgas * exner_base(k,iCell) * rtheta_base(k,iCell)      ! WCS addition 20180403
          end do
       end do
+      !$acc end parallel
 
       MPAS_ACC_TIMER_START('atm_init_coupled_diagnostics [ACC_data_xfer]')
       ! delete invariant fields
