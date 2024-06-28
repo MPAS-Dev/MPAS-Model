@@ -68,11 +68,15 @@ core_physics_noahmp:
 	(cd physics_noahmp/drivers/mpas; $(MAKE) all COREDEF="$(COREDEF)")
 
 core_physics_init: $(OBJS_init)
-	ar -ru libphys.a $(OBJS_init)
 
-core_physics: core_physics_wrf
+core_physics: core_physics_wrf core_physics_noahmp
 	($(MAKE) phys_interface COREDEF="$(COREDEF)")
-	ar -ru libphys.a $(OBJS)
+	ar -ru libphys.a $(OBJS_init) $(OBJS)
+	($(MAKE) -C ./physics_mmm -f Makefile.mpas physics_mmm_lib)
+	($(MAKE) -C ./physics_wrf physics_wrf_lib)
+	($(MAKE) -C ./physics_noahmp/drivers/mpas driver_lib)
+	($(MAKE) -C ./physics_noahmp/src src_lib)
+	($(MAKE) -C ./physics_noahmp/utility utility_lib)
 
 phys_interface: $(OBJS)
 

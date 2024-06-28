@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<registry model="mpas" core="init_atmosphere" core_abbrev="init_atm" version="8.1.0">
+<registry model="mpas" core="init_atmosphere" core_abbrev="init_atm" version="8.2.0">
 
 <!-- **************************************************************************************** -->
 <!-- ************************************** Dimensions ************************************** -->
@@ -570,7 +570,7 @@
                         <var name="v_init" packages="met_stage_out"/>
                         <var name="t_init" packages="met_stage_out"/>
                         <var name="qv_init" packages="met_stage_out"/>
-                        <var_array name="scalars" packages="met_stage_out";mp_thompson_aers_in"/>
+                        <var_array name="scalars" packages="met_stage_out;mp_thompson_aers_in"/>
                         <var name="u" packages="met_stage_out"/>
                         <var name="w" packages="met_stage_out"/>
                         <var name="dz" packages="met_stage_out"/>

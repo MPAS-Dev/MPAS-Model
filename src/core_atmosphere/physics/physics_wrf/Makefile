@@ -1,5 +1,7 @@
 .SUFFIXES: .F .o
 
+.PHONY: physics_wrf physics_wrf_lib
+
 all: dummy physics_wrf
 
 dummy:
@@ -52,6 +54,8 @@ OBJS = \
 
 
 physics_wrf: $(OBJS)
+
+physics_wrf_lib:
 	ar -ru ./../libphys.a $(OBJS)
 
 # DEPENDENCIES:

@@ -25,19 +25,24 @@
  <var_struct name="mesh" time_levs="1">
 
       <var name="soilcomp" type="real" dimensions="nSoilComps nCells" units="unitless"
-                description="soil composition needed as input in the NOAH-MP land surface model"/>
+                description="soil composition needed as input in the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
 
       <var name="soilcl1" type="real" dimensions="nCells" units="unitless"
-                description="soil texture class level 1 needed as input for the NOAH-MP land surface model"/>
+                description="soil texture class level 1 needed as input for the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
 
       <var name="soilcl2" type="real" dimensions="nCells" units="unitless"
-                description="soil texture class level 2 needed as input for the NOAH-MP land surface model"/>
+                description="soil texture class level 2 needed as input for the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
 
       <var name="soilcl3" type="real" dimensions="nCells" units="unitless"
-                description="soil texture class level 3 needed as input for the NOAH-MP land surface model"/>
+                description="soil texture class level 3 needed as input for the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
 
       <var name="soilcl4" type="real" dimensions="nCells" units="unitless"
-                description="soil texture class level 4 needed as input for the NOAH-MP land surface model"/>
+                description="soil texture class level 4 needed as input for the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
 
  </var_struct>
 

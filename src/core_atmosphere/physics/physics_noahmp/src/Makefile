@@ -1,5 +1,7 @@
 .SUFFIXES: .F90 .o
 
+.PHONY: src src_lib
+
 #
 # The Noah-MP code fails to build with the GNU compilers with -std=f2008,
 # so remove that flag here if it is present in FFLAGS
@@ -138,6 +140,8 @@ OBJS =  ConstantDefineMod.o \
 	WaterMainGlacierMod.o
 
 src: $(OBJS)
+
+src_lib:
 	ar -ru ./../../libphys.a $(OBJS)
 
 # DEPENDENCIES:

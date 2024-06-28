@@ -1,6 +1,4 @@
 *.f90
 physics_wrf/*.f90
 physics_wrf/files/
-physics_mmm/.gitignore
-physics_mmm/README.md
-physics_mmm/LICENSE
+physics_mmm
