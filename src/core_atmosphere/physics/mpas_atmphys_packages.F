@@ -36,9 +36,11 @@
  character(len=StrKIND),pointer:: config_microp_scheme
  character(len=StrKIND),pointer:: config_convection_scheme
  character(len=StrKIND),pointer:: config_pbl_scheme
- logical,pointer:: mp_kessler_in,mp_thompson_in,mp_wsm6_in
+ character(len=StrKIND),pointer:: config_lsm_scheme
+ logical,pointer:: mp_kessler_in,mp_thompson_in,mp_thompson_aers_in,mp_wsm6_in
  logical,pointer:: cu_grell_freitas_in,cu_kain_fritsch_in,cu_ntiedtke_in
  logical,pointer:: bl_mynn_in,bl_ysu_in
+ logical,pointer:: sf_noahmp_in
 
  integer :: ierr
 
@@ -61,11 +63,15 @@
  nullify(mp_thompson_in)
  call mpas_pool_get_package(packages,'mp_thompson_inActive',mp_thompson_in)
 
+ nullify(mp_thompson_aers_in)
+ call mpas_pool_get_package(packages,'mp_thompson_aers_inActive',mp_thompson_aers_in)
+
  nullify(mp_wsm6_in)
  call mpas_pool_get_package(packages,'mp_wsm6_inActive',mp_wsm6_in)
 
- if(.not.associated(mp_kessler_in)  .or. &
-    .not.associated(mp_thompson_in) .or. &
+ if(.not.associated(mp_kessler_in      )  .or. &
+    .not.associated(mp_thompson_in     ) .or. &
+    .not.associated(mp_thompson_aers_in) .or. &
     .not.associated(mp_wsm6_in)) then
     call mpas_log_write('====================================================================================',messageType=MPAS_LOG_ERR)
     call mpas_log_write('* Error while setting up packages for cloud microphysics options in atmosphere core.',messageType=MPAS_LOG_ERR)
@@ -74,20 +80,24 @@
     return
  endif
 
- mp_kessler_in           = .false.
- mp_thompson_in          = .false.
- mp_wsm6_in              = .false.
+ mp_kessler_in       = .false.
+ mp_thompson_in      = .false.
+ mp_thompson_aers_in = .false.
+ mp_wsm6_in          = .false.
 
  if(config_microp_scheme == 'mp_kessler') then
     mp_kessler_in = .true.
  elseif(config_microp_scheme == 'mp_thompson') then
     mp_thompson_in = .true.
+ elseif(config_microp_scheme == 'mp_thompson_aerosols') then
+    mp_thompson_aers_in = .true.
  elseif(config_microp_scheme == 'mp_wsm6') then
     mp_wsm6_in = .true.
  endif
 
  call mpas_log_write('    mp_kessler_in           = $l', logicArgs=(/mp_kessler_in/))
  call mpas_log_write('    mp_thompson_in          = $l', logicArgs=(/mp_thompson_in/))
+ call mpas_log_write('    mp_thompson_aers_in     = $l', logicArgs=(/mp_thompson_aers_in/))
  call mpas_log_write('    mp_wsm6_in              = $l', logicArgs=(/mp_wsm6_in/))
 
 !--- initialization of all packages for parameterizations of convection:
@@ -161,6 +171,29 @@
  call mpas_log_write('    bl_mynn_in              = $l', logicArgs=(/bl_mynn_in/))
  call mpas_log_write('    bl_ysu_in               = $l', logicArgs=(/bl_ysu_in/))
  call mpas_log_write('')
+
+!--- initialization of all packages for parameterizations of land surface processes:
+
+ call mpas_pool_get_config(configs,'config_lsm_scheme',config_lsm_scheme)
+
+ nullify(sf_noahmp_in)
+ call mpas_pool_get_package(packages,'sf_noahmp_inActive',sf_noahmp_in)
+
+ if(.not.associated(sf_noahmp_in)) then
+    call mpas_log_write('====================================================================================',messageType=MPAS_LOG_ERR)
+    call mpas_log_write('* Error while setting up packages for land surface options in atmosphere core.'    ,  messageType=MPAS_LOG_ERR)
+    call mpas_log_write('====================================================================================',messageType=MPAS_LOG_ERR)
+    ierr = 1
+    return
+ endif
+
+ if(config_lsm_scheme=='sf_noahmp') then
+    sf_noahmp_in = .true.
+ endif
+
+ call mpas_log_write('    sf_noahmp_in            = $l', logicArgs=(/sf_noahmp_in/))
+ call mpas_log_write('')
+
 
  end function atmphys_setup_packages
 

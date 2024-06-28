@@ -227,6 +227,7 @@ module test_core_interface
 
       use mpas_derived_types
       use mpas_log
+      use mpas_framework, only : mpas_framework_report_settings
 
       implicit none
 
@@ -251,6 +252,8 @@ module test_core_interface
       ! After core has had a chance to modify log defaults, open the output log
       call mpas_log_open(err=local_err)
       iErr = ior(iErr, local_err)
+
+      call mpas_framework_report_settings(domain)
 
    end function test_setup_log!}}}
 

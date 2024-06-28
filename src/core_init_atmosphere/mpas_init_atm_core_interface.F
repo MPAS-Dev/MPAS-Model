@@ -112,11 +112,13 @@ module init_atm_core_interface
       type (mpas_pool_type), intent(inout) :: packages
       type (mpas_io_context_type), intent(inout) :: iocontext
       integer :: ierr
+      logical :: lexist
 
       logical, pointer :: initial_conds, sfc_update, lbcs
       logical, pointer :: gwd_stage_in, gwd_stage_out, vertical_stage_in, vertical_stage_out, met_stage_in, met_stage_out
       logical, pointer :: config_native_gwd_static, config_static_interp, config_vertical_grid, config_met_interp
       logical, pointer :: first_guess_field
+      logical, pointer :: mp_thompson_aers_in
       integer, pointer :: config_init_case
 
 
@@ -155,6 +157,9 @@ module init_atm_core_interface
       nullify(met_stage_out)
       call mpas_pool_get_package(packages, 'met_stage_outActive', met_stage_out)
 
+      nullify(mp_thompson_aers_in)
+      call mpas_pool_get_package(packages, 'mp_thompson_aers_inActive', mp_thompson_aers_in)
+
       if (.not. associated(initial_conds) .or. &
           .not. associated(sfc_update) .or. &
           .not. associated(gwd_stage_in) .or. &
@@ -162,7 +167,8 @@ module init_atm_core_interface
           .not. associated(vertical_stage_in) .or. &
           .not. associated(vertical_stage_out) .or. &
           .not. associated(met_stage_in) .or. &
-          .not. associated(met_stage_out)) then
+          .not. associated(met_stage_out) .or. &
+          .not. associated(mp_thompson_aers_in)) then
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_ERR)
          call mpas_log_write('* Error while setting up packages for init_atmosphere core.',                      messageType=MPAS_LOG_ERR)
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_ERR)
@@ -180,8 +186,12 @@ module init_atm_core_interface
 
       if (config_init_case == 9) then
          lbcs = .true.
+         mp_thompson_aers_in = .false.
+         inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
+         if(lexist) mp_thompson_aers_in = .true.
       else
          lbcs = .false.
+         mp_thompson_aers_in = .false.
       end if
 
       if (config_init_case == 7) then
@@ -204,6 +214,10 @@ module init_atm_core_interface
                         (.not. config_vertical_grid)
          met_stage_out = config_met_interp
 
+         mp_thompson_aers_in = .false.
+         inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
+         if((lexist .and. met_stage_out) .or. (lexist .and. met_stage_in)) mp_thompson_aers_in = .true.
+
       else if (config_init_case == 8) then
          gwd_stage_in = .false.
          gwd_stage_out = .false.
@@ -223,6 +237,10 @@ module init_atm_core_interface
          vertical_stage_out = .false.
          met_stage_in = .true.
          met_stage_out = .true.
+
+         mp_thompson_aers_in = .false.
+         inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
+         if((lexist .and. met_stage_out) .or. (lexist .and. met_stage_in)) mp_thompson_aers_in = .true.
 
          initial_conds = .false.   ! Also, turn off the initial_conds package to avoid writing the IC "output" stream
 
@@ -325,9 +343,7 @@ module init_atm_core_interface
 
       use mpas_derived_types, only : mpas_log_type, domain_type
       use mpas_log, only : mpas_log_init, mpas_log_open
-#ifdef MPAS_OPENMP
-      use mpas_threading, only : mpas_threading_get_num_threads
-#endif
+      use mpas_framework, only : mpas_framework_report_settings
 
       implicit none
 
@@ -356,53 +372,8 @@ module init_atm_core_interface
       call mpas_log_write('')
       call mpas_log_write('MPAS Init-Atmosphere Version '//trim(domain % core % modelVersion))
       call mpas_log_write('')
-      call mpas_log_write('')
-      call mpas_log_write('Output from ''git describe --dirty'': '//trim(domain % core % git_version))
-      call mpas_log_write('')
-      call mpas_log_write('Compile-time options:')
-      call mpas_log_write('  Build target: '//trim(domain % core % build_target))
-      call mpas_log_write('  OpenMP support: ' // &
-#ifdef MPAS_OPENMP
-                          'yes')
-#else
-                          'no')
-#endif
-      call mpas_log_write('  OpenACC support: ' // &
-#ifdef MPAS_OPENACC
-                          'yes')
-#else
-                          'no')
-#endif
-      call mpas_log_write('  Default real precision: ' // &
-#ifdef SINGLE_PRECISION
-                          'single')
-#else
-                          'double')
-#endif
-      call mpas_log_write('  Compiler flags: ' // &
-#ifdef MPAS_DEBUG
-                          'debug')
-#else
-                          'optimize')
-#endif
-      call mpas_log_write('  I/O layer: ' // &
-#ifdef MPAS_PIO_SUPPORT
-#ifdef USE_PIO2
-                          'PIO 2.x')
-#else
-                          'PIO 1.x')
-#endif
-#else
-                          'SMIOL')
-#endif
-      call mpas_log_write('')
 
-      call mpas_log_write('Run-time settings:')
-      call mpas_log_write('  MPI task count: $i', intArgs=[domain % dminfo % nprocs])
-#ifdef MPAS_OPENMP
-      call mpas_log_write('  OpenMP max threads: $i', intArgs=[mpas_threading_get_max_threads()])
-#endif
-      call mpas_log_write('')
+      call mpas_framework_report_settings(domain)
 
    end function init_atm_setup_log!}}}
 

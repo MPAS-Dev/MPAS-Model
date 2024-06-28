@@ -30,7 +30,7 @@ core_input_gen:
 
 gen_includes: core_reg
 	(if [ ! -d inc ]; then mkdir -p inc; fi) # To generate *.inc files
-	(cd inc; $(REG_PARSE) < ../Registry_processed.xml )
+	(cd inc; $(REG_PARSE) ../Registry_processed.xml $(CPPFLAGS) )
 
 post_build:
 	if [ ! -e $(ROOT_DIR)/default_inputs ]; then mkdir $(ROOT_DIR)/default_inputs; fi
@@ -42,6 +42,7 @@ physcore: mpas_atm_dimensions.o
 	( mkdir libphys; cd libphys; ar -x ../physics/libphys.a )
 	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_wrf/files/*TBL .)
 	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_wrf/files/*DATA* .)
+	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_noahmp/parameters/*TBL .)
 
 dycore: mpas_atm_dimensions.o $(PHYSCORE)
 	( cd dynamics; $(MAKE) all PHYSICS="$(PHYSICS)" )

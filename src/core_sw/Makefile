@@ -21,7 +21,7 @@ core_input_gen:
 gen_includes:
 	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) Registry.xml > Registry_processed.xml
 	(if [ ! -d inc ]; then mkdir -p inc; fi) # To generate *.inc files
-	(cd inc; $(REG_PARSE) < ../Registry_processed.xml )
+	(cd inc; $(REG_PARSE) ../Registry_processed.xml $(CPPFLAGS) )
 
 post_build:
 	if [ ! -e $(ROOT_DIR)/default_inputs ]; then mkdir $(ROOT_DIR)/default_inputs; fi
