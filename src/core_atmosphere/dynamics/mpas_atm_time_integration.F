@@ -6076,8 +6076,10 @@ module atm_time_integration
       integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
 
       integer :: i, k, iCell, iEdge, cell1, cell2
-      integer, pointer :: nVertLevels
-      integer, pointer :: index_qv
+      integer, pointer :: nVertLevels_ptr
+      integer, pointer :: index_qv_ptr
+      integer          :: nVertLevels
+      integer          :: index_qv
       real (kind=RKIND) :: p0, rcv, flux
       integer, dimension(:), pointer :: nEdgesOnCell
       integer, dimension(:,:), pointer :: cellsOnEdge, edgesOnCell
@@ -6105,8 +6107,12 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:,:), pointer :: zb, zb3, zb_cell, zb3_cell
 
 
-      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-      call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels_ptr)
+      call mpas_pool_get_dimension(state, 'index_qv', index_qv_ptr)
+
+      ! Dereference integer pointers for OpenACC
+      nVertLevels = nVertLevels_ptr
+      index_qv = index_qv_ptr
 
       call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
       call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
@@ -6180,10 +6186,10 @@ module atm_time_integration
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
             do k = 2,nVertLevels
-            flux = (fzm(k)*ru(k,iEdge) + fzp(k)*ru(k-1,iEdge))
-            rw(k,iCell) = rw(k,iCell)   &
-                          - edgesOnCell_sign(i,iCell) * (zb_cell(k,i,iCell) + sign(1.0_RKIND,flux) * zb3_cell(k,i,iCell))*flux   &
-                          * (fzp(k) * zz(k-1,iCell) + fzm(k) * zz(k,iCell))
+               flux = (fzm(k)*ru(k,iEdge) + fzp(k)*ru(k-1,iEdge))
+               rw(k,iCell) = rw(k,iCell)   &
+                             - edgesOnCell_sign(i,iCell) * (zb_cell(k,i,iCell) + sign(1.0_RKIND,flux) * zb3_cell(k,i,iCell))*flux   &
+                             * (fzp(k) * zz(k-1,iCell) + fzm(k) * zz(k,iCell))
             end do
          end do
       end do
