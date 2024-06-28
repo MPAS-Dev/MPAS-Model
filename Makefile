@@ -1267,9 +1267,10 @@ mpi_f08_test:
 	$(info Checking for mpi_f08 support...)
 	$(eval MPAS_MPI_F08 := $(shell $\
 		printf "program main\n$\
-		        &   use mpi_f08, only : MPI_Init, MPI_Comm\n$\
+		        &   use mpi_f08, only : MPI_Init, MPI_Comm, MPI_INTEGER, MPI_Datatype\n$\
 		        &   integer :: ierr\n$\
 		        &   type (MPI_Comm) :: comm\n$\
+		        &   type (MPI_Datatype), parameter :: MPI_INTEGERKIND = MPI_INTEGER\n$\
 		        &   call MPI_Init(ierr)\n$\
 		        end program main\n" | sed 's/&/ /' > mpi_f08.f90; $\
 		$\
