@@ -5857,6 +5857,23 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
       call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
 
+      MPAS_ACC_TIMER_START('atm_init_coupled_diagnostics [ACC_data_xfer]')
+      ! copyin invariant fields
+      !$acc enter data copyin(cellsOnEdge,nEdgesOnCell,edgesOnCell, &
+      !$acc                   edgesOnCell_sign,zz,fzm,fzp,zb,zb3, &
+      !$acc                   zb_cell,zb3_cell)
+
+      ! copyin the data that is only on the right-hand side
+      !$acc enter data copyin(scalars(index_qv,:,:),u,w,rho,theta, &
+      !$acc                           rho_base,theta_base)
+
+      ! copyin the data that will be modified in this routine
+      !$acc enter data create(theta_m,rho_zz,ru,rw,rho_p,rtheta_base, &
+      !$acc                   rtheta_p,exner,exner_base,pressure_p, &
+      !$acc                   pressure_base)
+      MPAS_ACC_TIMER_STOP('atm_init_coupled_diagnostics [ACC_data_xfer]')
+
+
 
       rcv = rgas / (cp-rgas)
       p0 = 1.e5  ! this should come from somewhere else...
@@ -5941,6 +5958,22 @@ module atm_time_integration
             pressure_base(k,iCell) = zz(k,iCell) * rgas * exner_base(k,iCell) * rtheta_base(k,iCell)      ! WCS addition 20180403
          end do
       end do
+
+      MPAS_ACC_TIMER_START('atm_init_coupled_diagnostics [ACC_data_xfer]')
+      ! delete invariant fields
+      !$acc exit data delete(cellsOnEdge,nEdgesOnCell,edgesOnCell, &
+      !$acc                  edgesOnCell_sign,zz,fzm,fzp,zb,zb3, &
+      !$acc                  zb_cell,zb3_cell)
+
+      ! delete the data that is only on the right-hand side
+      !$acc exit data delete(scalars(index_qv,:,:),u,w,rho,theta, &
+      !$acc                           rho_base,theta_base)
+
+      ! copyout the data that will be modified in this routine
+      !$acc exit data copyout(theta_m,rho_zz,ru,rw,rho_p,rtheta_base, &
+      !$acc                   rtheta_p,exner,exner_base,pressure_p, &
+      !$acc                   pressure_base)
+      MPAS_ACC_TIMER_STOP('atm_init_coupled_diagnostics [ACC_data_xfer]')
 
    end subroutine atm_init_coupled_diagnostics
 
