@@ -737,10 +737,10 @@ else # Not using PIO, using SMIOL
 endif
 
 ifneq "$(NETCDF)" ""
-ifneq ($(wildcard $(NETCDF)/lib), )
+ifneq ($(wildcard $(NETCDF)/lib/libnetcdf.*), )
 	NETCDFLIBLOC = lib
 endif
-ifneq ($(wildcard $(NETCDF)/lib64), )
+ifneq ($(wildcard $(NETCDF)/lib64/libnetcdf.*), )
 	NETCDFLIBLOC = lib64
 endif
 	CPPINCLUDES += -I$(NETCDF)/include
