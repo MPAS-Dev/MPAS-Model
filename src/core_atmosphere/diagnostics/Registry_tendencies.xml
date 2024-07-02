@@ -63,10 +63,6 @@
              packages="tendencies"/>
 
 	<!-- added for PV diagnostics -->
-	<var name="pv_vertex_dyn" type="real" dimensions="nVertLevels nVertices Time" units="s^{-1} kg^{-1} m^3"
-	     description="absolute vorticity/rho_zz at a vertex after dynamics"
-             packages="tendencies"/>
-
 	<var name="u_tend_diff" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
 	     description="Uncoupled horizontal momentum tendency from diffusion"
              packages="tendencies"/>
@@ -81,42 +77,6 @@
 
 	<var name="w_tend_diff" type="real" dimensions="nVertLevelsP1 nCells Time" units="m s^{-2}"
 	     description="Uncoupled vertical momentum tendency from diffusion"
-             packages="tendencies"/>
-
-	<var name="u_dyn" type= "real" dimensions="nVertLevels nEdges Time" units="m s^{-1}"
-	     description="Uncoupled horizontal velocity field after dynamics"
-             packages="tendencies"/>
-
-	<var name="uReconstructX_dyn" type= "real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
-	     description="Uncoupled horizontal velocity field after dynamics"
-             packages="tendencies"/>
-
-	<var name="uReconstructY_dyn" type= "real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
-	     description="Uncoupled horizontal velocity field after dynamics"
-             packages="tendencies"/>
-
-	<var name="uReconstructZ_dyn" type= "real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
-	     description="Uncoupled horizontal velocity field after dynamics"
-             packages="tendencies"/>
-
-	<var name="uReconstructZonal_dyn" type= "real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
-	     description="Uncoupled horizontal velocity field after dynamics"
-             packages="tendencies"/>
-
-	<var name="uReconstructMeridional_dyn" type= "real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
-	     description="Uncoupled horizontal velocity field after dynamics"
-             packages="tendencies"/>
-
-	<var name="w_dyn" type= "real" dimensions="nVertLevelsP1 nCells Time" units="m s^{-1}"
-	     description="Uncoupled vertical velocity field after dynamics"
-             packages="tendencies"/>
-
-	<var name="theta_dyn" type= "real" dimensions="nVertLevels nCells Time" units="K"
-	     description="Uncoupled potential temperature field after dynamics"
-             packages="tendencies"/>
-
-	<var name="rho_dyn" type= "real" dimensions="nVertLevels nCells Time" units="kg m^{-3}"
-	     description="Dry density field after dynamics"
              packages="tendencies"/>
 
 	<var name="ru_tend_physics" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-2} s^{-1}"
@@ -145,39 +105,39 @@
 
 	<!-- theta -->
 	<var name="rth_tend_dyn_large" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} K"
-	     description="Coupled potential temperature large-time-step dynamic tendency"
+	     description="Coupled moist potential temperature large-time-step dynamic tendency"
              packages="tendencies"/>
 
 	<var name="rth_tend_dyn_small" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} K"
-	     description="Coupled potential temperature acoustic time-step dynamic tendency"
+	     description="Coupled moist potential temperature acoustic time-step dynamic tendency"
              packages="tendencies"/>
 
 	<var name="rth_tend_diff" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} K"
-	     description="Coupled potential temperature tendency from diffusion"
+	     description="Coupled moist potential temperature tendency from diffusion"
              packages="tendencies"/>
 
 	<var name="rth_tend_physics" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} K"
-	     description="Coupled potential temperature tendency from physics"
+	     description="Coupled moist potential temperature tendency from physics"
              packages="tendencies"/>
 
 	<var name="rthblten_tend" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} K s^{-1}"
-	     description="Coupled potential temperature tendency due to PBL"
+	     description="Coupled moist potential temperature tendency due to PBL"
              packages="tendencies"/>
 
 	<var name="rthcuten_tend" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} K s^{-1}"
-	     description="Coupled potential temperature tendency due to cumulus scheme"
+	     description="Coupled moist potential temperature tendency due to cumulus scheme"
              packages="tendencies"/>
 
 	<var name="rthratensw_tend" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} K s^{-1}"
-	     description="Coupled potential temperature tendency due to cumulus scheme"
+	     description="Coupled moist potential temperature tendency due to cumulus scheme"
              packages="tendencies"/>
 
 	<var name="rthratenlw_tend" type="real" dimensions="nVertLevels nCells Time" units="kg m^{-3} K s^{-1}"
-	     description="Coupled potential temperature tendency due to cumulus scheme"
+	     description="Coupled moist potential temperature tendency due to cumulus scheme"
              packages="tendencies"/>
 
 	<var name="th_tend_dcpl" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
-	     description="Potential temperature tendency due to dcoupling from mass"
+	     description="Moist potential temperature tendency due to decoupling from mass"
              packages="tendencies"/>
 
 	<!-- qv -->
@@ -244,35 +204,35 @@
              packages="tendencies"/>
 
 	<var name="acc_th_tend_diff" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
-	     description="Accumulated potential temperature tendency from diffusion"
+	     description="Accumulated moist potential temperature tendency from diffusion"
              packages="tendencies"/>
 
 	<var name="acc_th_tend_physics" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
-	     description="Accumulated potential temperature tendency from physics"
+	     description="Accumulated moist potential temperature tendency from physics"
              packages="tendencies"/>
 
 	<var name="acc_thblten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
-	     description="Accumulated potential temperature tendency due to PBL"
+	     description="Accumulated moist potential temperature tendency due to PBL"
              packages="tendencies"/>
 
 	<var name="acc_thcuten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
-	     description="Accumulated potential temperature tendency due to cumulus scheme"
+	     description="Accumulated moist potential temperature tendency due to cumulus scheme"
              packages="tendencies"/>
 
 	<var name="acc_thratensw" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
-	     description="Accumulated potential temperature tendency due to cumulus scheme"
+	     description="Accumulated moist potential temperature tendency due to cumulus scheme"
              packages="tendencies"/>
 
 	<var name="acc_thratenlw" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
-	     description="Accumulated potential temperature tendency due to cumulus scheme"
+	     description="Accumulated moist potential temperature tendency due to cumulus scheme"
              packages="tendencies"/>
 
 	<var name="acc_th_tend_diabatic" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
-	     description="Accumulated potential temperature tendency due to latent heat"
+	     description="Accumulated moist potential temperature tendency due to latent heat"
              packages="tendencies"/>
 
 	<var name="acc_th_tend_dcpl" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
-	     description="Accumulated potential temperature tendency due to decoupling from mass"
+	     description="Accumulated moist potential temperature tendency due to decoupling from mass"
              packages="tendencies"/>
 
 	<!-- qv -->
