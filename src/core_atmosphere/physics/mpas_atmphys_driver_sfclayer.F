@@ -950,7 +950,6 @@
 
     case("sf_monin_obukhov_rev")
        call mpas_timer_start('sf_monin_obukhov_rev')
-       call mpas_log_write('--- enter subroutine sfclayrev:')
        call sfclayrev( &
                p3d          = pres_hyd_p     , psfc        = psfc_p       , t3d            = t_p            , &
                u3d          = u_p            , v3d         = v_p          , qv3d           = qv_p           , &
@@ -979,10 +978,8 @@
                ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme                        , &
                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte                          &
                      )
-       call mpas_log_write('--- end subroutine sfclayrev:')
 
        if(config_frac_seaice) then
-          call mpas_log_write('--- enter subroutine sfclayrev seaice:')
           call sfclayrev( &
                   p3d          = pres_hyd_p     , psfc        = psfc_p       , t3d            = t_p            , &
                   u3d          = u_p            , v3d         = v_p          , qv3d           = qv_p           , &
@@ -1011,7 +1008,6 @@
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme                        , &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte                          &
                         )
-          call mpas_log_write('--- end subroutine sfclayrev seaice:')
        endif
        call mpas_timer_stop('sf_monin_obukhov_rev')
 
