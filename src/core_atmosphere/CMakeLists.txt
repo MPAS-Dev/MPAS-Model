@@ -62,7 +62,7 @@ set(ATMOSPHERE_CORE_PHYSICS_WRF_SOURCES
     module_mp_thompson_cldfra3.F
     module_mp_thompson_aerosols.F
     module_mp_wsm6.F
-    module_ra_rrtmg_sw_aerosols
+    module_ra_rrtmg_sw_aerosols.F
     module_ra_cam_support.F
     module_ra_rrtmg_lw.F
     module_ra_rrtmg_sw.F

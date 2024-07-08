@@ -27,6 +27,7 @@ set(init_atm_core_srcs
         mpas_init_atm_cases.F
         mpas_init_atm_core.F
         mpas_init_atm_core_interface.F
+	mpas_init_atm_thompson_aerosols.F
         mpas_init_atm_gwd.F
         mpas_init_atm_hinterp.F
         mpas_init_atm_llxy.F
