@@ -59,6 +59,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2024-05-16.
 ! * Added support for initial tendency diagnostics package variables and timers  
 !   May Wong (mwong@ucar.edu) and Manda Chasteen (chasteen@ucar.edu) / 2024-05-29      
+! * Removed tend_u_phys calculation since it's no longer needed for PV tendency calculations
+!   Manda Chasteen (chasteen@ucar.edu) / 2024-05-31        
 
 !
 ! Abstract interface for routine used to communicate halos of fields
@@ -125,7 +127,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: rthblten,rqvblten,rqcblten, &
                                            rqiblten,rqsblten,rublten,rvblten
  real(kind=RKIND),dimension(:,:),pointer:: rncblten,rniblten,rnifablten,rnwfablten
- real(kind=RKIND),dimension(:,:),pointer:: rubldiff, rvbldiff                ! MW on ITM: GWDO; MC added                                   
+ real(kind=RKIND),dimension(:,:),pointer:: rubldiff, rvbldiff                ! MW on ITM: GWDO                                   
 
  real(kind=RKIND),dimension(:,:),pointer:: rthcuten,rqvcuten,rqccuten, &
                                            rqrcuten,rqicuten,rqscuten, &
@@ -137,9 +139,6 @@
  real(kind=RKIND),dimension(:,:),pointer:: rublten_Edge,rucuten_Edge
 
  real(kind=RKIND),dimension(:,:),allocatable:: tend_th
-
-! MC: will no longer be needed for PV and removed in subsequent commit
- real(kind=RKIND),dimension(:,:),pointer:: tend_u_phys 
 
 ! MW: for ITM
  real(kind=RKIND),dimension(:,:),pointer:: rucuten_tend, rublten_tend, rugwdo_tend
@@ -159,14 +158,12 @@
  call mpas_pool_get_config(configs,'config_radt_lw_scheme'   ,radt_lw_scheme   )
  call mpas_pool_get_config(configs,'config_radt_sw_scheme'   ,radt_sw_scheme   )
  call mpas_pool_get_config(configs,'config_gwdo_scheme'      ,gwdo_scheme      )         ! MW on ITM: GWDO
- call mpas_pool_get_config(configs,'config_tend', config_tend)                          ! MC: for tendency diagnostics
+ call mpas_pool_get_config(configs,'config_tend'             ,config_tend      )         ! MC: for tendency diagnostics
 
  call mpas_pool_get_array(state,'theta_m' ,theta_m,1)
  call mpas_pool_get_array(state,'scalars' ,scalars,1)
  call mpas_pool_get_array(state,'rho_zz'  ,mass,   2)
  call mpas_pool_get_array(diag ,'rho_edge',mass_edge)
-
- call mpas_pool_get_array(diag , 'tend_u_phys', tend_u_phys)           ! MC - for PV; will be removed in subsequent commits
 
  call mpas_pool_get_dimension(state,'index_qv',index_qv)
  call mpas_pool_get_dimension(state,'index_qc',index_qc)
@@ -230,9 +227,6 @@
  tend_ru_physics(:,:)     = 0._RKIND
  tend_rtheta_physics(:,:) = 0._RKIND
  tend_rho_physics(:,:)    = 0._RKIND
-
- tend_u_phys(:,:)         = 0._RKIND          ! MC: this fix was needed because tend_u_phys and tend_u_diff accumulate in PV code;
-                                              ! will no longer be necessary once this var is removed
  !
  ! In case some variables are not allocated due to their associated packages,
  ! we need to make their pointers associated here to avoid triggering run-time
@@ -288,9 +282,7 @@
                     qvblten_tend, qvcuten_tend,                                                       &
                     !
                     tend_th, tend_rtheta_physics, tend_scalars, tend_ru_physics,                      &
-                    tend_u_phys,                                                                      & ! MC - will be removed
                     exchange_halo_group)
-
 
 
 !clean up any pointers that were allocated with zero size before the call to physics_get_tend_work:
@@ -351,7 +343,6 @@
                     qvblten_tend, qvcuten_tend,                                                       &
                     !
                     tend_th, tend_theta, tend_scalars, tend_u,                                        &
-                    tend_u_phys,                                                                      & ! MC - will be removed    
                     exchange_halo_group)
 !=================================================================================================================
 !input arguments:
@@ -410,8 +401,6 @@
  real(kind=RKIND),intent(inout),dimension(nVertLevels,nCells+1):: tend_theta
  real(kind=RKIND),intent(inout),dimension(num_scalars,nVertLevels,nCells+1):: tend_scalars
 
-! For diagnostics packages           
- real(kind=RKIND),intent(inout),dimension(nVertLevels,nEdges+1):: tend_u_phys                  ! MC - eventually remove
 
 ! MW on ITM
  real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(in) :: rubldiff
@@ -450,7 +439,6 @@
        rugwdo_tend(k,i) = rubldiff_Edge(k,i)*mass_edge(k,i)
     end do
     end do 
-
  end if
  call mpas_timer_stop('Tendency and PV diagnostics')  
  ! end GWDO
@@ -461,8 +449,6 @@
     if (rk_step == 1 .and. dynamics_substep == 1) then
        call exchange_halo_group(block%domain,'physics:blten')
        call tend_toEdges(block,mesh,rublten,rvblten,rublten_Edge)
-
-       tend_u_phys(1:nVertLevels,1:nEdges) = rublten_Edge(1:nVertLevels,1:nEdges)                  ! MC -- will be removed
     end if
 
     do i = 1, nEdgesSolve
@@ -478,7 +464,6 @@
        tend_scalars(index_qv,k,i) = tend_scalars(index_qv,k,i) + rqvblten(k,i)*mass(k,i)
        tend_scalars(index_qc,k,i) = tend_scalars(index_qc,k,i) + rqcblten(k,i)*mass(k,i)
        tend_scalars(index_qi,k,i) = tend_scalars(index_qi,k,i) + rqiblten(k,i)*mass(k,i)
-
 
        rthblten_tend(k,i) = rthblten(k,i)*mass(k,i)  ! MW on ITM
        qvblten_tend(k,i)  = rqvblten(k,i)            ! MW on ITM; decoupled using mass at time t in advance_scalar_mono  
@@ -529,14 +514,11 @@
           if(rk_step == 1 .and. dynamics_substep == 1) then
              call exchange_halo_group(block%domain,'physics:cuten')
              call tend_toEdges(block,mesh,rucuten,rvcuten,rucuten_Edge)
-
-             tend_u_phys(1:nVertLevels,1:nEdges) = tend_u_phys(1:nVertLevels,1:nEdges) &           ! MC -- will be removed
-                                                 + rucuten_Edge(1:nVertLevels,1:nEdges)
           endif
           do i = 1, nEdgesSolve
           do k = 1, nVertLevels
              tend_u(k,i) = tend_u(k,i) + rucuten_Edge(k,i)*mass_edge(k,i)
-             rucuten_tend(k,i) = rucuten_Edge(k,i)*mass_edge(k,i)  ! MW on ITM
+             rucuten_tend(k,i) = rucuten_Edge(k,i)*mass_edge(k,i)              ! MW on ITM
           enddo
           enddo
 

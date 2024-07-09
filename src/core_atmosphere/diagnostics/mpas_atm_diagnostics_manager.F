@@ -173,12 +173,16 @@ module mpas_atm_diagnostics_manager
 
         use mpas_diagnostic_template, only : diagnostic_template_reset
         use mpas_convective_diagnostics, only : convective_diagnostics_reset
+        use mpas_pv_diagnostics, only : pv_diagnostics_reset 
 
         implicit none
 
-
         call diagnostic_template_reset()
         call convective_diagnostics_reset()
+
+        call mpas_timer_start('Tendency and PV diagnostics')
+        call pv_diagnostics_reset()
+        call mpas_timer_stop('Tendency and PV diagnostics')
 
     end subroutine mpas_atm_diag_reset
 

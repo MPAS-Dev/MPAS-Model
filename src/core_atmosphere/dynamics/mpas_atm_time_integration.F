@@ -523,8 +523,8 @@ module atm_time_integration
       type (field2DReal), pointer :: tend_ru_physicsField, tend_rtheta_physicsField, tend_rho_physicsField
 #endif
 
-      ! MW for ITM 
-      logical, pointer :: config_tend
+      ! For ITM and PV tendency diagnostics
+      logical, pointer :: config_tend, config_pv_tend
       real (kind=RKIND), dimension(:,:), pointer :: acc_u_tend_dyn_small, acc_u_tend_dyn_small_ReconstructZonal, &
                                                     acc_u_tend_dyn_small_ReconstructMeridional, &
                                                     acc_u_tend_dyn_small_ReconstructX, acc_u_tend_dyn_small_ReconstructY, &
@@ -555,7 +555,7 @@ module atm_time_integration
       call mpas_pool_get_config(block % configs, 'config_convection_scheme', config_convection_scheme)
 #endif
       call mpas_pool_get_config(block % configs, 'config_tend', config_tend)        ! MW: for tendency diagnostics
-
+      call mpas_pool_get_config(block % configs, 'config_pv_tend', config_pv_tend)  ! MC: for PV tendency diagnostics 
 
       !
       ! Retrieve field structures
@@ -1389,9 +1389,14 @@ module atm_time_integration
          call mpas_timer_start('Tendency and PV diagnostics')     
          call mpas_pool_get_array(diag, 'acc_qv_tend_dyn_large', acc_qv_tend_dyn_large)
          acc_qv_tend_dyn_large(:,:) = acc_qv_tend_dyn_large(:,:) + ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt
-         
-         call mpas_timer_stop('Tendency and PV diagnostics')
 
+         if ( config_pv_tend ) then      
+            call mpas_pool_get_array(diag, 'dqv_dt_dyn', dqv_dt_dyn) 
+            dqv_dt_dyn(:,:) = 0.0
+            dqv_dt_dyn(:,:) =  ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt  ! MW: added for PV
+         end if   
+
+         call mpas_timer_stop('Tendency and PV diagnostics')
       endif
       !-----
 
@@ -5190,6 +5195,9 @@ module atm_time_integration
                tend_u_euler(k,iEdge) = tend_u_euler(k,iEdge) &
                                        + rho_edge(k,iEdge)* kdiffu * u_diffusion * meshScalingDel2(iEdge)
 
+               if (config_tend) then
+                  ru_tend_diff(k,iEdge) = rho_edge(k,iEdge)* kdiffu * u_diffusion * meshScalingDel2(iEdge) ! MW   
+               end if             
             end do
          end do
 
@@ -5580,6 +5588,13 @@ module atm_time_integration
       do iCell = cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
          do k=2,nVertLevels
+
+            ! MW added for PV tendencies 
+            if ( rk_step == 3 .and. config_pv_tend ) then
+               rw_tend_dyn_large(k,iCell) = dt_rk*(tend_w(k,iCell) + tend_w_euler(k,iCell) - rw_tend_diff(k,iCell))
+               rw_tend_diff(k,iCell) = dt_rk*rw_tend_diff(k,iCell)
+            end if        
+
             tend_w(k,iCell) = tend_w(k,iCell) + tend_w_euler(k,iCell)
          end do
       end do
@@ -7693,6 +7708,7 @@ module atm_time_integration
                   u_tend_diff(k,iEdge)  = 0.0
                   tend_u_pbl(k,iEdge)   = 0.0   ! MC added MC_TODO: check if these are needed here...
                   tend_u_cu(k,iEdge)    = 0.0   ! MC added
+                  du_dt_dyn(k,iEdge)    = 0.0   ! MC initializing this here instead of in PV code
                enddo
             end if
          end do

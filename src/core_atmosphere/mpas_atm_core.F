@@ -624,7 +624,9 @@ module atm_core
       real (kind=R8KIND) :: diag_start_time, diag_stop_time
       real (kind=R8KIND) :: input_start_time, input_stop_time
       real (kind=R8KIND) :: output_start_time, output_stop_time
-      
+   
+      ! MC: Adding config flags for PV tendencies to enable model diags to be calculated at each time step     
+      logical, pointer :: config_pv_tend  
       ierr = 0
 
       clock => domain % clock
@@ -808,8 +810,17 @@ module atm_core
          ! Write any output streams that have alarms ringing, after computing diagnostics fields
          !
          call mpas_get_time(curr_time=currTime, dateTimeString=timeStamp, ierr=ierr)
-         if (MPAS_stream_mgr_ringing_alarms(domain % streamManager, direction=MPAS_STREAM_OUTPUT, ierr=ierr)) then
+
+         ! MC: adding PV tendency config flag here to ensure that theta and rho are updated every time step for
+         !     computing the PV tendencies
+         call mpas_pool_get_config(domain % blocklist % configs, 'config_pv_tend', config_pv_tend)
+         call mpas_log_write(' ')
+         call mpas_log_write('config_pv_tend is $l', logicArgs=(/config_pv_tend/))
+
+         if (config_pv_tend .or. (MPAS_stream_mgr_ringing_alarms(domain % streamManager, direction=MPAS_STREAM_OUTPUT, ierr=ierr))) then
            block_ptr => domain % blocklist
+           call mpas_log_write('Calling output diagnostic calculations')
+           call mpas_log_write(' ')
            do while (associated(block_ptr))
               call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
               call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
