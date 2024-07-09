@@ -3,6 +3,12 @@
 <!-- Nick Szapiro, Manda Chasteen, and May Wong  -->
 <!-- Note that 1 PVU = 10^6 K kg^{−1} m^2 s^{−1} -->
 <!-- ******************************************* -->
+
+<dims>
+        <dim name="ONE"                definition="1"
+             description="A constant value of 1"/>
+</dims>
+
 <var_struct name="diag" time_levs="1">
 
         <!-- 3D PV fields -->
@@ -419,6 +425,10 @@
              description="1 if candidate of stratosphere"
              packages="pv_diagnostics"/>
 
+
+        <!-- Counter for accumulated tendencies -->
+        <var name="pv_callCounter" type="integer" dimensions="ONE" units=""
+             packages="pv_tendencies"/>
 
 </var_struct>
 

@@ -7905,9 +7905,6 @@ module atm_time_integration
                                                     acc_u_tend_dcpl_ReconstructZ, &
                                                     acc_u_tend_dcpl_ReconstructZonal, acc_u_tend_dcpl_ReconstructMeridional
 
-      ! Added for PV 
-      real (kind=RKIND), dimension(:,:), pointer :: uReconstructX_dyn, uReconstructY_dyn, uReconstructZ_dyn, &
-                                                    uReconstructZonal_dyn, uReconstructMeridional_dyn
 
       integer, pointer :: nCellsSolve, nEdges
       integer, dimension(:,:), pointer :: cellsOnEdge

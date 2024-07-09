@@ -182,6 +182,9 @@ module mpas_pv_diagnostics
         integer, pointer :: nCells, nVertLevels
         real(kind=RKIND), dimension(:,:), pointer :: zgrid, zCell
 
+        ! for counter init
+        integer, dimension(:), pointer :: pv_callCounter
+
         call mpas_pool_get_subpool(all_pools, 'mesh', mesh)
         call mpas_pool_get_subpool(all_pools, 'state', state)
         call mpas_pool_get_subpool(all_pools, 'diag', diag)
@@ -224,7 +227,16 @@ module mpas_pv_diagnostics
            call mpas_log_write(' ')
 
         end if
-  
+
+        if (config_pv_tend) then 
+           ! Initialize counter -- used to prevent update of tendencies at initialization time
+           ! This is relevant for restart runs because derived parent tendencies used in PV tendency calculations and _prev 
+           ! variables aren't stored in restart files. Prevents inaccurate tendency calculations that propagate into 
+           ! accumulate tendency variables
+           call mpas_pool_get_array(diag, 'pv_callCounter', pv_callCounter)
+           pv_callCounter(:) = 0
+        end if
+
     end subroutine pv_diagnostics_setup
 
 
@@ -234,13 +246,15 @@ module mpas_pv_diagnostics
     !*********************************************************************************************************************
    
     subroutine pv_diagnostics_update(domain, exchange_halo_group)       ! MC: modified with inputs for new halo exchange
-        use mpas_pool_routines, only: mpas_pool_get_config
+        use mpas_pool_routines, only: mpas_pool_get_config, mpas_pool_get_array
 
         implicit none
 
         type (domain_type), intent(inout) :: domain                     
         procedure (halo_exchange_routine) :: exchange_halo_group       
         logical, pointer :: config_pv_diag, config_pv_tend
+
+        integer, dimension(:), pointer :: pv_callCounter
 
         call mpas_pool_get_config(configs, 'config_pv_diag', config_pv_diag)
         call mpas_pool_get_config(configs, 'config_pv_tend', config_pv_tend)
@@ -251,8 +265,16 @@ module mpas_pv_diagnostics
            call mpas_log_write("Computing Ertel's PV.")
            call atm_compute_pv_diagnostics(domain, configs, state, diag, mesh, exchange_halo_group)
 
-           call mpas_log_write('Computing PV tendency diagnostics.')
-           call atm_compute_pvBudget_diagnostics(domain, configs, state, diag, mesh, tend, tend_physics, diag_physics, exchange_halo_group)
+           ! Only call PV tendency calculations during model integration, not at initialization time
+           ! Track this via counter for number of calls to this subroutine
+           call mpas_pool_get_array(diag, 'pv_callCounter', pv_callCounter)
+
+           if (pv_callCounter(1) .gt. 0) then 
+              call mpas_log_write('Computing PV tendency diagnostics.')
+              call atm_compute_pvBudget_diagnostics(domain, configs, state, diag, mesh, tend, tend_physics, diag_physics, exchange_halo_group)   ! MC halo mod
+           end if
+
+           pv_callCounter(:) = pv_callCounter(:) + 1
         end if   
 
     end subroutine pv_diagnostics_update
