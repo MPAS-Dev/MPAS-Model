@@ -420,9 +420,5 @@
              packages="pv_diagnostics"/>
 
 
-        <!-- MC: needs to be deleted after further code modifications have been done -->
-        <var name="tend_u_phys" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
-             description="Normal wind tendencies from physics parameterizations"/>   
-
 </var_struct>
 
