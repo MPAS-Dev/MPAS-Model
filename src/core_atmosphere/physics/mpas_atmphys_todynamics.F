@@ -467,7 +467,7 @@
 
     do i = 1, nEdgesSolve
     do k = 1, nVertLevels
-       tend_u(k,i)=tend_u(k,i)+rublten_Edge(k,i)*mass_edge(k,i)
+       tend_u(k,i) = tend_u(k,i) + rublten_Edge(k,i)*mass_edge(k,i)
        rublten_tend(k,i) = rublten_Edge(k,i)*mass_edge(k,i)      ! MW on ITM   
     enddo
     enddo
@@ -535,7 +535,8 @@
           endif
           do i = 1, nEdgesSolve
           do k = 1, nVertLevels
-             tend_u(k,i)=tend_u(k,i)+rucuten_Edge(k,i)*mass_edge(k,i)
+             tend_u(k,i) = tend_u(k,i) + rucuten_Edge(k,i)*mass_edge(k,i)
+             rucuten_tend(k,i) = rucuten_Edge(k,i)*mass_edge(k,i)  ! MW on ITM
           enddo
           enddo
 
