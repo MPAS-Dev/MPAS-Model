@@ -1184,8 +1184,8 @@ module atm_time_integration
                                         dt_dynamics, dynamics_substep, dynamics_split )
            end do
 !$OMP END PARALLEL DO
-           call mpas_timer_stop('Tendency and PV diagnostics')
            call mpas_timer_stop('atm_accumulate_tend')
+           call mpas_timer_stop('Tendency and PV diagnostics')
          end if 
 
 
@@ -1231,8 +1231,8 @@ module atm_time_integration
                                       exchange_halo_group)
         end do
 !$OMP END PARALLEL DO
-        call mpas_timer_stop('Tendency and PV diagnostics')
         call mpas_timer_stop('atm_reconstruct_tend')
+        call mpas_timer_stop('Tendency and PV diagnostics')
       end if
 
 
