@@ -918,27 +918,7 @@
 			<var name="uReconstructZonal"/>
 			<var name="uReconstructMeridional"/>
 
-                        <!-- Begin Ertel PV diagnostics defined in diagnostics/Registry_pv.xml -->
-			<var name="ertel_pv"/>
-			<var name="u_pv"/>
-			<var name="v_pv"/>
-			<var name="theta_pv"/>
-			<var name="vort_pv"/>
-			<var name="iLev_DT"/>
 #ifdef DO_PHYSICS
-			<var name="depv_dt_lw"/>
-			<var name="depv_dt_sw"/>
-			<var name="depv_dt_bl"/>
-			<var name="depv_dt_cu"/>
-			<var name="depv_dt_mix"/>
-			<var name="dtheta_dt_mp"/>
-			<var name="depv_dt_mp"/>
-			<var name="depv_dt_diab"/>
-			<var name="depv_dt_fric"/>
-			<var name="depv_dt_diab_pv"/>
-			<var name="depv_dt_fric_pv"/>
-                        <!-- End Ertel PV diagnostics defined in diagnostics/Registry_pv.xml -->
-
 			<var name="i_rainnc"/>
 			<var name="rainnc"/>
 			<var name="precipw"/>
@@ -979,6 +959,66 @@
 			<var name="tslb"/>
 #endif
 		</stream>
+
+                <stream name="pvbudget" 
+                        type="output" 
+                        filename_template="pvbudget.$Y-$M-$D_$h.$m.$s.nc" 
+                        output_interval="3:00:00"
+                        runtime_format="separate_file">
+
+                        <var name="initial_time"/>
+                        <var name="xtime"/>
+                        <var name="Time"/>
+                        <!--- For default PV stream. All PV variables defined in Registry_pv.xml -->
+                        <var name="ertel_pv" packages="pv_diagnostics"/>
+                        <var name="pres_pv" packages="pv_diagnostics"/>
+                        <var name="u_pv" packages="pv_diagnostics"/>
+                        <var name="v_pv" packages="pv_diagnostics"/>
+                        <var name="theta_pv" packages="pv_diagnostics"/>
+                        <var name="vort_pv" packages="pv_diagnostics"/>
+                        <var name="height_pv" packages="pv_diagnostics"/>
+                        <!--- Instantaneous PV budget -->
+                        <var name="ertel_pv_prev" packages="pv_tendencies"/>
+                        <var name="depv_dt_diab" packages="pv_tendencies"/>
+                        <var name="depv_dt_fric" packages="pv_tendencies"/>
+                        <var name="depv_dt_dyn" packages="pv_tendencies"/>
+                        <var name="depv_dt_lw" packages="pv_tendencies"/>
+                        <var name="depv_dt_sw" packages="pv_tendencies"/>
+                        <var name="depv_dt_bl" packages="pv_tendencies"/>
+                        <var name="depv_dt_cu" packages="pv_tendencies"/>
+                        <var name="depv_dt_mix" packages="pv_tendencies"/>
+                        <var name="depv_dt_mp" packages="pv_tendencies"/>
+                        <var name="depv_dt_fric_bl" packages="pv_tendencies"/>
+                        <var name="depv_dt_fric_mix" packages="pv_tendencies"/>
+                        <var name="depv_dt_fric_cu" packages="pv_tendencies"/>
+                        <!--- Instantaneous Thompson microphysical PV tendencies -->
+                        <var name="depv_dt_mp_evap_cw" packages="pv_microphysics"/>
+                        <var name="depv_dt_mp_evap_rw" packages="pv_microphysics"/>
+                        <var name="depv_dt_mp_depo_ice" packages="pv_microphysics"/>
+                        <var name="depv_dt_mp_melt_ice" packages="pv_microphysics"/>
+                        <var name="depv_dt_mp_frez_ice" packages="pv_microphysics"/>
+                        <var name="depv_dt_mp_allproc" packages="pv_microphysics"/>
+                        <!--- Accumulated PV budget -->
+                        <var name="acc_depv_dt_diab" packages="pv_tendencies"/>
+                        <var name="acc_depv_dt_fric" packages="pv_tendencies"/>
+                        <var name="acc_depv_dt_dyn" packages="pv_tendencies"/>
+                        <var name="acc_depv_dt_lw" packages="pv_tendencies"/>
+                        <var name="acc_depv_dt_sw" packages="pv_tendencies"/>
+                        <var name="acc_depv_dt_bl" packages="pv_tendencies"/>
+                        <var name="acc_depv_dt_cu" packages="pv_tendencies"/>
+                        <var name="acc_depv_dt_mix" packages="pv_tendencies"/>
+                        <var name="acc_depv_dt_mp" packages="pv_tendencies"/>
+                        <var name="acc_depv_dt_fric_bl" packages="pv_tendencies"/>
+                        <var name="acc_depv_dt_fric_mix" packages="pv_tendencies"/>
+                        <var name="acc_depv_dt_fric_cu" packages="pv_tendencies"/>
+                        <!--- Accumulated Thompson microphysical PV tendencies -->
+                        <var name="acc_depv_dt_mp_evap_cw" packages="pv_microphysics"/>
+                        <var name="acc_depv_dt_mp_evap_rw" packages="pv_microphysics"/>
+                        <var name="acc_depv_dt_mp_depo_ice" packages="pv_microphysics"/>
+                        <var name="acc_depv_dt_mp_melt_ice" packages="pv_microphysics"/>
+                        <var name="acc_depv_dt_mp_frez_ice" packages="pv_microphysics"/>
+                        <var name="acc_depv_dt_mp_allproc" packages="pv_microphysics"/>
+                </stream>
 
 		<stream name="diagnostics" 
                         type="output" 
