@@ -13,6 +13,7 @@ module atm_core
    use mpas_log, only : mpas_log_write, mpas_log_info
    use mpas_io_units, only : mpas_new_unit, mpas_release_unit
 
+   use mpas_atm_halos, only: exchange_halo_group    
    !
    ! Abstract interface for routine used to communicate halos of fields
    ! in a named group
@@ -661,8 +662,10 @@ module atm_core
       end if
       call mpas_timer_start('diagnostic_fields')
       call mpas_atm_diag_reset()
-      call mpas_atm_diag_update()
-      call mpas_atm_diag_compute()
+      !call mpas_atm_diag_update()
+      call mpas_atm_diag_update(domain, exchange_halo_group)   ! MC -- modified with halo inputs
+      !call mpas_atm_diag_compute()
+      call mpas_atm_diag_compute(domain, exchange_halo_group)  ! MC -- modified with halo inputs
       call mpas_timer_stop('diagnostic_fields')
 
       call mpas_dmpar_get_time(diag_stop_time)
@@ -823,8 +826,10 @@ module atm_core
          end if
 
          call mpas_timer_start('diagnostic_fields')
-         call mpas_atm_diag_update()
-         call mpas_atm_diag_compute()
+         !call mpas_atm_diag_update()
+         call mpas_atm_diag_update(domain, exchange_halo_group)       ! MC -- modified with halo inputs
+         !call mpas_atm_diag_compute()
+         call mpas_atm_diag_compute(domain, exchange_halo_group)      ! MC -- modified with halo inputs
          call mpas_timer_stop('diagnostic_fields')
          call mpas_dmpar_get_time(diag_stop_time)
 

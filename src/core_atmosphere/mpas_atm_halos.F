@@ -68,6 +68,9 @@ module mpas_atm_halos
 
       ! MC: check for diagnostics packages
       call mpas_pool_get_config(domain % blocklist % configs, 'config_tend', config_tend)
+      call mpas_pool_get_config(domain % blocklist % configs, 'config_pv_diag', config_pv_diag)
+      call mpas_pool_get_config(domain % blocklist % configs, 'config_pv_tend', config_pv_tend)
+      call mpas_pool_get_config(domain % blocklist % configs, 'config_pv_microphys', config_pv_microphys)
 
       !
       ! Determine from the namelist option config_halo_exch_method which halo exchange method to employ
@@ -205,6 +208,80 @@ module mpas_atm_halos
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:u_tend', 'acc_u_tend_dcpl', timeLevel=1, haloLayers=(/1,2/))
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:u_tend', 'du_dt_dyn', timeLevel=1, haloLayers=(/1,2/))
          end if
+
+         ! PV diagnostics 
+         if (config_pv_diag) then
+            call mpas_dmpar_exch_group_create(domain, 'diagnostics:pv_diag')
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:pv_diag', 'theta', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:pv_diag', 'uReconstructZonal', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:pv_diag', 'uReconstructMeridional', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:pv_diag', 'w', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:pv_diag', 'wCell', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:pv_diag', 'rho', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:pv_diag', 'pv_vertex', timeLevel=1, haloLayers=(/1,2/))
+
+            call mpas_dmpar_exch_group_create(domain, 'diagnostics:inStrato')
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:inStrato', 'inStrato', timeLevel=1, haloLayers=(/1,2/))
+
+            call mpas_dmpar_exch_group_create(domain, 'diagnostics:inTropo')
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:inTropo', 'inTropo', timeLevel=1, haloLayers=(/1,2/))
+
+            call mpas_dmpar_exch_group_create(domain, 'diagnostics:iLev_DT')
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:iLev_DT', 'iLev_DT', timeLevel=1, haloLayers=(/1,2/))
+
+            call mpas_dmpar_exch_group_create(domain, 'diagnostics:ertel_pv')
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:ertel_pv', 'ertel_pv', timeLevel=1, haloLayers=(/1,2/))
+         end if
+
+         ! PV tendencies
+         if (config_pv_tend) then
+            call mpas_dmpar_exch_group_create(domain, 'diagnostics:dpv_prev')
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'theta_prev', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'uReconstructZonal_prev', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'uReconstructMeridional_prev', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'wCell_prev', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'rho_prev', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'rho', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'pv_vertex_prev', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'qv_prev', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'ertel_pv_prev', timeLevel=1, haloLayers=(/1,2/))
+
+            call mpas_dmpar_exch_group_create(domain, 'diagnostics:dpv_th_tend')
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_th_tend', 'dtheta_dt_dyn', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_th_tend', 'dtheta_dt_mix', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_th_tend', 'dtheta_dt_pbl', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_th_tend', 'dtheta_dt_cu', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_th_tend', 'dtheta_dt_sw', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_th_tend', 'dtheta_dt_lw', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_th_tend', 'dtheta_dt_mp', timeLevel=1, haloLayers=(/1,2/))
+
+            call mpas_dmpar_exch_group_create(domain, 'diagnostics:dpv_mom_tend')
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'du_dt_dyn', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'dw_dt_dyn', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'tenddyn_wCell', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'u_tend_diff', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'w_tend_diff', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'tend_wCell_diff', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'tend_u_pbl', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'tend_u_cu', timeLevel=1, haloLayers=(/1,2/))
+
+            call mpas_dmpar_exch_group_create(domain, 'diagnostics:dpv_mom_curl')
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_curl', 'uTend_curl_dyn', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_curl', 'uTend_curl_diff', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_curl', 'uTend_curl_pbl', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_curl', 'uTend_curl_cu', timeLevel=1, haloLayers=(/1,2/))
+         end if
+
+         ! PV microphysics process tendencies
+         if (config_pv_microphys) then
+            call mpas_dmpar_exch_group_create(domain, 'diagnostics:dpv_mp_tend')
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mp_tend', 'tend_theta_mp_evap_cw', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mp_tend', 'tend_theta_mp_evap_rw', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mp_tend', 'tend_theta_mp_depo_ice', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mp_tend', 'tend_theta_mp_melt_ice', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mp_tend', 'tend_theta_mp_frez_ice', timeLevel=1, haloLayers=(/1,2/))
+         end if
+
 
          !
          ! Set routine to exchange a halo group
@@ -361,6 +438,94 @@ module mpas_atm_halos
             call mpas_halo_exch_group_add_field(domain, 'diagnostics:u_tend', 'du_dt_dyn', timeLevel=1, haloLayers=(/1,2/))
             call mpas_halo_exch_group_complete(domain, 'diagnostics:u_tend')
          end if
+
+
+         ! MC note -- why do dmpar groups have "mpas_halo_exch_group_complete" but not halo groups?
+         ! PV diagnostics 
+         if (config_pv_diag) then
+            call mpas_halo_exch_group_create(domain, 'diagnostics:pv_diag')
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:pv_diag', 'theta', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:pv_diag', 'uReconstructZonal', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:pv_diag', 'uReconstructMeridional', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:pv_diag', 'w', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:pv_diag', 'wCell', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:pv_diag', 'rho', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:pv_diag', 'pv_vertex', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_complete(domain, 'diagnostics:pv_diag')
+
+            ! MC note: these currently are not supported because they're integer fields
+            !call mpas_halo_exch_group_create(domain, 'diagnostics:inStrato')
+            !call mpas_halo_exch_group_add_field(domain, 'diagnostics:inStrato', 'inStrato', timeLevel=1, haloLayers=(/1,2/))
+            !call mpas_halo_exch_group_complete(domain, 'diagnostics:inStrato')
+
+            !call mpas_halo_exch_group_create(domain, 'diagnostics:inTropo')
+            !call mpas_halo_exch_group_add_field(domain, 'diagnostics:inTropo', 'inTropo', timeLevel=1, haloLayers=(/1,2/))
+            !call mpas_halo_exch_group_complete(domain, 'diagnostics:inTropo')
+
+            !call mpas_halo_exch_group_create(domain, 'diagnostics:iLev_DT')
+            !call mpas_halo_exch_group_add_field(domain, 'diagnostics:iLev_DT', 'iLev_DT', timeLevel=1, haloLayers=(/1,2/))
+            !call mpas_halo_exch_group_complete(domain, 'diagnostics:iLev_DT')
+
+            call mpas_halo_exch_group_create(domain, 'diagnostics:ertel_pv')
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:ertel_pv', 'ertel_pv', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_complete(domain, 'diagnostics:ertel_pv')
+         end if
+
+         ! PV tendencies
+         if (config_pv_tend) then
+            call mpas_halo_exch_group_create(domain, 'diagnostics:dpv_prev')
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'theta_prev', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'uReconstructZonal_prev', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'uReconstructMeridional_prev', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'wCell_prev', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'rho_prev', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'rho', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'pv_vertex_prev', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'qv_prev', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_prev', 'ertel_pv_prev', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_complete(domain, 'diagnostics:dpv_prev')
+
+            call mpas_halo_exch_group_create(domain, 'diagnostics:dpv_th_tend')
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_th_tend', 'dtheta_dt_dyn', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_th_tend', 'dtheta_dt_mix', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_th_tend', 'dtheta_dt_pbl', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_th_tend', 'dtheta_dt_cu', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_th_tend', 'dtheta_dt_sw', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_th_tend', 'dtheta_dt_lw', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_th_tend', 'dtheta_dt_mp', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_complete(domain, 'diagnostics:dpv_th_tend')
+
+            call mpas_halo_exch_group_create(domain, 'diagnostics:dpv_mom_tend')
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'du_dt_dyn', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'dw_dt_dyn', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'tenddyn_wCell', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'u_tend_diff', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'w_tend_diff', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'tend_wCell_diff', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'tend_u_pbl', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'tend_u_cu', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_complete(domain, 'diagnostics:dpv_mom_tend')
+
+            call mpas_halo_exch_group_create(domain, 'diagnostics:dpv_mom_curl')
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_curl', 'uTend_curl_dyn', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_curl', 'uTend_curl_diff', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_curl', 'uTend_curl_pbl', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_curl', 'uTend_curl_cu', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_complete(domain, 'diagnostics:dpv_mom_curl')
+
+         end if    
+
+         ! PV microphysics process tendencies
+         if (config_pv_microphys) then
+            call mpas_halo_exch_group_create(domain, 'diagnostics:dpv_mp_tend')
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mp_tend', 'tend_theta_mp_evap_cw', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mp_tend', 'tend_theta_mp_evap_rw', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mp_tend', 'tend_theta_mp_depo_ice', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mp_tend', 'tend_theta_mp_melt_ice', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mp_tend', 'tend_theta_mp_frez_ice', timeLevel=1, haloLayers=(/1,2/))
+         end if
+
+
          !
          ! Set routine to exchange a halo group
          !
@@ -455,6 +620,25 @@ module mpas_atm_halos
             call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:u_tend')
          end if 
 
+         if (config_pv_diag) then
+            call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:pv_diag')
+            call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:inStrato')
+            call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:inTropo')
+            call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:iLev_DT')
+            call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:ertel_pv')
+         end if
+
+         if (config_pv_tend) then 
+            call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:dpv_prev')
+            call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:dpv_th_tend')
+            call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:dpv_mom_tend')
+            call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:dpv_mom_curl')
+         end if   
+
+         if (config_pv_microphys) then
+            call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:dpv_mp_tend')
+         end if
+
 
       else if (trim(config_halo_exch_method) == 'mpas_halo') then
 
@@ -499,6 +683,27 @@ module mpas_atm_halos
             call mpas_halo_exch_group_destroy(domain, 'physics:bldiff')
             call mpas_halo_exch_group_destroy(domain, 'diagnostics:u_tend')
          end if
+
+         if (config_pv_diag) then
+            call mpas_halo_exch_group_destroy(domain, 'diagnostics:pv_diag')
+            !call mpas_halo_exch_group_destroy(domain, 'diagnostics:inStrato')
+            !call mpas_halo_exch_group_destroy(domain, 'diagnostics:inTropo')
+            !call mpas_halo_exch_group_destroy(domain, 'diagnostics:iLev_DT')
+            call mpas_halo_exch_group_destroy(domain, 'diagnostics:ertel_pv')
+
+         end if   
+
+         if (config_pv_tend) then 
+            call mpas_halo_exch_group_destroy(domain, 'diagnostics:dpv_prev')
+            call mpas_halo_exch_group_destroy(domain, 'diagnostics:dpv_th_tend')
+            call mpas_halo_exch_group_destroy(domain, 'diagnostics:dpv_mom_tend')
+            call mpas_halo_exch_group_destroy(domain, 'diagnostics:dpv_mom_curl')
+         end if
+
+         if (config_pv_microphys) then
+            call mpas_halo_exch_group_destroy(domain, 'diagnostics:dpv_mp_tend')
+         end if
+
 
          call mpas_halo_finalize(domain)
 

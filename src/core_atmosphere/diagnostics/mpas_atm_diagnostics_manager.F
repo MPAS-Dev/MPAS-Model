@@ -7,6 +7,30 @@
 !
 module mpas_atm_diagnostics_manager
 
+    use mpas_timer
+
+    ! MC: added new halo communication interface here for updated PV diagnostics
+    !     not sure if this is necessary or is the best approach to using those
+    !     routines in the PV code, but I didn't know how else to do it. This
+    !     approach essentially propagates modifications to all PV calculation
+    !     calls up to the mpas_atm_core.F code. 
+    !
+    ! Abstract interface for routine used to communicate halos of fields
+    ! in a named group
+    !
+    abstract interface
+       subroutine halo_exchange_routine(domain, halo_group, ierr)
+
+          use mpas_derived_types, only : domain_type
+
+          type (domain_type), intent(inout) :: domain
+          character(len=*), intent(in) :: halo_group
+          integer, intent(out), optional :: ierr
+
+       end subroutine halo_exchange_routine
+    end interface
+
+
     private
 
     public :: mpas_atm_diag_setup, &
@@ -57,8 +81,11 @@ module mpas_atm_diagnostics_manager
         call isobaric_diagnostics_setup(structs, clock)
         call cloud_diagnostics_setup(structs, clock)
         call convective_diagnostics_setup(structs, clock)
-        call pv_diagnostics_setup(structs, clock)
         call soundings_setup(configs, structs, clock, dminfo)
+
+        call mpas_timer_start('Tendency and PV diagnostics')
+        call pv_diagnostics_setup(configs, structs, clock)
+        call mpas_timer_stop('Tendency and PV diagnostics')
 
     end subroutine mpas_atm_diag_setup
 
@@ -73,16 +100,23 @@ module mpas_atm_diagnostics_manager
     !>  MPAS_atm_diag_update.
     !
     !-----------------------------------------------------------------------
-    subroutine mpas_atm_diag_update()
+    subroutine mpas_atm_diag_update(domain, exchange_halo_group)
 
         use mpas_diagnostic_template, only : diagnostic_template_update
         use mpas_convective_diagnostics, only : convective_diagnostics_update
+        use mpas_pv_diagnostics, only : pv_diagnostics_update  
 
         implicit none
 
+        type (domain_type), intent(inout) :: domain                 
+        procedure (halo_exchange_routine) :: exchange_halo_group
 
         call diagnostic_template_update()
         call convective_diagnostics_update()
+
+        call mpas_timer_start('Tendency and PV diagnostics')
+        call pv_diagnostics_update(domain, exchange_halo_group)
+        call mpas_timer_stop('Tendency and PV diagnostics')
 
     end subroutine mpas_atm_diag_update
 
@@ -97,7 +131,7 @@ module mpas_atm_diagnostics_manager
     !>  MPAS_atm_diag_compute.
     !
     !-----------------------------------------------------------------------
-    subroutine mpas_atm_diag_compute()
+    subroutine mpas_atm_diag_compute(domain, exchange_halo_group)
 
         use mpas_diagnostic_template, only : diagnostic_template_compute
         use mpas_isobaric_diagnostics, only : isobaric_diagnostics_compute
@@ -108,13 +142,19 @@ module mpas_atm_diagnostics_manager
 
         implicit none
 
+        type (domain_type), intent(inout) :: domain                  ! MC added
+        procedure (halo_exchange_routine) :: exchange_halo_group     ! MC added
+
 
         call diagnostic_template_compute()
         call isobaric_diagnostics_compute()
         call cloud_diagnostics_compute()
         call convective_diagnostics_compute()
-        call pv_diagnostics_compute()
         call soundings_compute()
+
+        call mpas_timer_start('Tendency and PV diagnostics')
+        call pv_diagnostics_compute(domain, exchange_halo_group)
+        call mpas_timer_stop('Tendency and PV diagnostics')
 
     end subroutine mpas_atm_diag_compute
 
