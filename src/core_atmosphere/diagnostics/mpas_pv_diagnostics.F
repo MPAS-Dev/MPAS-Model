@@ -3459,6 +3459,7 @@ module mpas_pv_diagnostics
       call exchange_halo_group(domain, 'diagnostics:dpv_mom_tend')
       call exchange_halo_group(domain, 'diagnostics:dpv_mom_curl')
 
+      call mpas_pool_get_config(configs, 'config_pv_microphys', config_pv_microphys)
       if (config_pv_microphys) then 
          call exchange_halo_group(domain, 'diagnostics:dpv_mp_tend') 
       end if    
