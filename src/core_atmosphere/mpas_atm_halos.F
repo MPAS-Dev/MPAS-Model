@@ -26,10 +26,11 @@ module mpas_atm_halos
       end subroutine halo_exchange_routine
    end interface
 
+   character(len=StrKIND), pointer, private :: config_halo_exch_method
    procedure (halo_exchange_routine), pointer :: exchange_halo_group
 
    ! MC: added logicals for diagnostics packages
-   logical, pointer :: config_tend, config_isobaric
+   logical, pointer :: config_tend, config_isobaric, config_pv_isobaric
    logical, pointer :: config_pv_diag, config_pv_tend, config_pv_scalar, &
                        config_pv_microphys   
 
@@ -59,12 +60,8 @@ module mpas_atm_halos
       use mpas_halo, only  : mpas_halo_init, mpas_halo_exch_group_create, mpas_halo_exch_group_add_field, &
                              mpas_halo_exch_group_complete, mpas_halo_exch_group_full_halo_exch
 
-      ! Arguments
       type (domain_type), intent(inout) :: domain
       integer, intent(inout) :: ierr
-
-      ! Local variables
-      character(len=StrKIND), pointer :: config_halo_exch_method
 
       ! MC: check for diagnostics packages
       call mpas_pool_get_config(domain % blocklist % configs, 'config_tend', config_tend)
@@ -72,6 +69,7 @@ module mpas_atm_halos
       call mpas_pool_get_config(domain % blocklist % configs, 'config_pv_tend', config_pv_tend)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_pv_microphys', config_pv_microphys)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_isobaric', config_isobaric)
+      call mpas_pool_get_config(domain % blocklist % configs, 'config_pv_isobaric', config_pv_isobaric)
 
       !
       ! Determine from the namelist option config_halo_exch_method which halo exchange method to employ
@@ -284,12 +282,14 @@ module mpas_atm_halos
          end if
 
          ! Isobaric interpolation
-         if (config_isobaric) then
+         if (config_isobaric .or. config_pv_isobaric) then
             call mpas_dmpar_exch_group_create(domain, 'isobaric:pressure_p')
             call mpas_dmpar_exch_group_add_field(domain, 'isobaric:pressure_p', 'pressure_p', timeLevel=1, haloLayers=(/1,2/))
 
-            call mpas_dmpar_exch_group_create(domain, 'isobaric:vorticity')
-            call mpas_dmpar_exch_group_add_field(domain, 'isobaric:vorticity', 'vorticity', timeLevel=1, haloLayers=(/1,2/))
+            if (config_isobaric) then 
+               call mpas_dmpar_exch_group_create(domain, 'isobaric:vorticity')
+               call mpas_dmpar_exch_group_add_field(domain, 'isobaric:vorticity', 'vorticity', timeLevel=1, haloLayers=(/1,2/))
+            end if
          end if
 
 
@@ -537,14 +537,16 @@ module mpas_atm_halos
          end if
 
          ! Isobaric interpolation
-         if (config_isobaric) then 
+         if (config_isobaric .or. config_pv_isobaric) then
             call mpas_halo_exch_group_create(domain, 'isobaric:pressure_p')
             call mpas_halo_exch_group_add_field(domain, 'isobaric:pressure_p', 'pressure_p', timeLevel=1, haloLayers=(/1,2/)) 
             call mpas_halo_exch_group_complete(domain, 'isobaric:pressure_p')
 
-            call mpas_halo_exch_group_create(domain, 'isobaric:vorticity')    
-            call mpas_halo_exch_group_add_field(domain, 'isobaric:vorticity', 'vorticity', timeLevel=1, haloLayers=(/1,2/))               
-            call mpas_halo_exch_group_complete(domain, 'isobaric:vorticity')
+            if (config_isobaric) then 
+               call mpas_halo_exch_group_create(domain, 'isobaric:vorticity')    
+               call mpas_halo_exch_group_add_field(domain, 'isobaric:vorticity', 'vorticity', timeLevel=1, haloLayers=(/1,2/))               
+               call mpas_halo_exch_group_complete(domain, 'isobaric:vorticity')
+            end if   
          end if             
 
          !
@@ -589,15 +591,9 @@ module mpas_atm_halos
       use mpas_dmpar, only : mpas_dmpar_exch_group_destroy
       use mpas_halo, only  : mpas_halo_exch_group_destroy, mpas_halo_finalize
 
-      ! Arguments
       type (domain_type), intent(inout) :: domain
       integer, intent(inout) :: ierr
 
-      ! Local variables
-      character(len=StrKIND), pointer :: config_halo_exch_method
-
-
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_halo_exch_method', config_halo_exch_method)
 
       if (trim(config_halo_exch_method) == 'mpas_dmpar') then
          !
@@ -660,9 +656,11 @@ module mpas_atm_halos
             call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:dpv_mp_tend')
          end if
 
-         if (config_isobaric) then 
+         if (config_isobaric .or. config_pv_isobaric) then
             call mpas_dmpar_exch_group_destroy(domain, 'isobaric:pressure_p')
-            call mpas_dmpar_exch_group_destroy(domain, 'isobaric:vorticity')     
+            if (config_isobaric) then 
+               call mpas_dmpar_exch_group_destroy(domain, 'isobaric:vorticity')     
+            end if 
          end if         
 
       else if (trim(config_halo_exch_method) == 'mpas_halo') then
@@ -729,10 +727,12 @@ module mpas_atm_halos
             call mpas_halo_exch_group_destroy(domain, 'diagnostics:dpv_mp_tend')
          end if
 
-         if (config_isobaric) then
+         if (config_isobaric .or. config_pv_isobaric) then
             call mpas_halo_exch_group_destroy(domain, 'isobaric:pressure_p')
-            call mpas_halo_exch_group_destroy(domain, 'isobaric:vorticity') 
-         end if 
+            if (config_isobaric) then 
+               call mpas_halo_exch_group_destroy(domain, 'isobaric:vorticity')
+            end if
+         end if
 
          call mpas_halo_finalize(domain)
 

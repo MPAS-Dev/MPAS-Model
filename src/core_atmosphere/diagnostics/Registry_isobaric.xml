@@ -16,7 +16,7 @@
         <!-- Levels are specified in mpas_isobaric_diagnostics.F -->
         <var name="iso_levels" type="real" dimensions="nIsoLevels" units="Pa"
              description="Levels for vertical interpolation to isobaric surfaces"
-             packages="isobaric"/> 
+             packages="isobaric;pv_isobaric"/> 
 
         <!-- Isobaric variables -->        
         <var name="temperature_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K"
@@ -63,14 +63,192 @@
              description="Vertical vorticity at cell centers vertically interpolated to isobaric levels"
              packages="isobaric"/>    
     
+        <!-- PV variables on isobaric levels - only activated if config_pv_isobaric = .true. --> 
+        <var name="ertel_pv_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU"
+             description="Ertel's potential vorticity vertically interpolated to isobaric levels"
+             packages="isobaric;pv_isobaric"/>
+    
+        <var name="depv_dt_lw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from longwave radiation vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_sw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from shortwave radiation vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_bl_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from PBL vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_cu_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from cumulus scheme vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_mp_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from microphysics vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_mix_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from explicit numerical mixing vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_fric_mix_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Frictional PV tendency from explicit horizontal mixing vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="depv_dt_fric_bl_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Frictional PV tendency from PBL scheme vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="depv_dt_fric_cu_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Frictional PV tendency from cumulus scheme vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>    
+
+        <var name="depv_dt_dyn_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="PV tendency from dynamics vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_diab_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Sum of calculated PV tendencies from diabatic processes vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_fric_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Sum of calculated PV tendencies from frictional processes vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_mp_evap_cw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from microphysics - net condensation/evaporation of cloud water - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+
+        <var name="depv_dt_mp_evap_rw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from microphysics - evaporation of rain water - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+
+        <var name="depv_dt_mp_depo_ice_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from microphysics - net deposition/sublimation of all ice hydrometeors - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+
+        <var name="depv_dt_mp_melt_ice_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from microphysics - melting of all ice hydrometeors - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+
+        <var name="depv_dt_mp_frez_ice_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from microphysics - freezing of all ice hydrometeors - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+
+        <var name="depv_dt_mp_allproc_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from summed microphysics processes vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+    
+        <!-- Potential temperature tendencies --> 
+        <var name="dtheta_dt_mp_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
+             description="Potential temperature heating rate from microphysics vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/> 
+
+        <var name="dtheta_dt_dyn_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
+             description="Potential temperature tendency from dynamics vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="dtheta_dt_cu_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
+             description="Potential temperature tendency from cumulus scheme vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+    
+        <!-- Accumulated PV tendencies -->
+        <var name="acc_depv_dt_lw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from longwave radiation vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_sw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from shortwave radiation vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="acc_depv_dt_bl_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from PBL vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_cu_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from cumulus scheme vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+         <var name="acc_depv_dt_mp_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="acc_depv_dt_mix_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from explicit horizontal mixing vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_fric_bl_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated frictional PV tendency from PBL scheme vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_fric_cu_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated frictional PV tendency from cumulus scheme vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_fric_mix_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated frictional PV tendency from explicit mixing vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_diab_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated sum of calculated PV tendencies from diabatic processes vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_fric_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated sum of calculated PV tendencies from frictional processes vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_dyn_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated PV tendency from dynamics vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_mp_evap_cw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics - net condensation/evaporation of cloud water - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+    
+        <var name="acc_depv_dt_mp_evap_rw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics - evaporation of rain water - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+    
+        <var name="acc_depv_dt_mp_depo_ice_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics - net deposition/sublimation of all ice hydrometeors - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+    
+        <var name="acc_depv_dt_mp_melt_ice_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics - melting of all ice hydrometeors - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+    
+        <var name="acc_depv_dt_mp_frez_ice_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics - freezing of all ice hydrometeors - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+    
+        <var name="acc_depv_dt_mp_allproc_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from summed microphysics processes vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+
+
+        <!-- Accumulated potential temperature tendencies --> 
+        <var name="acc_dtheta_dt_mp_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
+             description="Accumulated potential temperature heating rate from microphysics vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_dtheta_dt_dyn_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
+             description="Accumulated potential temperature tendency from dynamics vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="acc_dtheta_dt_cu_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
+             description="Accumulated potential temperature tendency from cumulus scheme vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
 
         <!-- Other variables -->
         <var name="mslp" type="real" dimensions="nCells Time" units="Pa"
              description="Mean sea-level pressure"
-             packages="isobaric"/>      
-        
-        <var name="meanT_500_300"    type="real" dimensions="nCells Time" units="K"
+             packages="isobaric"/>
+
+        <var name="meanT_500_300" type="real" dimensions="nCells Time" units="K"
              description="Mean temperature in the 500-300 hPa layer"
-             packages="isobaric"/>      
+             packages="isobaric"/>
 
 </var_struct>

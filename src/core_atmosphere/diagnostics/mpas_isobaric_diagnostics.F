@@ -17,7 +17,9 @@ module mpas_isobaric_diagnostics
     type (MPAS_pool_type), pointer :: mesh
     type (MPAS_pool_type), pointer :: state
     type (MPAS_pool_type), pointer :: diag
-    type (MPAS_pool_type), pointer :: configs
+    type (MPAS_pool_type), pointer :: diag_physics
+    type (MPAS_pool_type), pointer :: tend_physics
+    type (MPAS_pool_type), pointer :: configs 
 
     type (MPAS_clock_type), pointer :: clock
     type (domain_type), pointer :: domain
@@ -40,7 +42,8 @@ module mpas_isobaric_diagnostics
 
 
     public :: isobaric_diagnostics_setup, &
-              isobaric_diagnostics_compute
+              isobaric_diagnostics_compute, &
+              isobaric_pv, isobaric_pv_tendencies
 
     private
 
@@ -48,7 +51,16 @@ module mpas_isobaric_diagnostics
     logical :: need_mslp, need_meanT_500_300, &
                need_temp_isobaric, need_theta_isobaric, need_dewp_isobaric, need_relhum_isobaric, need_qv_isobaric, &
                need_uzonal_isobaric, need_umerid_isobaric, &
-               need_hgt_isobaric, need_geohgt_isobaric, need_w_isobaric, need_vort_isobaric          
+               need_hgt_isobaric, need_geohgt_isobaric, need_w_isobaric, need_vort_isobaric, &          
+               ! PV variables
+               need_ertelpv, &
+               need_lw, need_sw, need_bl, need_cu, need_mp, need_mix, &
+               need_fric_mix, need_fric_bl, need_fric_cu, &
+               need_diab, need_fric, need_dyn, &
+               need_evap_rw, need_evap_cw, need_depo, need_melt, need_frez, need_mp_all, &
+               need_pvtend_isobaric, need_mptend_isobaric, &
+               ! Latent heating rates 
+               need_dtheta_dt_cu, need_dtheta_dt_mp, need_thtend_isobaric  
 
     contains
 
@@ -77,7 +89,7 @@ module mpas_isobaric_diagnostics
         type (MPAS_pool_type), pointer :: all_pools
         type (MPAS_clock_type), pointer :: simulation_clock
 
-        logical, pointer :: config_isobaric
+        logical, pointer :: config_isobaric, config_pv_isobaric
 
         ! Isobaric levels for interpolation
         integer, pointer :: nIsoLevels
@@ -92,12 +104,14 @@ module mpas_isobaric_diagnostics
 
         ! check config_isobaric:
         call mpas_pool_get_config(configs, 'config_isobaric', config_isobaric)
+        call mpas_pool_get_config(configs, 'config_pv_isobaric', config_pv_isobaric)
 
         call mpas_log_write(' ')
         call mpas_log_write('   config_isobaric      is:     $l', logicArgs=(/config_isobaric/))
+        call mpas_log_write('   config_pv_isobaric   is:     $l', logicArgs=(/config_pv_isobaric/))
         call mpas_log_write(' ')
 
-        if (config_isobaric) then 
+        if (config_isobaric .or. config_pv_isobaric) then 
            call mpas_log_write(' ')
            call mpas_log_write(' ----- Setting up isobaric diagnostics ----- ')
            call mpas_log_write(' ')                
@@ -140,7 +154,7 @@ module mpas_isobaric_diagnostics
         procedure (halo_exchange_routine) :: exchange_halo_group        ! MC: halo exchange         
 
         logical :: need_any_diags
-        logical, pointer :: config_isobaric
+        logical, pointer :: config_isobaric, config_pv_diag
 
         need_any_diags = .false.
 
@@ -160,6 +174,7 @@ module mpas_isobaric_diagnostics
         need_vort_isobaric = .false.
 
         call mpas_pool_get_config(configs, 'config_isobaric', config_isobaric)
+        call mpas_pool_get_config(configs, 'config_pv_diag', config_pv_diag)
 
         if (config_isobaric) then
            need_mslp            = MPAS_field_will_be_written('mslp')
@@ -193,6 +208,49 @@ module mpas_isobaric_diagnostics
 
     end subroutine isobaric_diagnostics_compute
 
+
+   !==================================================================================================
+    subroutine isobaric_pv(domain, exchange_halo_group)
+   !
+   ! > MC: subroutine is called by mpas_pv_diagnostics.F to interpolate PV to isobaric levels. 
+   !       unlike for PV tendencies, only need to do this before writing file. this will be
+   !       determined in mpas_pv_diagnostics.F. 
+   !==================================================================================================
+
+        use mpas_atm_diagnostics_utils, only : MPAS_field_will_be_written
+
+        implicit none
+
+        type (domain_type), intent(inout) :: domain                     ! MC: halo exchange 
+        procedure (halo_exchange_routine) :: exchange_halo_group        ! MC: halo exchange  
+
+        need_ertelpv = .false.
+        need_ertelpv =  MPAS_field_will_be_written('ertel_pv_isobaric')
+        
+        if (need_ertelpv) then 
+           call mpas_log_write('Calling isobaric interpolation subroutine for ertel_pv.')
+           call interp_diagnostics_pv(domain, mesh, state, 1, diag, exchange_halo_group)
+        end if 
+
+    end subroutine isobaric_pv
+
+   !==================================================================================================
+    subroutine isobaric_pv_tendencies(domain, exchange_halo_group)
+   !
+   ! > MC: subroutine is called by mpas_pv_diagnostics.F to interpolate PV tendencies to isobaric levels. 
+   !       If config_pv_tend is activated, need to do this at each time step. this is determined in 
+   !       mpas_pv_diagnostics.F. 
+   !==================================================================================================
+
+        implicit none
+
+        type (domain_type), intent(inout) :: domain                     ! MC: halo exchange 
+        procedure (halo_exchange_routine) :: exchange_halo_group        ! MC: halo exchange         
+
+        call mpas_log_write('Calling interp_diagnostics_pv_tend.')
+        call interp_diagnostics_pv_tend(domain, mesh, state, 1, diag, exchange_halo_group)
+
+     end subroutine isobaric_pv_tendencies
 
    !==================================================================================================
     subroutine interp_diagnostics(domain, mesh, state, time_lev, diag, exchange_halo_group)
@@ -439,13 +497,295 @@ module mpas_isobaric_diagnostics
            !enddo
         end if
 
-        call mpas_log_write('did mean and slp')
         
         if (allocated(pressure)) deallocate(pressure)
         if (allocated(temperature)) deallocate(temperature)
         if (allocated(dewpoint)) deallocate(dewpoint)
         
     end subroutine interp_diagnostics
+    
+   !==================================================================================================
+    subroutine interp_diagnostics_pv(domain, mesh, state, time_lev, diag, exchange_halo_group)
+    !> MC: Interpolates ertel_pv to array of prescribed isobaric levels
+   !==================================================================================================
+
+        implicit none
+
+        ! Input arguments:
+        type (mpas_pool_type), intent(in)  :: mesh
+        type (domain_type), intent(inout) :: domain                     ! MC: halo exchange
+        type (mpas_pool_type), intent(in) :: state
+        integer, intent(in) :: time_lev              ! which time level to use from state
+        type (mpas_pool_type), intent(inout) :: diag
+        procedure (halo_exchange_routine) :: exchange_halo_group        ! MC: halo exchange
+
+        ! Local variables
+        integer :: iCell, k, kk
+        
+        ! Mesh variables and dimensions 
+        integer, pointer :: nCells, nVertLevels
+        
+        ! Isobaric levels for interpolation
+        integer, pointer :: nIsoLevels
+
+        ! Isolevels for all fields
+        real (kind=RKIND), dimension(:), pointer :: iso_levels         
+
+        ! Pressure variables
+        real (kind=RKIND), dimension(:,:), pointer :: pressure_b, pressure_p
+        real (kind=RKIND), dimension(:,:), allocatable :: pressure
+
+        ! Fields to be interpolated (or from which fields are derived)
+        real (kind=RKIND), dimension(:,:), pointer :: ertel_pv
+
+        ! Fields to interpolate:   
+        real (kind=RKIND), dimension(:,:), pointer :: ertel_pv_isobaric
+
+        ! Mesh variables
+        call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+        call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+
+        ! Isobaric levels -- need to amend if additonal level dims are used
+        call mpas_pool_get_dimension(mesh, 'nIsoLevels', nIsoLevels)
+        call mpas_pool_get_array(diag, 'iso_levels', iso_levels)
+
+        ! Pressure variables 
+        call exchange_halo_group(domain, 'isobaric:pressure_p')
+        call mpas_pool_get_array(diag, 'pressure_base', pressure_b)
+        call mpas_pool_get_array(diag, 'pressure_p', pressure_p)
+
+        ! Fields to be interpolated
+        call mpas_pool_get_array(diag, 'ertel_pv', ertel_pv)
+
+        ! Fields to interpolate:  
+        call mpas_pool_get_array(diag, 'ertel_pv_isobaric', ertel_pv_isobaric)
+
+        if(.not.allocated(pressure)) allocate(pressure(nVertLevels,nCells+1))
+
+        ! -----------------------------------------------------------------
+        ! Calculate total pressure at mass points:
+        do iCell = 1,nCells
+            do k = 1,nVertLevels
+               pressure(k,iCell) = (pressure_p(k,iCell) + pressure_b(k,iCell)) / 100._RKIND
+            end do
+        end do
+
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        !!!!!!!!!!! Interpolate fields to array of pressure levels !!!!!!!!!!!
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+        !--------------------------------------------------------------------
+        ! Interpolate PV:
+
+        call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, ertel_pv, nIsoLevels, iso_levels, ertel_pv_isobaric) 
+
+        if (allocated(pressure)) deallocate(pressure)
+
+    end subroutine interp_diagnostics_pv
+
+    
+   !==================================================================================================
+    subroutine interp_diagnostics_pv_tend(domain, mesh, state, time_lev, diag, exchange_halo_group)
+   !==================================================================================================
+
+        use mpas_pool_routines, only: mpas_pool_get_config
+        
+        implicit none
+
+        ! Input arguments:
+        type (mpas_pool_type), intent(in)  :: mesh
+        type (domain_type), intent(inout) :: domain                     ! MC: halo exchange
+        type (mpas_pool_type), intent(in) :: state
+        integer, intent(in) :: time_lev              ! which time level to use from state
+        type (mpas_pool_type), intent(inout) :: diag
+        procedure (halo_exchange_routine) :: exchange_halo_group        ! MC: halo exchange
+
+        logical, pointer :: config_pv_microphys
+
+        ! Local variables
+        integer :: iCell, k, kk
+        
+        ! Mesh variables and dimensions 
+        integer, pointer :: nCells, nVertLevels
+        
+        ! Isobaric levels for interpolation
+        integer, pointer :: nIsoLevels
+
+        ! Isolevels for all fields
+        real (kind=RKIND), dimension(:), pointer :: iso_levels         
+
+        ! Pressure variables
+        real (kind=RKIND), dimension(:,:), pointer :: pressure_b, pressure_p
+        real (kind=RKIND), dimension(:,:), allocatable :: pressure
+
+        ! Fields to be interpolated (or from which fields are derived)
+        real (kind=RKIND), dimension(:,:), pointer :: depv_dt_lw, depv_dt_sw, depv_dt_bl, &
+                                                      depv_dt_cu, depv_dt_mp, &
+                                                      depv_dt_mix,  &
+                                                      depv_dt_fric_bl, depv_dt_fric_cu, depv_dt_fric_mix, &
+                                                      depv_dt_diab, depv_dt_fric, depv_dt_dyn, &
+                                                      dtheta_dt_cu, dtheta_dt_mp, &
+                                                      depv_dt_mp_evap_rw, depv_dt_mp_evap_cw, &
+                                                      depv_dt_mp_depo_ice, depv_dt_mp_melt_ice, &
+                                                      depv_dt_mp_frez_ice, depv_dt_mp_allproc
+
+        ! Fields to interpolate:   
+        real (kind=RKIND), dimension(:,:), pointer :: depv_dt_lw_isobaric, depv_dt_sw_isobaric, &
+                                                      depv_dt_bl_isobaric, depv_dt_cu_isobaric, &
+                                                      depv_dt_mp_isobaric, depv_dt_mix_isobaric, &
+                                                      depv_dt_fric_bl_isobaric, depv_dt_fric_cu_isobaric, &
+                                                      depv_dt_fric_mix_isobaric, &
+                                                      depv_dt_diab_isobaric, depv_dt_fric_isobaric, &
+                                                      depv_dt_dyn_isobaric, &
+                                                      dtheta_dt_cu_isobaric, dtheta_dt_mp_isobaric, &
+                                                      depv_dt_mp_evap_rw_isobaric, depv_dt_mp_evap_cw_isobaric, &
+                                                      depv_dt_mp_depo_ice_isobaric, depv_dt_mp_melt_ice_isobaric, &
+                                                      depv_dt_mp_frez_ice_isobaric, depv_dt_mp_allproc_isobaric
+
+        ! Mesh variables
+        call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+        call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+
+        ! Isobaric levels -- need to amend if additonal level dims are used
+        call mpas_pool_get_dimension(mesh, 'nIsoLevels', nIsoLevels)
+        call mpas_pool_get_array(diag, 'iso_levels', iso_levels)
+
+        ! Pressure variables 
+        call exchange_halo_group(domain, 'isobaric:pressure_p')
+        call mpas_pool_get_array(diag, 'pressure_base', pressure_b)
+        call mpas_pool_get_array(diag, 'pressure_p', pressure_p)
+
+        ! Tendency variables to be interpolated
+        call mpas_pool_get_array(diag, 'depv_dt_lw', depv_dt_lw)
+        call mpas_pool_get_array(diag, 'depv_dt_sw', depv_dt_sw)
+        call mpas_pool_get_array(diag, 'depv_dt_bl', depv_dt_bl)
+        call mpas_pool_get_array(diag, 'depv_dt_cu', depv_dt_cu)
+        call mpas_pool_get_array(diag, 'depv_dt_mp', depv_dt_mp)
+        call mpas_pool_get_array(diag, 'depv_dt_mix', depv_dt_mix)
+        call mpas_pool_get_array(diag, 'depv_dt_fric_bl', depv_dt_fric_bl)
+        call mpas_pool_get_array(diag, 'depv_dt_fric_cu', depv_dt_fric_cu)
+        call mpas_pool_get_array(diag, 'depv_dt_fric_mix', depv_dt_fric_mix)
+        call mpas_pool_get_array(diag, 'depv_dt_diab', depv_dt_diab)
+        call mpas_pool_get_array(diag, 'depv_dt_fric', depv_dt_fric)
+        call mpas_pool_get_array(diag, 'depv_dt_dyn', depv_dt_dyn)
+        call mpas_pool_get_array(diag, 'dtheta_dt_cu', dtheta_dt_cu)            
+        call mpas_pool_get_array(diag, 'dtheta_dt_mp', dtheta_dt_mp) 
+        
+        ! Tendency variables to interpolate
+        call mpas_pool_get_array(diag, 'depv_dt_lw_isobaric', depv_dt_lw_isobaric)
+        call mpas_pool_get_array(diag, 'depv_dt_sw_isobaric', depv_dt_sw_isobaric)
+        call mpas_pool_get_array(diag, 'depv_dt_bl_isobaric', depv_dt_bl_isobaric)
+        call mpas_pool_get_array(diag, 'depv_dt_cu_isobaric', depv_dt_cu_isobaric)
+        call mpas_pool_get_array(diag, 'depv_dt_mp_isobaric', depv_dt_mp_isobaric)
+        call mpas_pool_get_array(diag, 'depv_dt_mix_isobaric', depv_dt_mix_isobaric)
+        call mpas_pool_get_array(diag, 'depv_dt_fric_bl_isobaric', depv_dt_fric_bl_isobaric)
+        call mpas_pool_get_array(diag, 'depv_dt_fric_cu_isobaric', depv_dt_fric_cu_isobaric)
+        call mpas_pool_get_array(diag, 'depv_dt_fric_mix_isobaric', depv_dt_fric_mix_isobaric)
+        call mpas_pool_get_array(diag, 'depv_dt_diab_isobaric', depv_dt_diab_isobaric)
+        call mpas_pool_get_array(diag, 'depv_dt_fric_isobaric', depv_dt_fric_isobaric)
+        call mpas_pool_get_array(diag, 'depv_dt_dyn_isobaric', depv_dt_dyn_isobaric)
+        call mpas_pool_get_array(diag, 'dtheta_dt_cu_isobaric', dtheta_dt_cu_isobaric)
+        call mpas_pool_get_array(diag, 'dtheta_dt_mp_isobaric', dtheta_dt_mp_isobaric)
+
+        ! Thompson microphysics process tendencies:
+        call mpas_pool_get_config(configs, 'config_pv_microphys', config_pv_microphys)
+        
+        if (config_pv_microphys) then 
+           call mpas_pool_get_array(diag, 'depv_dt_mp_evap_rw', depv_dt_mp_evap_rw)
+           call mpas_pool_get_array(diag, 'depv_dt_mp_evap_cw', depv_dt_mp_evap_cw)
+           call mpas_pool_get_array(diag, 'depv_dt_mp_depo_ice', depv_dt_mp_depo_ice)
+           call mpas_pool_get_array(diag, 'depv_dt_mp_melt_ice', depv_dt_mp_melt_ice)
+           call mpas_pool_get_array(diag, 'depv_dt_mp_frez_ice', depv_dt_mp_frez_ice)
+           call mpas_pool_get_array(diag, 'depv_dt_mp_allproc', depv_dt_mp_allproc)
+
+           call mpas_pool_get_array(diag, 'depv_dt_mp_evap_rw_isobaric', depv_dt_mp_evap_rw_isobaric)
+           call mpas_pool_get_array(diag, 'depv_dt_mp_evap_cw_isobaric', depv_dt_mp_evap_cw_isobaric)
+           call mpas_pool_get_array(diag, 'depv_dt_mp_depo_ice_isobaric', depv_dt_mp_depo_ice_isobaric)
+           call mpas_pool_get_array(diag, 'depv_dt_mp_melt_ice_isobaric', depv_dt_mp_melt_ice_isobaric)
+           call mpas_pool_get_array(diag, 'depv_dt_mp_frez_ice_isobaric', depv_dt_mp_frez_ice_isobaric)
+           call mpas_pool_get_array(diag, 'depv_dt_mp_allproc_isobaric', depv_dt_mp_allproc_isobaric)
+        end if 
+   
+        if(.not.allocated(pressure)) allocate(pressure(nVertLevels,nCells+1))
+
+        ! -----------------------------------------------------------------
+        ! Calculate total pressure at mass points:
+        do iCell = 1,nCells
+            do k = 1,nVertLevels
+               pressure(k,iCell) = (pressure_p(k,iCell) + pressure_b(k,iCell)) / 100._RKIND
+            end do
+        end do
+
+
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        !!!!!!!!!!! Interpolate fields to array of pressure levels !!!!!!!!!!!
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+        !--------------------------------------------------------------------
+        ! Interpolate PV tendencies:
+
+        ! Longwave radiation:
+        call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_lw, nIsoLevels, iso_levels, depv_dt_lw_isobaric) 
+    
+        ! Shortwave radiation:
+        call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_sw, nIsoLevels, iso_levels, depv_dt_sw_isobaric) 
+
+        ! PBL:
+        call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_bl, nIsoLevels, iso_levels, depv_dt_bl_isobaric) 
+
+        ! Cumulus:
+        call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_cu, nIsoLevels, iso_levels, depv_dt_cu_isobaric) 
+
+        ! Microphysics:
+        call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_mp, nIsoLevels, iso_levels, depv_dt_mp_isobaric) 
+
+        ! Mixing:
+        call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_mix, nIsoLevels, iso_levels, depv_dt_mix_isobaric) 
+
+        ! Friction - PBL:
+        call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_fric_bl, nIsoLevels, iso_levels, depv_dt_fric_bl_isobaric) 
+
+        ! Friction - Cumulus:
+        call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_fric_cu, nIsoLevels, iso_levels, depv_dt_fric_cu_isobaric) 
+
+        ! Friction - Mixing:
+        call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_fric_mix, nIsoLevels, iso_levels, depv_dt_fric_mix_isobaric)
+                                                      
+        ! Diabatic:
+        call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_diab, nIsoLevels, iso_levels, depv_dt_diab_isobaric) 
+
+        ! Friction:
+        call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_fric, nIsoLevels, iso_levels, depv_dt_fric_isobaric) 
+
+        ! Dynamics:
+        call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_dyn, nIsoLevels, iso_levels, depv_dt_dyn_isobaric) 
+
+        !--------------------------------------------------------------------
+        ! Interpolate potential temperature tendencies from latent heating:
+
+        if (associated(dtheta_dt_cu)) then
+           call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, dtheta_dt_cu, nIsoLevels, iso_levels, dtheta_dt_cu_isobaric) 
+        end if
+
+        if (associated(dtheta_dt_mp)) then
+           call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, dtheta_dt_mp, nIsoLevels, iso_levels, dtheta_dt_mp_isobaric) 
+        end if        
+        
+        !--------------------------------------------------------------------
+        ! Interpolate PV tendencies from specific microphysical processes:
+        if (config_pv_microphys) then
+
+           call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_mp_evap_rw, nIsoLevels, iso_levels, depv_dt_mp_evap_rw_isobaric) 
+           call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_mp_evap_cw, nIsoLevels, iso_levels, depv_dt_mp_evap_cw_isobaric) 
+           call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_mp_depo_ice, nIsoLevels, iso_levels, depv_dt_mp_depo_ice_isobaric) 
+           call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_mp_melt_ice, nIsoLevels, iso_levels, depv_dt_mp_melt_ice_isobaric) 
+           call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_mp_frez_ice, nIsoLevels, iso_levels, depv_dt_mp_frez_ice_isobaric) 
+           call interp_field_cell_mass_levels(nCells, nVertLevels, pressure, depv_dt_mp_allproc, nIsoLevels, iso_levels, depv_dt_mp_allproc_isobaric) 
+        end if 
+
+        if (allocated(pressure)) deallocate(pressure)
+        
+    end subroutine interp_diagnostics_pv_tend
     
 
    !==================================================================================================

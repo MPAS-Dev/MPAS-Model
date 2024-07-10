@@ -70,8 +70,9 @@ module mpas_pv_diagnostics
     ! -- config_pv_scalar        : flag for whether pv_scalar is initialized as PV and then transported as passive scalar
     !                              throughout the model integration
     ! -- config_pv_microphys     : flag for whether specific microphysics process PV tendencies are desired (Thompson schemes only)
-    ! -- config_pv_isobaric      : flag for whether isobaric interpolation of PV diagnostics variables is desired 
-    !                              (requires mods to mpas_isobaric_diagnostics.F)
+    ! -- config_pv_isobaric      : flag for whether isobaric interpolation of PV tendency variables is desired 
+    !                              (requires mods to mpas_isobaric_diagnostics.F). if only ertel_pv_isobaric is desired, this 
+    !                              field may be computed with config_isobaric = .true.
     !
     ! --------------------------------------------------------------------------------------------------------------------
     ! Subroutines contained in fully updated mpas_pv_diagnostics.F:
@@ -153,7 +154,7 @@ module mpas_pv_diagnostics
     !   Note: these tendencies use the theta tendencies from the microphysics scheme directly, whereas depv_dt_mp is calculated
     !   using the derived theta tendency from the theta_m and qv tendencies. The differences in these approaches can be
     !   ascertained by comparing depv_dt_mp to depv_dt_mp_allproc
-    ! * Incorporation of routine to interpolate PV diagnostics to isobaric levels (code also modified in isobaric_diagnostics.F)
+    ! * Incorporation of routine to interpolate PV diagnostics to isobaric levels (code also modified in mpas_isobaric_diagnostics.F)
     !   and then accumulate the interpolated tendencies to isobaric levels. Requires config_pv_isobaric = .true.
     !   Note: changes to this procedure requires making changes to mpas_isobaric_diagnostics.F and Registry_isobaric.xml
     !=====================================================================================================================
@@ -266,6 +267,7 @@ module mpas_pv_diagnostics
            ! Initialize PV scalar field
            call mpas_log_write("Calling pv_diagnostics_scalar_init().")
            call pv_diagnostics_scalar_init(domain, exchange_halo_group) 
+
         else if (config_do_restart .and. config_pv_scalar) then    
            call mpas_log_write('config_do_restart = $l', logicArgs=(/config_do_restart/))
            call mpas_log_write('--- skipping pv_scalar initialization.')   
@@ -294,8 +296,8 @@ module mpas_pv_diagnostics
         real(kind=RKIND), dimension(:,:), pointer :: ertel_pv
         real(kind=RKIND), dimension(:,:,:), pointer :: pv_scalars
 
-        call mpas_pool_get_dimension(state, 'index_pv_scalar', index_pv_scalar)
-        call mpas_pool_get_array(state, 'pv_scalars', pv_scalars)
+        call mpas_pool_get_dimension(state, 'index_pv_scalar', index_pv_scalar)  
+        call mpas_pool_get_array(state, 'pv_scalars', pv_scalars, 1)
         call mpas_pool_get_array(diag, 'ertel_pv', ertel_pv)
 
         call exchange_halo_group(domain, 'diagnostics:pv_diag')
@@ -2156,8 +2158,9 @@ module mpas_pv_diagnostics
    subroutine atm_compute_pv_diagnostics(domain, configs, state, diag, mesh, exchange_halo_group)   
 
       use mpas_constants
-      use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array
+      use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array, mpas_pool_get_config
       use mpas_dmpar, only : mpas_dmpar_exch_halo_field
+      use mpas_isobaric_diagnostics, only : isobaric_pv
 
       implicit none
 
@@ -2173,6 +2176,7 @@ module mpas_pv_diagnostics
       integer, pointer :: nCells, nVertLevels, index_qv
       real (kind=RKIND) :: pvuVal, missingVal, stratoPV
 
+      logical, pointer :: config_isobaric, config_pv_isobaric    
       ! MC - new halo communication procedure
       call exchange_halo_group(domain, 'diagnostics:pv_diag')
 
@@ -2199,6 +2203,16 @@ module mpas_pv_diagnostics
 
       ! Call interp_pv_diagnostics subroutine to interpolate fields to dynamic tropopause
       call interp_pv_diagnostics(mesh, diag, pvuVal, missingVal)
+
+      ! Call ertel_pv isobaric interpolation here
+      call mpas_pool_get_config(configs, 'config_pv_isobaric', config_pv_isobaric)
+      call mpas_pool_get_config(configs, 'config_isobaric', config_isobaric)
+
+      if (config_pv_isobaric .or. config_isobaric) then
+         call mpas_log_write("Calling isobaric_diagnostics_pv from atm_compute_pv_diagnostics")
+         call isobaric_pv(domain, exchange_halo_group)
+      end if
+
 
    end subroutine atm_compute_pv_diagnostics
 
@@ -3422,6 +3436,7 @@ module mpas_pv_diagnostics
       use mpas_constants
       use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array, mpas_pool_get_config
       use mpas_dmpar, only : mpas_dmpar_exch_halo_field
+      use mpas_isobaric_diagnostics, only : isobaric_pv_tendencies
 
       implicit none
 
@@ -3548,6 +3563,14 @@ module mpas_pv_diagnostics
       call mpas_log_write("Calling interp_pvBudget_diagnostics")
       call interp_pvBudget_diagnostics(mesh, diag, pvuVal, missingVal)
 
+      ! Interpolate fields to isobaric levels if desired:
+      call mpas_pool_get_config(configs, 'config_pv_isobaric', config_pv_isobaric)
+
+      if (config_pv_isobaric) then
+         call mpas_log_write("Calling isobaric_pv_tend:")
+         call isobaric_pv_tendencies(domain,exchange_halo_group) 
+      end if
+
       ! Accumulate tendencies over multiple time steps:
        call mpas_log_write("Calling acc_pvBudget:")
        call acc_pvBudget(mesh, diag, tend_physics)
@@ -3572,7 +3595,7 @@ module mpas_pv_diagnostics
       type (mpas_pool_type), intent(inout) :: diag
       type (mpas_pool_type), intent(in) :: tend_physics
 
-      logical, pointer :: config_pv_tend, config_pv_microphys 
+      logical, pointer :: config_pv_tend, config_pv_isobaric, config_pv_microphys
 
       integer, pointer :: nCells, nVertLevels
       integer :: iCell, k
@@ -3597,8 +3620,31 @@ module mpas_pv_diagnostics
       real(kind=RKIND), dimension(:,:), pointer :: dtheta_dt_cu, dtheta_dt_mp
       real(kind=RKIND), dimension(:,:), pointer :: acc_dtheta_dt_cu, acc_dtheta_dt_mp
 
+      ! Tendencies interpolated to isobaric levels 
+      ! Note: all PV isobaric variables are defined in Registry_isobaric.xml
+      ! Isobaric interpolation occurs in mpas_isobaric_diagnostics.F
+      real(kind=RKIND), dimension(:,:), pointer :: depv_dt_lw_isobaric, depv_dt_sw_isobaric, depv_dt_bl_isobaric
+      real(kind=RKIND), dimension(:,:), pointer :: depv_dt_cu_isobaric, depv_dt_mp_isobaric, depv_dt_mix_isobaric
+      real(kind=RKIND), dimension(:,:), pointer :: depv_dt_fric_cu_isobaric, depv_dt_fric_bl_isobaric, depv_dt_fric_mix_isobaric
+      real(kind=RKIND), dimension(:,:), pointer :: depv_dt_diab_isobaric, depv_dt_fric_isobaric, depv_dt_dyn_isobaric
+      real(kind=RKIND), dimension(:,:), pointer :: depv_dt_mp_evap_rw_isobaric, depv_dt_mp_evap_cw_isobaric, &
+                                                   depv_dt_mp_depo_ice_isobaric, depv_dt_mp_melt_ice_isobaric, &
+                                                   depv_dt_mp_frez_ice_isobaric, depv_dt_mp_allproc_isobaric
+      real(kind=RKIND), dimension(:,:), pointer :: dtheta_dt_cu_isobaric, dtheta_dt_mp_isobaric 
+                                                                              
+      ! Accumulated tendencies on isobaric levels 
+      real(kind=RKIND), dimension(:,:), pointer :: acc_depv_dt_lw_isobaric, acc_depv_dt_sw_isobaric, acc_depv_dt_bl_isobaric
+      real(kind=RKIND), dimension(:,:), pointer :: acc_depv_dt_cu_isobaric, acc_depv_dt_mp_isobaric, acc_depv_dt_mix_isobaric
+      real(kind=RKIND), dimension(:,:), pointer :: acc_depv_dt_fric_bl_isobaric, acc_depv_dt_fric_cu_isobaric, acc_depv_dt_fric_mix_isobaric
+      real(kind=RKIND), dimension(:,:), pointer :: acc_depv_dt_diab_isobaric, acc_depv_dt_fric_isobaric, acc_depv_dt_dyn_isobaric
+      real(kind=RKIND), dimension(:,:), pointer :: acc_depv_dt_mp_evap_rw_isobaric, acc_depv_dt_mp_evap_cw_isobaric, &
+                                                   acc_depv_dt_mp_depo_ice_isobaric, acc_depv_dt_mp_melt_ice_isobaric, &
+                                                   acc_depv_dt_mp_frez_ice_isobaric, acc_depv_dt_mp_allproc_isobaric
+      real(kind=RKIND), dimension(:,:), pointer :: acc_dtheta_dt_cu_isobaric, acc_dtheta_dt_mp_isobaric 
+
       call mpas_pool_get_config(configs, 'config_pv_tend', config_pv_tend)
       call mpas_pool_get_config(configs, 'config_pv_microphys', config_pv_microphys)
+      call mpas_pool_get_config(configs, 'config_pv_isobaric', config_pv_isobaric)
 
       ! Instantaneous and accumulated PV tendencies 
       call mpas_pool_get_array(diag, 'depv_dt_lw', depv_dt_lw)
@@ -3657,7 +3703,51 @@ module mpas_pv_diagnostics
       call mpas_pool_get_array(diag, 'acc_dtheta_dt_cu', acc_dtheta_dt_cu)
       call mpas_pool_get_array(diag, 'acc_dtheta_dt_mp', acc_dtheta_dt_mp)
 
-      ! Accumulate tendencies
+      ! Isobaric tendencies -- interpolate prior to accumulating
+      call mpas_pool_get_array(diag, 'depv_dt_lw_isobaric', depv_dt_lw_isobaric)
+      call mpas_pool_get_array(diag, 'depv_dt_sw_isobaric', depv_dt_sw_isobaric)
+      call mpas_pool_get_array(diag, 'depv_dt_bl_isobaric', depv_dt_bl_isobaric)
+      call mpas_pool_get_array(diag, 'depv_dt_cu_isobaric', depv_dt_cu_isobaric)
+      call mpas_pool_get_array(diag, 'depv_dt_mp_isobaric', depv_dt_mp_isobaric)
+      call mpas_pool_get_array(diag, 'depv_dt_mix_isobaric', depv_dt_mix_isobaric)
+      call mpas_pool_get_array(diag, 'depv_dt_fric_cu_isobaric', depv_dt_fric_cu_isobaric)
+      call mpas_pool_get_array(diag, 'depv_dt_fric_bl_isobaric', depv_dt_fric_bl_isobaric)
+      call mpas_pool_get_array(diag, 'depv_dt_fric_mix_isobaric', depv_dt_fric_mix_isobaric)
+      call mpas_pool_get_array(diag, 'depv_dt_diab_isobaric', depv_dt_diab_isobaric)
+      call mpas_pool_get_array(diag, 'depv_dt_fric_isobaric', depv_dt_fric_isobaric)
+      call mpas_pool_get_array(diag, 'depv_dt_dyn_isobaric', depv_dt_dyn_isobaric)
+      call mpas_pool_get_array(diag, 'depv_dt_mp_evap_rw_isobaric', depv_dt_mp_evap_rw_isobaric)
+      call mpas_pool_get_array(diag, 'depv_dt_mp_evap_cw_isobaric', depv_dt_mp_evap_cw_isobaric)
+      call mpas_pool_get_array(diag, 'depv_dt_mp_depo_ice_isobaric', depv_dt_mp_depo_ice_isobaric)
+      call mpas_pool_get_array(diag, 'depv_dt_mp_melt_ice_isobaric', depv_dt_mp_melt_ice_isobaric)
+      call mpas_pool_get_array(diag, 'depv_dt_mp_frez_ice_isobaric', depv_dt_mp_frez_ice_isobaric)
+      call mpas_pool_get_array(diag, 'depv_dt_mp_allproc_isobaric', depv_dt_mp_allproc_isobaric)
+      call mpas_pool_get_array(diag, 'dtheta_dt_cu_isobaric', dtheta_dt_cu_isobaric)
+      call mpas_pool_get_array(diag, 'dtheta_dt_mp_isobaric', dtheta_dt_mp_isobaric)
+      
+      ! Accumulated isobaric tendencies
+      call mpas_pool_get_array(diag, 'acc_depv_dt_lw_isobaric', acc_depv_dt_lw_isobaric)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_sw_isobaric', acc_depv_dt_sw_isobaric)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_bl_isobaric', acc_depv_dt_bl_isobaric)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_cu_isobaric', acc_depv_dt_cu_isobaric)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_mp_isobaric', acc_depv_dt_mp_isobaric)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_mix_isobaric', acc_depv_dt_mix_isobaric)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_fric_cu_isobaric', acc_depv_dt_fric_cu_isobaric)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_fric_bl_isobaric', acc_depv_dt_fric_bl_isobaric)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_fric_mix_isobaric', acc_depv_dt_fric_mix_isobaric)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_diab_isobaric', acc_depv_dt_diab_isobaric)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_fric_isobaric', acc_depv_dt_fric_isobaric)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_dyn_isobaric', acc_depv_dt_dyn_isobaric)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_mp_evap_rw_isobaric', acc_depv_dt_mp_evap_rw_isobaric)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_mp_evap_cw_isobaric', acc_depv_dt_mp_evap_cw_isobaric)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_mp_depo_ice_isobaric', acc_depv_dt_mp_depo_ice_isobaric)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_mp_melt_ice_isobaric', acc_depv_dt_mp_melt_ice_isobaric)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_mp_frez_ice_isobaric', acc_depv_dt_mp_frez_ice_isobaric)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_mp_allproc_isobaric', acc_depv_dt_mp_allproc_isobaric)
+      call mpas_pool_get_array(diag, 'acc_dtheta_dt_cu_isobaric', acc_dtheta_dt_cu_isobaric)
+      call mpas_pool_get_array(diag, 'acc_dtheta_dt_mp_isobaric', acc_dtheta_dt_mp_isobaric)
+
+      ! Accumulate tendencies 
       acc_depv_dt_lw(:,:) = acc_depv_dt_lw(:,:) + depv_dt_lw(:,:)
       acc_depv_dt_sw(:,:) = acc_depv_dt_sw(:,:) + depv_dt_sw(:,:)
       acc_depv_dt_bl(:,:) = acc_depv_dt_bl(:,:) + depv_dt_bl(:,:)
@@ -3693,6 +3783,38 @@ module mpas_pv_diagnostics
           acc_depv_dt_mp_allproc(:,:) = acc_depv_dt_mp_allproc(:,:) + depv_dt_mp_allproc(:,:)
       end if
 
+      ! If PV variables on isobaric levels are requested, accumulate the isobaric tendencies 
+      if (config_pv_isobaric) then
+         acc_depv_dt_lw_isobaric(:,:) = acc_depv_dt_lw_isobaric(:,:) + depv_dt_lw_isobaric(:,:)
+         acc_depv_dt_sw_isobaric(:,:) = acc_depv_dt_sw_isobaric(:,:) + depv_dt_sw_isobaric(:,:)
+         acc_depv_dt_bl_isobaric(:,:) = acc_depv_dt_bl_isobaric(:,:) + depv_dt_bl_isobaric(:,:)
+         acc_depv_dt_cu_isobaric(:,:) = acc_depv_dt_cu_isobaric(:,:) + depv_dt_cu_isobaric(:,:)
+         acc_depv_dt_mp_isobaric(:,:) = acc_depv_dt_mp_isobaric(:,:) + depv_dt_mp_isobaric(:,:)
+         acc_depv_dt_mix_isobaric(:,:) = acc_depv_dt_mix_isobaric(:,:) + depv_dt_mix_isobaric(:,:)
+         acc_depv_dt_fric_bl_isobaric(:,:) = acc_depv_dt_fric_bl_isobaric(:,:) + depv_dt_fric_bl_isobaric(:,:)
+         acc_depv_dt_fric_cu_isobaric(:,:) = acc_depv_dt_fric_cu_isobaric(:,:) + depv_dt_fric_cu_isobaric(:,:)
+         acc_depv_dt_fric_mix_isobaric(:,:) = acc_depv_dt_fric_mix_isobaric(:,:) + depv_dt_fric_mix_isobaric(:,:)
+         acc_depv_dt_diab_isobaric(:,:) = acc_depv_dt_diab_isobaric(:,:) + depv_dt_diab_isobaric(:,:)
+         acc_depv_dt_fric_isobaric(:,:) = acc_depv_dt_fric_isobaric(:,:) + depv_dt_fric_isobaric(:,:)
+         acc_depv_dt_dyn_isobaric(:,:) = acc_depv_dt_dyn_isobaric(:,:) + depv_dt_dyn_isobaric(:,:)
+
+         if (associated(dtheta_dt_cu_isobaric)) then
+            acc_dtheta_dt_cu_isobaric(:,:) = acc_dtheta_dt_cu_isobaric(:,:) + dtheta_dt_cu_isobaric(:,:) 
+         end if
+         if (associated(dtheta_dt_mp_isobaric)) then
+            acc_dtheta_dt_mp_isobaric(:,:) = acc_dtheta_dt_mp_isobaric(:,:) + dtheta_dt_mp_isobaric(:,:) 
+         end if 
+
+         ! If specific microphysics process tendencies are requested, accumulate the isobaric tendencies 
+         if (config_pv_microphys) then
+            acc_depv_dt_mp_evap_cw_isobaric(:,:) = acc_depv_dt_mp_evap_cw_isobaric(:,:) + depv_dt_mp_evap_cw_isobaric(:,:) 
+            acc_depv_dt_mp_evap_rw_isobaric(:,:) = acc_depv_dt_mp_evap_rw_isobaric(:,:) + depv_dt_mp_evap_rw_isobaric(:,:) 
+            acc_depv_dt_mp_depo_ice_isobaric(:,:) = acc_depv_dt_mp_depo_ice_isobaric(:,:) + depv_dt_mp_depo_ice_isobaric(:,:) 
+            acc_depv_dt_mp_melt_ice_isobaric(:,:) = acc_depv_dt_mp_melt_ice_isobaric(:,:) + depv_dt_mp_melt_ice_isobaric(:,:) 
+            acc_depv_dt_mp_frez_ice_isobaric(:,:) = acc_depv_dt_mp_frez_ice_isobaric(:,:) + depv_dt_mp_frez_ice_isobaric(:,:) 
+            acc_depv_dt_mp_allproc_isobaric(:,:) = acc_depv_dt_mp_allproc_isobaric(:,:) + depv_dt_mp_allproc_isobaric(:,:) 
+         end if  
+      end if 
 
 
    end subroutine acc_pvBudget
