@@ -596,7 +596,8 @@ module atm_core
       use mpas_derived_types, only : MPAS_STREAM_LATEST_BEFORE, MPAS_STREAM_INPUT, MPAS_STREAM_INPUT_OUTPUT
       use mpas_timer, only : mpas_timer_start, mpas_timer_stop
       use mpas_atm_boundaries, only : mpas_atm_update_bdy_tend
-      use mpas_atm_diagnostics_manager, only : mpas_atm_diag_update, mpas_atm_diag_compute, mpas_atm_diag_reset
+      use mpas_atm_diagnostics_manager, only : mpas_atm_diag_update, mpas_atm_diag_compute, mpas_atm_diag_reset, &
+                                               mpas_atm_diag_pv_init                             ! MC added for PV
    
       implicit none
    
@@ -667,7 +668,8 @@ module atm_core
       call mpas_timer_start('diagnostic_fields')
       call mpas_atm_diag_reset()
       !call mpas_atm_diag_update()
-      call mpas_atm_diag_update(domain, exchange_halo_group)   ! MC -- modified with halo inputs
+      call mpas_atm_diag_update(domain, exchange_halo_group)    ! MC -- modified with halo inputs
+      call mpas_atm_diag_pv_init(domain, exchange_halo_group)   ! MC added -- call to initialize pv_scalar if activated   
       !call mpas_atm_diag_compute()
       call mpas_atm_diag_compute(domain, exchange_halo_group)   ! MC -- modified with halo inputs
       call mpas_timer_stop('diagnostic_fields')

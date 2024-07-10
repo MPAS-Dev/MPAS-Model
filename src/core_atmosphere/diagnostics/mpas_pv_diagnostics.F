@@ -44,7 +44,8 @@ module mpas_pv_diagnostics
     public :: pv_diagnostics_setup, &
               pv_diagnostics_compute, &
               pv_diagnostics_reset, &  
-              pv_diagnostics_update 
+              pv_diagnostics_update, &
+              pv_diagnostics_init                              ! If config_pv_scalar, need to initialize as initial PV field 
 
     private
 
@@ -239,6 +240,74 @@ module mpas_pv_diagnostics
 
     end subroutine pv_diagnostics_setup
 
+
+    !*********************************************************************************************************************
+    ! pv_diagnostics_init:   A subroutine was created in mpas_atm_diagnostics_manager.F that calls this subroutine and
+    !                        is then called explicitly in mpas_atm_core.F during the first time step so that initial PV
+    !                        field is populated for scalar advection, if desired. Config flag set here to disable
+    !                        the re-initialization of pv_scalar if restart run.
+    !*********************************************************************************************************************
+
+    subroutine pv_diagnostics_init(domain, exchange_halo_group)
+        use mpas_pool_routines, only : mpas_pool_get_array, mpas_pool_get_config
+
+        implicit none
+
+        type (domain_type), intent(inout) :: domain                     
+        procedure (halo_exchange_routine) :: exchange_halo_group       
+
+        logical, pointer :: config_pv_scalar, config_do_restart   
+        real(kind=RKIND), dimension(:,:,:), pointer :: pv_scalars  
+
+        call mpas_pool_get_config(configs, 'config_pv_scalar', config_pv_scalar)
+        call mpas_pool_get_config(configs, 'config_do_restart', config_do_restart)
+
+        if ((.not. config_do_restart) .and. config_pv_scalar) then
+           ! Initialize PV scalar field
+           call mpas_log_write("Calling pv_diagnostics_scalar_init().")
+           call pv_diagnostics_scalar_init(domain, exchange_halo_group) 
+        else if (config_do_restart .and. config_pv_scalar) then    
+           call mpas_log_write('config_do_restart = $l', logicArgs=(/config_do_restart/))
+           call mpas_log_write('--- skipping pv_scalar initialization.')   
+           call mpas_pool_get_array(state, 'pv_scalars', pv_scalars)                ! MC: don't think this is necessary
+           return
+        end if     
+
+    end subroutine pv_diagnostics_init
+
+
+    !*********************************************************************************************************************
+    ! pv_diagnostics_scalar_init: initialize PV scalar field to be advected by model's transport scheme, if desired
+    !*********************************************************************************************************************
+
+    subroutine pv_diagnostics_scalar_init(domain, exchange_halo_group)
+        use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array, mpas_pool_get_config
+
+        implicit none
+
+        type (domain_type), intent(inout) :: domain                   
+        procedure (halo_exchange_routine) :: exchange_halo_group       
+
+        logical, pointer :: config_pv_diag, config_pv_scalar
+        integer, pointer :: index_pv_scalar
+
+        real(kind=RKIND), dimension(:,:), pointer :: ertel_pv
+        real(kind=RKIND), dimension(:,:,:), pointer :: pv_scalars
+
+        call mpas_pool_get_dimension(state, 'index_pv_scalar', index_pv_scalar)
+        call mpas_pool_get_array(state, 'pv_scalars', pv_scalars)
+        call mpas_pool_get_array(diag, 'ertel_pv', ertel_pv)
+
+        call exchange_halo_group(domain, 'diagnostics:pv_diag')
+
+        ! Calculate PV and initialize PV scalar variable as initial PV field
+        call calc_epv(mesh, state, diag)  
+
+        call mpas_log_write('Initializing pv_scalar as the initial PV field.')
+        pv_scalars(index_pv_scalar,:,:) = ertel_pv(:,:)  
+
+    end subroutine pv_diagnostics_scalar_init
+        
 
     !*********************************************************************************************************************
     ! pv_diagnostics_update: compute the PV diagnostics over each time step when called in mpas_atm_diagnostics_manager.F

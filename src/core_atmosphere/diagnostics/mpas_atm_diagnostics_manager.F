@@ -37,7 +37,8 @@ module mpas_atm_diagnostics_manager
               mpas_atm_diag_update, &
               mpas_atm_diag_compute, &
               mpas_atm_diag_reset, &
-              mpas_atm_diag_cleanup
+              mpas_atm_diag_cleanup , &
+              mpas_atm_diag_pv_init               ! MC added
 
     contains
 
@@ -89,6 +90,32 @@ module mpas_atm_diagnostics_manager
 
     end subroutine mpas_atm_diag_setup
 
+    !-----------------------------------------------------------------------
+    !  routine MPAS_atm_diag_pv_init
+    !
+    !> \brief  Subroutine to initialize pv_scalar as ertel_pv at first
+    !>         time step if activated
+    !> \author Manda Chasteen
+    !> \date   15 January 2023
+    !> \details
+    !> This subroutine is called in mpas_atm_core.F to initialize PV field
+    !> to be advected by the scalar transport scheme
+    !
+    !-----------------------------------------------------------------------
+    subroutine mpas_atm_diag_pv_init(domain, exchange_halo_group)
+
+        use mpas_pv_diagnostics, only : pv_diagnostics_init
+
+        implicit none
+
+        type (domain_type), intent(inout) :: domain                  
+        procedure (halo_exchange_routine) :: exchange_halo_group     
+
+        call mpas_timer_start('Tendency and PV diagnostics')
+        call pv_diagnostics_init(domain, exchange_halo_group)
+        call mpas_timer_stop('Tendency and PV diagnostics')
+
+    end subroutine mpas_atm_diag_pv_init
 
     !-----------------------------------------------------------------------
     !  routine MPAS_atm_diag_update

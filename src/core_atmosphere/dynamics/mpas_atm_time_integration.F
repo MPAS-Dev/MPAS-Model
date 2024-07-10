@@ -524,13 +524,18 @@ module atm_time_integration
 #endif
 
       ! For ITM and PV tendency diagnostics
-      logical, pointer :: config_tend, config_pv_tend
+      logical, pointer :: config_tend, config_pv_tend, config_pv_scalar
       real (kind=RKIND), dimension(:,:), pointer :: acc_u_tend_dyn_small, acc_u_tend_dyn_small_ReconstructZonal, &
                                                     acc_u_tend_dyn_small_ReconstructMeridional, &
                                                     acc_u_tend_dyn_small_ReconstructX, acc_u_tend_dyn_small_ReconstructY, &
                                                     acc_u_tend_dyn_small_ReconstructZ
       real (kind=RKIND), dimension(:,:), pointer :: acc_qv_tend_dyn_large, dqv_dt_dyn
       !end MW 
+
+      ! MC -- options for pv_scalar transport
+      logical, parameter :: config_monotonic_pv = .false.
+      logical, parameter :: config_positive_definite_pv = .false.
+      logical, parameter :: advance_density_pv = .false.
 
       real (kind=RKIND)  :: time_dyn_step
       logical, parameter :: debug = .false.
@@ -554,8 +559,9 @@ module atm_time_integration
       call mpas_pool_get_config(block % configs, 'config_microp_scheme', config_microp_scheme)
       call mpas_pool_get_config(block % configs, 'config_convection_scheme', config_convection_scheme)
 #endif
-      call mpas_pool_get_config(block % configs, 'config_tend', config_tend)        ! MW: for tendency diagnostics
-      call mpas_pool_get_config(block % configs, 'config_pv_tend', config_pv_tend)  ! MC: for PV tendency diagnostics 
+      call mpas_pool_get_config(block % configs, 'config_tend', config_tend)           ! MW: for tendency diagnostics
+      call mpas_pool_get_config(block % configs, 'config_pv_tend', config_pv_tend)     ! MC: for PV tendency diagnostics 
+      call mpas_pool_get_config(block % configs, 'config_pv_scalar', config_pv_scalar) ! MC: for advection of a PV scalar field
 
       !
       ! Retrieve field structures
@@ -1262,6 +1268,15 @@ module atm_time_integration
 
             call advance_scalars('scalars', domain, rk_step, rk_timestep, config_monotonic, config_positive_definite, &
                                  config_time_integration_order, config_split_dynamics_transport, exchange_halo_group)
+
+
+            ! MC -- adding PV scalar advection
+            if (config_pv_scalar .and. (rk_step == 3)) then
+               call mpas_timer_start('Tendency and PV diagnostics')     
+               call advance_scalars('pv_scalars', domain, rk_step, rk_timestep, config_monotonic_pv, config_positive_definite_pv, &
+                                    config_time_integration_order, advance_density_pv, exchange_halo_group)
+               call mpas_timer_stop('Tendency and PV diagnostics')             
+            end if        
 
             if (config_apply_lbcs) then  ! adjust boundary tendencies for regional_MPAS scalar transport
 
