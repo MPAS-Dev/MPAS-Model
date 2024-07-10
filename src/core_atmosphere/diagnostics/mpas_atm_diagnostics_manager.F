@@ -78,7 +78,7 @@ module mpas_atm_diagnostics_manager
         call mpas_atm_diag_utils_init(stream_mgr)
 
         call diagnostic_template_setup(configs, structs, clock)
-        call isobaric_diagnostics_setup(structs, clock)
+        call isobaric_diagnostics_setup(configs, structs, clock)   ! MC modified with configs arg
         call cloud_diagnostics_setup(structs, clock)
         call convective_diagnostics_setup(structs, clock)
         call soundings_setup(configs, structs, clock, dminfo)
@@ -147,11 +147,11 @@ module mpas_atm_diagnostics_manager
 
 
         call diagnostic_template_compute()
-        call isobaric_diagnostics_compute()
         call cloud_diagnostics_compute()
         call convective_diagnostics_compute()
         call soundings_compute()
-
+        !call isobaric_diagnostics_compute()       
+        call isobaric_diagnostics_compute(domain, exchange_halo_group) ! MC modified for new halo 
         call mpas_timer_start('Tendency and PV diagnostics')
         call pv_diagnostics_compute(domain, exchange_halo_group)
         call mpas_timer_stop('Tendency and PV diagnostics')

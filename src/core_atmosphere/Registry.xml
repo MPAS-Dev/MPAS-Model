@@ -411,6 +411,7 @@
                 <package name="jedi_da" description="Data Assimilation in JEDI framework"/>
                 <package name="no_invariant_stream" description="No separate invariant I/O stream is active"/>
 
+                <package name="isobaric" description="Isobaric interpolation of model variables"/>
                 <package name="tendencies" description="Diagnostics tendency budget terms for winds, thetam and qv"/>
                 <package name="pv_diagnostics" description="Basic PV diagnostics calculations activated by config_pv_diag"/>
                 <package name="pv_tendencies" description="PV tendency calculations activated by config_pv_tend"/>
@@ -1031,76 +1032,19 @@
 			<var name="Time"/>
 
                         <!-- Begin isobaric diagnostics defined in diagnostics/Registry_isobaric.xml -->
-			<var name="mslp"/>
-			<var name="relhum_50hPa"/>
-			<var name="relhum_100hPa"/>
-			<var name="relhum_200hPa"/>
-			<var name="relhum_250hPa"/>
-			<var name="relhum_500hPa"/>
-			<var name="relhum_700hPa"/>
-			<var name="relhum_850hPa"/>
-			<var name="relhum_925hPa"/>
-			<var name="dewpoint_50hPa"/>
-			<var name="dewpoint_100hPa"/>
-			<var name="dewpoint_200hPa"/>
-			<var name="dewpoint_250hPa"/>
-			<var name="dewpoint_500hPa"/>
-			<var name="dewpoint_700hPa"/>
-			<var name="dewpoint_850hPa"/>
-			<var name="dewpoint_925hPa"/>
-			<var name="temperature_50hPa"/>
-			<var name="temperature_100hPa"/>
-			<var name="temperature_200hPa"/>
-			<var name="temperature_250hPa"/>
-			<var name="temperature_500hPa"/>
-			<var name="temperature_700hPa"/>
-			<var name="temperature_850hPa"/>
-			<var name="temperature_925hPa"/>
-			<var name="height_50hPa"/>
-			<var name="height_100hPa"/>
-			<var name="height_200hPa"/>
-			<var name="height_250hPa"/>
-			<var name="height_500hPa"/>
-			<var name="height_700hPa"/>
-			<var name="height_850hPa"/>
-			<var name="height_925hPa"/>
-			<var name="uzonal_50hPa"/>
-			<var name="uzonal_100hPa"/>
-			<var name="uzonal_200hPa"/>
-			<var name="uzonal_250hPa"/>
-			<var name="uzonal_500hPa"/>
-			<var name="uzonal_700hPa"/>
-			<var name="uzonal_850hPa"/>
-			<var name="uzonal_925hPa"/>
-			<var name="umeridional_50hPa"/>
-			<var name="umeridional_100hPa"/>
-			<var name="umeridional_200hPa"/>
-			<var name="umeridional_250hPa"/>
-			<var name="umeridional_500hPa"/>
-			<var name="umeridional_700hPa"/>
-			<var name="umeridional_850hPa"/>
-			<var name="umeridional_925hPa"/>
-			<var name="w_50hPa"/>
-			<var name="w_100hPa"/>
-			<var name="w_200hPa"/>
-			<var name="w_250hPa"/>
-			<var name="w_500hPa"/>
-			<var name="w_700hPa"/>
-			<var name="w_850hPa"/>
-			<var name="w_925hPa"/>
-			<var name="vorticity_50hPa"/>
-			<var name="vorticity_100hPa"/>
-			<var name="vorticity_200hPa"/>
-			<var name="vorticity_250hPa"/>
-			<var name="vorticity_500hPa"/>
-			<var name="vorticity_700hPa"/>
-			<var name="vorticity_850hPa"/>
-			<var name="vorticity_925hPa"/>
-			<var name="t_isobaric"/>
-			<var name="t_iso_levels"/>
-			<var name="z_isobaric"/>
-			<var name="z_iso_levels"/>
-			<var name="meanT_500_300"/>
+                        <var name="mslp" packages="isobaric"/>
+                        <var name="iso_levels" packages="isobaric"/>
+                        <var name="temperature_isobaric" packages="isobaric"/>
+                        <var name="theta_isobaric" packages="isobaric"/>
+                        <var name="dewpoint_isobaric" packages="isobaric"/>  
+                        <var name="relhum_isobaric" packages="isobaric"/>          
+                        <var name="qvapor_isobaric" packages="isobaric"/>
+                        <var name="uzonal_isobaric" packages="isobaric"/>
+                        <var name="umeridional_isobaric" packages="isobaric"/>
+                        <var name="height_isobaric" packages="isobaric"/>
+                        <var name="geoheight_isobaric" packages="isobaric"/>
+                        <var name="w_isobaric" packages="isobaric"/>
+                        <var name="vorticity_isobaric" packages="isobaric"/>
                         <!-- End isobaric diagnostics defined in diagnostics/Registry_isobaric.xml -->
 
 #ifdef DO_PHYSICS

@@ -29,7 +29,7 @@ module mpas_atm_halos
    procedure (halo_exchange_routine), pointer :: exchange_halo_group
 
    ! MC: added logicals for diagnostics packages
-   logical, pointer :: config_tend
+   logical, pointer :: config_tend, config_isobaric
    logical, pointer :: config_pv_diag, config_pv_tend, config_pv_scalar, &
                        config_pv_microphys   
 
@@ -71,6 +71,7 @@ module mpas_atm_halos
       call mpas_pool_get_config(domain % blocklist % configs, 'config_pv_diag', config_pv_diag)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_pv_tend', config_pv_tend)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_pv_microphys', config_pv_microphys)
+      call mpas_pool_get_config(domain % blocklist % configs, 'config_isobaric', config_isobaric)
 
       !
       ! Determine from the namelist option config_halo_exch_method which halo exchange method to employ
@@ -280,6 +281,15 @@ module mpas_atm_halos
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mp_tend', 'tend_theta_mp_depo_ice', timeLevel=1, haloLayers=(/1,2/))
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mp_tend', 'tend_theta_mp_melt_ice', timeLevel=1, haloLayers=(/1,2/))
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mp_tend', 'tend_theta_mp_frez_ice', timeLevel=1, haloLayers=(/1,2/))
+         end if
+
+         ! Isobaric interpolation
+         if (config_isobaric) then
+            call mpas_dmpar_exch_group_create(domain, 'isobaric:pressure_p')
+            call mpas_dmpar_exch_group_add_field(domain, 'isobaric:pressure_p', 'pressure_p', timeLevel=1, haloLayers=(/1,2/))
+
+            call mpas_dmpar_exch_group_create(domain, 'isobaric:vorticity')
+            call mpas_dmpar_exch_group_add_field(domain, 'isobaric:vorticity', 'vorticity', timeLevel=1, haloLayers=(/1,2/))
          end if
 
 
@@ -526,6 +536,16 @@ module mpas_atm_halos
             call mpas_halo_exch_group_complete(domain, 'diagnostics:dpv_mp_tend')
          end if
 
+         ! Isobaric interpolation
+         if (config_isobaric) then 
+            call mpas_halo_exch_group_create(domain, 'isobaric:pressure_p')
+            call mpas_halo_exch_group_add_field(domain, 'isobaric:pressure_p', 'pressure_p', timeLevel=1, haloLayers=(/1,2/)) 
+            call mpas_halo_exch_group_complete(domain, 'isobaric:pressure_p')
+
+            call mpas_halo_exch_group_create(domain, 'isobaric:vorticity')    
+            call mpas_halo_exch_group_add_field(domain, 'isobaric:vorticity', 'vorticity', timeLevel=1, haloLayers=(/1,2/))               
+            call mpas_halo_exch_group_complete(domain, 'isobaric:vorticity')
+         end if             
 
          !
          ! Set routine to exchange a halo group
@@ -640,6 +660,10 @@ module mpas_atm_halos
             call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:dpv_mp_tend')
          end if
 
+         if (config_isobaric) then 
+            call mpas_dmpar_exch_group_destroy(domain, 'isobaric:pressure_p')
+            call mpas_dmpar_exch_group_destroy(domain, 'isobaric:vorticity')     
+         end if         
 
       else if (trim(config_halo_exch_method) == 'mpas_halo') then
 
@@ -705,6 +729,10 @@ module mpas_atm_halos
             call mpas_halo_exch_group_destroy(domain, 'diagnostics:dpv_mp_tend')
          end if
 
+         if (config_isobaric) then
+            call mpas_halo_exch_group_destroy(domain, 'isobaric:pressure_p')
+            call mpas_halo_exch_group_destroy(domain, 'isobaric:vorticity') 
+         end if 
 
          call mpas_halo_finalize(domain)
 

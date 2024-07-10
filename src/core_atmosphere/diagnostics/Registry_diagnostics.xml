@@ -28,8 +28,9 @@
 <!-- ........................................................................ -->
 <nml_record name="diagnostics" in_defaults="true">
 
+
     <!-- Namelist option for isobaric interpolation of model variables -->
-    <nml_option name="config_isobaric" type="logical" default_value="false" in_defaults="true"
+    <nml_option name="config_isobaric" type="logical" default_value="false" in_defaults="false"
          units="-"
          description="Logical for outputting model variables interpolated to isobaric levels"
          possible_values=".true. for isobaric interpolation; .false. otherwise"/>

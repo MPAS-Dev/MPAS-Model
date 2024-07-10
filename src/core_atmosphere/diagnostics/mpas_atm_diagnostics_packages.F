@@ -59,6 +59,12 @@
  logical, pointer :: pv_diagnosticsActive, pv_tendenciesActive, pv_scalarActive, &
                      pv_microphysicsActive, pv_isobaricActive
 
+ ! Isobaric diagnostics config:
+ logical, pointer :: config_isobaric
+
+ ! Isobaric diagnostics package:
+ logical, pointer :: isobaricActive            
+
  integer :: ierr                    
 
 !-----------------------------------------------------------------------------------------------------------------
@@ -67,6 +73,30 @@
 ! call mpas_log_write('--- enter subroutine diagnostics_setup_packages:')
 
  ierr = 0
+
+!-----------------------------------------------------------------------------------------------------------------
+!--- initialization of package of isobaric diagnostics
+!-----------------------------------------------------------------------------------------------------------------
+
+ call mpas_log_write('----- Setting up isobaric diagnostics variables -----')
+ call mpas_log_write('')
+
+ nullify(config_isobaric)
+ call mpas_pool_get_config(configs, 'config_isobaric', config_isobaric)
+
+ nullify(isobaricActive)
+ call mpas_pool_get_package(packages, 'isobaricActive', isobaricActive)
+
+ if (associated(config_isobaric) .and. associated(isobaricActive)) then
+    isobaricActive = config_isobaric
+    call mpas_log_write('    isobaricActive           = $l', logicArgs=(/isobaricActive/))
+ else
+    ierr = ierr + 1
+    call mpas_log_write('Package setup failed for ''isobaric''. '// &
+        'Either ''isobaric'' is not a package, or ''config_isobaric'' is not a namelist option.', &
+        messageType=MPAS_LOG_ERR)
+ end if
+
 
 !-----------------------------------------------------------------------------------------------------------------
 !--- initialization of package for model tendency diagnostics:
