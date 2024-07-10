@@ -2530,6 +2530,15 @@ module mpas_pv_diagnostics
          depv_dt_mp_frez_ice(:,:) =  0.0_RKIND
          depv_dt_mp_allproc(:,:) =  0.0_RKIND  
          tend_theta_mp_sum(:,:) =  0.0_RKIND
+         depv_dt_mp_allproc(:,:) =  0.0_RKIND
+      else
+         allocate(depv_dt_mp_evap_cw(nVertLevels,nCells))
+         allocate(depv_dt_mp_evap_rw(nVertLevels,nCells))
+         allocate(depv_dt_mp_depo_ice(nVertLevels,nCells))
+         allocate(depv_dt_mp_melt_ice(nVertLevels,nCells))
+         allocate(depv_dt_mp_frez_ice(nVertLevels,nCells))
+         allocate(depv_dt_mp_allproc(nVertLevels,nCells))
+         allocate(tend_theta_mp_sum(nVertLevels,nCells))
       end if         
 
       !***********************************************************************************************
@@ -3261,6 +3270,14 @@ module mpas_pv_diagnostics
          deallocate(grad_diabatic_MP_melt)
          deallocate(grad_diabatic_MP_frez)
          deallocate(grad_diabatic_MP_sum)
+      else 
+         deallocate(depv_dt_mp_evap_cw)
+         deallocate(depv_dt_mp_evap_rw)
+         deallocate(depv_dt_mp_depo_ice)
+         deallocate(depv_dt_mp_melt_ice)
+         deallocate(depv_dt_mp_frez_ice)
+         deallocate(depv_dt_mp_allproc)
+         deallocate(tend_theta_mp_sum)     
       end if
 
       ! deallocate friction tendency variables
