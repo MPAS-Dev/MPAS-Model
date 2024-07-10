@@ -2506,6 +2506,28 @@
                      description="precipitable water"/>
 
 
+                 <!-- Variables for microphysics process theta tendencies in Thompson scheme used in PV microphysics tendencies -->
+                 <var name="tend_theta_mp_evap_cw" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+                      description="Net potential temperature heating rate from cloud water condensation and evaporation"
+                      packages="mp_thompson_in;mp_thompson_aers_in;pv_microphysics"/>
+ 
+                 <var name="tend_theta_mp_evap_rw" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+                      description="Potential temperature heating rate from rain water evaporation"
+                      packages="mp_thompson_in;mp_thompson_aers_in;pv_microphysics"/>
+ 
+                 <var name="tend_theta_mp_depo_ice" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+                      description="Net potential temperature heating rate from deposition and sublimation of all ice hydrometeors"
+                      packages="mp_thompson_in;mp_thompson_aers_in;pv_microphysics"/>
+ 
+                 <var name="tend_theta_mp_melt_ice" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+                      description="Potential temperature heating rate from melting of all ice hydrometeors"
+                      packages="mp_thompson_in;mp_thompson_aers_in;pv_microphysics"/>
+ 
+                 <var name="tend_theta_mp_frez_ice" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+                      description="Potential temperature heating rate from freezing/riming of all ice hydrometeors"
+                      packages="mp_thompson_in;mp_thompson_aers_in;pv_microphysics"/>
+
+
                 <!-- ================================================================================================== -->
                 <!-- ... PARAMETERIZATION OF CONVECTION:                                                                -->
                 <!-- ================================================================================================== -->

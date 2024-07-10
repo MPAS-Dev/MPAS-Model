@@ -568,8 +568,13 @@
 
 ! MW: for ITM package  
  logical, pointer :: config_tend
- real(kind=RKIND), dimension(:,:), pointer :: qv_mp_tend    
+ real(kind=RKIND), dimension(:,:), pointer  :: qv_mp_tend
 
+ ! MC added for PV
+ logical, pointer :: config_pv_microphys
+ real(kind=RKIND), dimension(:,:), pointer :: tend_theta_mp_evap_cw,tend_theta_mp_evap_rw, &      
+                                              tend_theta_mp_depo_ice,tend_theta_mp_melt_ice, & 
+                                              tend_theta_mp_frez_ice 
 !local variables:
  integer:: i,k,j
 
@@ -602,6 +607,19 @@
  if (config_tend) then     
     call mpas_pool_get_array(diag, 'qv_mp_tend', qv_mp_tend) 
  end if
+
+ ! MC - PV microphysics tendencies for Thompson scheme
+ call mpas_pool_get_config(configs, 'config_pv_microphys', config_pv_microphys)
+ call mpas_log_write('atmphys_interface: called config_pv_microphys')
+
+ if (config_pv_microphys) then
+    call mpas_log_write('atmphys_interface: calling get arrays')
+    call mpas_pool_get_array(diag_physics,'tend_theta_mp_evap_cw' ,tend_theta_mp_evap_cw )  ! MC added
+    call mpas_pool_get_array(diag_physics,'tend_theta_mp_evap_rw' ,tend_theta_mp_evap_rw )  ! MC added
+    call mpas_pool_get_array(diag_physics,'tend_theta_mp_depo_ice',tend_theta_mp_depo_ice)  ! MC added        
+    call mpas_pool_get_array(diag_physics,'tend_theta_mp_melt_ice',tend_theta_mp_melt_ice)  ! MC added
+    call mpas_pool_get_array(diag_physics,'tend_theta_mp_frez_ice',tend_theta_mp_frez_ice)  ! MC added
+ end if 
 
 !initialize variables needed in the cloud microphysics schemes:
  do j = jts, jte
@@ -820,9 +838,11 @@
  real(kind=RKIND),dimension(:,:),pointer  :: qv_mp_tend, acc_qv_mp_tend                      
 
 ! MC - for PV tendencies
- logical, pointer :: config_pv_tend 
+ logical, pointer :: config_pv_tend, config_pv_microphys
  real(kind=RKIND), dimension(:,:), pointer :: thmmpten, qvmpten
-
+ real(kind=RKIND), dimension(:,:), pointer :: tend_theta_mp_evap_cw,tend_theta_mp_evap_rw, &      
+                                              tend_theta_mp_depo_ice,tend_theta_mp_melt_ice, & 
+                                              tend_theta_mp_frez_ice 
 !local variables:
  integer:: icount
  integer:: i,k,j
@@ -882,6 +902,17 @@
     qvmpten(:,:) = 0.0 
  end if
 
+ ! Adding for Thompson PV process tendencies
+ call mpas_pool_get_config(configs, 'config_pv_microphys', config_pv_microphys)
+
+ if (config_pv_microphys) then     
+    call mpas_pool_get_array(diag_physics,'tend_theta_mp_evap_cw' ,tend_theta_mp_evap_cw )  ! MC added 
+    call mpas_pool_get_array(diag_physics,'tend_theta_mp_evap_rw' ,tend_theta_mp_evap_rw )  ! MC added 
+    call mpas_pool_get_array(diag_physics,'tend_theta_mp_depo_ice',tend_theta_mp_depo_ice)  ! MC added 
+    call mpas_pool_get_array(diag_physics,'tend_theta_mp_melt_ice',tend_theta_mp_melt_ice)  ! MC added
+    call mpas_pool_get_array(diag_physics,'tend_theta_mp_frez_ice',tend_theta_mp_frez_ice)  ! MC added
+ end if
+
 
 !update variables needed in the dynamical core:
  do j = jts,jte
@@ -910,18 +941,31 @@
     pressure_p(k,i) = zz(k,i)*R_d*(exner(k,i)*rtheta_p(k,i) &
                     + (exner(k,i)-exner_b(k,i))*rtheta_b(k,i))
 
- 
-    ! MW on ITM: flux version MC ADDED
+
+    ! ------------------------------       
+    ! For diagnostics packages:
+    ! ------------------------------
+    ! MW on ITM: flux version
     if (config_tend) then
        acc_th_tend_diabatic(k,i) = acc_th_tend_diabatic(k,i) + rt_diabatic_tend(k,i) 
        acc_qv_mp_tend(k,i) = acc_qv_mp_tend(k,i) + ( qv(k,i) - qv_mp_tend(k,i))/dt_dyn  
     end if    
 
-    ! MC: for PV
+    ! MC for PV tendencies:
     if (config_pv_tend) then
        thmmpten(k,i) = rt_diabatic_tend(k,i)
        qvmpten(k,i) = (qv(k,i) - qv_mp_tend(k,i))/dt_dyn
     end if   
+
+    ! MC for PV microphysics process tendencies:
+    if (config_pv_microphys) then   
+         tend_theta_mp_evap_cw(k,i)  = tend_theta_mp_evap_cw_p(i,k,j)
+         tend_theta_mp_evap_rw(k,i)  = tend_theta_mp_evap_rw_p(i,k,j)
+         tend_theta_mp_depo_ice(k,i) = tend_theta_mp_depo_ice_p(i,k,j)
+         tend_theta_mp_melt_ice(k,i) = tend_theta_mp_melt_ice_p(i,k,j)
+         tend_theta_mp_frez_ice(k,i) = tend_theta_mp_frez_ice_p(i,k,j)
+    end if
+
 
  enddo
  enddo

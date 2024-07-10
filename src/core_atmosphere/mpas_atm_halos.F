@@ -523,6 +523,7 @@ module mpas_atm_halos
             call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mp_tend', 'tend_theta_mp_depo_ice', timeLevel=1, haloLayers=(/1,2/))
             call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mp_tend', 'tend_theta_mp_melt_ice', timeLevel=1, haloLayers=(/1,2/))
             call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mp_tend', 'tend_theta_mp_frez_ice', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_complete(domain, 'diagnostics:dpv_mp_tend')
          end if
 
 

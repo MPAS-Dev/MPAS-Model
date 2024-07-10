@@ -68,7 +68,7 @@ module mpas_pv_diagnostics
     !                              config_pv_isobaric)
     ! -- config_pv_scalar        : flag for whether pv_scalar is initialized as PV and then transported as passive scalar
     !                              throughout the model integration
-    ! -- config_pv_microphys     : flag for whether specific microphysics process PV tendencies are desired (Thompson only)
+    ! -- config_pv_microphys     : flag for whether specific microphysics process PV tendencies are desired (Thompson schemes only)
     ! -- config_pv_isobaric      : flag for whether isobaric interpolation of PV diagnostics variables is desired 
     !                              (requires mods to mpas_isobaric_diagnostics.F)
     !
@@ -147,7 +147,7 @@ module mpas_pv_diagnostics
     !         PV dynamics tendencies).
     ! * Accumulated PV tendencies were added to permit the evaluation of the net PV tendencies without outputting the model
     !   variables at each time step.
-    ! * Added PV tendencies for specific microphysical processes in the Thompson scheme: net condensation/evaporation of cloud
+    ! * Added PV tendencies for specific microphysical processes in the Thompson schemes: net condensation/evaporation of cloud
     !   water, evaporation of rain water, net deposition/sublimation, melting, and freezing. Requires config_pv_microphys = .true.
     !   Note: these tendencies use the theta tendencies from the microphysics scheme directly, whereas depv_dt_mp is calculated
     !   using the derived theta tendency from the theta_m and qv tendencies. The differences in these approaches can be
@@ -2188,6 +2188,10 @@ module mpas_pv_diagnostics
       ! dynamics PV tendency
       real(kind=RKIND), dimension(:,:), pointer :: depv_dt_dyn
 
+      ! specific microphysics PV tendencies
+      real(kind=RKIND), dimension(:,:), pointer :: depv_dt_mp_evap_cw, depv_dt_mp_evap_rw, depv_dt_mp_depo_ice, &     
+                                                   depv_dt_mp_melt_ice, depv_dt_mp_frez_ice, depv_dt_mp_allproc
+      
       ! process tendencies -- friction
       real(kind=RKIND), dimension(:,:), pointer :: u_tend_diff, w_tend_diff, tend_wCell_diff, tend_u_pbl, tend_u_cu
       real(kind=RKIND), dimension(:,:), pointer :: uTend_curl_diff, uTend_curl_pbl, uTend_curl_cu                         
@@ -2195,6 +2199,8 @@ module mpas_pv_diagnostics
       ! process tendencies -- diabatic
       real(kind=RKIND), dimension(:,:), pointer :: dtheta_dt_mp, dtheta_dt_mix, dtheta_dt_pbl, dtheta_dt_cu, dtheta_dt_sw, &  ! MC: calculated in atm_compute_pvBudget_diagnostics
                                                    dtheta_dt_lw
+      real(kind=RKIND), dimension(:,:), pointer :: tend_theta_mp_evap_cw, tend_theta_mp_evap_rw, tend_theta_mp_depo_ice, &  
+                                                   tend_theta_mp_melt_ice, tend_theta_mp_frez_ice
 
       ! process tendencies -- dynamics 
       real(kind=RKIND), dimension(:,:), pointer :: dtheta_dt_dyn, du_dt_dyn, dw_dt_dyn, tenddyn_wCell
@@ -2206,6 +2212,7 @@ module mpas_pv_diagnostics
       real(kind=RKIND), dimension(:,:), allocatable :: dW_dxZonal, dW_dyMerid
       real(kind=RKIND), dimension(:,:), allocatable :: absVort
       real(kind=RKIND), dimension(:,:,:), allocatable :: absVort3D, gradTheta
+
       ! diabatic tendency variables
       real(kind=RKIND), dimension(:,:), allocatable :: dLWtend_dxZonal, dLWtend_dyMerid, dLWtend_dz      ! Gradients of theta tendencies from LW radiation
       real(kind=RKIND), dimension(:,:), allocatable :: dSWtend_dxZonal, dSWtend_dyMerid, dSWtend_dz      ! Gradients of theta tendencies from SW radiation
@@ -2215,6 +2222,23 @@ module mpas_pv_diagnostics
       real(kind=RKIND), dimension(:,:), allocatable :: dMXtend_dxZonal, dMXtend_dyMerid, dMXtend_dz      ! Gradients of theta tendencies from explicit horiz mixing
       real(kind=RKIND), dimension(:,:,:), allocatable :: grad_diabatic_LW, grad_diabatic_SW, grad_diabatic_BL, &
                                                          grad_diabatic_CU, grad_diabatic_MP, grad_diabatic_MX
+
+      ! diabatic tendency variables -- specific microphysical processes
+      real(kind=RKIND), dimension(:,:), allocatable :: tend_theta_mp_sum
+      real(kind=RKIND), dimension(:,:), allocatable :: dMPevapcwtend_dxZonal, dMPevapcwtend_dyMerid, &   ! Gradients of theta tendencies from specific microphysical processes
+                                                       dMPevapcwtend_dz, &
+                                                       dMPevaprwtend_dxZonal, dMPevaprwtend_dyMerid, &
+                                                       dMPevaprwtend_dz, &
+                                                       dMPdepotend_dxZonal, dMPdepotend_dyMerid, &
+                                                       dMPdepotend_dz, &
+                                                       dMPmelttend_dxZonal, dMPmelttend_dyMerid, &
+                                                       dMPmelttend_dz, &
+                                                       dMPfreztend_dxZonal, dMPfreztend_dyMerid, &
+                                                       dMPfreztend_dz, &
+                                                       dMPsumtend_dxZonal, dMPsumtend_dyMerid, &
+                                                       dMPsumtend_dz
+      real(kind=RKIND), dimension(:,:,:), allocatable :: grad_diabatic_MP_evap_cw, grad_diabatic_MP_evap_rw, grad_diabatic_MP_depo, &
+                                                         grad_diabatic_MP_melt, grad_diabatic_MP_frez, grad_diabatic_MP_sum
 
       ! friction tendency vars 
       real(kind=RKIND), dimension(:,:), allocatable :: dWtend_dxZonal, dWtend_dyMerid, duZonalTend_dz_mix, duMeridTend_dz_mix, &
@@ -2235,7 +2259,6 @@ module mpas_pv_diagnostics
       ! needed for alternative vertical derivative calculation 
       !real(kind=RKIND), pointer :: cf1, cf2, cf3
       !real(kind=RKIND), dimension(:), pointer :: rdzw
-
 
       ! mesh / config vars
       call mpas_pool_get_config(configs,'config_dt',config_dt)
@@ -2294,6 +2317,17 @@ module mpas_pv_diagnostics
 
       ! dynamics PV tendency
       call mpas_pool_get_array(diag,'depv_dt_dyn',depv_dt_dyn)                            ! total PV tendency from dynamics (includes transport, decoupling, rho tendency)
+
+      ! specific microphysics PV tendencies (Thompson only)
+      if (config_pv_microphys) then
+         call mpas_pool_get_array(diag, 'depv_dt_mp_evap_cw', depv_dt_mp_evap_cw)            ! diabatic PV tendency from net condensation/evaporation of cloud water
+         call mpas_pool_get_array(diag, 'depv_dt_mp_evap_rw', depv_dt_mp_evap_rw)            ! diabatic PV tendency from evaporation of rain water
+         call mpas_pool_get_array(diag, 'depv_dt_mp_depo_ice', depv_dt_mp_depo_ice)          ! diabatic PV tendency from net deposition/sublimation of all ice hydrometeors
+         call mpas_pool_get_array(diag, 'depv_dt_mp_melt_ice', depv_dt_mp_melt_ice)          ! diabatic PV tendency from melting of all ice hydrometeors
+         call mpas_pool_get_array(diag, 'depv_dt_mp_frez_ice', depv_dt_mp_frez_ice)          ! diabatic PV tendency from freezing of all ice hydrometeors
+         call mpas_pool_get_array(diag, 'depv_dt_mp_allproc', depv_dt_mp_allproc)            ! total diabatic PV tendency from all specific processes
+      end if
+
       ! process tendencies -- friction:
       call mpas_pool_get_array(diag, 'u_tend_diff', u_tend_diff)                          ! Normal wind tendency from explicit mixing on cell edges
       call mpas_pool_get_array(diag, 'w_tend_diff', w_tend_diff)                          ! Vertical wind tendency from explicit mixing
@@ -2319,7 +2353,19 @@ module mpas_pv_diagnostics
       call mpas_pool_get_array(diag, 'tenddyn_wCell', tenddyn_wCell)                       ! dw_dt_dyn interpolated to mass levels
       call mpas_pool_get_array(diag, 'uTend_curl_dyn', uTend_curl_dyn)                     ! Vertical curl of du_dt_dyn at cell vertices
 
-      ! needed for alternative vertical derivative calculation
+      ! specific microphysics process potential temperature tendencies
+      ! MC note: unlike dtheta_dt_mp, which is derived from theta_m tendency and is more precise,
+      !          these tendencies are directly obtained from the theta rates in the Thompson
+      !          scheme. thus, the sum of these will not exactly equal dtheta_dt_mp.
+      if (config_pv_microphys) then
+         call mpas_pool_get_array(diag_physics, 'tend_theta_mp_evap_cw', tend_theta_mp_evap_cw)
+         call mpas_pool_get_array(diag_physics, 'tend_theta_mp_evap_rw', tend_theta_mp_evap_rw)
+         call mpas_pool_get_array(diag_physics, 'tend_theta_mp_depo_ice', tend_theta_mp_depo_ice)
+         call mpas_pool_get_array(diag_physics, 'tend_theta_mp_melt_ice', tend_theta_mp_melt_ice)
+         call mpas_pool_get_array(diag_physics, 'tend_theta_mp_frez_ice', tend_theta_mp_frez_ice)
+      end if
+
+      ! needed for alternative vertical derivative calculation (not recommended)
       !call mpas_pool_get_array(mesh, 'cf1', cf1)
       !call mpas_pool_get_array(mesh, 'cf2', cf2)
       !call mpas_pool_get_array(mesh, 'cf3', cf3)
@@ -2367,6 +2413,36 @@ module mpas_pv_diagnostics
       allocate(grad_diabatic_CU(nVertLevels,nCells+1,R3))
       allocate(grad_diabatic_MX(nVertLevels,nCells+1,R3))
       allocate(grad_diabatic_MP(nVertLevels,nCells+1,R3))
+
+      ! allocate diabatic tendency variables from specific microphys processes
+      if (config_pv_microphys) then 
+         allocate(dMPevapcwtend_dxZonal(nVertLevels,nCells+1))
+         allocate(dMPevapcwtend_dyMerid(nVertLevels,nCells+1))
+         allocate(dMPevapcwtend_dz(nVertLevels,nCells+1))
+         allocate(dMPevaprwtend_dxZonal(nVertLevels,nCells+1))
+         allocate(dMPevaprwtend_dyMerid(nVertLevels,nCells+1))
+         allocate(dMPevaprwtend_dz(nVertLevels,nCells+1))
+         allocate(dMPdepotend_dxZonal(nVertLevels,nCells+1))
+         allocate(dMPdepotend_dyMerid(nVertLevels,nCells+1))
+         allocate(dMPdepotend_dz(nVertLevels,nCells+1))
+         allocate(dMPmelttend_dxZonal(nVertLevels,nCells+1))
+         allocate(dMPmelttend_dyMerid(nVertLevels,nCells+1))
+         allocate(dMPmelttend_dz(nVertLevels,nCells+1))
+         allocate(dMPfreztend_dxZonal(nVertLevels,nCells+1))
+         allocate(dMPfreztend_dyMerid(nVertLevels,nCells+1))
+         allocate(dMPfreztend_dz(nVertLevels,nCells+1))
+         allocate(dMPsumtend_dxZonal(nVertLevels,nCells+1))
+         allocate(dMPsumtend_dyMerid(nVertLevels,nCells+1))
+         allocate(dMPsumtend_dz(nVertLevels,nCells+1))
+         allocate(tend_theta_mp_sum(nVertLevels,nCells+1))
+         ! 3D tendency vectors
+         allocate(grad_diabatic_MP_evap_cw(nVertLevels,nCells+1,R3))
+         allocate(grad_diabatic_MP_evap_rw(nVertLevels,nCells+1,R3))
+         allocate(grad_diabatic_MP_depo(nVertLevels,nCells+1,R3))
+         allocate(grad_diabatic_MP_melt(nVertLevels,nCells+1,R3))
+         allocate(grad_diabatic_MP_frez(nVertLevels,nCells+1,R3))
+         allocate(grad_diabatic_MP_sum(nVertLevels,nCells+1,R3))
+      end if
 
       ! allocate friction tendency variables
       ! mixing
@@ -2446,6 +2522,15 @@ module mpas_pv_diagnostics
       dWtend_dxZonal_phys(:,:) = 0.0_RKIND
       dWtend_dyMerid_phys(:,:) = 0.0_RKIND
 
+      if (config_pv_microphys) then
+         depv_dt_mp_evap_cw(:,:) =  0.0_RKIND
+         depv_dt_mp_evap_rw(:,:) =  0.0_RKIND
+         depv_dt_mp_depo_ice(:,:) =  0.0_RKIND
+         depv_dt_mp_melt_ice(:,:) =  0.0_RKIND
+         depv_dt_mp_frez_ice(:,:) =  0.0_RKIND
+         depv_dt_mp_allproc(:,:) =  0.0_RKIND  
+         tend_theta_mp_sum(:,:) =  0.0_RKIND
+      end if         
 
       !***********************************************************************************************
       ! Calculate terms needed for PV tendency equation
@@ -2691,7 +2776,191 @@ module mpas_pv_diagnostics
       end if
 
       ! Sum of all diabatic contributions to PV through potential temperature tendencies
-      depv_dt_diab = depv_dt_mix + depv_dt_lw + depv_dt_sw + depv_dt_bl + depv_dt_cu + depv_dt_mp
+      depv_dt_diab = depv_dt_mix + depv_dt_lw + depv_dt_sw + depv_dt_bl + depv_dt_cu + depv_dt_mp 
+
+ 
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! Individual diabatic tendencies from specific microphysical processes (not included in budget)
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      
+      ! Net cloud water condensation and evaporation
+      if ((config_pv_microphys) .and. (associated(tend_theta_mp_evap_cw))) then
+
+          ! (1) Calculate and reconstruct horizontal gradients of theta tendency
+          call calc_gradOnEdges_reconCellCenter(tend_theta_mp_evap_cw, nCellsSolve, nEdges, nVertLevels, nEdgesOnCell, &
+                                   edgesOnCell, edgesOnCell_sign, cellsOnEdge, dcEdge, coeffs_reconstruct, &
+                                   latCell, lonCell, dMPevapcwtend_dxZonal, &
+                                   dMPevapcwtend_dyMerid)
+
+          ! (2) Calculate vertical gradient of theta tendency
+          call calc_vertDeriv(tend_theta_mp_evap_cw, nCellsSolve, nVertLevels, zCell, dMPevapcwtend_dz)
+
+          ! For alternative method, comment out above and uncomment below. 
+          ! call calc_vertDeriv_alt(tend_theta_mp_evap_cw, nCellsSolve, nVertLevels, dzu, cf1, cf2, cf3, rdzw, zgrid, zCell, dMPevapcwtend_dz)
+
+          ! (3) Combine into 3D theta tendency gradient vector 
+          grad_diabatic_MP_evap_cw(:,:,1) = dMPevapcwtend_dxZonal
+          grad_diabatic_MP_evap_cw(:,:,2) = dMPevapcwtend_dyMerid
+          grad_diabatic_MP_evap_cw(:,:,3) = dMPevapcwtend_dz
+
+          ! (4) Take dot product between 3D theta tendency vector and absolute vorticity / density 
+          call calc_dotProduct_3D(grad_diabatic_MP_evap_cw, absVort3D, nCellsSolve, nVertLevels, depv_dt_mp_evap_cw)
+
+          depv_dt_mp_evap_cw = depv_dt_mp_evap_cw / rho * 1.0e6
+      else
+          depv_dt_mp_evap_cw = 0.0_RKIND
+      end if
+
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! Rain water evaporation
+      if ((config_pv_microphys) .and. (associated(tend_theta_mp_evap_rw))) then
+
+          ! (1) Calculate and reconstruct horizontal gradients of theta tendency
+          call calc_gradOnEdges_reconCellCenter(tend_theta_mp_evap_rw, nCellsSolve, nEdges, nVertLevels, nEdgesOnCell, &
+                                   edgesOnCell, edgesOnCell_sign, cellsOnEdge, dcEdge, coeffs_reconstruct, &
+                                   latCell, lonCell, dMPevaprwtend_dxZonal, &
+                                   dMPevaprwtend_dyMerid)
+
+          ! (2) Calculate vertical gradient of theta tendency
+          call calc_vertDeriv(tend_theta_mp_evap_rw, nCellsSolve, nVertLevels, zCell, dMPevaprwtend_dz)
+
+          ! For alternative method, comment out above and uncomment below. 
+          ! call calc_vertDeriv_alt(tend_theta_mp_evap_rw, nCellsSolve, nVertLevels, dzu, cf1, cf2, cf3, rdzw, zgrid, zCell, dMPevaprwtend_dz)
+
+          ! (3) Combine into 3D theta tendency gradient vector 
+          grad_diabatic_MP_evap_rw(:,:,1) = dMPevaprwtend_dxZonal
+          grad_diabatic_MP_evap_rw(:,:,2) = dMPevaprwtend_dyMerid
+          grad_diabatic_MP_evap_rw(:,:,3) = dMPevaprwtend_dz
+
+          ! (4) Take dot product between 3D theta tendency vector and absolute vorticity / density 
+          call calc_dotProduct_3D(grad_diabatic_MP_evap_rw, absVort3D, nCellsSolve, nVertLevels, depv_dt_mp_evap_rw)
+
+          depv_dt_mp_evap_rw = depv_dt_mp_evap_rw / rho * 1.0e6
+      else
+          depv_dt_mp_evap_rw = 0.0_RKIND
+      end if
+
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! Net sublimation/deposition
+      if ((config_pv_microphys) .and. (associated(tend_theta_mp_depo_ice))) then
+
+          ! (1) Calculate and reconstruct horizontal gradients of theta tendency
+          call calc_gradOnEdges_reconCellCenter(tend_theta_mp_depo_ice, nCellsSolve, nEdges, nVertLevels, nEdgesOnCell, &
+                                   edgesOnCell, edgesOnCell_sign, cellsOnEdge, dcEdge, coeffs_reconstruct, &
+                                   latCell, lonCell, dMPdepotend_dxZonal, &
+                                   dMPdepotend_dyMerid)
+
+          ! (2) Calculate vertical gradient of theta tendency
+          call calc_vertDeriv(tend_theta_mp_depo_ice, nCellsSolve, nVertLevels, zCell, dMPdepotend_dz)
+
+          ! For alternative method, comment out above and uncomment below. 
+          ! call calc_vertDeriv_alt(tend_theta_mp_depo_ice, nCellsSolve, nVertLevels, dzu, cf1, cf2, cf3, rdzw, zgrid, zCell, dMPdepotend_dz)
+
+          ! (3) Combine into 3D theta tendency gradient vector 
+          grad_diabatic_MP_depo(:,:,1) = dMPdepotend_dxZonal
+          grad_diabatic_MP_depo(:,:,2) = dMPdepotend_dyMerid
+          grad_diabatic_MP_depo(:,:,3) = dMPdepotend_dz
+
+          ! (4) Take dot product between 3D theta tendency vector and absolute vorticity / density 
+          call calc_dotProduct_3D(grad_diabatic_MP_depo, absVort3D, nCellsSolve, nVertLevels, depv_dt_mp_depo_ice)
+
+          depv_dt_mp_depo_ice = depv_dt_mp_depo_ice / rho * 1.0e6
+
+      else
+          depv_dt_mp_depo_ice = 0.0_RKIND
+      end if
+
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! Melting
+      if ((config_pv_microphys) .and. (associated(tend_theta_mp_melt_ice))) then
+
+          ! (1) Calculate and reconstruct horizontal gradients of theta tendency
+          call calc_gradOnEdges_reconCellCenter(tend_theta_mp_melt_ice, nCellsSolve, nEdges, nVertLevels, nEdgesOnCell, &
+                                   edgesOnCell, edgesOnCell_sign, cellsOnEdge, dcEdge, coeffs_reconstruct, &
+                                   latCell, lonCell, dMPmelttend_dxZonal, &
+                                   dMPmelttend_dyMerid)
+
+          ! (2) Calculate vertical gradient of theta tendency
+          call calc_vertDeriv(tend_theta_mp_melt_ice, nCellsSolve, nVertLevels, zCell, dMPmelttend_dz)
+
+          ! For alternative method, comment out above and uncomment below. 
+          ! call calc_vertDeriv_alt(tend_theta_mp_melt_ice, nCellsSolve, nVertLevels, dzu, cf1, cf2, cf3, rdzw, zgrid, zCell, dMPmelttend_dz)
+
+          ! (3) Combine into 3D theta tendency gradient vector 
+          grad_diabatic_MP_melt(:,:,1) = dMPmelttend_dxZonal
+          grad_diabatic_MP_melt(:,:,2) = dMPmelttend_dyMerid
+          grad_diabatic_MP_melt(:,:,3) = dMPmelttend_dz
+
+          ! (4) Take dot product between 3D theta tendency vector and absolute vorticity / density 
+          call calc_dotProduct_3D(grad_diabatic_MP_melt, absVort3D, nCellsSolve, nVertLevels, depv_dt_mp_melt_ice)
+
+          depv_dt_mp_melt_ice = depv_dt_mp_melt_ice / rho * 1.0e6
+      else
+          depv_dt_mp_melt_ice = 0.0_RKIND
+      end if
+
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! Freezing
+      if ((config_pv_microphys) .and. (associated(tend_theta_mp_frez_ice))) then
+
+          ! (1) Calculate and reconstruct horizontal gradients of theta tendency
+          call calc_gradOnEdges_reconCellCenter(tend_theta_mp_frez_ice, nCellsSolve, nEdges, nVertLevels, nEdgesOnCell, &   
+                                   edgesOnCell, edgesOnCell_sign, cellsOnEdge, dcEdge, coeffs_reconstruct, &
+                                   latCell, lonCell, dMPfreztend_dxZonal, &
+                                   dMPfreztend_dyMerid)
+
+          ! (2) Calculate vertical gradient of theta tendency
+          call calc_vertDeriv(tend_theta_mp_frez_ice, nCellsSolve, nVertLevels, zCell, dMPfreztend_dz)
+
+          ! For alternative method, comment out above and uncomment below. 
+          ! call calc_vertDeriv_alt(tend_theta_mp_frez_ice, nCellsSolve, nVertLevels, dzu, cf1, cf2, cf3, rdzw, zgrid, zCell, dMPfreztend_dz)
+
+          ! (3) Combine into 3D theta tendency gradient vector 
+          grad_diabatic_MP_frez(:,:,1) = dMPfreztend_dxZonal
+          grad_diabatic_MP_frez(:,:,2) = dMPfreztend_dyMerid
+          grad_diabatic_MP_frez(:,:,3) = dMPfreztend_dz
+
+          ! (4) Take dot product between 3D theta tendency vector and absolute vorticity / density 
+          call calc_dotProduct_3D(grad_diabatic_MP_frez, absVort3D, nCellsSolve, nVertLevels, depv_dt_mp_frez_ice)
+
+          depv_dt_mp_frez_ice = depv_dt_mp_frez_ice / rho * 1.0e6
+      else
+          depv_dt_mp_frez_ice = 0.0_RKIND
+      end if
+
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+      ! Sum all processes together to find combined PV tendency from microphysics. Compare to depv_dt_mp
+      if ((config_pv_microphys) .and. (associated(tend_theta_mp_frez_ice))) then
+
+          ! (1) Sum individual process tendencies 
+          tend_theta_mp_sum = tend_theta_mp_frez_ice + tend_theta_mp_melt_ice + tend_theta_mp_depo_ice + &
+                             tend_theta_mp_evap_rw + tend_theta_mp_evap_cw
+
+          ! (2) Calculate and reconstruct horizontal gradients of theta tendency
+          call calc_gradOnEdges_reconCellCenter(tend_theta_mp_sum, nCellsSolve, nEdges, nVertLevels, nEdgesOnCell, &
+                                   edgesOnCell, edgesOnCell_sign, cellsOnEdge, dcEdge, coeffs_reconstruct, &
+                                   latCell, lonCell, dMPsumtend_dxZonal, &
+                                   dMPsumtend_dyMerid)
+
+          ! (3) Calculate vertical gradient of theta tendency
+          call calc_vertDeriv(tend_theta_mp_sum, nCellsSolve, nVertLevels, zCell, dMPsumtend_dz)
+
+          ! For alternative method, comment out above and uncomment below. 
+          ! call calc_vertDeriv_alt(tend_theta_mp_sum, nCellsSolve, nVertLevels, dzu, cf1, cf2, cf3, rdzw, zgrid, zCell, dMPsumtend_dz)
+
+          ! (4) Combine into 3D theta tendency gradient vector 
+          grad_diabatic_MP_sum(:,:,1) = dMPsumtend_dxZonal
+          grad_diabatic_MP_sum(:,:,2) = dMPsumtend_dyMerid
+          grad_diabatic_MP_sum(:,:,3) = dMPsumtend_dz
+
+          ! (5) Take dot product between 3D theta tendency vector and absolute vorticity / density 
+          call calc_dotProduct_3D(grad_diabatic_MP_sum, absVort3D, nCellsSolve, nVertLevels, depv_dt_mp_allproc)
+
+          depv_dt_mp_allproc = depv_dt_mp_allproc / rho * 1.0e6
+      else
+          depv_dt_mp_allproc = 0.0_RKIND
+      end if
+
 
       !***********************************************************************************************
       ! Calculate frictional tendency terms:
@@ -2965,6 +3234,35 @@ module mpas_pv_diagnostics
       deallocate(grad_diabatic_MX)
       deallocate(grad_diabatic_MP)
 
+     ! deallocate diabatic tendency variables from specific microphys processes
+      if (config_pv_microphys) then 
+         deallocate(dMPevapcwtend_dxZonal)
+         deallocate(dMPevapcwtend_dyMerid)
+         deallocate(dMPevapcwtend_dz)
+         deallocate(dMPevaprwtend_dxZonal)
+         deallocate(dMPevaprwtend_dyMerid)
+         deallocate(dMPevaprwtend_dz)
+         deallocate(dMPdepotend_dxZonal)
+         deallocate(dMPdepotend_dyMerid)
+         deallocate(dMPdepotend_dz)
+         deallocate(dMPmelttend_dxZonal)
+         deallocate(dMPmelttend_dyMerid)
+         deallocate(dMPmelttend_dz)
+         deallocate(dMPfreztend_dxZonal)
+         deallocate(dMPfreztend_dyMerid)
+         deallocate(dMPfreztend_dz)
+         deallocate(dMPsumtend_dxZonal)
+         deallocate(dMPsumtend_dyMerid)
+         deallocate(dMPsumtend_dz)
+         deallocate(tend_theta_mp_sum)
+         deallocate(grad_diabatic_MP_evap_cw)
+         deallocate(grad_diabatic_MP_evap_rw)
+         deallocate(grad_diabatic_MP_depo)
+         deallocate(grad_diabatic_MP_melt)
+         deallocate(grad_diabatic_MP_frez)
+         deallocate(grad_diabatic_MP_sum)
+      end if
+
       ! deallocate friction tendency variables
       ! mixing
       deallocate(dWtend_dxZonal)
@@ -3144,6 +3442,9 @@ module mpas_pv_diagnostics
       call exchange_halo_group(domain, 'diagnostics:dpv_mom_tend')
       call exchange_halo_group(domain, 'diagnostics:dpv_mom_curl')
 
+      if (config_pv_microphys) then 
+         call exchange_halo_group(domain, 'diagnostics:dpv_mp_tend') 
+      end if    
 
       ! -----------------------------------------------------------
       ! Call subroutines:
@@ -3184,7 +3485,7 @@ module mpas_pv_diagnostics
       type (mpas_pool_type), intent(inout) :: diag
       type (mpas_pool_type), intent(in) :: tend_physics
 
-      logical, pointer :: config_pv_tend
+      logical, pointer :: config_pv_tend, config_pv_microphys 
 
       integer, pointer :: nCells, nVertLevels
       integer :: iCell, k
@@ -3199,11 +3500,18 @@ module mpas_pv_diagnostics
       real(kind=RKIND), dimension(:),   pointer :: depv_dt_diab_pv, depv_dt_fric_pv, depv_dt_dyn_pv
       real(kind=RKIND), dimension(:),   pointer :: acc_depv_dt_diab_pv, acc_depv_dt_fric_pv, acc_depv_dt_dyn_pv
 
+      ! Specific microphysics process tendencies 
+      real(kind=RKIND), dimension(:,:), pointer :: depv_dt_mp_evap_cw, depv_dt_mp_evap_rw, depv_dt_mp_depo_ice, depv_dt_mp_melt_ice
+      real(kind=RKIND), dimension(:,:), pointer :: acc_depv_dt_mp_evap_cw, acc_depv_dt_mp_evap_rw, acc_depv_dt_mp_depo_ice, acc_depv_dt_mp_melt_ice
+      real(kind=RKIND), dimension(:,:), pointer :: depv_dt_mp_frez_ice, depv_dt_mp_allproc 
+      real(kind=RKIND), dimension(:,:), pointer :: acc_depv_dt_mp_frez_ice, acc_depv_dt_mp_allproc 
+
       ! Latent heating tendencies 
       real(kind=RKIND), dimension(:,:), pointer :: dtheta_dt_cu, dtheta_dt_mp
       real(kind=RKIND), dimension(:,:), pointer :: acc_dtheta_dt_cu, acc_dtheta_dt_mp
 
       call mpas_pool_get_config(configs, 'config_pv_tend', config_pv_tend)
+      call mpas_pool_get_config(configs, 'config_pv_microphys', config_pv_microphys)
 
       ! Instantaneous and accumulated PV tendencies 
       call mpas_pool_get_array(diag, 'depv_dt_lw', depv_dt_lw)
@@ -3237,6 +3545,23 @@ module mpas_pv_diagnostics
       call mpas_pool_get_array(diag, 'acc_depv_dt_diab_pv', acc_depv_dt_diab_pv)
       call mpas_pool_get_array(diag, 'acc_depv_dt_fric_pv', acc_depv_dt_fric_pv)
       call mpas_pool_get_array(diag, 'acc_depv_dt_dyn_pv', acc_depv_dt_dyn_pv)
+      
+      ! Specific microphysics process tendencies 
+      if (config_pv_microphys) then 
+         call mpas_pool_get_array(diag, 'depv_dt_mp_evap_cw', depv_dt_mp_evap_cw)
+         call mpas_pool_get_array(diag, 'depv_dt_mp_evap_rw', depv_dt_mp_evap_rw)
+         call mpas_pool_get_array(diag, 'depv_dt_mp_depo_ice', depv_dt_mp_depo_ice)
+         call mpas_pool_get_array(diag, 'depv_dt_mp_melt_ice', depv_dt_mp_melt_ice)
+         call mpas_pool_get_array(diag, 'depv_dt_mp_frez_ice', depv_dt_mp_frez_ice)
+         call mpas_pool_get_array(diag, 'depv_dt_mp_allproc', depv_dt_mp_allproc)
+   
+         call mpas_pool_get_array(diag, 'acc_depv_dt_mp_evap_cw', acc_depv_dt_mp_evap_cw)
+         call mpas_pool_get_array(diag, 'acc_depv_dt_mp_evap_rw', acc_depv_dt_mp_evap_rw)
+         call mpas_pool_get_array(diag, 'acc_depv_dt_mp_depo_ice', acc_depv_dt_mp_depo_ice)
+         call mpas_pool_get_array(diag, 'acc_depv_dt_mp_melt_ice', acc_depv_dt_mp_melt_ice)
+         call mpas_pool_get_array(diag, 'acc_depv_dt_mp_frez_ice', acc_depv_dt_mp_frez_ice)
+         call mpas_pool_get_array(diag, 'acc_depv_dt_mp_allproc', acc_depv_dt_mp_allproc)
+      end if
 
       ! Latent heating tendencies 
       call mpas_pool_get_array(diag, 'dtheta_dt_cu', dtheta_dt_cu)
@@ -3270,6 +3595,18 @@ module mpas_pv_diagnostics
       if (associated(dtheta_dt_cu)) then
           acc_dtheta_dt_cu(:,:) = acc_dtheta_dt_cu(:,:) + dtheta_dt_cu(:,:)
       end if
+
+      ! If specific microphysics process tendencies are requested, accumulate
+      if (config_pv_microphys) then
+          acc_depv_dt_mp_evap_cw(:,:) = acc_depv_dt_mp_evap_cw(:,:) + depv_dt_mp_evap_cw(:,:)
+          acc_depv_dt_mp_evap_rw(:,:) = acc_depv_dt_mp_evap_rw(:,:) + depv_dt_mp_evap_rw(:,:)
+          acc_depv_dt_mp_depo_ice(:,:) = acc_depv_dt_mp_depo_ice(:,:) + depv_dt_mp_depo_ice(:,:)
+          acc_depv_dt_mp_melt_ice(:,:) = acc_depv_dt_mp_melt_ice(:,:) + depv_dt_mp_melt_ice(:,:)
+          acc_depv_dt_mp_frez_ice(:,:) = acc_depv_dt_mp_frez_ice(:,:) + depv_dt_mp_frez_ice(:,:)
+          acc_depv_dt_mp_allproc(:,:) = acc_depv_dt_mp_allproc(:,:) + depv_dt_mp_allproc(:,:)
+      end if
+
+
 
    end subroutine acc_pvBudget
       

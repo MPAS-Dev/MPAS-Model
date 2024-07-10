@@ -156,8 +156,8 @@
     call mpas_log_write('config_pv_tend is not activated; deactivated all dependent PV configs.', MPAS_LOG_WARN)
  end if
 
- ! Ensure Thompson scheme is enabled for microphysics PV tendencies
- if ((config_pv_microphys) .and. (config_microp_scheme /= 'mp_thompson')) then
+ ! Ensure either Thompson or Thompson-aerosol scheme is enabled for microphysics PV tendencies
+ if ((config_pv_microphys) .and. ((trim(config_microp_scheme) /= 'mp_thompson') .and. (trim(config_microp_scheme) /= 'mp_thompson_aerosols'))) then
     call mpas_log_write('config_pv_microphys is not compatible with   = '''//trim(config_microp_scheme)//''' -- disabling', MPAS_LOG_WARN)
     config_pv_microphys = .false.
  end if 
