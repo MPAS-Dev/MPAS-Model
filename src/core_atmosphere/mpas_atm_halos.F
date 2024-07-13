@@ -215,9 +215,12 @@ module mpas_atm_halos
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:pv_diag', 'uReconstructZonal', timeLevel=1, haloLayers=(/1,2/))
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:pv_diag', 'uReconstructMeridional', timeLevel=1, haloLayers=(/1,2/))
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:pv_diag', 'w', timeLevel=1, haloLayers=(/1,2/))
-            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:pv_diag', 'wCell', timeLevel=1, haloLayers=(/1,2/))
+            !call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:pv_diag', 'wCell', timeLevel=1, haloLayers=(/1,2/))
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:pv_diag', 'rho', timeLevel=1, haloLayers=(/1,2/))
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:pv_diag', 'pv_vertex', timeLevel=1, haloLayers=(/1,2/))
+
+            call mpas_dmpar_exch_group_create(domain, 'diagnostics:pv_diag_wCell')
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:pv_diag_wCell', 'wCell', timeLevel=1, haloLayers=(/1,2/))
 
             call mpas_dmpar_exch_group_create(domain, 'diagnostics:inStrato')
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:inStrato', 'inStrato', timeLevel=1, haloLayers=(/1,2/))
@@ -458,10 +461,14 @@ module mpas_atm_halos
             call mpas_halo_exch_group_add_field(domain, 'diagnostics:pv_diag', 'uReconstructZonal', timeLevel=1, haloLayers=(/1,2/))
             call mpas_halo_exch_group_add_field(domain, 'diagnostics:pv_diag', 'uReconstructMeridional', timeLevel=1, haloLayers=(/1,2/))
             call mpas_halo_exch_group_add_field(domain, 'diagnostics:pv_diag', 'w', timeLevel=1, haloLayers=(/1,2/))
-            call mpas_halo_exch_group_add_field(domain, 'diagnostics:pv_diag', 'wCell', timeLevel=1, haloLayers=(/1,2/))
+            !call mpas_halo_exch_group_add_field(domain, 'diagnostics:pv_diag', 'wCell', timeLevel=1, haloLayers=(/1,2/))
             call mpas_halo_exch_group_add_field(domain, 'diagnostics:pv_diag', 'rho', timeLevel=1, haloLayers=(/1,2/))
             call mpas_halo_exch_group_add_field(domain, 'diagnostics:pv_diag', 'pv_vertex', timeLevel=1, haloLayers=(/1,2/))
             call mpas_halo_exch_group_complete(domain, 'diagnostics:pv_diag')
+
+            call mpas_halo_exch_group_create(domain, 'diagnostics:pv_diag_wCell')
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:pv_diag_wCell', 'wCell', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_complete(domain, 'diagnostics:pv_diag_wCell')
 
             ! MC note: these currently are not supported because they're integer fields
             !call mpas_halo_exch_group_create(domain, 'diagnostics:inStrato')
@@ -643,6 +650,7 @@ module mpas_atm_halos
             call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:inTropo')
             call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:iLev_DT')
             call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:ertel_pv')
+            call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:pv_diag_wCell')
          end if
 
          if (config_pv_tend) then 
@@ -713,6 +721,7 @@ module mpas_atm_halos
             !call mpas_halo_exch_group_destroy(domain, 'diagnostics:inTropo')
             !call mpas_halo_exch_group_destroy(domain, 'diagnostics:iLev_DT')
             call mpas_halo_exch_group_destroy(domain, 'diagnostics:ertel_pv')
+            call mpas_halo_exch_group_destroy(domain, 'diagnostics:pv_diag_wCell')
 
          end if   
 

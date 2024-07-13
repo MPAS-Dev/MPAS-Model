@@ -303,7 +303,7 @@ module mpas_pv_diagnostics
         call exchange_halo_group(domain, 'diagnostics:pv_diag')
 
         ! Calculate PV and initialize PV scalar variable as initial PV field
-        call calc_epv(mesh, state, diag)  
+        call calc_epv(domain, mesh, state, diag, exchange_halo_group) 
 
         call mpas_log_write('Initializing pv_scalar as the initial PV field.')
         pv_scalars(index_pv_scalar,:,:) = ertel_pv(:,:)  
@@ -1977,15 +1977,17 @@ module mpas_pv_diagnostics
    !     PV = 1/density * [curl(wind) . grad(theta)] 
    !*********************************************************************************************************************
 
-   subroutine calc_epv(mesh, state, diag)
+   subroutine calc_epv(domain, mesh, state, diag, exchange_halo_group)
 
       use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array
 
       IMPLICIT NONE
 
+      type (domain_type), intent(inout) :: domain                ! MC added -- test for new halo
       type (mpas_pool_type), intent(in) :: mesh  
       type (mpas_pool_type), intent(in) :: state    
       type (mpas_pool_type), intent(inout) :: diag         
+      procedure (halo_exchange_routine) :: exchange_halo_group     ! MC added for new halo
 
       ! Input variables -- mesh
       integer, pointer :: nCells, nCellsSolve, nVertLevels, nEdges, R3
@@ -2109,6 +2111,8 @@ module mpas_pv_diagnostics
 
       call interp_wLev_thetaLev(w, nCellsSolve, nVertLevels, wCell)
 
+      call exchange_halo_group(domain, 'diagnostics:pv_diag_wCell')            ! MC -- exchange intermediate variable
+
       call calc_gradOnEdges_reconCellCenter(wCell, nCellsSolve, nEdges, nVertLevels, nEdgesOnCell, &
                                 edgesOnCell, edgesOnCell_sign, cellsOnEdge, dcEdge, coeffs_reconstruct, &
                                 latCell, lonCell, dW_dxZonal, dW_dyMerid)
@@ -2181,7 +2185,7 @@ module mpas_pv_diagnostics
       call exchange_halo_group(domain, 'diagnostics:pv_diag')
 
       ! Call calc_epv subroutine 
-      call calc_epv(mesh, state, diag)
+      call calc_epv(domain, mesh, state, diag, exchange_halo_group)
 
       ! Halo cells need to be valid for flood fill routines called below
       call exchange_halo_group(domain, 'diagnostics:ertel_pv')
