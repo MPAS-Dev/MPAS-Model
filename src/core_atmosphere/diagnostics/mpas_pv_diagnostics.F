@@ -2232,13 +2232,14 @@ module mpas_pv_diagnostics
    !     at the end of the time step and the tendencies responsible for updating them!
    !*********************************************************************************************************************
 
-    subroutine calc_pvBudget(configs, state, diag, mesh, tend, tend_physics, diag_physics)
+    subroutine calc_pvBudget(domain, configs, state, diag, mesh, tend, tend_physics, diag_physics, exchange_halo_group)
 
       use mpas_vector_reconstruction
       use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_get_array, mpas_pool_get_config
 
       implicit none
 
+      type (domain_type), intent(inout) :: domain
       type (mpas_pool_type), intent(in) :: configs
       type (mpas_pool_type), intent(in) :: state
       type (mpas_pool_type), intent(inout) :: diag
@@ -2246,6 +2247,7 @@ module mpas_pv_diagnostics
       type (mpas_pool_type), intent(in) :: tend_physics
       type (mpas_pool_type), intent(in) :: diag_physics
       type (mpas_pool_type), intent(inout) :: tend
+      procedure (halo_exchange_routine) :: exchange_halo_group     ! MC - new halo
 
       ! mesh / configuration variables
       real(kind=RKIND), pointer :: config_dt
@@ -3087,6 +3089,8 @@ module mpas_pv_diagnostics
          !     dWtend_dxZonal, dWtend_dyMerid
          call interp_wLev_thetaLev(w_tend_diff, nCellsSolve, nVertLevels, tend_wCell_diff)
 
+         call exchange_halo_group(domain, 'diagnostics:dpv_diff_wCell')
+
          call calc_gradOnEdges_reconCellCenter(tend_wCell_diff, nCellsSolve, nEdges, nVertLevels, nEdgesOnCell, &
                                    edgesOnCell, edgesOnCell_sign, cellsOnEdge, dcEdge, coeffs_reconstruct, &
                                    latCell, lonCell, dWtend_dxZonal, dWtend_dyMerid)
@@ -3253,6 +3257,8 @@ module mpas_pv_diagnostics
           !     Note: NS's procedure interpolated density to w levels before uncoupling, but this method
           !           is consistent with the procedure in the vorticity calculation
           call interp_wLev_thetaLev(dw_dt_dyn, nCellsSolve, nVertLevels, tenddyn_wCell)
+
+          call exchange_halo_group(domain, 'diagnostics:dpv_dyn_wCell')
 
           call calc_gradOnEdges_reconCellCenter(tenddyn_wCell, nCellsSolve, nEdges, nVertLevels, nEdgesOnCell, &
                                 edgesOnCell, edgesOnCell_sign, cellsOnEdge, dcEdge, coeffs_reconstruct, &
@@ -3558,7 +3564,7 @@ module mpas_pv_diagnostics
 
       ! Calculating PV budget:
       call mpas_log_write("Calling calc_pvBudget:")
-      call calc_pvBudget(configs, state, diag, mesh, tend, tend_physics, diag_physics)
+      call calc_pvBudget(domain, configs, state, diag, mesh, tend, tend_physics, diag_physics, exchange_halo_group)
 
       ! Interpolate fields to DT:
       pvuVal = 2.0_RKIND

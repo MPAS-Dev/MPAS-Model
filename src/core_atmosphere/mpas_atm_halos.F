@@ -260,12 +260,16 @@ module mpas_atm_halos
             call mpas_dmpar_exch_group_create(domain, 'diagnostics:dpv_mom_tend')
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'du_dt_dyn', timeLevel=1, haloLayers=(/1,2/))
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'dw_dt_dyn', timeLevel=1, haloLayers=(/1,2/))
-            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'tenddyn_wCell', timeLevel=1, haloLayers=(/1,2/))
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'u_tend_diff', timeLevel=1, haloLayers=(/1,2/))
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'w_tend_diff', timeLevel=1, haloLayers=(/1,2/))
-            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'tend_wCell_diff', timeLevel=1, haloLayers=(/1,2/))
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'tend_u_pbl', timeLevel=1, haloLayers=(/1,2/))
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'tend_u_cu', timeLevel=1, haloLayers=(/1,2/))
+
+            call mpas_dmpar_exch_group_create(domain, 'diagnostics:dpv_dyn_wCell')
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_dyn_wCell', 'tenddyn_wCell', timeLevel=1, haloLayers=(/1,2/))
+
+            call mpas_dmpar_exch_group_create(domain, 'diagnostics:dpv_diff_wCell')
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_diff_wCell', 'tend_wCell_diff', timeLevel=1, haloLayers=(/1,2/))
 
             call mpas_dmpar_exch_group_create(domain, 'diagnostics:dpv_mom_curl')
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:dpv_mom_curl', 'uTend_curl_dyn', timeLevel=1, haloLayers=(/1,2/))
@@ -515,13 +519,19 @@ module mpas_atm_halos
             call mpas_halo_exch_group_create(domain, 'diagnostics:dpv_mom_tend')
             call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'du_dt_dyn', timeLevel=1, haloLayers=(/1,2/))
             call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'dw_dt_dyn', timeLevel=1, haloLayers=(/1,2/))
-            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'tenddyn_wCell', timeLevel=1, haloLayers=(/1,2/))
             call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'u_tend_diff', timeLevel=1, haloLayers=(/1,2/))
             call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'w_tend_diff', timeLevel=1, haloLayers=(/1,2/))
-            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'tend_wCell_diff', timeLevel=1, haloLayers=(/1,2/))
             call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'tend_u_pbl', timeLevel=1, haloLayers=(/1,2/))
             call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_tend', 'tend_u_cu', timeLevel=1, haloLayers=(/1,2/))
             call mpas_halo_exch_group_complete(domain, 'diagnostics:dpv_mom_tend')
+
+            call mpas_halo_exch_group_create(domain, 'diagnostics:dpv_dyn_wCell')
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_dyn_wCell', 'tenddyn_wCell', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_complete(domain, 'diagnostics:dpv_dyn_wCell')
+
+            call mpas_halo_exch_group_create(domain, 'diagnostics:dpv_diff_wCell')
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_diff_wCell', 'tend_wCell_diff', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_complete(domain, 'diagnostics:dpv_diff_wCell')
 
             call mpas_halo_exch_group_create(domain, 'diagnostics:dpv_mom_curl')
             call mpas_halo_exch_group_add_field(domain, 'diagnostics:dpv_mom_curl', 'uTend_curl_dyn', timeLevel=1, haloLayers=(/1,2/))
@@ -657,6 +667,8 @@ module mpas_atm_halos
             call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:dpv_prev')
             call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:dpv_th_tend')
             call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:dpv_mom_tend')
+            call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:dpv_dyn_wCell')
+            call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:dpv_diff_wCell')
             call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:dpv_mom_curl')
          end if   
 
@@ -729,6 +741,8 @@ module mpas_atm_halos
             call mpas_halo_exch_group_destroy(domain, 'diagnostics:dpv_prev')
             call mpas_halo_exch_group_destroy(domain, 'diagnostics:dpv_th_tend')
             call mpas_halo_exch_group_destroy(domain, 'diagnostics:dpv_mom_tend')
+            call mpas_halo_exch_group_destroy(domain, 'diagnostics:dpv_dyn_wCell')
+            call mpas_halo_exch_group_destroy(domain, 'diagnostics:dpv_diff_wCell')
             call mpas_halo_exch_group_destroy(domain, 'diagnostics:dpv_mom_curl')
          end if
 
