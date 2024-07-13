@@ -425,6 +425,10 @@
              description="1 if candidate of stratosphere"
              packages="pv_diagnostics"/>
 
+        <var name="inStrato" type="integer" dimensions="nVertLevels nCells Time" units="0/1"
+             description="1 if within stratosphere based on PV flood fill"
+             packages="pv_diagnostics"/>
+
 
         <!-- Counter for accumulated tendencies -->
         <var name="pv_callCounter" type="integer" dimensions="ONE" units=""
