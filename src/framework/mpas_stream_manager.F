@@ -888,6 +888,7 @@ module mpas_stream_manager
                return
            end if
 
+           call mpas_log_write('===== my log write stmt .. field is '//trim(fieldName)//' .')
            !
            ! Check that the field does not already exist in the stream
            !
