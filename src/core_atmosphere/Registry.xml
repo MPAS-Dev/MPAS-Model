@@ -1576,7 +1576,7 @@
 
                         <var name="nc" array_group="number" units="nb kg^{-1}"
                              description="Cloud water number concentration"
-                             packages="bl_mynn_in;mp_thompson_aers_in"/>
+                             packages="mp_thompson_aers_in"/>
 
                         <var name="nifa" array_group="number" units="nb kg^{-1}"
                              description="Ice-friendly aerosol number concentration"
@@ -1918,7 +1918,7 @@
 
                         <var name="tend_nc" name_in_code="nc" array_group="number" units="nb m^{-3} s^{-1}"
                              description="Tendency of cloud water number concentration multiplied by dry air density divided by d(zeta)/dz"
-                             packages="bl_mynn_in;mp_thompson_aers_in"/>
+                             packages="mp_thompson_aers_in"/>
 
                         <var name="tend_nifa" name_in_code="nifa" array_group="number" units="nb m^{-3} s^{-1}"
                              description="Tendency of ice-friendly aerosol number concentration multiplied by dry air density divided by d(zeta)/dz"
