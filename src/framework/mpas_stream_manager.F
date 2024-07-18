@@ -4308,6 +4308,7 @@ module mpas_stream_manager
         character (len=StrKIND), pointer :: packages
         logical :: active_field
         integer :: err_level
+        integer :: iDim
 
 
         if (direction == MPAS_STREAM_OUTPUT) then
