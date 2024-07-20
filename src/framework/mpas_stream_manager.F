@@ -4399,7 +4399,8 @@ module mpas_stream_manager
         logical :: active_field
         integer :: err_level
         integer :: iDim
-        integer :: size_field, loc_dim_size, global_dim_size
+        !integer(kind=I8KIND) :: size_field, loc_dim_size, global_dim_size
+        integer :: size_field, loc_dim_size
 
 
         if (direction == MPAS_STREAM_OUTPUT) then
@@ -4453,6 +4454,8 @@ module mpas_stream_manager
 
         call mpas_pool_begin_iteration(stream % field_pool)
 
+        
+
         FIELD_LOOP: do while ( mpas_pool_get_next_member(stream % field_pool, itr) )
 
             if (itr % memberType == MPAS_POOL_CONFIG) then
@@ -4505,13 +4508,15 @@ module mpas_stream_manager
                                 call MPAS_streamAddField(stream % stream, real2d)
                                 call mpas_log_write('from build_stream: Writing out real2d '//trim(real2d % fieldName))
                                 call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/real2d % isDecomposed/))
+                                
                                 do iDim = 1, 2
                                     loc_dim_size = real2d % dimSizes(iDim)
                                     call mpas_log_write('from build_stream: Dimname '//trim(real2d % dimNames(iDim))//' Size $i',intArgs=(/real2d % dimSizes(iDim)/))
                                     if ( is_decomposed_dim(real2d % dimNames(iDim))) then
-                                        call mpas_dmpar_sum_int8(real2d % block % domain % dminfo, loc_dim_size, global_dim_size)
-                                        size_field = size_field * global_dim_size
-                                        call mpas_log_write('from build_stream ----- Dimname is decomposed '//trim(real2d % dimNames(iDim))//' local size $i global size $i ',intArgs=(/loc_dim_size, global_dim_size/))
+                                        !call mpas_dmpar_sum_int(real2d % block % domain % dminfo, loc_dim_size, global_dim_size)
+                                        size_field = size_field * global_dim_size(real2d % block, real2d % dimNames(iDim))
+                                        !size_field = size_field * global_dim_size
+                                        
                                     else
                                         size_field = size_field * loc_dim_size
                                         call mpas_log_write('from build_stream ----- Dimname is not decomposed '//trim(real2d % dimNames(iDim))//' Size $i',intArgs=(/loc_dim_size/))
@@ -5045,6 +5050,33 @@ module mpas_stream_manager
         end if
 
     end function is_decomposed_dim !}}}
+
+    
+    
+    integer function global_dim_size(block, dimName) !{{{
+
+    implicit none
+
+    character(len=*), intent(in) :: dimName
+    type(block_type), intent(in) :: block
+    integer, pointer :: loc_dim_size
+
+    if (trim(dimName) == 'nCells') then 
+        call mpas_pool_get_dimension(block % dimensions, 'nCellsSolve', loc_dim_size)
+    else if (trim(dimName) == 'nEdges') then 
+        call mpas_pool_get_dimension(block % dimensions, 'nEdgesSolve', loc_dim_size)
+    else if  (trim(dimName) == 'nVertices') then 
+        call mpas_pool_get_dimension(block % dimensions, 'nVerticesSolve', loc_dim_size)
+    else
+        global_dim_size = -1
+    end if
+    
+    call mpas_dmpar_sum_int(block % domain % dminfo, loc_dim_size, global_dim_size)
+    call mpas_log_write('from build_stream ----- Dimname is decomposed '//trim(dimName)//' local size $i global size $i ',intArgs=(/loc_dim_size, global_dim_size/))
+
+end function global_dim_size !}}}
+
+
 
 
     !-----------------------------------------------------------------------
