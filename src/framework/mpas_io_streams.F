@@ -3357,9 +3357,6 @@ module mpas_io_streams
             end if
 
             do j=1,ncons
-               call mpas_log_write('Writing out field '//trim(field_cursor % int1dField % fieldName))
-               call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/field_cursor % isDecomposed/))
-               call mpas_log_write('   > outer dimension size $i', intArgs=(/field_cursor % totalDimSize/))
                if (field_cursor % isDecomposed) then
                   ! Gather field from across multiple blocks
                   field_1dint_ptr => field_cursor % int1dField
@@ -3427,9 +3424,6 @@ module mpas_io_streams
                if (field_cursor % isDecomposed) then
                   ! Gather field from across multiple blocks
                   field_2dint_ptr => field_cursor % int2dField
-                  call mpas_log_write('Writing out field '//trim(field_cursor % int2dField % fieldName))
-                  call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/field_cursor % isDecomposed/))
-                  call mpas_log_write('   > outer dimension size $i', intArgs=(/field_cursor % totalDimSize/))
                   i = 1
                   do while (associated(field_2dint_ptr))
                      if (trim(field_2dint_ptr % dimNames(2)) == 'nCells') then
@@ -3495,9 +3489,6 @@ module mpas_io_streams
 
             do j=1,ncons
                if (field_cursor % isDecomposed) then
-                  call mpas_log_write('Writing out field '//trim(field_cursor % int3dField % fieldName))
-                  call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/field_cursor % isDecomposed/))
-                  call mpas_log_write('   > outer dimension size $i', intArgs=(/field_cursor % totalDimSize/))
                   ! Gather field from across multiple blocks
                   field_3dint_ptr => field_cursor % int3dField
                   i = 1
@@ -3552,9 +3543,6 @@ module mpas_io_streams
 
          else if (field_cursor % field_type == FIELD_0D_REAL) then
 
-            call mpas_log_write('Writing out field '//trim(field_cursor % real0dField % fieldName))
-            call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/field_cursor % isDecomposed/))
-            call mpas_log_write('   > outer dimension size $i', intArgs=(/field_cursor % totalDimSize/))
 
             !call mpas_log_write('Copying field from first block')
             real0d_temp = field_cursor % real0dField % scalar
@@ -3705,9 +3693,6 @@ module mpas_io_streams
             end if
 
             do j=1,ncons
-               call mpas_log_write('Writing out real3dField '//trim(field_cursor % real3dField % fieldName))
-               call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/field_cursor % isDecomposed/))
-               call mpas_log_write('   > outer dimension size $i', intArgs=(/field_cursor % totalDimSize/))
                if (field_cursor % isDecomposed) then
                   ! Gather field from across multiple blocks
                   field_3dreal_ptr => field_cursor % real3dField
@@ -3777,9 +3762,6 @@ module mpas_io_streams
             end if
 
             do j=1,ncons
-               call mpas_log_write('Writing out real4dField '//trim(field_cursor % real4dField % fieldName))
-               call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/field_cursor % isDecomposed/))
-               call mpas_log_write('   > outer dimension size $i', intArgs=(/field_cursor % totalDimSize/))
                if (field_cursor % isDecomposed) then
                   ! Gather field from across multiple blocks
                   field_4dreal_ptr => field_cursor % real4dField
@@ -3851,9 +3833,6 @@ module mpas_io_streams
             end if
 
             do j=1,ncons
-               call mpas_log_write('Writing out real5dField '//trim(field_cursor % real5dField % fieldName))
-               call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/field_cursor % isDecomposed/))
-               call mpas_log_write('   > outer dimension size $i', intArgs=(/field_cursor % totalDimSize/))
                if (field_cursor % isDecomposed) then
                   
                   ! Gather field from across multiple blocks
@@ -3910,9 +3889,6 @@ module mpas_io_streams
 
          else if (field_cursor % field_type == FIELD_0D_CHAR) then
 
-            call mpas_log_write('Writing out field '//trim(field_cursor % char0dField % fieldName))
-            call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/field_cursor % isDecomposed/))
-            call mpas_log_write('   > outer dimension size $i', intArgs=(/field_cursor % totalDimSize/))
 
             !call mpas_log_write('Copying field from first block')
             !call mpas_log_write('MGD calling MPAS_io_put_var now...')
@@ -3922,9 +3898,6 @@ module mpas_io_streams
 
          else if (field_cursor % field_type == FIELD_1D_CHAR) then
 
-            call mpas_log_write('Writing out field '//trim(field_cursor % char1dField % fieldName))
-            call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/field_cursor % isDecomposed/))
-            call mpas_log_write('   > outer dimension size $i', intArgs=(/field_cursor % totalDimSize/))
 
             !call mpas_log_write('Copying field from first block')
             !call mpas_log_write('MGD calling MPAS_io_put_var now...')
