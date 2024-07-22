@@ -888,7 +888,6 @@ module mpas_stream_manager
                return
            end if
 
-           call mpas_log_write('===== my log write stmt .. field is '//trim(fieldName)//' .')
            !
            ! Check that the field does not already exist in the stream
            !
@@ -4242,8 +4241,7 @@ module mpas_stream_manager
         logical :: active_field
         integer :: err_level
         integer :: iDim
-        !integer(kind=I8KIND) :: size_field, loc_dim_size, global_dim_size
-        integer :: size_field, loc_dim_size
+        integer :: size_field
 
 
         if (direction == MPAS_STREAM_OUTPUT) then
@@ -4296,8 +4294,6 @@ module mpas_stream_manager
         ierr = MPAS_STREAM_MGR_NOERR
 
         call mpas_pool_begin_iteration(stream % field_pool)
-
-        
 
         FIELD_LOOP: do while ( mpas_pool_get_next_member(stream % field_pool, itr) )
 
