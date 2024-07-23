@@ -3182,6 +3182,7 @@ module mpas_stream_manager
                !
                ! Build stream from pools of fields and attributes
                !
+               call check_max_var_size(stream % field_pool, manager % allFields, timeLevel, mgLevel, local_ierr)
                allocate(stream % stream)
                call MPAS_createStream(stream % stream, manager % ioContext, stream % filename, stream % io_type, MPAS_IO_WRITE,  &
                                       precision=stream % precision, clobberRecords=clobberRecords, &
@@ -4340,73 +4341,18 @@ module mpas_stream_manager
                             case (1)
                                 call mpas_pool_get_field(allFields, itr % memberName, real1d, timeLevel)
                                 call MPAS_streamAddField(stream % stream, real1d)
-                                call mpas_log_write('from build_stream: Writing out real1d '//trim(real1d % fieldName))
-                                call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/real1d % isDecomposed/))
-                                call mpas_log_write('from build_stream: Dimname '//trim(real2d % dimNames(iDim))//' Size $i',intArgs=(/real2d % dimSizes(iDim)/))
-                                if ( is_decomposed_dim(real1d % dimNames(iDim))) then
-                                    size_field = size_field * global_dim_size(real2d % block, real1d % dimNames(iDim))
-                                else
-                                    size_field = size_field * real1d % dimSizes(iDim)
-                                    call mpas_log_write('from build_stream ----- Dimname is not decomposed '//trim(real1d % dimNames(iDim))//' Size $i',intArgs=(/real1d % dimSizes(iDim)/))
-                                end if        
                             case (2)
                                 call mpas_pool_get_field(allFields, itr % memberName, real2d, timeLevel)
                                 call MPAS_streamAddField(stream % stream, real2d)
-                                call mpas_log_write('from build_stream: Writing out real2d '//trim(real2d % fieldName))
-                                call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/real2d % isDecomposed/))
-                                
-                                do iDim = 1, 2
-                                    call mpas_log_write('from build_stream: Dimname '//trim(real2d % dimNames(iDim))//' Size $i',intArgs=(/real2d % dimSizes(iDim)/))
-                                    if ( is_decomposed_dim(real2d % dimNames(iDim))) then
-                                        size_field = size_field * global_dim_size(real2d % block, real2d % dimNames(iDim))
-                                    else
-                                        size_field = size_field * real2d % dimSizes(iDim)
-                                        call mpas_log_write('from build_stream ----- Dimname is not decomposed '//trim(real2d % dimNames(iDim))//' Size $i',intArgs=(/real2d % dimSizes(iDim)/))
-                                    end if             
-                                 end do
-                                 call mpas_log_write('from build_stream ----- cum size is $i',intArgs=(/size_field/))
                             case (3)
                                 call mpas_pool_get_field(allFields, itr % memberName, real3d, timeLevel)
                                 call MPAS_streamAddField(stream % stream, real3d)
-                                call mpas_log_write('from build_stream: Writing out real3d '//trim(real3d % fieldName))
-                                call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/real3d % isDecomposed/))
-                                do iDim = 1, 3
-                                    call mpas_log_write('from build_stream: Dimname '//trim(real3d % dimNames(iDim))//' Size $i',intArgs=(/real3d % dimSizes(iDim)/))
-                                    if ( is_decomposed_dim(real3d % dimNames(iDim))) then
-                                        size_field = size_field * global_dim_size(real3d % block, real3d % dimNames(iDim))
-                                    else
-                                        size_field = size_field * real3d % dimSizes(iDim)
-                                        call mpas_log_write('from build_stream ----- Dimname is not decomposed '//trim(real3d % dimNames(iDim))//' Size $i',intArgs=(/real3d % dimSizes(iDim)/))
-                                    end if             
-                                 end do
                             case (4)
                                 call mpas_pool_get_field(allFields, itr % memberName, real4d, timeLevel)
                                 call MPAS_streamAddField(stream % stream, real4d)
-                                call mpas_log_write('from build_stream: Writing out real4d '//trim(real4d % fieldName))
-                                call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/real4d % isDecomposed/))
-                                do iDim = 1, 4
-                                    call mpas_log_write('from build_stream: Dimname '//trim(real4d % dimNames(iDim))//' Size  $i',intArgs=(/real4d % dimSizes(iDim)/))
-                                    if ( is_decomposed_dim(real4d % dimNames(iDim))) then
-                                        size_field = size_field * global_dim_size(real4d % block, real4d % dimNames(iDim))
-                                    else
-                                        size_field = size_field * real4d % dimSizes(iDim)
-                                        call mpas_log_write('from build_stream ----- Dimname is not decomposed '//trim(real4d % dimNames(iDim))//' Size $i',intArgs=(/real4d % dimSizes(iDim)/))
-                                    end if        
-                                 end do
                             case (5)
                                 call mpas_pool_get_field(allFields, itr % memberName, real5d, timeLevel)
                                 call MPAS_streamAddField(stream % stream, real5d)
-                                call mpas_log_write('from build_stream: Writing out real5d '//trim(real5d % fieldName))
-                                call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/real5d % isDecomposed/))
-                                do iDim = 1, 5
-                                    call mpas_log_write('from build_stream: Dimname '//trim(real5d % dimNames(iDim))//' Size  $i',intArgs=(/real5d % dimSizes(iDim)/))
-                                    if ( is_decomposed_dim(real5d % dimNames(iDim))) then
-                                        size_field = size_field * global_dim_size(real5d % block, real5d % dimNames(iDim))
-                                    else
-                                        size_field = size_field * real5d % dimSizes(iDim)
-                                        call mpas_log_write('from build_stream ----- Dimname is not decomposed '//trim(real5d % dimNames(iDim))//' Size $i',intArgs=(/real5d % dimSizes(iDim)/))
-                                    end if        
-                                 end do
                         end select
                     case (MPAS_POOL_INTEGER)
                         select case (info % nDims)
@@ -4562,6 +4508,117 @@ module mpas_stream_manager
         end do
 
     end subroutine update_stream !}}}
+
+
+    subroutine check_max_var_size(field_pool, allFields, timeLevelIn, mgLevelIn, ierr) !{{{
+        use iso_c_binding, only : c_sizeof
+
+        implicit none
+
+        type (mpas_pool_type), intent(inout) :: field_pool
+        type (MPAS_Pool_type), intent(in) :: allFields
+        integer, intent(in) :: timeLevelIn
+        integer, intent(in) :: mgLevelIn
+        integer, intent(out) :: ierr
+
+        type (MPAS_Pool_iterator_type) :: itr
+        type (mpas_pool_field_info_type) :: info
+        integer :: timeLevel
+
+        type (field5DReal), pointer :: real5d
+        type (field4DReal), pointer :: real4d
+        type (field3DReal), pointer :: real3d
+        type (field2DReal), pointer :: real2d
+        type (field1DReal), pointer :: real1d
+        type (field0DReal), pointer :: real0d
+
+        type (field3DInteger), pointer :: int3d
+        type (field2DInteger), pointer :: int2d
+        type (field1DInteger), pointer :: int1d
+        type (field0DInteger), pointer :: int0d
+
+        type (field1DChar), pointer :: char1d
+        type (field0DChar), pointer :: char0d
+
+        integer :: max_field_size, field_size
+        integer :: tmp_int
+        real    :: tmp_real
+        character :: tmp_char
+        integer(kind=I8KIND) :: bytes_per_kind, field_bytes
+        integer(kind=I8KIND), parameter :: int_size = 4_I8KIND
+        integer(kind=I8KIND), parameter :: real_size = 8_I8KIND
+        character(len=StrKIND):: message
+
+        ierr = MPAS_STREAM_MGR_NOERR
+        call mpas_pool_begin_iteration(field_pool)
+
+        do while ( mpas_pool_get_next_member(field_pool, itr) )
+
+            if (itr % memberType == MPAS_POOL_CONFIG) then
+
+                ! To avoid accidentally matching in case statements below...
+                info % fieldType = -1
+                call mpas_pool_get_field_info(allFields, itr % memberName, info)
+                ! Set time level to read
+                if (info % nTimeLevels >= timeLevelIn) then
+                    timeLevel = timeLevelIn
+                else
+                    timeLevel = 1
+                end if
+                call mpas_log_write('In check_max_var_size, field '//trim(itr % memberName)//' ndims: $i',intArgs=(/info % nDims/))
+                select case (info % fieldType)
+                    case (MPAS_POOL_REAL)
+                        select case (info % nDims)
+                            case (0)
+                                field_size = 1
+                            case (1)
+                                call mpas_pool_get_field(allFields, itr % memberName, real1d, timeLevel)
+                                field_size = global_dim_size(real1d % block, real1d % dimNames, real1d % dimSizes, info % nDims)
+                            case (2)
+                                call mpas_pool_get_field(allFields, itr % memberName, real2d, timeLevel)
+                                field_size = global_dim_size(real2d % block, real2d % dimNames, real2d % dimSizes, info % nDims)
+                            case (3)
+                                call mpas_pool_get_field(allFields, itr % memberName, real3d, timeLevel)
+                                field_size = global_dim_size(real3d % block, real3d % dimNames, real3d % dimSizes, info % nDims)
+                            case (4)
+                                call mpas_pool_get_field(allFields, itr % memberName, real4d, timeLevel)
+                                field_size = global_dim_size(real4d % block, real4d % dimNames, real4d % dimSizes, info % nDims)
+                            case (5)
+                                call mpas_pool_get_field(allFields, itr % memberName, real5d, timeLevel)
+                                field_size = global_dim_size(real5d % block, real5d % dimNames, real5d % dimSizes, info % nDims)
+                        end select
+                        field_bytes = int(field_size, kind=I8KIND) * real_size
+                    case (MPAS_POOL_INTEGER)
+                        select case (info % nDims)
+                            case (0)
+                                field_size = 1
+                            case (1)
+                                call mpas_pool_get_field(allFields, itr % memberName, int1d, timeLevel)
+                                field_size = global_dim_size(int1d % block, int1d % dimNames, int1d % dimSizes, info % nDims)
+                            case (2)
+                                call mpas_pool_get_field(allFields, itr % memberName, int2d, timeLevel)
+                                field_size = global_dim_size(int2d % block, int2d % dimNames, int2d % dimSizes, info % nDims)
+                            case (3)
+                                call mpas_pool_get_field(allFields, itr % memberName, int3d, timeLevel)
+                                field_size = global_dim_size(int3d % block, int3d % dimNames, int3d % dimSizes, info % nDims)
+                        end select
+                        field_bytes = int(field_size, kind=I8KIND) * int_size
+                    case (MPAS_POOL_CHARACTER)
+                        select case (info % nDims)
+                            case (0)
+                                field_size = 1
+                            case (1)
+!                                call mpas_pool_get_field(allFields, itr % memberName, char1d, timeLevel)
+                                 call mpas_log_write('In check_max_var_size, unsupported type field1DChar.', MPAS_LOG_ERR)
+                        end select
+                        field_bytes = int(field_size, kind=I8KIND) * int_size
+                end select
+                write(message,fmt='(A,i12)') 'check_max_var_size.. field_bytes =',field_bytes
+                call mpas_log_write(message)
+            end if
+        end do
+
+    end subroutine check_max_var_size !}}}
 
 
     !-----------------------------------------------------------------------
@@ -4916,26 +4973,48 @@ module mpas_stream_manager
 
     
     
-    integer function global_dim_size(block, dimName) !{{{
+    integer function global_dim_size(block, dimNames, dimSizes, nDim) !{{{
+    use iso_c_binding, only : c_sizeof
 
     implicit none
 
-    character(len=*), intent(in) :: dimName
+    character(len=*), intent(in), dimension(:) :: dimNames
+    integer, intent(in), dimension(:) :: dimSizes
     type(block_type), intent(in) :: block
-    integer, pointer :: loc_dim_size
+    integer, intent(in) :: nDim
+    integer, pointer :: block_dim_size
+    integer :: iDim, sum_block_dim_size
+    character(len=StrKIND):: message
 
-    if (trim(dimName) == 'nCells') then 
-        call mpas_pool_get_dimension(block % dimensions, 'nCellsSolve', loc_dim_size)
-    else if (trim(dimName) == 'nEdges') then 
-        call mpas_pool_get_dimension(block % dimensions, 'nEdgesSolve', loc_dim_size)
-    else if  (trim(dimName) == 'nVertices') then 
-        call mpas_pool_get_dimension(block % dimensions, 'nVerticesSolve', loc_dim_size)
-    else
-        global_dim_size = -1
-    end if
-    
-    call mpas_dmpar_sum_int(block % domain % dminfo, loc_dim_size, global_dim_size)
-    call mpas_log_write('from build_stream ----- Dimname is decomposed '//trim(dimName)//' local size $i global size $i ',intArgs=(/loc_dim_size, global_dim_size/))
+    call mpas_log_write('from global_dim_size')
+    global_dim_size = 1
+    write(message,fmt='(A,i12)') 'from global_dim_size.. c_sizeof() =',c_sizeof(iDim)
+    call mpas_log_write(message)
+    do iDim = 1, nDim
+        call mpas_log_write('from global_dim_size: Dimname '//trim(dimNames(iDim))//' Size $i',intArgs=(/dimSizes(iDim)/))
+        if ( is_decomposed_dim(dimNames(iDim))) then
+            if (trim(dimNames(iDim)) == 'nCells') then 
+                call mpas_pool_get_dimension(block % dimensions, 'nCellsSolve', block_dim_size)
+            else if (trim(dimNames(iDim)) == 'nEdges') then 
+                call mpas_pool_get_dimension(block % dimensions, 'nEdgesSolve', block_dim_size)
+            else if  (trim(dimNames(iDim)) == 'nVertices') then 
+                call mpas_pool_get_dimension(block % dimensions, 'nVerticesSolve', block_dim_size)
+            else
+                global_dim_size = -1
+            end if
+            
+            call mpas_dmpar_sum_int(block % domain % dminfo, block_dim_size, sum_block_dim_size)
+            call mpas_log_write('from global_dim_size ----- Dimname is decomposed '//trim(dimNames(iDim))//' local size $i global size $i ',intArgs=(/block_dim_size, sum_block_dim_size/))
+            
+            global_dim_size = global_dim_size * sum_block_dim_size
+        else
+            global_dim_size = global_dim_size * dimSizes(iDim)
+            call mpas_log_write('from global_dim_size ----- Dimname is not decomposed '//trim(dimNames(iDim))//' Size $i',intArgs=(/dimSizes(iDim)/))
+        end if             
+     end do
+
+     call mpas_log_write('from global_dim_size: cumulative global_dim_size $i',intArgs=(/global_dim_size/))
+
 
 end function global_dim_size !}}}
 
