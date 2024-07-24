@@ -3084,7 +3084,7 @@ module mpas_stream_manager
         character (len=StrKIND) :: now_string, time_string
         character (len=StrKIND) :: temp_filename, actualWhen
         character (len=StrKIND) :: err_string
-        logical :: ringing_alarm, recordSeek, swapRecords
+        logical :: ringing_alarm, recordSeek, swapRecords, use_cdf2
         logical :: clobberRecords, clobberFiles, truncateFiles
         integer :: maxRecords, tempRecord
         integer :: local_ierr, threadNum
@@ -3182,7 +3182,7 @@ module mpas_stream_manager
                !
                ! Build stream from pools of fields and attributes
                !
-               call check_max_var_size(stream % field_pool, manager % allFields, timeLevel, mgLevel, local_ierr)
+               call check_max_var_size(stream % field_pool, manager % allFields, timeLevel, mgLevel, use_cdf2)
                allocate(stream % stream)
                call MPAS_createStream(stream % stream, manager % ioContext, stream % filename, stream % io_type, MPAS_IO_WRITE,  &
                                       precision=stream % precision, clobberRecords=clobberRecords, &
@@ -4510,7 +4510,7 @@ module mpas_stream_manager
     end subroutine update_stream !}}}
 
 
-    subroutine check_max_var_size(field_pool, allFields, timeLevelIn, mgLevelIn, ierr) !{{{
+    subroutine check_max_var_size(field_pool, allFields, timeLevelIn, mgLevelIn, use_cdf2) !{{{
         use iso_c_binding, only : c_sizeof
 
         implicit none
@@ -4519,7 +4519,7 @@ module mpas_stream_manager
         type (MPAS_Pool_type), intent(in) :: allFields
         integer, intent(in) :: timeLevelIn
         integer, intent(in) :: mgLevelIn
-        integer, intent(out) :: ierr
+        logical, intent(out) :: use_cdf2
 
         type (MPAS_Pool_iterator_type) :: itr
         type (mpas_pool_field_info_type) :: info
@@ -4542,16 +4542,18 @@ module mpas_stream_manager
 
         integer :: max_field_size, field_size
         integer :: tmp_int
-        real    :: tmp_real
+        real(kind=RKIND)    :: tmp_real
         character :: tmp_char
-        integer(kind=I8KIND) :: bytes_per_kind, field_bytes
-        integer(kind=I8KIND), parameter :: int_size = 4_I8KIND
-        integer(kind=I8KIND), parameter :: real_size = 8_I8KIND
+        integer(kind=I8KIND) :: max_field_bytes, field_bytes
+        integer(kind=I8KIND), parameter :: int_size = c_sizeof(tmp_int)
+        integer(kind=I8KIND), parameter :: real_size = c_sizeof(tmp_real)
+        integer(kind=I8KIND), parameter :: char_size = c_sizeof(tmp_char)
+        integer(kind=I8KIND), parameter :: cdf2_max_bytes = 2**32 - 4
         character(len=StrKIND):: message
 
-        ierr = MPAS_STREAM_MGR_NOERR
         call mpas_pool_begin_iteration(field_pool)
-
+        max_field_bytes = 0
+        field_bytes = 0
         do while ( mpas_pool_get_next_member(field_pool, itr) )
 
             if (itr % memberType == MPAS_POOL_CONFIG) then
@@ -4611,12 +4613,16 @@ module mpas_stream_manager
 !                                call mpas_pool_get_field(allFields, itr % memberName, char1d, timeLevel)
                                  call mpas_log_write('In check_max_var_size, unsupported type field1DChar.', MPAS_LOG_ERR)
                         end select
-                        field_bytes = int(field_size, kind=I8KIND) * int_size
+                        field_bytes = int(field_size, kind=I8KIND) * char_size
                 end select
-                write(message,fmt='(A,i12)') 'check_max_var_size.. field_bytes =',field_bytes
+                max_field_bytes = merge(field_bytes, max_field_bytes, field_bytes > max_field_bytes)
+                write(message,fmt='(A,i14,A,i18,A,i18)') 'check_max_var_size.. field_bytes =',field_bytes,' max_field_bytes =',max_field_bytes, &
+                & ' cdf2_max_bytes =',cdf2_max_bytes
                 call mpas_log_write(message)
             end if
         end do
+        use_cdf2 = cdf2_max_bytes > max_field_bytes
+        call mpas_log_write('In check_max_var_size use_cdf2: $l',logicArgs=(/use_cdf2/))
 
     end subroutine check_max_var_size !}}}
 
@@ -4986,12 +4992,8 @@ module mpas_stream_manager
     integer :: iDim, sum_block_dim_size
     character(len=StrKIND):: message
 
-    call mpas_log_write('from global_dim_size')
     global_dim_size = 1
-    write(message,fmt='(A,i12)') 'from global_dim_size.. c_sizeof() =',c_sizeof(iDim)
-    call mpas_log_write(message)
     do iDim = 1, nDim
-        call mpas_log_write('from global_dim_size: Dimname '//trim(dimNames(iDim))//' Size $i',intArgs=(/dimSizes(iDim)/))
         if ( is_decomposed_dim(dimNames(iDim))) then
             if (trim(dimNames(iDim)) == 'nCells') then 
                 call mpas_pool_get_dimension(block % dimensions, 'nCellsSolve', block_dim_size)
@@ -5004,16 +5006,16 @@ module mpas_stream_manager
             end if
             
             call mpas_dmpar_sum_int(block % domain % dminfo, block_dim_size, sum_block_dim_size)
-            call mpas_log_write('from global_dim_size ----- Dimname is decomposed '//trim(dimNames(iDim))//' local size $i global size $i ',intArgs=(/block_dim_size, sum_block_dim_size/))
+            call mpas_log_write('----- from global_dim_size ----- Dimname is decomposed '//trim(dimNames(iDim))//' local size $i global size $i ',intArgs=(/block_dim_size, sum_block_dim_size/))
             
             global_dim_size = global_dim_size * sum_block_dim_size
         else
             global_dim_size = global_dim_size * dimSizes(iDim)
-            call mpas_log_write('from global_dim_size ----- Dimname is not decomposed '//trim(dimNames(iDim))//' Size $i',intArgs=(/dimSizes(iDim)/))
+            call mpas_log_write('----- from global_dim_size ----- Dimname is not decomposed '//trim(dimNames(iDim))//' Size $i',intArgs=(/dimSizes(iDim)/))
         end if             
      end do
 
-     call mpas_log_write('from global_dim_size: cumulative global_dim_size $i',intArgs=(/global_dim_size/))
+     call mpas_log_write('----- from global_dim_size: cumulative global_dim_size $i',intArgs=(/global_dim_size/))
 
 
 end function global_dim_size !}}}
