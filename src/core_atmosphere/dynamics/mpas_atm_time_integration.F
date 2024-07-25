@@ -6076,7 +6076,7 @@ module atm_time_integration
       integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
 
       integer :: i, k, iCell, iEdge, cell1, cell2
-      integer, pointer :: nCells, nEdges, nVertLevels
+      integer, pointer :: nVertLevels
       integer, pointer :: index_qv
       real (kind=RKIND) :: p0, rcv, flux
       integer, dimension(:), pointer :: nEdgesOnCell
@@ -6105,8 +6105,6 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:,:), pointer :: zb, zb3, zb_cell, zb3_cell
 
 
-      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
       call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
       call mpas_pool_get_dimension(state, 'index_qv', index_qv)
 
