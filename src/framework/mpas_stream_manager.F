@@ -4241,8 +4241,6 @@ module mpas_stream_manager
         character (len=StrKIND), pointer :: packages
         logical :: active_field
         integer :: err_level
-        integer :: iDim
-        integer :: size_field
 
 
         if (direction == MPAS_STREAM_OUTPUT) then
@@ -4336,8 +4334,6 @@ module mpas_stream_manager
                             case (0)
                                 call mpas_pool_get_field(allFields, itr % memberName, real0d, timeLevel)
                                 call MPAS_streamAddField(stream % stream, real0d)
-                                call mpas_log_write('from build_stream: Writing out real0d '//trim(real0d % fieldName))
-                                call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/real0d % isDecomposed/))      
                             case (1)
                                 call mpas_pool_get_field(allFields, itr % memberName, real1d, timeLevel)
                                 call MPAS_streamAddField(stream % stream, real1d)
@@ -4359,23 +4355,15 @@ module mpas_stream_manager
                             case (0)
                                 call mpas_pool_get_field(allFields, itr % memberName, int0d, timeLevel)
                                 call MPAS_streamAddField(stream % stream, int0d)
-                                call mpas_log_write('from build_stream: Writing out int0d '//trim(int0d % fieldName))
-                                call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/int0d % isDecomposed/))
                             case (1)
                                 call mpas_pool_get_field(allFields, itr % memberName, int1d, timeLevel)
                                 call MPAS_streamAddField(stream % stream, int1d)
-                                call mpas_log_write('from build_stream: Writing out int1d '//trim(int1d % fieldName))
-                                call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/int1d % isDecomposed/))
                             case (2)
                                 call mpas_pool_get_field(allFields, itr % memberName, int2d, timeLevel)
                                 call MPAS_streamAddField(stream % stream, int2d)
-                                call mpas_log_write('from build_stream: Writing out int2d '//trim(int2d % fieldName))
-                                call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/int2d % isDecomposed/))
                             case (3)
                                 call mpas_pool_get_field(allFields, itr % memberName, int3d, timeLevel)
                                 call MPAS_streamAddField(stream % stream, int3d)
-                                call mpas_log_write('from build_stream: Writing out int3d '//trim(int3d % fieldName))
-                                call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/int3d % isDecomposed/))
                         end select
                     case (MPAS_POOL_CHARACTER)
                         select case (info % nDims)
