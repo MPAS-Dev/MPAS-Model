@@ -4326,7 +4326,6 @@ module mpas_stream_manager
                     timeLevel = 1
                 end if
 
-                size_field = 1
 
                 select case (info % fieldType)
                     case (MPAS_POOL_REAL)
