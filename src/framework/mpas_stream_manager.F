@@ -4528,9 +4528,8 @@ module mpas_stream_manager
         type (field1DChar), pointer :: char1d
         type (field0DChar), pointer :: char0d
 
-        integer :: max_field_size, field_size
         character :: tmp_char
-        integer(kind=I8KIND) :: field_bytes
+        integer(kind=I8KIND) :: field_bytes, max_field_size, field_size
         integer(kind=I8KIND), parameter :: int_size = c_sizeof(1)
         integer(kind=I8KIND), parameter :: real_size = c_sizeof(1.0_RKIND)
         integer(kind=I8KIND), parameter :: char_size = c_sizeof(tmp_char)
@@ -4587,7 +4586,7 @@ module mpas_stream_manager
                                 call mpas_pool_get_field(allFields, itr % memberName, int3d, timeLevel)
                                 field_size = global_dim_size(int3d % block, int3d % dimNames, int3d % isVarArray)
                         end select
-                        field_bytes = int(field_size, kind=I8KIND) * int_size
+                        field_bytes = field_size * int_size
                     case (MPAS_POOL_CHARACTER)
                         select case (info % nDims)
                             case (0)
@@ -4596,7 +4595,7 @@ module mpas_stream_manager
 !                                call mpas_pool_get_field(allFields, itr % memberName, char1d, timeLevel)
                                  call mpas_log_write('In check_max_var_size, unsupported type field1DChar.', MPAS_LOG_ERR)
                         end select
-                        field_bytes = int(field_size, kind=I8KIND) * char_size
+                        field_bytes = field_size * char_size
                 end select
                 stream_max_var_size = merge(field_bytes, stream_max_var_size, field_bytes > stream_max_var_size)
                 write(message,fmt='(A,i14,A,i18)') 'check_max_var_size.. field_bytes =',field_bytes,' stream_max_var_size =',stream_max_var_size
@@ -4959,7 +4958,7 @@ module mpas_stream_manager
 
     
     
-    integer function global_dim_size(block, dimNames, isVarArray) !{{{
+    integer(kind=I8KIND) function global_dim_size(block, dimNames, isVarArray) !{{{
 
         implicit none
 
@@ -4967,7 +4966,8 @@ module mpas_stream_manager
         type(block_type), intent(in) :: block
         logical, intent(in) :: isVarArray
         integer, pointer :: block_dim_size
-        integer :: iDim, iDimStart, iDimEnd, sum_block_dim_size
+        integer(kind=I8KIND):: sum_block_dim_size, block_dim_size_int8
+        integer :: iDim, iDimStart, iDimEnd
         character(len=StrKIND):: message
 
         call mpas_log_write('----- from global_dim_size: size $i',intArgs=(/size(dimNames)/))
@@ -4988,20 +4988,24 @@ module mpas_stream_manager
                     global_dim_size = -1
                 end if
                 
-                call mpas_dmpar_sum_int(block % domain % dminfo, block_dim_size, sum_block_dim_size)
-                call mpas_log_write('----- from global_dim_size ----- Dimname is decomposed '//trim(dimNames(iDim))//' local size $i global size $i ',intArgs=(/block_dim_size, sum_block_dim_size/))
+                block_dim_size_int8 = int(block_dim_size, kind=I8KIND)
+
+                call mpas_dmpar_sum_int8(block % domain % dminfo, block_dim_size_int8, sum_block_dim_size)
+                write(message,fmt='(A,i18,A,i18)') '----- from global_dim_size: Dimname is decomposed '//trim(dimNames(iDim))//' local size =',block_dim_size,' sum_block_dim_size=', sum_block_dim_size
+                call mpas_log_write(message)
                 
                 global_dim_size = global_dim_size * sum_block_dim_size
             else
                 call mpas_log_write('----- from global_dim_size ----- before get dim... Dimname is not decomposed '//trim(dimNames(iDim)))
                 call mpas_pool_get_dimension(block % dimensions, dimNames(iDim), block_dim_size)
-                global_dim_size = global_dim_size * block_dim_size
+                block_dim_size_int8 = int(block_dim_size, kind=I8KIND)
+                global_dim_size = global_dim_size * block_dim_size_int8
                 call mpas_log_write('----- from global_dim_size ----- Dimname is not decomposed '//trim(dimNames(iDim))//' Size $i',intArgs=(/block_dim_size/))
             end if             
         end do
 
-        call mpas_log_write('----- from global_dim_size: cumulative global_dim_size $i',intArgs=(/global_dim_size/))
-
+        write(message,fmt='(A,i18)') '----- from global_dim_size: cumulative global_dim_size  =',global_dim_size
+        call mpas_log_write(message)
 
     end function global_dim_size !}}}
 
