@@ -212,6 +212,22 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: invAreaCell
       integer, dimension(:), pointer :: bdyMaskCell
       integer, dimension(:), pointer :: bdyMaskEdge
+      real (kind=RKIND), dimension(:), pointer :: invDvEdge
+      real (kind=RKIND), dimension(:), pointer :: dcEdge
+      real (kind=RKIND), dimension(:), pointer :: invDcEdge
+      integer, dimension(:,:), pointer :: edgesOnEdge
+      integer, dimension(:,:), pointer :: edgesOnVertex
+      integer, dimension(:,:), pointer :: edgesOnVertex_sign
+      integer, dimension(:), pointer :: nEdgesOnEdge
+      integer, dimension(:,:), pointer :: weightsOnEdge
+      integer, dimension(:,:), pointer :: cellsOnVertex
+      integer, dimension(:,:), pointer :: verticesOnCell
+      integer, dimension(:,:), pointer :: verticesOnEdge
+      real (kind=RKIND), dimension(:), pointer :: invAreaTriangle
+      integer, dimension(:,:), pointer :: kiteForCell
+      real (kind=RKIND), dimension(:,:), pointer :: kiteAreasOnVertex
+      real (kind=RKIND), dimension(:), pointer :: fEdge
+      real (kind=RKIND), dimension(:), pointer :: fVertex
 #endif
 
 
@@ -271,6 +287,54 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
       !$acc enter data copyin(bdyMaskEdge)
+
+      call mpas_pool_get_array(mesh, 'invDvEdge', invDvEdge)
+      !$acc enter data copyin(invDvEdge)
+
+      call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
+      !$acc enter data copyin(dcEdge)
+
+      call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
+      !$acc enter data copyin(invDcEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnEdge', edgesOnEdge)
+      !$acc enter data copyin(edgesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnVertex', edgesOnVertex)
+      !$acc enter data copyin(edgesOnVertex)
+
+      call mpas_pool_get_array(mesh, 'edgesOnVertex_sign', edgesOnVertex_sign)
+      !$acc enter data copyin(edgesOnVertex_sign)
+
+      call mpas_pool_get_array(mesh, 'nEdgesOnEdge', nEdgesOnEdge)
+      !$acc enter data copyin(nEdgesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
+      !$acc enter data copyin(weightsOnEdge)
+
+      call mpas_pool_get_array(mesh, 'cellsOnVertex', cellsOnVertex)
+      !$acc enter data copyin(cellsOnVertex)
+
+      call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
+      !$acc enter data copyin(verticesOnCell)
+
+      call mpas_pool_get_array(mesh, 'verticesOnEdge', verticesOnEdge)
+      !$acc enter data copyin(verticesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'invAreaTriangle', invAreaTriangle)
+      !$acc enter data copyin(invAreaTriangle)
+
+      call mpas_pool_get_array(mesh, 'kiteForCell', kiteForCell)
+      !$acc enter data copyin(kiteForCell)
+
+      call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
+      !$acc enter data copyin(kiteAreasOnVertex)
+
+      call mpas_pool_get_array(mesh, 'fVertex', fVertex)
+      !$acc enter data copyin(fVertex)
+
+      call mpas_pool_get_array(mesh, 'fEdge', fEdge)
+      !$acc enter data copyin(fEdge)
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -319,6 +383,22 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: invAreaCell
       integer, dimension(:), pointer :: bdyMaskCell
       integer, dimension(:), pointer :: bdyMaskEdge
+      real (kind=RKIND), dimension(:), pointer :: invDvEdge
+      real (kind=RKIND), dimension(:), pointer :: dcEdge
+      real (kind=RKIND), dimension(:), pointer :: invDcEdge
+      integer, dimension(:,:), pointer :: edgesOnEdge
+      integer, dimension(:,:), pointer :: edgesOnVertex
+      integer, dimension(:,:), pointer :: edgesOnVertex_sign
+      integer, dimension(:), pointer :: nEdgesOnEdge
+      integer, dimension(:,:), pointer :: weightsOnEdge
+      integer, dimension(:,:), pointer :: cellsOnVertex
+      integer, dimension(:,:), pointer :: verticesOnCell
+      integer, dimension(:,:), pointer :: verticesOnEdge
+      real (kind=RKIND), dimension(:), pointer :: invAreaTriangle
+      integer, dimension(:,:), pointer :: kiteForCell
+      real (kind=RKIND), dimension(:,:), pointer :: kiteAreasOnVertex
+      real (kind=RKIND), dimension(:), pointer :: fEdge
+      real (kind=RKIND), dimension(:), pointer :: fVertex
 #endif
 
 
@@ -378,6 +458,54 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
       !$acc exit data delete(bdyMaskEdge)
+
+      call mpas_pool_get_array(mesh, 'invDvEdge', invDvEdge)
+      !$acc exit data delete(invDvEdge)
+
+      call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
+      !$acc exit data delete(dcEdge)
+
+      call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
+      !$acc exit data delete(invDcEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnEdge', edgesOnEdge)
+      !$acc exit data delete(edgesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnVertex', edgesOnVertex)
+      !$acc exit data delete(edgesOnVertex)
+
+      call mpas_pool_get_array(mesh, 'edgesOnVertex_sign', edgesOnVertex_sign)
+      !$acc exit data delete(edgesOnVertex_sign)
+
+      call mpas_pool_get_array(mesh, 'nEdgesOnEdge', nEdgesOnEdge)
+      !$acc exit data delete(nEdgesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
+      !$acc exit data delete(weightsOnEdge)
+
+      call mpas_pool_get_array(mesh, 'cellsOnVertex', cellsOnVertex)
+      !$acc exit data delete(cellsOnVertex)
+
+      call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
+      !$acc exit data delete(verticesOnCell)
+
+      call mpas_pool_get_array(mesh, 'verticesOnEdge', verticesOnEdge)
+      !$acc exit data delete(verticesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'invAreaTriangle', invAreaTriangle)
+      !$acc exit data delete(invAreaTriangle)
+
+      call mpas_pool_get_array(mesh, 'kiteForCell', kiteForCell)
+      !$acc exit data delete(kiteForCell)
+
+      call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
+      !$acc exit data delete(kiteAreasOnVertex)
+
+      call mpas_pool_get_array(mesh, 'fVertex', fVertex)
+      !$acc exit data delete(fVertex)
+
+      call mpas_pool_get_array(mesh, 'fEdge', fEdge)
+      !$acc exit data delete(fEdge)
 #endif
 
    end subroutine mpas_atm_dynamics_finalize
@@ -5557,13 +5685,33 @@ module atm_time_integration
       logical :: reconstruct_v
 
 
+      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc enter data copyin(cellsOnEdge,dcEdge,dvEdge, &
+      !$acc                   edgesOnVertex,edgesOnVertex_sign,invAreaTriangle, &
+      !$acc                   nEdgesOnCell,edgesOnCell, &
+      !$acc                   edgesOnCell_sign,invAreaCell, &
+      !$acc                   invAreaTriangle,edgesOnVertex, &
+      !$acc                   verticesOnCell,kiteForCell,kiteAreasOnVertex, &
+      !$acc                   nEdgesOnEdge,edgesOnEdge,weightsOnEdge, &
+      !$acc                   fVertex, &
+      !$acc                   verticesOnEdge, &
+      !$acc                   invDvEdge,invDcEdge)
+      !$acc enter data copyin(u,h)
+      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
+
       !
       ! Compute height on cell edges at velocity locations
       !
+      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc enter data create(h_edge,ke_edge,vorticity,divergence)
+      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc parallel default(present)
+      !$acc loop gang
       do iEdge=edgeStart,edgeEnd
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
             h_edge(k,iEdge) = 0.5 * (h(k,cell1) + h(k,cell2))
          end do
@@ -5572,6 +5720,7 @@ module atm_time_integration
 !  it would be good to move this somewhere else?
 
          efac = dcEdge(iEdge)*dvEdge(iEdge)
+         !$acc loop vector
          do k=1,nVertLevels
             ke_edge(k,iEdge) = efac*u(k,iEdge)**2
          end do
@@ -5581,17 +5730,24 @@ module atm_time_integration
       !
       ! Compute circulation and relative vorticity at each vertex
       !
+      !$acc loop gang
       do iVertex=vertexStart,vertexEnd
-         vorticity(1:nVertLevels,iVertex) = 0.0
+         !$acc loop vector
+         do k=1,nVertLevels
+            vorticity(k,iVertex) = 0.0_RKIND
+         end do
+         !$acc loop seq
          do i=1,vertexDegree
             iEdge = edgesOnVertex(i,iVertex)
             s = edgesOnVertex_sign(i,iVertex) * dcEdge(iEdge)
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
                vorticity(k,iVertex) = vorticity(k,iVertex) + s * u(k,iEdge)
             end do
          end do
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
             vorticity(k,iVertex) = vorticity(k,iVertex) * invAreaTriangle(iVertex)
          end do
@@ -5601,21 +5757,29 @@ module atm_time_integration
       !
       ! Compute the divergence at each cell center
       !
+      !$acc loop gang
       do iCell=cellStart,cellEnd
-         divergence(1:nVertLevels,iCell) = 0.0
+         !$acc loop vector
+         do k=1,nVertLevels
+            divergence(k,iCell) = 0.0_RKIND
+         end do
+         !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
             s = edgesOnCell_sign(i,iCell) * dvEdge(iEdge)
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
               divergence(k,iCell) = divergence(k,iCell) + s * u(k,iEdge)
             end do
          end do
          r = invAreaCell(iCell)
+         !$acc loop vector
          do k = 1,nVertLevels
             divergence(k,iCell) = divergence(k,iCell) * r
          end do
       end do
+      !$acc end parallel
 
 
 !$OMP BARRIER
@@ -5625,23 +5789,38 @@ module atm_time_integration
       !
       ! Replace 2.0 with 2 in exponentiation to avoid outside chance that
       ! compiler will actually allow "float raised to float" operation
+      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc enter data create(ke)
+      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc parallel default(present)
+      !$acc loop gang
       do iCell=cellStart,cellEnd
-         ke(1:nVertLevels,iCell) = 0.0
+         !$acc loop vector
+         do k=1,nVertLevels
+            ke(k,iCell) = 0.0_RKIND
+         end do
+         !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
+            !$acc loop vector
             do k=1,nVertLevels
 !               ke(k,iCell) = ke(k,iCell) + 0.25 * dcEdge(iEdge) * dvEdge(iEdge) * u(k,iEdge)**2
                ke(k,iCell) = ke(k,iCell) + 0.25 * ke_edge(k,iEdge)
             end do
          end do
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
             ke(k,iCell) = ke(k,iCell) * invAreaCell(iCell)
          end do
       end do
+      !$acc end parallel
 
 
       if (hollingsworth) then
+         MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+         !$acc enter data create(ke_vertex)
+         MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
 
          ! Compute ke at cell vertices - AG's new KE construction, part 1
          ! *** approximation here because we don't have inner triangle areas
@@ -5649,8 +5828,11 @@ module atm_time_integration
 
          ! Replace 2.0 with 2 in exponentiation to avoid outside chance that
          ! compiler will actually allow "float raised to float" operation
+         !$acc parallel default(present)
+         !$acc loop gang
          do iVertex=vertexStart,vertexEnd
             r = 0.25 * invAreaTriangle(iVertex) 
+            !$acc loop vector
             do k=1,nVertLevels
 
 !               ke_vertex(k,iVertex) = (  dcEdge(EdgesOnVertex(1,iVertex))*dvEdge(EdgesOnVertex(1,iVertex))*u(k,EdgesOnVertex(1,iVertex))**2  &
@@ -5662,6 +5844,7 @@ module atm_time_integration
 
             end do
          end do
+         !$acc end parallel
 
 !$OMP BARRIER
 
@@ -5670,6 +5853,8 @@ module atm_time_integration
 
          ke_fact = 1.0 - .375
 
+         !$acc parallel default(present)
+         !$acc loop collapse(2)
          do iCell=cellStart,cellEnd
             do k=1,nVertLevels
                ke(k,iCell) = ke_fact * ke(k,iCell)
@@ -5677,18 +5862,25 @@ module atm_time_integration
          end do
 
 
+         !$acc loop gang
          do iCell=cellStart,cellEnd
             r = invAreaCell(iCell)
+            !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iVertex = verticesOnCell(i,iCell)
                j = kiteForCell(i,iCell)
 !DIR$ IVDEP
+               !$acc loop vector
                do k = 1,nVertLevels
                   ke(k,iCell) = ke(k,iCell) + (1.-ke_fact)*kiteAreasOnVertex(j,iVertex) * ke_vertex(k,iVertex) * r
                end do
             end do
          end do
+         !$acc end parallel
 
+         MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+         !$acc exit data delete(ke_vertex)
+         MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
       end if
 
       !
@@ -5700,17 +5892,33 @@ module atm_time_integration
         if(rk_step /= 3) reconstruct_v = .false.
       end if
 
+      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
       if (reconstruct_v) then
+         !$acc enter data create(v)
+      else
+         !$acc enter data copyin(v)
+      end if
+      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
+
+      if (reconstruct_v) then
+        !$acc parallel default(present)
+        !$acc loop gang
         do iEdge = edgeStart,edgeEnd
-          v(1:nVertLevels,iEdge) = 0.0
+          !$acc loop vector
+          do k = 1,nVertLevels
+            v(k,iEdge) = 0.0_RKIND
+          end do
+          !$acc loop seq
           do i=1,nEdgesOnEdge(iEdge)
             eoe = edgesOnEdge(i,iEdge)
 !DIR$ IVDEP
+            !$acc loop vector
             do k = 1,nVertLevels
               v(k,iEdge) = v(k,iEdge) + weightsOnEdge(i,iEdge) * u(k, eoe)
             end do
           end do
         end do
+        !$acc end parallel
       end if
 
       !
@@ -5719,6 +5927,11 @@ module atm_time_integration
       !
       ! Avoid dividing h_vertex by areaTriangle and move areaTriangle into
       ! numerator for the pv_vertex calculation
+      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc enter data create(pv_vertex)
+      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc parallel default(present)
+      !$acc loop collapse(2)
       do iVertex = vertexStart,vertexEnd
 !DIR$ IVDEP
          do k=1,nVertLevels
@@ -5732,6 +5945,7 @@ module atm_time_integration
             pv_vertex(k,iVertex) = (fVertex(iVertex) + vorticity(k,iVertex))
          end do
       end do
+      !$acc end parallel
 
 !$OMP BARRIER
 
@@ -5739,32 +5953,49 @@ module atm_time_integration
       ! Compute pv at the edges
       !   ( this computes pv_edge at all edges bounding real cells )
       !
+      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc enter data create(pv_edge)
+      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc parallel default(present)
+      !$acc loop collapse(2)
       do iEdge = edgeStart,edgeEnd
 !DIR$ IVDEP
          do k=1,nVertLevels
             pv_edge(k,iEdge) =  0.5 * (pv_vertex(k,verticesOnEdge(1,iEdge)) + pv_vertex(k,verticesOnEdge(2,iEdge)))
          end do
       end do
+      !$acc end parallel
 
       if (config_apvm_upwinding > 0.0) then
 
-      !
-      ! Compute pv at cell centers
-      !    ( this computes pv_cell for all real cells )
-      !  only needed for APVM upwinding
-      !
-      do iCell=cellStart,cellEnd
-         pv_cell(1:nVertLevels,iCell) = 0.0
-         r = invAreaCell(iCell)
-         do i=1,nEdgesOnCell(iCell)
-            iVertex = verticesOnCell(i,iCell)
-            j = kiteForCell(i,iCell)
-!DIR$ IVDEP
+         !
+         ! Compute pv at cell centers
+         !    ( this computes pv_cell for all real cells )
+         !  only needed for APVM upwinding
+         !
+         MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+         !$acc enter data create(pv_cell)
+         MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
+         !$acc parallel default(present)
+         !$acc loop gang
+         do iCell=cellStart,cellEnd
+            !$acc loop vector
             do k = 1,nVertLevels
-               pv_cell(k,iCell) = pv_cell(k,iCell) + kiteAreasOnVertex(j,iVertex) * pv_vertex(k,iVertex) * r
+               pv_cell(k,iCell) = 0.0_RKIND
+            end do
+            r = invAreaCell(iCell)
+            !$acc loop seq
+            do i=1,nEdgesOnCell(iCell)
+               iVertex = verticesOnCell(i,iCell)
+               j = kiteForCell(i,iCell)
+!DIR$ IVDEP
+               !$acc loop vector
+               do k = 1,nVertLevels
+                  pv_cell(k,iCell) = pv_cell(k,iCell) + kiteAreasOnVertex(j,iVertex) * pv_vertex(k,iVertex) * r
+               end do
             end do
          end do
-      end do
+         !$acc end parallel
 
 
 !$OMP BARRIER
@@ -5783,19 +6014,49 @@ module atm_time_integration
          ! Merged loops for calculating gradPVt, gradPVn and pv_edge
          ! Also precomputed inverses of dvEdge and dcEdge to avoid repeated divisions
          !
+         MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+         !$acc enter data create(gradPVt,gradPVn)
+         MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
          r = config_apvm_upwinding * dt
+         !$acc parallel default(present)
+         !$acc loop gang
          do iEdge = edgeStart,edgeEnd
             r1 = 1.0_RKIND * invDvEdge(iEdge)
             r2 = 1.0_RKIND * invDcEdge(iEdge)
 !DIR$ IVDEP
+            !$acc loop vector
             do k = 1,nVertLevels
                gradPVt(k,iEdge) = (pv_vertex(k,verticesOnEdge(2,iEdge)) - pv_vertex(k,verticesOnEdge(1,iEdge))) * r1
                gradPVn(k,iEdge) = (pv_cell(k,cellsOnEdge(2,iEdge)) - pv_cell(k,cellsOnEdge(1,iEdge))) * r2
                pv_edge(k,iEdge) = pv_edge(k,iEdge) - r * (v(k,iEdge) * gradPVt(k,iEdge) + u(k,iEdge) * gradPVn(k,iEdge))
             end do
          end do
+         !$acc end parallel
+
+         MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+         !$acc exit data delete(pv_cell,gradPVt,gradPVn)
+         MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
 
       end if  ! apvm upwinding
+
+
+      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc exit data delete(cellsOnEdge,dcEdge,dvEdge, &
+      !$acc                  edgesOnVertex,edgesOnVertex_sign,invAreaTriangle, &
+      !$acc                  nEdgesOnCell,edgesOnCell, &
+      !$acc                  edgesOnCell_sign,invAreaCell, &
+      !$acc                  invAreaTriangle,edgesOnVertex, &
+      !$acc                  verticesOnCell,kiteForCell,kiteAreasOnVertex, &
+      !$acc                  nEdgesOnEdge,edgesOnEdge,weightsOnEdge, &
+      !$acc                  verticesOnEdge, &
+      !$acc                  fVertex,invDvEdge,invDcEdge)
+      !$acc exit data delete(u,h)
+      !$acc exit data copyout(h_edge,ke_edge,vorticity,divergence, &
+      !$acc                   ke, &
+      !$acc                   v, &
+      !$acc                   pv_vertex, &
+      !$acc                   pv_edge)
+      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
 
    end subroutine atm_compute_solve_diagnostics_work
 
