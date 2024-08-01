@@ -1364,7 +1364,7 @@ module atm_time_integration
 
 !$OMP PARALLEL DO
          do thread=1,nThreads
-            call atm_rk_dynamics_substep_finish(state, diag, dynamics_substep, dynamics_split, &
+            call atm_rk_dynamics_substep_finish(state, diag, nVertLevels, dynamics_substep, dynamics_split, &
                                              cellThreadStart(thread), cellThreadEnd(thread), &
                                              vertexThreadStart(thread), vertexThreadEnd(thread), &
                                              edgeThreadStart(thread), edgeThreadEnd(thread), &
@@ -6514,7 +6514,7 @@ module atm_time_integration
    end subroutine atm_init_coupled_diagnostics
 
 
-   subroutine atm_rk_dynamics_substep_finish( state, diag, dynamics_substep, dynamics_split, &
+   subroutine atm_rk_dynamics_substep_finish( state, diag, nVertLevels, dynamics_substep, dynamics_split, &
                                        cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
                                        cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
 
@@ -6528,7 +6528,7 @@ module atm_time_integration
 
       type (mpas_pool_type), intent(inout) :: state
       type (mpas_pool_type), intent(inout) :: diag
-      integer, intent(in) :: dynamics_substep, dynamics_split
+      integer, intent(in) :: nVertLevels, dynamics_substep, dynamics_split
       integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
       integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
 
@@ -6548,6 +6548,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: theta_m_1, theta_m_2
       real (kind=RKIND), dimension(:,:), pointer :: rho_zz_1, rho_zz_2, rho_zz_old_split
       real (kind=RKIND), dimension(:,:), pointer :: ruAvg, wwAvg, ruAvg_split, wwAvg_split
+      integer :: iCell, iEdge, j, k
 
       call mpas_pool_get_array(diag, 'ru', ru)
       call mpas_pool_get_array(diag, 'ru_save', ru_save)
@@ -6572,35 +6573,118 @@ module atm_time_integration
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_1, 1)
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_2, 2)
 
+      MPAS_ACC_TIMER_START('atm_rk_dynamics_substep_finish [ACC_data_xfer]')
+      !$acc enter data create(ru_save, u_1, rtheta_p_save, theta_m_1, rho_p_save, rw_save, &
+      !$acc                   w_1, rho_zz_1) &
+      !$acc            copyin(ru, u_2, rtheta_p, rho_p, theta_m_2, rho_zz_2, rw, &
+      !$acc                   w_2, ruAvg, wwAvg, ruAvg_split, wwAvg_split, rho_zz_old_split)
+      MPAS_ACC_TIMER_STOP('atm_rk_dynamics_substep_finish [ACC_data_xfer]')
+
       inv_dynamics_split = 1.0_RKIND / real(dynamics_split)
-      
+
       if (dynamics_substep < dynamics_split) then
+         !$acc parallel default(present)
+         !$acc loop gang worker
+         do iEdge = edgeStart,edgeEnd
+            !$acc loop vector
+            do k = 1,nVertLevels
+               ru_save(k,iEdge) = ru(k,iEdge)
+               u_1(k,iEdge) = u_2(k,iEdge)
+            end do
+         end do
 
-         ru_save(:,edgeStart:edgeEnd) = ru(:,edgeStart:edgeEnd)
-         rw_save(:,cellStart:cellEnd) = rw(:,cellStart:cellEnd)
-         rtheta_p_save(:,cellStart:cellEnd) = rtheta_p(:,cellStart:cellEnd)
-         rho_p_save(:,cellStart:cellEnd) = rho_p(:,cellStart:cellEnd)
 
-         u_1(:,edgeStart:edgeEnd) = u_2(:,edgeStart:edgeEnd)
-         w_1(:,cellStart:cellEnd) = w_2(:,cellStart:cellEnd)
-         theta_m_1(:,cellStart:cellEnd) = theta_m_2(:,cellStart:cellEnd)
-         rho_zz_1(:,cellStart:cellEnd) = rho_zz_2(:,cellStart:cellEnd)
+         !$acc loop gang worker
+         do iCell = cellStart,cellEnd
+            !$acc loop vector
+            do k = 1,nVertLevels
+               rtheta_p_save(k,iCell) = rtheta_p(k,iCell)
+               rho_p_save(k,iCell) = rho_p(k,iCell)
+               theta_m_1(k,iCell) = theta_m_2(k,iCell)
+               rho_zz_1(k,iCell) = rho_zz_2(k,iCell)
+            end do
+         end do
 
+         !$acc loop gang worker
+         do iCell = cellStart,cellEnd
+            !$acc loop vector
+            do k = 1,nVertLevels+1
+               rw_save(k,iCell) = rw(k,iCell)
+               w_1(k,iCell) = w_2(k,iCell)
+            end do
+         end do
+         !$acc end parallel
       end if
 
       if (dynamics_substep == 1) then
-         ruAvg_split(:,edgeStart:edgeEnd) = ruAvg(:,edgeStart:edgeEnd)
-         wwAvg_split(:,cellStart:cellEnd) = wwAvg(:,cellStart:cellEnd)
+         !$acc parallel default(present)
+         !$acc loop gang worker
+         do iEdge = edgeStart,edgeEnd
+            !$acc loop vector
+            do k = 1,nVertLevels
+               ruAvg_split(k,iEdge) = ruAvg(k,iEdge)
+            end do
+         end do
+         !$acc loop gang worker
+         do iCell = cellStart,cellEnd
+            !$acc loop vector
+            do k = 1,nVertLevels+1
+               wwAvg_split(k,iCell) = wwAvg(k,iCell)
+            end do
+         end do
+         !$acc end parallel
       else
-         ruAvg_split(:,edgeStart:edgeEnd) = ruAvg(:,edgeStart:edgeEnd)+ruAvg_split(:,edgeStart:edgeEnd)
-         wwAvg_split(:,cellStart:cellEnd) = wwAvg(:,cellStart:cellEnd)+wwAvg_split(:,cellStart:cellEnd)
+         !$acc parallel default(present)
+         !$acc loop gang worker
+         do iEdge = edgeStart,edgeEnd
+            !$acc loop vector
+            do k = 1,nVertLevels
+               ruAvg_split(k,iEdge) = ruAvg(k,iEdge) + ruAvg_split(k,iEdge)
+            end do
+         end do
+         !$acc loop gang worker
+         do iCell = cellStart,cellEnd
+            !$acc loop vector
+            do k = 1,nVertLevels+1
+               wwAvg_split(k,iCell) = wwAvg(k,iCell) + wwAvg_split(k,iCell)
+            end do
+         end do
+         !$acc end parallel
       end if
 
       if (dynamics_substep == dynamics_split) then
-         ruAvg(:,edgeStart:edgeEnd) = ruAvg_split(:,edgeStart:edgeEnd) * inv_dynamics_split
-         wwAvg(:,cellStart:cellEnd) = wwAvg_split(:,cellStart:cellEnd) * inv_dynamics_split
-         rho_zz_1(:,cellStart:cellEnd) = rho_zz_old_split(:,cellStart:cellEnd)
+         !$acc parallel default(present)
+         !$acc loop gang worker
+         do iEdge = edgeStart,edgeEnd
+            !$acc loop vector
+            do k = 1,nVertLevels
+               ruAvg(k,iEdge) = ruAvg_split(k,iEdge) * inv_dynamics_split
+            end do
+         end do
+         !$acc loop gang worker
+         do iCell = cellStart,cellEnd
+            !$acc loop vector
+            do k = 1,nVertLevels+1
+               wwAvg(k,iCell) = wwAvg_split(k,iCell) * inv_dynamics_split
+            end do
+         end do
+         !$acc loop gang worker
+         do iCell = cellStart,cellEnd
+            !$acc loop vector
+            do k = 1,nVertLevels           
+               rho_zz_1(k,iCell) = rho_zz_old_split(k,iCell)
+            end do
+         end do
+         !$acc end parallel
       end if
+
+      MPAS_ACC_TIMER_START('atm_rk_dynamics_substep_finish [ACC_data_xfer]')
+      !$acc exit data copyout(ru_save, u_1, rtheta_p_save, rho_p_save, rw_save, &
+      !$acc                   w_1, theta_m_1, rho_zz_1, ruAvg, wwAvg, ruAvg_split, &
+      !$acc                   wwAvg_split) &
+      !$acc            delete(ru, u_2, rtheta_p, rho_p, theta_m_2, rho_zz_2, rw, &
+      !$acc                  w_2, rho_zz_old_split)
+      MPAS_ACC_TIMER_STOP('atm_rk_dynamics_substep_finish [ACC_data_xfer]')
 
    end subroutine atm_rk_dynamics_substep_finish
 
