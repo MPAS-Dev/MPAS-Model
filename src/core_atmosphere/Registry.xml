@@ -1155,10 +1155,6 @@
 			<var_array name="scalars"/>
 			<var name="initial_time"/>
 			<var name="xtime"/>
-			<var name="cldfrac"/>
-			<var name="re_cloud" packages="mp_thompson_in;mp_wsm6_in"/>
-			<var name="re_ice" packages="mp_thompson_in;mp_wsm6_in"/>
-			<var name="re_snow" packages="mp_thompson_in;mp_wsm6_in"/>
 			<var name="u"/>
 			<var name="w"/>
 			<var name="rho"/>
@@ -1171,6 +1167,11 @@
 			<var name="uReconstructZonal"/>
 			<var name="uReconstructMeridional"/>
 			<var name="surface_pressure"/>
+#ifdef DO_PHYSICS
+			<var name="cldfrac"/>
+			<var name="re_cloud" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="re_ice" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="re_snow" packages="mp_thompson_in;mp_wsm6_in"/>
 			<var name="refl10cm_max"/>
 			<var name="rainc"/>
 			<var name="rainnc"/>
@@ -1209,6 +1210,7 @@
 			<var name="smois"/>
 			<var name="tslb"/>
 			<var name="h_oml_initial"/>
+#endif
                 </stream>
 	</streams>
 
@@ -3588,6 +3590,8 @@
 <!-- **************************************************************************************** -->
 
 #include "diagnostics/Registry_diagnostics.xml"
-#include "physics/Registry_noahmp.xml"
 
+#ifdef DO_PHYSICS
+#include "physics/Registry_noahmp.xml"
+#endif
 </registry>
