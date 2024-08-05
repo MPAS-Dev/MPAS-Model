@@ -2100,6 +2100,10 @@ module atm_time_integration
       integer :: iCell, iEdge, i, k
       real (kind=RKIND) :: flux
 
+      MPAS_ACC_TIMER_START('atm_set_smlstep_pert_variables [ACC_data_xfer]')
+      !$acc enter data copyin(u_tend, w_tend)
+      MPAS_ACC_TIMER_STOP('atm_set_smlstep_pert_variables [ACC_data_xfer]')
+
       ! we solve for omega instead of w (see Klemp et al MWR 2007),
       ! so here we change the w_p tendency to an omega_p tendency
 
@@ -2107,7 +2111,7 @@ module atm_time_integration
       ! this requires us to use the same flux divergence as is used in the theta eqn - see Klemp et al MWR 2003.
 
 !!      do iCell=cellStart,cellEnd
-      !$acc parallel
+      !$acc parallel default(present)
       !$acc loop gang worker
       do iCell=cellSolveStart,cellSolveEnd
 
@@ -2131,6 +2135,11 @@ module atm_time_integration
          end if ! no conversion in specified zone
       end do
       !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_set_smlstep_pert_variables [ACC_data_xfer]')
+      !$acc exit data delete(u_tend)
+      !$acc exit data copyout(w_tend)
+      MPAS_ACC_TIMER_STOP('atm_set_smlstep_pert_variables [ACC_data_xfer]')
 
    end subroutine atm_set_smlstep_pert_variables_work
 
