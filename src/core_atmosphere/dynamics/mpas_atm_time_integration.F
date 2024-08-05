@@ -2107,12 +2107,16 @@ module atm_time_integration
       ! this requires us to use the same flux divergence as is used in the theta eqn - see Klemp et al MWR 2003.
 
 !!      do iCell=cellStart,cellEnd
+      !$acc parallel
+      !$acc loop gang worker
       do iCell=cellSolveStart,cellSolveEnd
 
          if (bdyMaskCell(iCell) <= nRelaxZone) then  !  no conversion in specified zone, regional_MPAS
+            !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
 !DIR$ IVDEP
+               !$acc loop vector
                do k = 2, nVertLevels
                   flux = edgesOnCell_sign(i,iCell) * (fzm(k) * u_tend(k,iEdge) + fzp(k) * u_tend(k-1,iEdge))
                   w_tend(k,iCell) = w_tend(k,iCell)   &
@@ -2120,11 +2124,13 @@ module atm_time_integration
                end do
             end do
 !DIR$ IVDEP
+            !$acc loop vector
             do k = 2, nVertLevels
                w_tend(k,iCell) = ( fzm(k) * zz(k,iCell) + fzp(k) * zz(k-1,iCell)   ) * w_tend(k,iCell)
             end do
          end if ! no conversion in specified zone
       end do
+      !$acc end parallel
 
    end subroutine atm_set_smlstep_pert_variables_work
 
