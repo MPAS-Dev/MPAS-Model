@@ -52,7 +52,7 @@
  logical:: lexist
 
 !-----------------------------------------------------------------------------------------------------------------
-!call mpas_log_write('--- enter subroutine init_atm_gocart:')
+!call mpas_log_write('--- enter subroutine init_atm_thompson_aerosols:')
 
 !inquire if the GOCART input file exists:
  lexist = .false.
@@ -75,7 +75,7 @@
     call mpas_log_write('nwfa and nifa are set to zero and not interpolated from climatological data.')
  endif
 
-!call mpas_log_write('--- end subroutine init_atm_gocart.')
+!call mpas_log_write('--- end subroutine init_atm_thompson_aerosols.')
  call mpas_log_write(' ')
 
  end subroutine init_atm_thompson_aerosols
