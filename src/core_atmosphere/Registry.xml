@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<registry model="mpas" core="atmosphere" core_abbrev="atm" version="8.2.0">
+<registry model="mpas" core="atmosphere" core_abbrev="atm" version="8.2.1">
 
 <!-- **************************************************************************************** -->
 <!-- ************************************** Dimensions ************************************** -->
@@ -1155,10 +1155,6 @@
 			<var_array name="scalars"/>
 			<var name="initial_time"/>
 			<var name="xtime"/>
-			<var name="cldfrac"/>
-			<var name="re_cloud" packages="mp_thompson_in;mp_wsm6_in"/>
-			<var name="re_ice" packages="mp_thompson_in;mp_wsm6_in"/>
-			<var name="re_snow" packages="mp_thompson_in;mp_wsm6_in"/>
 			<var name="u"/>
 			<var name="w"/>
 			<var name="rho"/>
@@ -1171,6 +1167,11 @@
 			<var name="uReconstructZonal"/>
 			<var name="uReconstructMeridional"/>
 			<var name="surface_pressure"/>
+#ifdef DO_PHYSICS
+			<var name="cldfrac"/>
+			<var name="re_cloud" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="re_ice" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="re_snow" packages="mp_thompson_in;mp_wsm6_in"/>
 			<var name="refl10cm_max"/>
 			<var name="rainc"/>
 			<var name="rainnc"/>
@@ -1209,6 +1210,7 @@
 			<var name="smois"/>
 			<var name="tslb"/>
 			<var name="h_oml_initial"/>
+#endif
                 </stream>
 	</streams>
 
@@ -1576,7 +1578,7 @@
 
                         <var name="nc" array_group="number" units="nb kg^{-1}"
                              description="Cloud water number concentration"
-                             packages="bl_mynn_in;mp_thompson_aers_in"/>
+                             packages="mp_thompson_aers_in"/>
 
                         <var name="nifa" array_group="number" units="nb kg^{-1}"
                              description="Ice-friendly aerosol number concentration"
@@ -1918,7 +1920,7 @@
 
                         <var name="tend_nc" name_in_code="nc" array_group="number" units="nb m^{-3} s^{-1}"
                              description="Tendency of cloud water number concentration multiplied by dry air density divided by d(zeta)/dz"
-                             packages="bl_mynn_in;mp_thompson_aers_in"/>
+                             packages="mp_thompson_aers_in"/>
 
                         <var name="tend_nifa" name_in_code="nifa" array_group="number" units="nb m^{-3} s^{-1}"
                              description="Tendency of ice-friendly aerosol number concentration multiplied by dry air density divided by d(zeta)/dz"
@@ -3588,6 +3590,8 @@
 <!-- **************************************************************************************** -->
 
 #include "diagnostics/Registry_diagnostics.xml"
-#include "physics/Registry_noahmp.xml"
 
+#ifdef DO_PHYSICS
+#include "physics/Registry_noahmp.xml"
+#endif
 </registry>

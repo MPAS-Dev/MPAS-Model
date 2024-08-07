@@ -352,12 +352,19 @@
           do i = 1, nCellsSolve
           do k = 1, nVertLevels
              tend_scalars(index_qs,k,i) = tend_scalars(index_qs,k,i) + rqsblten(k,i)*mass(k,i)
-             tend_scalars(index_nc,k,i) = tend_scalars(index_nc,k,i) + rncblten(k,i)*mass(k,i)
              tend_scalars(index_ni,k,i) = tend_scalars(index_ni,k,i) + rniblten(k,i)*mass(k,i)
-             tend_scalars(index_nifa,k,i) = tend_scalars(index_nifa,k,i) + rnifablten(k,i)*mass(k,i)
-             tend_scalars(index_nwfa,k,i) = tend_scalars(index_nwfa,k,i) + rnwfablten(k,i)*mass(k,i)
           enddo
           enddo
+
+          if(trim(microp_scheme) == 'mp_thompson_aerosols') then
+             do i = 1, nCellsSolve
+             do k = 1, nVertLevels
+                tend_scalars(index_nc,k,i) = tend_scalars(index_nc,k,i) + rncblten(k,i)*mass(k,i)
+                tend_scalars(index_nifa,k,i) = tend_scalars(index_nifa,k,i) + rnifablten(k,i)*mass(k,i)
+                tend_scalars(index_nwfa,k,i) = tend_scalars(index_nwfa,k,i) + rnwfablten(k,i)*mass(k,i)
+             enddo
+             enddo
+          endif
 
        case default
     end select pbl_select

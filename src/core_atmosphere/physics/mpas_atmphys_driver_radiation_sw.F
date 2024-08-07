@@ -300,7 +300,6 @@
        if(allocated(pin_p)        ) deallocate(pin_p        )
        if(allocated(o3clim_p)     ) deallocate(o3clim_p     )
 
-       if(allocated(taod5503d_p)  ) deallocate(taod5503d_p  )
        if(allocated(tauaer_p)     ) deallocate(tauaer_p     )
        if(allocated(ssaaer_p)     ) deallocate(ssaaer_p     )
        if(allocated(asyaer_p)     ) deallocate(asyaer_p     )
