@@ -88,6 +88,8 @@
 ! * for the kain_fritsch parameterization of convection, change the definition of dx_p to match that used in the
 !   Grell-Freitas and "new Tiedtke" parameterization.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-10-18.
+! * modified to accommodate Kain-Fritsch trigger option, cloud fraction, and condensates.
+!   Jerold A. Herwehe (herwehe.jerry@epa.gov) / 2016-12-06.
 ! * since we removed the local variable convection_scheme from mpas_atmphys_vars.F, now defines convection_scheme
 !   as a pointer to config_convection_scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-02-16.
@@ -176,14 +178,19 @@
        if(.not.allocated(qicu_p)         ) allocate(qicu_p(ims:ime,kms:kme,jms:jme)     )
 
     case ("cu_kain_fritsch")
-       if(.not.allocated(dx_p)       ) allocate(dx_p(ims:ime,jms:jme)              )
-       if(.not.allocated(area_p)     ) allocate(area_p(ims:ime,jms:jme)            )
-       if(.not.allocated(nca_p)      ) allocate(nca_p(ims:ime,jms:jme)             )
-       if(.not.allocated(cubot_p)    ) allocate(cubot_p(ims:ime,jms:jme)           )
-       if(.not.allocated(cutop_p)    ) allocate(cutop_p(ims:ime,jms:jme)           ) 
-       if(.not.allocated(w0avg_p)    ) allocate(w0avg_p(ims:ime,kms:kme,jms:jme)   )
-       if(.not.allocated(rqrcuten_p) ) allocate(rqrcuten_p(ims:ime,kms:kme,jms:jme))
-       if(.not.allocated(rqscuten_p) ) allocate(rqscuten_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(dx_p)        ) allocate(dx_p(ims:ime,jms:jme)                )
+       if(.not.allocated(area_p)      ) allocate(area_p(ims:ime,jms:jme)              )
+       if(.not.allocated(nca_p)       ) allocate(nca_p(ims:ime,jms:jme)               )
+       if(.not.allocated(cubot_p)     ) allocate(cubot_p(ims:ime,jms:jme)             )
+       if(.not.allocated(cutop_p)     ) allocate(cutop_p(ims:ime,jms:jme)             ) 
+       if(.not.allocated(w0avg_p)     ) allocate(w0avg_p(ims:ime,kms:kme,jms:jme)     )
+       if(.not.allocated(cldfrac_dp_p)) allocate(cldfrac_dp_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(cldfrac_sh_p)) allocate(cldfrac_sh_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(qccu_p)      ) allocate(qccu_p(ims:ime,kms:kme,jms:jme)      )
+       if(.not.allocated(qicu_p)      ) allocate(qicu_p(ims:ime,kms:kme,jms:jme)      )
+       if(.not.allocated(rqrcuten_p)  ) allocate(rqrcuten_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(rqscuten_p)  ) allocate(rqscuten_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(rqvdynten_p) ) allocate(rqvdynten_p(ims:ime,kms:kme,jms:jme) )
 
        do i = its,ite
        do j = jts,jte
@@ -195,8 +202,20 @@
        do i = its,ite
        do k = kts,kte
        do j = jts,jte
+          cldfrac_dp_p(i,k,j) = 0._RKIND
+          cldfrac_sh_p(i,k,j) = 0._RKIND
+          qccu_p(i,k,j)       = 0._RKIND
+          qicu_p(i,k,j)       = 0._RKIND
+       enddo
+       enddo
+       enddo
+
+       do i = its,ite
+       do k = kts,kte
+       do j = jts,jte
           rqrcuten_p(i,k,j) = 0._RKIND
           rqscuten_p(i,k,j) = 0._RKIND
+          rqvdynten_p(i,k,j)= 0._RKIND
        enddo
        enddo
        enddo
@@ -326,8 +345,13 @@
        if(allocated(cubot_p)      ) deallocate(cubot_p      )
        if(allocated(cutop_p)      ) deallocate(cutop_p      ) 
        if(allocated(w0avg_p)      ) deallocate(w0avg_p      )
+       if(allocated(cldfrac_dp_p) ) deallocate(cldfrac_dp_p )
+       if(allocated(cldfrac_sh_p) ) deallocate(cldfrac_sh_p )
+       if(allocated(qccu_p)       ) deallocate(qccu_p       )
+       if(allocated(qicu_p)       ) deallocate(qicu_p       )
        if(allocated(rqrcuten_p)   ) deallocate(rqrcuten_p   )
        if(allocated(rqscuten_p)   ) deallocate(rqscuten_p   )
+       if(allocated(rqvdynten_p)  ) deallocate(rqvdynten_p  )
 
     case ("cu_tiedtke","cu_ntiedtke")
        if(allocated(hfx_p)        ) deallocate(hfx_p        )
@@ -434,9 +458,9 @@
 !variables specific to Kain_Fritsch parameterization:
  logical:: warm_rain,adapt_step_flag
  integer:: ktau
- real(kind=RKIND):: curr_secs
  real(kind=RKIND):: cudt
  real(kind=RKIND):: cudtacttime
+ integer, pointer:: trigger_kf
 
 !CCPP-compliant flags:
  character(len=StrKIND):: errmsg
@@ -464,7 +488,6 @@
  cudt = dt_cu/60.
 
 !... call to convection schemes:
- curr_secs   = -1
  cudtacttime = -1
  adapt_step_flag = .false.
  do j = jts, jte
@@ -514,6 +537,7 @@
        call mpas_timer_stop('Grell-Freitas')
 
     case ("cu_kain_fritsch")
+       call mpas_pool_get_config(configs, 'config_kfeta_trigger', trigger_kf)
        if(itimestep == 1) then
           ktau = itimestep
        else
@@ -525,7 +549,7 @@
              pcps            = pres_hyd_p      , t         = t_p        ,            &
              dt              = dt_dyn          , ktau      = ktau       ,            &
              dxCell          = dx_p            , areaCell  = area_p     ,            &
-             cudt            = cudt            , curr_secs = curr_secs  ,            & 
+             cudt            = cudt            ,                                     & 
              adapt_step_flag = adapt_step_flag , rho       = rho_p      ,            &
              raincv          = raincv_p        , pratec    = pratec_p   ,            &
              nca             = nca_p           , u         = u_p        ,            &
@@ -546,6 +570,9 @@
              rthcuten        = rthcuten_p      , rqvcuten  = rqvcuten_p ,            &
              rqccuten        = rqccuten_p      , rqrcuten  = rqrcuten_p ,            &
              rqicuten        = rqicuten_p      , rqscuten  = rqscuten_p ,            &
+             rqvften         = rqvdynten_p     , trigger   = trigger_kf ,            &
+             cldfra_dp_kf    = cldfrac_dp_p    , cldfra_sh_kf=cldfrac_sh_p,          &
+             qc_kf           = qccu_p          , qi_kf     = qicu_p     ,            &
              ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
              ims = ims , ime = ime , jms = jms , jme = jme , kms = kds , kme = kme , &
              its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
@@ -644,6 +671,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: zgrid
  real(kind=RKIND),dimension(:,:),pointer:: qc_cu,qi_cu
  real(kind=RKIND),dimension(:,:),pointer:: w0avg
+ real(kind=RKIND),dimension(:,:),pointer:: cldfrac_dp,cldfrac_sh
  real(kind=RKIND),dimension(:,:),pointer:: rthcuten,rqvcuten,rqccuten,rqicuten,rqrcuten,rqscuten 
  real(kind=RKIND),dimension(:,:),pointer:: rthblten,rthdynten,rthratenlw,rthratensw
  real(kind=RKIND),dimension(:,:),pointer:: rqvblten,rqvdynten,rucuten,rvcuten
@@ -755,13 +783,18 @@
        call mpas_pool_get_array(mesh,'areaCell',areaCell)
        call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
 
-       call mpas_pool_get_array(diag_physics,'cubot'   ,cubot   )
-       call mpas_pool_get_array(diag_physics,'cutop'   ,cutop   )
-       call mpas_pool_get_array(diag_physics,'nca'     ,nca     )
-       call mpas_pool_get_array(diag_physics,'w0avg'   ,w0avg   )
+       call mpas_pool_get_array(diag_physics,'cubot'    ,cubot      )
+       call mpas_pool_get_array(diag_physics,'cutop'    ,cutop      )
+       call mpas_pool_get_array(diag_physics,'nca'      ,nca        )
+       call mpas_pool_get_array(diag_physics,'w0avg'    ,w0avg      )
+       call mpas_pool_get_array(diag_physics,'cldfrac_dp',cldfrac_dp)
+       call mpas_pool_get_array(diag_physics,'cldfrac_sh',cldfrac_sh)
+       call mpas_pool_get_array(diag_physics,'qc_cu'    ,qc_cu      )
+       call mpas_pool_get_array(diag_physics,'qi_cu'    ,qi_cu      )
 
-       call mpas_pool_get_array(tend_physics,'rqrcuten',rqrcuten)
-       call mpas_pool_get_array(tend_physics,'rqscuten',rqscuten)
+       call mpas_pool_get_array(tend_physics,'rqrcuten' ,rqrcuten   )
+       call mpas_pool_get_array(tend_physics,'rqscuten' ,rqscuten   )
+       call mpas_pool_get_array(tend_physics,'rqvdynten',rqvdynten  )
 
        do j = jts,jte
        do i = its,ite
@@ -772,8 +805,16 @@
           cutop_p(i,j) = cutop(i)
 
           do k = kts,kte
+             cldfrac_dp_p(i,k,j) = cldfrac_dp(k,i)
+             cldfrac_sh_p(i,k,j) = cldfrac_sh(k,i)
+             qccu_p(i,k,j)       = qc_cu(k,i)
+             qicu_p(i,k,j)       = qi_cu(k,i)
+          enddo
+
+          do k = kts,kte
              rqrcuten_p(i,k,j) = rqrcuten(k,i)
              rqscuten_p(i,k,j) = rqscuten(k,i)
+             rqvdynten_p(i,k,j)= rqvdynten(k,i)
           enddo
 
           !decreases the characteristic time period that convection remains active. When nca_p
@@ -881,6 +922,7 @@
  real(kind=RKIND),dimension(:),pointer  :: xmb_total,xmb_shallow
  real(kind=RKIND),dimension(:,:),pointer:: qc_cu,qi_cu
  real(kind=RKIND),dimension(:,:),pointer:: w0avg
+ real(kind=RKIND),dimension(:,:),pointer:: cldfrac_dp,cldfrac_sh
  real(kind=RKIND),dimension(:,:),pointer:: rthcuten,rqvcuten,rqccuten,rqicuten,rqrcuten,rqscuten
  real(kind=RKIND),dimension(:,:),pointer:: rucuten,rvcuten
 
@@ -947,13 +989,17 @@
        enddo
 
     case ("cu_kain_fritsch")
-       call mpas_pool_get_array(diag_physics,'cubot',cubot)
-       call mpas_pool_get_array(diag_physics,'cutop',cutop)
-       call mpas_pool_get_array(diag_physics,'nca'  ,nca  )
-       call mpas_pool_get_array(diag_physics,'w0avg',w0avg)
+       call mpas_pool_get_array(diag_physics,'cubot'   ,cubot       )
+       call mpas_pool_get_array(diag_physics,'cutop'   ,cutop       )
+       call mpas_pool_get_array(diag_physics,'nca'     ,nca         )
+       call mpas_pool_get_array(diag_physics,'w0avg'   ,w0avg       )
+       call mpas_pool_get_array(diag_physics,'cldfrac_dp',cldfrac_dp)
+       call mpas_pool_get_array(diag_physics,'cldfrac_sh',cldfrac_sh)
+       call mpas_pool_get_array(diag_physics,'qc_cu'   ,qc_cu       )
+       call mpas_pool_get_array(diag_physics,'qi_cu'   ,qi_cu       )
 
-       call mpas_pool_get_array(tend_physics,'rqrcuten',rqrcuten)
-       call mpas_pool_get_array(tend_physics,'rqscuten',rqscuten)
+       call mpas_pool_get_array(tend_physics,'rqrcuten',rqrcuten    )
+       call mpas_pool_get_array(tend_physics,'rqscuten',rqscuten    )
 
        do j = jts,jte
        do i = its,ite
@@ -961,9 +1007,13 @@
           cutop(i) = cutop_p(i,j)
           nca(i)   = nca_p(i,j)
           do k = kts, kte
-             w0avg(k,i)    = w0avg_p(i,k,j)
-             rqrcuten(k,i) = rqrcuten_p(i,k,j)
-             rqscuten(k,i) = rqscuten_p(i,k,j)
+             w0avg(k,i)      = w0avg_p(i,k,j)
+             cldfrac_dp(k,i) = cldfrac_dp_p(i,k,j)
+             cldfrac_sh(k,i) = cldfrac_sh_p(i,k,j)
+             qc_cu(k,i)      = qccu_p(i,k,j)
+             qi_cu(k,i)      = qicu_p(i,k,j)
+             rqrcuten(k,i)   = rqrcuten_p(i,k,j)
+             rqscuten(k,i)   = rqscuten_p(i,k,j)
           enddo                          
        enddo
        enddo
@@ -1002,6 +1052,9 @@
 !local pointers:
  character(len=StrKIND),pointer:: convection_scheme
  real(kind=RKIND),dimension(:),pointer  :: nca,cubot,cutop,cuprec,raincv
+ real(kind=RKIND),dimension(:,:),pointer:: qc_cu,qi_cu
+ real(kind=RKIND),dimension(:,:),pointer:: w0avg
+ real(kind=RKIND),dimension(:,:),pointer:: cldfrac_dp,cldfrac_sh
  real(kind=RKIND),dimension(:,:),pointer:: rthcuten,rqvcuten,rqccuten,rqicuten,rqrcuten,rqscuten
 
 !local variables and arrays:
@@ -1019,6 +1072,11 @@
       call mpas_pool_get_array(diag_physics,'cutop' ,cutop )
       call mpas_pool_get_array(diag_physics,'cuprec',cuprec)
       call mpas_pool_get_array(diag_physics,'raincv',raincv)
+      call mpas_pool_get_array(diag_physics,'w0avg' ,w0avg )
+      call mpas_pool_get_array(diag_physics,'cldfrac_dp',cldfrac_dp)
+      call mpas_pool_get_array(diag_physics,'cldfrac_sh',cldfrac_sh)
+      call mpas_pool_get_array(diag_physics,'qc_cu' ,qc_cu )
+      call mpas_pool_get_array(diag_physics,'qi_cu' ,qi_cu )
 
       call mpas_pool_get_array(tend_physics,'rthcuten',rthcuten)
       call mpas_pool_get_array(tend_physics,'rqvcuten',rqvcuten)
@@ -1036,6 +1094,11 @@
              
              if(nca(i) .lt. 0.5*dt_dyn) then
                 do k = kts,kte
+                   w0avg(k,i)    = 0._RKIND
+                   cldfrac_dp(k,i) = 0._RKIND
+                   cldfrac_sh(k,i) = 0._RKIND
+                   qc_cu(k,i)    = 0._RKIND
+                   qi_cu(k,i)    = 0._RKIND
                    rthcuten(k,i) = 0._RKIND
                    rqvcuten(k,i) = 0._RKIND
                    rqccuten(k,i) = 0._RKIND
