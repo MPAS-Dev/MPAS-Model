@@ -200,6 +200,9 @@ mpas_atmphys_lsm_noahmpinit.o: \
 	mpas_atmphys_utilities.o \
 	mpas_atmphys_vars.o
 
+mpas_atmphys_lsm_noahmpfinalize.o : \
+	mpas_atmphys_vars.o
+
 mpas_atmphys_manager.o: \
 	mpas_atmphys_constants.o \
 	mpas_atmphys_o3climatology.o \
