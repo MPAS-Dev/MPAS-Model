@@ -86,6 +86,9 @@
 ! * since we removed the local variable microp_scheme from mpas_atmphys_vars.F, now defines microp_scheme as a
 !   pointer to config_microp_scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2917-02-16.
+! * allocated variables for microphysics process heating tendencies for PV diagnostics and included them in
+!   mp_gt_driver call  
+!   Manda Chasteen (chasteen@ucar.edu) / 2024-06-01  
 
 !--- initialization option for WSM6 from WRF version 3.8.1. this option could also be set as a namelist parameter.
  integer,parameter:: hail_opt = 0
@@ -155,6 +158,13 @@
           if(.not.allocated(muc_p)) allocate(muc_p(ims:ime,jms:jme))
           if(.not.allocated(ni_p) ) allocate(ni_p(ims:ime,kms:kme,jms:jme))
           if(.not.allocated(nr_p) ) allocate(nr_p(ims:ime,kms:kme,jms:jme))
+
+          ! individual heating tends for PV - MC added
+          if(.not.allocated(tend_theta_mp_evap_cw_p)) allocate(tend_theta_mp_evap_cw_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(tend_theta_mp_evap_rw_p)) allocate(tend_theta_mp_evap_rw_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(tend_theta_mp_depo_ice_p)) allocate(tend_theta_mp_depo_ice_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(tend_theta_mp_melt_ice_p)) allocate(tend_theta_mp_melt_ice_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(tend_theta_mp_frez_ice_p)) allocate(tend_theta_mp_frez_ice_p(ims:ime,kms:kme,jms:jme))
 
           microp3_select: select case(trim(microp_scheme))
              case("mp_thompson_aerosols")
@@ -236,6 +246,13 @@
           if(allocated(muc_p)) deallocate(muc_p)
           if(allocated(ni_p) ) deallocate(ni_p )
           if(allocated(nr_p) ) deallocate(nr_p )
+
+          ! individual heating tends for PV - MC added 
+          if(allocated(tend_theta_mp_evap_cw_p)) deallocate(tend_theta_mp_evap_cw_p)
+          if(allocated(tend_theta_mp_evap_rw_p)) deallocate(tend_theta_mp_evap_rw_p)
+          if(allocated(tend_theta_mp_depo_ice_p)) deallocate(tend_theta_mp_depo_ice_p)
+          if(allocated(tend_theta_mp_melt_ice_p)) deallocate(tend_theta_mp_melt_ice_p)
+          if(allocated(tend_theta_mp_frez_ice_p)) deallocate(tend_theta_mp_frez_ice_p)
 
           microp3_select: select case(trim(microp_scheme))
              case("mp_thompson_aerosols")
@@ -400,12 +417,27 @@
                   re_cloud  = recloud_p   , re_ice     = reice_p      , re_snow    = resnow_p     , &
                   has_reqc  = has_reqc    , has_reqi   = has_reqi     , has_reqs   = has_reqs     , &
                   ntc       = ntc_p       , muc        = muc_p                                    , &
+                  tend_theta_mp_evap_cw = tend_theta_mp_evap_cw_p, tend_theta_mp_evap_rw = tend_theta_mp_evap_rw_p     , &  ! MC added
+                  tend_theta_mp_depo_ice = tend_theta_mp_depo_ice_p, tend_theta_mp_melt_ice = tend_theta_mp_melt_ice_p , &  ! MC added
+                  tend_theta_mp_frez_ice = tend_theta_mp_frez_ice_p                               , & ! MC added
+                  istep = istep                                                                   , & ! MC added 
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
                            )
        istep = istep + 1
        enddo
+
+       ! MC added for microphysics process tendencies for PV diagnostics
+       ! Need to correct for possibility of n_microp != 1 by averaging the potential temperature
+       ! tendencies. In the Thompson code, t1d is updated with tten*DT, where DT is dt_dyn/n_microp
+       ! Thus, the individual process tendencies need to be equivalently scaled
+       tend_theta_mp_evap_cw_p(:,:,:)  = tend_theta_mp_evap_cw_p(:,:,:)  / (n_microp * 1.0_RKIND)
+       tend_theta_mp_evap_rw_p(:,:,:)  = tend_theta_mp_evap_rw_p(:,:,:)  / (n_microp * 1.0_RKIND)
+       tend_theta_mp_depo_ice_p(:,:,:) = tend_theta_mp_depo_ice_p(:,:,:) / (n_microp * 1.0_RKIND)
+       tend_theta_mp_melt_ice_p(:,:,:) = tend_theta_mp_melt_ice_p(:,:,:) / (n_microp * 1.0_RKIND)
+       tend_theta_mp_frez_ice_p(:,:,:) = tend_theta_mp_frez_ice_p(:,:,:) / (n_microp * 1.0_RKIND)
+
        call mpas_timer_stop('mp_thompson')
 
     case ("mp_thompson_aerosols")
@@ -426,13 +458,29 @@
                   nc        = nc_p        , nifa       = nifa_p       , nwfa       = nwfa_p       , &
                   nifa2d    = nifa2d_p    , nwfa2d     = nwfa2d_p     , ntc        = ntc_p        , &
                   muc       = muc_p       ,                                                         &
+                  tend_theta_mp_evap_cw = tend_theta_mp_evap_cw_p, tend_theta_mp_evap_rw = tend_theta_mp_evap_rw_p     , &  ! MC added
+                  tend_theta_mp_depo_ice = tend_theta_mp_depo_ice_p, tend_theta_mp_melt_ice = tend_theta_mp_melt_ice_p , &  ! MC added
+                  tend_theta_mp_frez_ice = tend_theta_mp_frez_ice_p                               , & ! MC added
+                  istep = istep                                                                   , & ! MC added
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
                            )
-          istep = istep + 1
-          enddo
-          call mpas_timer_stop('mp_thompson_aerosols')
+       istep = istep + 1
+       enddo
+
+       ! MC added for microphysics process tendencies for PV diagnostics
+       ! Need to correct for possibility of n_microp != 1 by averaging the potential temperature
+       ! tendencies. In the Thompson code, t1d is updated with tten*DT, where DT is dt_dyn/n_microp
+       ! Thus, the individual process tendencies need to be equivalently scaled
+       tend_theta_mp_evap_cw_p(:,:,:)  = tend_theta_mp_evap_cw_p(:,:,:)  / (n_microp * 1.0_RKIND)
+       tend_theta_mp_evap_rw_p(:,:,:)  = tend_theta_mp_evap_rw_p(:,:,:)  / (n_microp * 1.0_RKIND)
+       tend_theta_mp_depo_ice_p(:,:,:) = tend_theta_mp_depo_ice_p(:,:,:) / (n_microp * 1.0_RKIND)
+       tend_theta_mp_melt_ice_p(:,:,:) = tend_theta_mp_melt_ice_p(:,:,:) / (n_microp * 1.0_RKIND)
+       tend_theta_mp_frez_ice_p(:,:,:) = tend_theta_mp_frez_ice_p(:,:,:) / (n_microp * 1.0_RKIND)
+
+       call mpas_timer_stop('mp_thompson_aerosols')
+
 
     case ("mp_wsm6")
        call mpas_timer_start('mp_wsm6')

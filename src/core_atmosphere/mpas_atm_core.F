@@ -13,6 +13,7 @@ module atm_core
    use mpas_log, only : mpas_log_write, mpas_log_info
    use mpas_io_units, only : mpas_new_unit, mpas_release_unit
 
+   use mpas_atm_halos, only: exchange_halo_group    
    !
    ! Abstract interface for routine used to communicate halos of fields
    ! in a named group
@@ -595,7 +596,8 @@ module atm_core
       use mpas_derived_types, only : MPAS_STREAM_LATEST_BEFORE, MPAS_STREAM_INPUT, MPAS_STREAM_INPUT_OUTPUT
       use mpas_timer, only : mpas_timer_start, mpas_timer_stop
       use mpas_atm_boundaries, only : mpas_atm_update_bdy_tend
-      use mpas_atm_diagnostics_manager, only : mpas_atm_diag_update, mpas_atm_diag_compute, mpas_atm_diag_reset
+      use mpas_atm_diagnostics_manager, only : mpas_atm_diag_update, mpas_atm_diag_compute, mpas_atm_diag_reset, &
+                                               mpas_atm_diag_pv_init                             ! MC added for PV
    
       implicit none
    
@@ -623,7 +625,9 @@ module atm_core
       real (kind=R8KIND) :: diag_start_time, diag_stop_time
       real (kind=R8KIND) :: input_start_time, input_stop_time
       real (kind=R8KIND) :: output_start_time, output_stop_time
-      
+   
+      ! MC: Adding config flags for PV tendencies to enable model diags to be calculated at each time step     
+      logical, pointer :: config_pv_tend  
       ierr = 0
 
       clock => domain % clock
@@ -638,9 +642,11 @@ module atm_core
       call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='restart', direction=MPAS_STREAM_OUTPUT, ierr=ierr)
 
       ! Also, for restart runs, avoid writing the initial history or diagnostics fields to avoid overwriting those from the preceding run
+      ! MC: added pvbudget stream here
       if (config_do_restart) then
          call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='output', direction=MPAS_STREAM_OUTPUT, ierr=ierr)
          call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='diagnostics', direction=MPAS_STREAM_OUTPUT, ierr=ierr)
+         call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='pvbudget', direction=MPAS_STREAM_OUTPUT, ierr=ierr)
       end if
 
       call mpas_dmpar_get_time(diag_start_time)
@@ -661,8 +667,11 @@ module atm_core
       end if
       call mpas_timer_start('diagnostic_fields')
       call mpas_atm_diag_reset()
-      call mpas_atm_diag_update()
-      call mpas_atm_diag_compute()
+      !call mpas_atm_diag_update()
+      call mpas_atm_diag_update(domain, exchange_halo_group)    ! MC -- modified with halo inputs
+      call mpas_atm_diag_pv_init(domain, exchange_halo_group)   ! MC added -- call to initialize pv_scalar if activated   
+      !call mpas_atm_diag_compute()
+      call mpas_atm_diag_compute(domain, exchange_halo_group)   ! MC -- modified with halo inputs
       call mpas_timer_stop('diagnostic_fields')
 
       call mpas_dmpar_get_time(diag_stop_time)
@@ -805,8 +814,17 @@ module atm_core
          ! Write any output streams that have alarms ringing, after computing diagnostics fields
          !
          call mpas_get_time(curr_time=currTime, dateTimeString=timeStamp, ierr=ierr)
-         if (MPAS_stream_mgr_ringing_alarms(domain % streamManager, direction=MPAS_STREAM_OUTPUT, ierr=ierr)) then
+
+         ! MC: adding PV tendency config flag here to ensure that theta and rho are updated every time step for
+         !     computing the PV tendencies
+         call mpas_pool_get_config(domain % blocklist % configs, 'config_pv_tend', config_pv_tend)
+         call mpas_log_write(' ')
+         call mpas_log_write('config_pv_tend is $l', logicArgs=(/config_pv_tend/))
+
+         if (config_pv_tend .or. (MPAS_stream_mgr_ringing_alarms(domain % streamManager, direction=MPAS_STREAM_OUTPUT, ierr=ierr))) then
            block_ptr => domain % blocklist
+           call mpas_log_write('Calling output diagnostic calculations')
+           call mpas_log_write(' ')
            do while (associated(block_ptr))
               call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
               call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
@@ -823,8 +841,10 @@ module atm_core
          end if
 
          call mpas_timer_start('diagnostic_fields')
-         call mpas_atm_diag_update()
-         call mpas_atm_diag_compute()
+         !call mpas_atm_diag_update()
+         call mpas_atm_diag_update(domain, exchange_halo_group)       ! MC -- modified with halo inputs
+         !call mpas_atm_diag_compute()
+         call mpas_atm_diag_compute(domain, exchange_halo_group)      ! MC -- modified with halo inputs
          call mpas_timer_stop('diagnostic_fields')
          call mpas_dmpar_get_time(diag_stop_time)
 
