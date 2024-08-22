@@ -11,7 +11,7 @@
 
 void add_attribute_if_not_ignored(FILE *fd, char *index, char *att_name, char *pointer_name_arr, char *temp_str);
 int find_string_in_array(char *input_string, const char *array[], size_t rows);
-void write_model_variables(ezxml_t registry);
+void write_model_variables(ezxml_t registry, int macro_count, const char **macros);
 int write_field_pointer_arrays(FILE* fd);
 int set_pointer_name(int type, int ndims, char *pointer_name, int time_levs);
 int add_package_to_list(const char * package, const char * package_list);

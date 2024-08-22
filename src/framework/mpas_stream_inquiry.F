@@ -90,18 +90,25 @@ contains
     !>  be made with the query() method.
     !
     !-----------------------------------------------------------------------
-    function streaminfo_init(this, mpi_comm, stream_filename) result(ierr)
+    function streaminfo_init(this, comm, stream_filename) result(ierr)
 
         use mpas_derived_types, only : MPAS_streamInfo_type
         use mpas_log, only : mpas_log_write
         use mpas_c_interfacing, only : mpas_f_to_c_string
         use iso_c_binding, only : c_char, c_associated
+#ifdef MPAS_USE_MPI_F08
+        use mpi_f08, only : MPI_Comm
+#endif
 
         implicit none
 
         ! Arguments
         class (MPAS_streamInfo_type) :: this
-        integer, intent(in) :: mpi_comm
+#ifdef MPAS_USE_MPI_F08
+        type (MPI_Comm), intent(in) :: comm
+#else
+        integer, intent(in) :: comm
+#endif
         character(len=*), intent(in) :: stream_filename
 
         ! Return value
@@ -111,9 +118,9 @@ contains
         character(kind=c_char), dimension(len(stream_filename)+1) :: c_stream_filename
 
         interface
-            function parse_streams_file(mpi_comm, filename) bind(C, name='parse_streams_file') result(xmltree)
+            function parse_streams_file(comm, filename) bind(C, name='parse_streams_file') result(xmltree)
                 use iso_c_binding, only : c_char, c_ptr
-                integer, intent(in), value :: mpi_comm
+                integer, intent(in), value :: comm
                 character(kind=c_char), dimension(*), intent(in) :: filename
                 type(c_ptr) :: xmltree
             end function parse_streams_file
@@ -124,7 +131,11 @@ contains
 
         call mpas_f_to_c_string(stream_filename, c_stream_filename)
         call mpas_log_write('Initializing MPAS_streamInfo from file '//trim(stream_filename))
-        this % xmltree = parse_streams_file(mpi_comm, c_stream_filename)
+#ifdef MPAS_USE_MPI_F08
+        this % xmltree = parse_streams_file(comm % mpi_val, c_stream_filename)
+#else
+        this % xmltree = parse_streams_file(comm, c_stream_filename)
+#endif
 
         if (.not. c_associated(this % xmltree)) then
             ierr = 1

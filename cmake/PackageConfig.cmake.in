@@ -1,0 +1,121 @@
+@PACKAGE_INIT@
+
+# @PROJECT_NAME@-config.cmake
+#
+# Valid Find COMPONENTS:
+#  * SHARED - Require shared libraries.
+#  * STATIC - Require static libraries.
+#  * DOUBLE_PRECISION - Find double precision libraries
+#  * PROFILE - True if GPTL profiling is enabled
+#  * OpenMP - True if OpenMP support is enabled
+#  * core_atmosphere - Find atmosphere core
+#  * core_init_atmosphere - Find init_atmosphere core
+#  * core_ocean - Find ocean core
+#  * core_landice - Find landice core
+#  * core_seaice - Find seaice core
+#  * core_sw - Find sw core
+#  * core_test - Find test core
+#
+#
+# Output variables set:
+#  * @PROJECT_NAME@_VERSION - Version of install package
+#  * @PROJECT_NAME@_VERSION_MAJOR - Major version of install package
+#  * @PROJECT_NAME@_VERSION_MINOR - Minor version of install package
+#  * @PROJECT_NAME@_MODULES_Fortran_COMPILER_ID - Compiler used to generate Fortran Modules
+#  * @PROJECT_NAME@_MODULES_Fortran_COMPILER_VERSION - Compiler version used to generate Fortran Modules
+#  * @PROJECT_NAME@_CORE_<CORE>_DATADIR - Location for data files for core (namelist, streams, data tables, etc.)
+#  * @PROJECT_NAME@_BINDIR - Location for installed auxiliary binaries.
+#
+
+# Imported interface targets provided:
+#  * @PROJECT_NAME@::core::<core> - Core targets
+#  * @PROJECT_NAME@::operators - Operators library target
+#  * @PROJECT_NAME@::framework - Framework library target
+#  * @PROJECT_NAME@::external::esmf - exmf_time library target
+#  * @PROJECT_NAME@::external::ezxml - ezxml library target
+#
+
+#  * @PROJECT_NAME@::@PROJECT_NAME@_shared - shared library target:
+
+#Include targets file.  This will create IMPORTED target @PROJECT_NAME@
+string(TOLOWER @PROJECT_NAME@ _project_name_lower)
+if(NOT TARGET @PROJECT_NAME@::framework)
+    include("${CMAKE_CURRENT_LIST_DIR}/${_project_name_lower}-targets-external.cmake")
+    include("${CMAKE_CURRENT_LIST_DIR}/${_project_name_lower}-targets.cmake")
+    include("${CMAKE_CURRENT_LIST_DIR}/${_project_name_lower}-targets-core.cmake")
+endif()
+
+set(@PROJECT_NAME@_VERSION @PROJECT_VERSION@)
+set(@PROJECT_NAME@_VERSION_MAJOR @PROJECT_VERSION_MAJOR@)
+set(@PROJECT_NAME@_VERSION_MINOR @PROJECT_VERSION_MINOR@)
+
+#Export Fortran compiler version and check module compatibility
+set(@PROJECT_NAME@_MODULES_Fortran_COMPILER_ID @CMAKE_Fortran_COMPILER_ID@)
+set(@PROJECT_NAME@_MODULES_Fortran_COMPILER_VERSION @CMAKE_Fortran_COMPILER_VERSION@)
+if(NOT @PROJECT_NAME@_MODULES_Fortran_COMPILER_ID STREQUAL CMAKE_Fortran_COMPILER_ID
+   OR NOT @PROJECT_NAME@_MODULES_Fortran_COMPILER_VERSION VERSION_EQUAL CMAKE_Fortran_COMPILER_VERSION)
+    message(SEND_ERROR "Package @PROJECT_NAME@ provides Fortran modules built with "
+            "${@PROJECT_NAME@_MODULES_Fortran_COMPILER_ID}-${@PROJECT_NAME@_MODULES_Fortran_COMPILER_VERSION} "
+            "but this build for ${PROJECT_NAME} uses incompatible compiler ${CMAKE_Fortran_COMPILER_ID}-${CMAKE_Fortran_COMPILER_VERSION}")
+endif()
+
+set_and_check(@PROJECT_NAME@_BINDIR @PACKAGE_BINDIR@)
+set_and_check(@PROJECT_NAME@_CMAKE_MODULE_PATH @PACKAGE_CMAKE_MODULE_INSTALL_PATH@)
+set(CMAKE_MODULE_PATH ${@PROJECT_NAME@_CMAKE_MODULE_PATH} ${CMAKE_MODULE_PATH})
+
+include(CMakeFindDependencyMacro)
+if(@OpenMP_Fortran_FOUND@) #OpenMP_Fortran_FOUND
+    if(NOT OpenMP_Fortran_FOUND)
+        find_package(OpenMP REQUIRED COMPONENTS Fortran)
+    endif()
+    set(@PROJECT_NAME@_OpenMP_FOUND True)
+endif()
+if(NOT MPI_Fortran_FOUND)
+    find_package(MPI REQUIRED COMPONENTS Fortran)
+endif()
+if(NOT NetCDF_Fortran_FOUND)
+    find_package(NetCDF REQUIRED COMPONENTS Fortran)
+endif()
+find_package(PnetCDF REQUIRED COMPONENTS Fortran)
+find_package(PIO REQUIRED COMPONENTS Fortran C)
+if(@MPAS_PROFILE@) #MPAS_PROFILE
+    if(NOT GPTL_FOUND)
+        find_dependency(GPTL REQUIRED)
+    endif()
+    set(@PROJECT_NAME@_PROFILE_FOUND)
+endif()
+
+if(@BUILD_SHARED_LIBS@) #BUILD_SHARED_LIBS
+    set(@PROJECT_NAME@_SHARED_FOUND True)
+else()
+    set(@PROJECT_NAME@_STATIC_FOUND True)
+endif()
+if(@MPAS_DOUBLE_PRECISION@) #MPAS_DOUBLE_PRECISION
+    set(@PROJECT_NAME@_DOUBLE_PRECISION_FOUND True)
+else()
+    set(@PROJECT_NAME@_DOUBLE_PRECISION_FOUND False)
+endif()
+set(MPAS_CORES @MPAS_CORES@)
+foreach(_core IN LISTS MPAS_CORES)
+    string(TOUPPER ${_core} _CORE)
+    set_and_check(@PROJECT_NAME@_CORE_${_CORE}_DATADIR @PACKAGE_CORE_DATADIR_ROOT@/core_${_core})
+    set(@PROJECT_NAME@_core_${_core}_FOUND True)
+endforeach()
+
+check_required_components("@PROJECT_NAME@")
+
+## Print status
+if(NOT @PROJECT_NAME@_FIND_QUIETLY)
+    #Get list of all found components for printing
+    set(_found_components)
+    set(_all_components SHARED STATIC PROFILE OpenMP DOUBLE_PRECISION core_atmosphere core_init_atmosphere core_landice core_ocean core_sw core_test)
+    foreach(_cmp IN LISTS _all_components)
+        if(@PROJECT_NAME@_${_cmp}_FOUND)
+            list(APPEND _found_components ${_cmp})
+        endif()
+    endforeach()
+
+    message(STATUS "Found @PROJECT_NAME@: (version: \"@PROJECT_VERSION@\") (components: ${_found_components})")
+    unset(_found_components)
+    unset(_all_components)
+endif()

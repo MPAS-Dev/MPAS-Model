@@ -38,9 +38,11 @@
  logical,pointer:: config_nssl_3moment
  character(len=StrKIND),pointer:: config_convection_scheme
  character(len=StrKIND),pointer:: config_pbl_scheme
- logical,pointer:: mp_kessler_in,mp_thompson_in,mp_wsm6_in,mp_nssl2m_in,nssl3m_in,nssl_hail_in,nssl3m_hail_in,nssl_ccn_in
- logical,pointer:: cu_grell_freitas_in,cu_kain_fritsch_in,cu_tiedtke_in
+ character(len=StrKIND),pointer:: config_lsm_scheme
+ logical,pointer:: mp_kessler_in,mp_thompson_in,mp_thompson_aers_in,mp_wsm6_in,mp_nssl2m_in,nssl3m_in,nssl_hail_in,nssl3m_hail_in,nssl_ccn_in
+ logical,pointer:: cu_grell_freitas_in,cu_kain_fritsch_in,cu_ntiedtke_in
  logical,pointer:: bl_mynn_in,bl_ysu_in
+ logical,pointer:: sf_noahmp_in
 
  integer :: ierr
 
@@ -67,6 +69,9 @@
  nullify(mp_thompson_in)
  call mpas_pool_get_package(packages,'mp_thompson_inActive',mp_thompson_in)
 
+ nullify(mp_thompson_aers_in)
+ call mpas_pool_get_package(packages,'mp_thompson_aers_inActive',mp_thompson_aers_in)
+
  nullify(mp_wsm6_in)
  call mpas_pool_get_package(packages,'mp_wsm6_inActive',mp_wsm6_in)
 
@@ -78,14 +83,16 @@
 
  nullify(nssl_hail_in)
  call mpas_pool_get_package(packages,'nssl_hail_inActive',nssl_hail_in)
+
  nullify(nssl3m_hail_in)
  call mpas_pool_get_package(packages,'nssl3m_hail_inActive',nssl3m_hail_in)
 
  nullify(nssl_ccn_in)
  call mpas_pool_get_package(packages,'nssl_ccn_inActive',nssl_ccn_in)
 
- if(.not.associated(mp_kessler_in)  .or. &
-    .not.associated(mp_thompson_in) .or. &
+ if(.not.associated(mp_kessler_in)       .or. &
+    .not.associated(mp_thompson_in)      .or. &
+    .not.associated(mp_thompson_aers_in) .or. &
     .not.associated(mp_nssl2m_in) .or. &
     .not.associated(mp_wsm6_in)) then
     call mpas_log_write('====================================================================================',messageType=MPAS_LOG_ERR)
@@ -95,19 +102,22 @@
     return
  endif
 
- mp_kessler_in           = .false.
- mp_thompson_in          = .false.
- mp_wsm6_in              = .false.
- mp_nssl2m_in            = .false.
- nssl3m_in               = .false.
- nssl_hail_in            = .false.
- nssl3m_hail_in          = .false.
- nssl_ccn_in             = .false.
+ mp_kessler_in       = .false.
+ mp_thompson_in      = .false.
+ mp_thompson_aers_in = .false.
+ mp_wsm6_in          = .false.
+ mp_nssl2m_in        = .false.
+ nssl3m_in           = .false.
+ nssl_hail_in        = .false.
+ nssl3m_hail_in      = .false.
+ nssl_ccn_in         = .false.
 
  if(config_microp_scheme == 'mp_kessler') then
     mp_kessler_in = .true.
  elseif(config_microp_scheme == 'mp_thompson') then
     mp_thompson_in = .true.
+ elseif(config_microp_scheme == 'mp_thompson_aerosols') then
+    mp_thompson_aers_in = .true.
  elseif(config_microp_scheme == 'mp_wsm6') then
     mp_wsm6_in = .true.
  elseif(config_microp_scheme == 'mp_nssl2m') then
@@ -128,6 +138,7 @@
 
  call mpas_log_write('    mp_kessler_in           = $l', logicArgs=(/mp_kessler_in/))
  call mpas_log_write('    mp_thompson_in          = $l', logicArgs=(/mp_thompson_in/))
+ call mpas_log_write('    mp_thompson_aers_in     = $l', logicArgs=(/mp_thompson_aers_in/))
  call mpas_log_write('    mp_wsm6_in              = $l', logicArgs=(/mp_wsm6_in/))
  call mpas_log_write('    mp_nssl2m_in            = $l', logicArgs=(/mp_nssl2m_in/))
  call mpas_log_write('    nssl_hail_in            = $l', logicArgs=(/nssl_hail_in/))
@@ -145,12 +156,12 @@
  nullify(cu_kain_fritsch_in)
  call mpas_pool_get_package(packages,'cu_kain_fritsch_inActive',cu_kain_fritsch_in)
 
- nullify(cu_tiedtke_in)
- call mpas_pool_get_package(packages,'cu_tiedtke_inActive',cu_tiedtke_in)
+ nullify(cu_ntiedtke_in)
+ call mpas_pool_get_package(packages,'cu_ntiedtke_inActive',cu_ntiedtke_in)
 
  if(.not.associated(cu_grell_freitas_in) .or. &
     .not.associated(cu_kain_fritsch_in)  .or. &
-    .not.associated(cu_tiedtke_in)     ) then
+    .not.associated(cu_ntiedtke_in)    ) then
     call mpas_log_write('====================================================================================',messageType=MPAS_LOG_ERR)
     call mpas_log_write('* Error while setting up packages for convection options in atmosphere core.',        messageType=MPAS_LOG_ERR)
     call mpas_log_write('====================================================================================',messageType=MPAS_LOG_ERR)
@@ -160,7 +171,7 @@
 
  cu_grell_freitas_in = .false.
  cu_kain_fritsch_in  = .false.
- cu_tiedtke_in       = .false.
+ cu_ntiedtke_in      = .false.
 
  if(config_convection_scheme=='cu_grell_freitas') then
     cu_grell_freitas_in = .true.
@@ -168,12 +179,12 @@
     cu_kain_fritsch_in = .true.
  elseif(config_convection_scheme == 'cu_tiedtke' .or. &
         config_convection_scheme == 'cu_ntiedtke') then
-    cu_tiedtke_in = .true.
+    cu_ntiedtke_in = .true.
  endif
 
  call mpas_log_write('    cu_grell_freitas_in     = $l', logicArgs=(/cu_grell_freitas_in/))
  call mpas_log_write('    cu_kain_fritsch_in      = $l', logicArgs=(/cu_kain_fritsch_in/))
- call mpas_log_write('    cu_tiedtke_in           = $l', logicArgs=(/cu_tiedtke_in/))
+ call mpas_log_write('    cu_ntiedtke_in          = $l', logicArgs=(/cu_ntiedtke_in/))
 
 !--- initialization of all packages for parameterizations of surface layer and planetary boundary layer:
 
@@ -206,6 +217,29 @@
  call mpas_log_write('    bl_mynn_in              = $l', logicArgs=(/bl_mynn_in/))
  call mpas_log_write('    bl_ysu_in               = $l', logicArgs=(/bl_ysu_in/))
  call mpas_log_write('')
+
+!--- initialization of all packages for parameterizations of land surface processes:
+
+ call mpas_pool_get_config(configs,'config_lsm_scheme',config_lsm_scheme)
+
+ nullify(sf_noahmp_in)
+ call mpas_pool_get_package(packages,'sf_noahmp_inActive',sf_noahmp_in)
+
+ if(.not.associated(sf_noahmp_in)) then
+    call mpas_log_write('====================================================================================',messageType=MPAS_LOG_ERR)
+    call mpas_log_write('* Error while setting up packages for land surface options in atmosphere core.'    ,  messageType=MPAS_LOG_ERR)
+    call mpas_log_write('====================================================================================',messageType=MPAS_LOG_ERR)
+    ierr = 1
+    return
+ endif
+
+ if(config_lsm_scheme=='sf_noahmp') then
+    sf_noahmp_in = .true.
+ endif
+
+ call mpas_log_write('    sf_noahmp_in            = $l', logicArgs=(/sf_noahmp_in/))
+ call mpas_log_write('')
+
 
  end function atmphys_setup_packages
 

@@ -99,10 +99,10 @@ module atm_core_interface
    !>  not allocated until after this routine has been called.
    !
    !-----------------------------------------------------------------------
-   function atm_setup_packages(configs, packages, iocontext) result(ierr)
+   function atm_setup_packages(configs, streamInfo, packages, iocontext) result(ierr)
 
       use mpas_dmpar
-      use mpas_derived_types, only : mpas_pool_type, mpas_io_context_type
+      use mpas_derived_types, only : mpas_pool_type, mpas_io_context_type, MPAS_streamInfo_type
       use mpas_pool_routines, only : mpas_pool_get_config, mpas_pool_get_package
 
 #ifdef DO_PHYSICS
@@ -113,6 +113,7 @@ module atm_core_interface
       implicit none
 
       type (mpas_pool_type), intent(inout) :: configs
+      type (MPAS_streamInfo_type), intent(inout) :: streamInfo
       type (mpas_pool_type), intent(inout) :: packages
       type (mpas_io_context_type), intent(inout) :: iocontext
       integer :: ierr
@@ -122,6 +123,8 @@ module atm_core_interface
       logical, pointer :: limited_areaActive
       logical, pointer :: config_apply_lbcs
       logical, pointer :: config_jedi_da, jedi_daActive
+      logical, pointer :: no_invariant_streamActive
+      character(len=StrKIND) :: attvalue
       integer :: local_ierr
 
       ierr = 0
@@ -172,6 +175,25 @@ module atm_core_interface
          call mpas_log_write('Package setup failed for ''jedi_da''. '// &
               'Either ''jedi_da'' is not a package, or ''config_jedi_da'' is not a namelist option.', &
               messageType=MPAS_LOG_ERR)
+      end if
+
+      !
+      ! Separate time-invariant stream
+      !
+      nullify(no_invariant_streamActive)
+      call mpas_pool_get_package(packages, 'no_invariant_streamActive', no_invariant_streamActive)
+
+      if (associated(no_invariant_streamActive)) then
+         no_invariant_streamActive = .true.
+         if (streamInfo % query('invariant', attname='input_interval', attvalue=attvalue)) then
+            if (trim(attvalue) == 'initial_only') then
+               no_invariant_streamActive = .false.
+            end if
+         end if
+      else
+         ierr = ierr + 1
+         call mpas_log_write("Package setup failed for 'no_invariant_stream'. 'no_invariant_stream' is not a package.", &
+                             messageType=MPAS_LOG_ERR)
       end if
 
 #ifdef DO_PHYSICS
@@ -240,9 +262,7 @@ module atm_core_interface
 
       use mpas_derived_types, only : mpas_log_type, domain_type
       use mpas_log, only : mpas_log_init, mpas_log_open
-#ifdef MPAS_OPENMP
-      use mpas_threading, only : mpas_threading_get_num_threads
-#endif
+      use mpas_framework, only : mpas_framework_report_settings
 
       implicit none
 
@@ -271,53 +291,8 @@ module atm_core_interface
       call mpas_log_write('')
       call mpas_log_write('MPAS-Atmosphere Version '//trim(domain % core % modelVersion))
       call mpas_log_write('')
-      call mpas_log_write('')
-      call mpas_log_write('Output from ''git describe --dirty'': '//trim(domain % core % git_version))
-      call mpas_log_write('')
-      call mpas_log_write('Compile-time options:')
-      call mpas_log_write('  Build target: '//trim(domain % core % build_target))
-      call mpas_log_write('  OpenMP support: ' // &
-#ifdef MPAS_OPENMP
-                          'yes')
-#else
-                          'no')
-#endif
-      call mpas_log_write('  OpenACC support: ' // &
-#ifdef MPAS_OPENACC
-                          'yes')
-#else
-                          'no')
-#endif
-      call mpas_log_write('  Default real precision: ' // &
-#ifdef SINGLE_PRECISION
-                          'single')
-#else
-                          'double')
-#endif
-      call mpas_log_write('  Compiler flags: ' // &
-#ifdef MPAS_DEBUG
-                          'debug')
-#else
-                          'optimize')
-#endif
-      call mpas_log_write('  I/O layer: ' // &
-#ifdef MPAS_PIO_SUPPORT
-#ifdef USE_PIO2
-                          'PIO 2.x')
-#else
-                          'PIO 1.x')
-#endif
-#else
-                          'SMIOL')
-#endif
-      call mpas_log_write('')
 
-      call mpas_log_write('Run-time settings:')
-      call mpas_log_write('  MPI task count: $i', intArgs=[domain % dminfo % nprocs])
-#ifdef MPAS_OPENMP
-      call mpas_log_write('  OpenMP max threads: $i', intArgs=[mpas_threading_get_max_threads()])
-#endif
-      call mpas_log_write('')
+      call mpas_framework_report_settings(domain)
 
    end function atm_setup_log!}}}
 
@@ -336,21 +311,35 @@ module atm_core_interface
    !>  are available.
    !
    !-----------------------------------------------------------------------
-   function atm_get_mesh_stream(configs, stream) result(ierr)
+   function atm_get_mesh_stream(configs, streamInfo, stream) result(ierr)
 
       use mpas_kind_types, only : StrKIND
-      use mpas_derived_types, only : mpas_pool_type
+      use mpas_derived_types, only : mpas_pool_type, MPAS_streamInfo_type
       use mpas_pool_routines, only : mpas_pool_get_config
 
       implicit none
 
       type (mpas_pool_type), intent(inout) :: configs
+      type (MPAS_streamInfo_type), intent(inout) :: streamInfo
       character(len=StrKIND), intent(out) :: stream
       integer :: ierr
 
       logical, pointer :: config_do_restart
+      character(len=StrKIND) :: attvalue
 
       ierr = 0
+
+      !
+      ! If the 'invariant' stream is defined in the streams XML file with an
+      ! input_interval of 'initial_only', then use the 'invariant' stream to
+      ! get mesh information
+      !
+      if (streamInfo % query('invariant', attname='input_interval', attvalue=attvalue)) then
+         if (trim(attvalue) == 'initial_only') then
+            write(stream,'(a)') 'invariant'
+            return
+         end if
+      end if
 
       call mpas_pool_get_config(configs, 'config_do_restart', config_do_restart)
 

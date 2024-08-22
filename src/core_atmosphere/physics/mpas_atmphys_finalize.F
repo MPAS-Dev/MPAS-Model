@@ -9,6 +9,7 @@
  module mpas_atmphys_finalize
  use mpas_pool_routines
 
+ use mpas_atmphys_lsm_noahmpfinalize,only: sf_noahmp_deallocate
  use module_mp_thompson
 
  implicit none
@@ -37,14 +38,21 @@
  type(mpas_pool_type),intent(in):: configs
 
 !local variables and pointers:
- character(len=StrKIND),pointer:: config_microp_scheme
+ character(len=StrKIND),pointer:: config_lsm_scheme,   &
+                                  config_microp_scheme
 
 !----------------------------------------------------------------------------------------------------------------- 
 
+ call mpas_pool_get_config(configs,'config_lsm_scheme'   ,config_lsm_scheme   )
  call mpas_pool_get_config(configs,'config_microp_scheme',config_microp_scheme)
 
- if(trim(config_microp_scheme) == 'mp_thompson') &
+ if(trim(config_lsm_scheme) == 'sf_noahmp') &
+    call sf_noahmp_deallocate
+
+ if(trim(config_microp_scheme) == 'mp_thompson'         .or. &
+    trim(config_microp_scheme) == 'mp_thompson_aerosols') then
     call mp_thompson_deallocate
+ endif
 
  end subroutine atmphys_finalize
 

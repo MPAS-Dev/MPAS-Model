@@ -119,6 +119,15 @@ module atm_core
       call mpas_pool_get_config(domain % blocklist % configs, 'config_dt', dt)
 
       !
+      ! By default, the 'invariant' stream has an input_interval of "none", so
+      ! the following stream read has no effect. However, in case the 'invariant'
+      ! stream is defined with an input_interval of "initial_only", we read
+      ! time-invariant fields first.
+      !
+      call MPAS_stream_mgr_read(domain % streamManager, streamID='invariant', whence=MPAS_STREAM_NEAREST, ierr=ierr)
+      call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='invariant', direction=MPAS_STREAM_INPUT, ierr=ierr)
+
+      !
       ! If this is a restart run, read the restart stream, else read the input
       ! stream.
       ! Regardless of which stream we read for initial conditions, reset the
@@ -383,7 +392,9 @@ module atm_core
       type (mpas_pool_type), pointer :: tend
       type (mpas_pool_type), pointer :: sfc_input
       type (mpas_pool_type), pointer :: diag_physics
+      type (mpas_pool_type), pointer :: diag_physics_noahmp
       type (mpas_pool_type), pointer :: atm_input
+      type (mpas_pool_type), pointer :: output_noahmp
 
       integer :: iCell,iEdge,iVertex
       
@@ -542,14 +553,16 @@ module atm_core
          !initialization of some input variables in registry:
          call mpas_pool_get_subpool(block % structs, 'tend', tend)
          call mpas_pool_get_subpool(block % structs, 'diag_physics', diag_physics)
+         call mpas_pool_get_subpool(block % structs, 'diag_physics_noahmp', diag_physics_noahmp)
          call mpas_pool_get_subpool(block % structs, 'atm_input', atm_input)
+         call mpas_pool_get_subpool(block % structs, 'output_noahmp', output_noahmp)
          call physics_tables_init(dminfo, block % configs)
          call physics_registry_init(mesh, block % configs, sfc_input)
          call physics_run_init(block % configs, mesh, state, clock, stream_manager)
 
          !initialization of all physics:
          call physics_init(dminfo, clock, block % configs, mesh, diag, tend, state, 1, diag_physics, &
-                           atm_input, sfc_input)
+                           diag_physics_noahmp, atm_input, sfc_input, output_noahmp)
       endif
 #endif
    

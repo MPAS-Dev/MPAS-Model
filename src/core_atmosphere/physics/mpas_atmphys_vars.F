@@ -8,6 +8,8 @@
 !=================================================================================================================
  module mpas_atmphys_vars
  use mpas_kind_types
+
+ use NoahmpIOVarType
  
  implicit none
  public
@@ -108,7 +110,7 @@
 !   Thompson cloud microphysics scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-04-19.
 ! * added the local variables cosa_p and sina_p needed in call to subroutine gwdo after updating module_bl_gwdo.F
-!   to that of WRF version 4.0.2
+!   to that of WRF version 4.0.2.
 !   Laura D. Fowler (laura@ucar.edu) / 2019-01-30.
 ! * reverted the option seaice_albedo_opt = 2 to seaic_albedo_opt = 0 since MPAS does not currently support the
 !   input of "observed" 2D seaice albedos. In conjunction with this update, we also change the initialization of
@@ -122,6 +124,16 @@
 ! * added the local variables swddir,swddni,and swddif which are output to subroutine rrtmg_swrad and now input
 !   to the updated module_sf_noahdrv.F.
 !   Laura D. Fowler (laura@ucar.edu) / 2023-04-21.
+! * removed the variable f_qv which is not used in any of the ./physics_wrf modules.
+!   Laura D. Fowler (laura@ucar.edu) / 2024-02-13.
+! * removed the definition of f_qc,f_qr,f_qi,f_qs,f_qg,f_nc,and f_ni as parameters. these variables are now
+!   initialized in mpas_atmphys_init.F (see subroutine init_physics_flags). also renamed f_qnc to f_nc, and f_qni
+!   to f_ni.
+!   Laura D. Fowler (laura@ucar.edu) / 2024-02-14.
+! * added the variable spp_pbl needed in the updated version of the MYNN surface layer scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2024-02-14.
+! * added and modified variables needed to run the MYNN PBL scheme using the sourcecode from WRF version 4.6.
+!   Laura D. Fowler (laura@ucar.edu) / 2024-02-18.
 
 
 !=================================================================================================================
@@ -239,27 +251,26 @@
 !          that the ice phase is included (except for the Kessler scheme which includes water
 !          clouds only.
 
-!    f_qv,f_qc,f_qr,f_qi,f_qs,f_qg: These logicals were initially defined in WRF to determine
-!          which kind of hydrometeors are present. Here, we assume that all six water species
-!          are present, even if their mixing ratios and number concentrations are zero.
-
 !=================================================================================================================
 
  logical,parameter:: &
-    warm_rain=.false.  !warm-phase cloud microphysics only (used in WRF).
+    warm_rain = .false.!warm-phase cloud microphysics only (used in WRF).
 
- logical,parameter:: &
-    f_qv = .true.,    &!
-    f_qc = .true.,    &!
-    f_qr = .true.,    &!
-    f_qi = .true.,    &!
-    f_qs = .true.,    &!
-    f_qg = .true.,    &!
-    f_qh = .true.
+ logical:: &
+    f_qc,             &!parameter set to true to include the cloud water mixing ratio.
+    f_qr,             &!parameter set to true to include the rain mixing ratio.
+    f_qi,             &!parameter set to true to include the cloud ice mixing ratio.
+    f_qs,             &!parameter set to true to include the snow mixing ratio.
+    f_qg,             &!parameter set to true to include the graupel mixing ratio.
+    f_qh,             &!parameter set to true to include the hail mixing ratio.
+    f_qoz              !parameter set to true to include the ozone mixing ratio.
 
- logical,parameter:: &
-    f_qnc = .true.,   &!
-    f_qni = .true.     !
+ logical:: &
+    f_nc,             &!parameter set to true to include the cloud water number concentration.
+    f_ni,             &!parameter set to true to include the cloud ice number concentration.
+    f_nifa,           &!parameter set to true to include the number concentration of hygroscopic aerosols.
+    f_nwfa,           &!parameter set to true to include the number concentration of hydrophobic aerosols.
+    f_nbca             !parameter set to true to include the number concentration of black carbon.
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     f_ice,            &!fraction of cloud ice (used in WRF only).
@@ -276,15 +287,11 @@
     hailncv_p,        &
     sr_p
 
-!... added for the thompson and wsm6 cloud microphysics:
  integer:: & 
     has_reqc,         &!
     has_reqi,         &!
     has_reqs
 
- real(kind=RKIND),dimension(:,:),allocatable:: &
-    ntc_p,            &!
-    muc_p              !
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rainprod_p,       &!
     evapprod_p,       &!
@@ -292,6 +299,17 @@
     reice_p,          &!
     resnow_p,         &!
     refl10cm_p         !
+
+!... for Thompson cloud microphysics parameterization, including aerosol-aware option:
+ real(kind=RKIND),dimension(:,:),allocatable:: &
+    ntc_p,            &!
+    muc_p,            &!
+    nifa2d_p,         &!surface emission of "ice-friendly" aerosols                                     [#/kg-1/s]
+    nwfa2d_p           !surface emission of "water-friendly" aerosols                                   [#/kg-1/s]
+
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    nifa_p,           &!"ice-friendly" number concentration                                                 [#/kg]
+    nwfa_p             !"water-friendly" number concentration                                               [#/kg]
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of convection:
@@ -397,12 +415,12 @@
     exch_p             !exchange coefficient                                                                   [-]
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    rublten_p,        &!
-    rvblten_p,        &!
-    rthblten_p,       &!
-    rqvblten_p,       &!
-    rqcblten_p,       &!
-    rqiblten_p         !
+    rublten_p,        &!tendency of zonal wind due to PBL processes.
+    rvblten_p,        &!tendency of meridional wind due to PBL processes.
+    rthblten_p,       &!tendency of potential temperature due to PBL processes.
+    rqvblten_p,       &!tendency of water vapor mixing ratio due to PBL processes.
+    rqcblten_p,       &!tendency of cloud water mixing ratio due to PBL processes.
+    rqiblten_p         !tendency of cloud ice mixing ratio due to PBL processes.
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     kzh_p,            &!
@@ -410,14 +428,16 @@
     kzq_p              !
 
 !... MYNN PBL scheme (module_bl_mynn.F):
- integer,parameter:: grav_settling = 0
+ integer,parameter:: spp_pbl   = 0          !generate array with random perturbations (0=off,1=on).
+ integer,parameter:: icloud_bl = 0          !no coupling of subgrid-scale clouds with radiation.
 
- logical,parameter:: bl_mynn_tkeadvect = .false.!
- integer,parameter:: bl_mynn_tkebudget = 0      !
- integer,parameter:: bl_mynn_cloudpdf  = 0      !
+ integer,dimension(:,:),allocatable:: &
+    kbl_plume_p        !level of highest penetrating plume.
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
-    vdfg_p             !
+    maxwidthbl_p,     &!max plume width                                                                        [m]
+    maxmfbl_p,        &!maximum mass flux for PBL shallow convection.
+    zbl_plume_p        !height of highest penetrating plume                                                    [m]
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     dqke_p,           &!
@@ -430,7 +450,29 @@
     tkepbl_p           !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    rniblten_p         !
+    edmfa_p,          &!
+    edmfw_p,          &!
+    edmfqt_p,         &!
+    edmfthl_p,        &!
+    edmfent_p,        &!
+    edmfqc_p,         &!
+    subthl_p,         &!
+    subqv_p,          &!
+    detthl_p,         &!
+    detqv_p,          &!
+    qcbl_p,           &!
+    qibl_p,           &!
+    cldfrabl_p         !
+
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    rqsblten_p,       &!tendency of snow mixing ratio due to PBL processes.
+    rncblten_p,       &!tendency of cloud liquid water number concentration due to PBL processes.
+    rniblten_p,       &!tendency of cloud ice number concentration due to PBL processes.
+    rnifablten_p,     &!tendency of ice-friendly aerosol number concentration due to PBL processes.
+    rnwfablten_p       !tendency of water-friendly aerosol number concentration due to PBL processes.
+
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    pattern_spp_pbl    !stochastic forcing for the MYMM PBL and surface layer schemes.
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of gravity wave drag over orography:
@@ -538,6 +580,7 @@
     qsq_p,            &!liquid water variance                                                          [(kg/kg)^2]
     tsq_p,            &!liquid water potential temperature variance                                          [K^2]
     sh3d_p,           &!stability function for heat                                                            [-]
+    sm3d_p,           &!stability function for moisture                                                        [-]
     elpbl_p            !length scale from PBL                                                                  [m]
 
 !=================================================================================================================
@@ -569,6 +612,35 @@
     albsi_p,          &!surface albedo over seaice                                                             [-]
     snowsi_p,         &!snow depth over seaice                                                                 [m]
     icedepth_p         !seaice thickness                                                                       [m]
+
+!=================================================================================================================
+!... variables and arrays related to the calculation of the optical properties of aerosols: to date, the only kind
+!    of aerosols included in MPAS are the "water-friendly" and "ice-friendly" aerosols used in the Thompson cloud
+!    cloud microphysics scheme.
+!=================================================================================================================
+
+ integer,parameter:: taer_aod550_opt = 2!input option for nwfa, nifa optical depth at 500 nm.
+ integer,parameter:: taer_angexp_opt = 3!input option for nwfa, nifa aerosol Angstrom exponent.
+ integer,parameter:: taer_ssa_opt    = 3!input option for nwfa, nifa aerosol single-scattering albedo.
+ integer,parameter:: taer_asy_opt    = 3!input option for nwfa, nifa aerosol asymmetry factor.
+
+ integer:: aer_opt                      !=[0,3]  : 0 for no aerosols, 3 for "water-" and "ice-friendly" aerosols.
+ integer,dimension(:,:),allocatable:: &
+                     taer_type_p        !=[1,2,3]: 1 for rural, 2 is urban and 3 is maritime in WRF. In MPAS,
+                                        !aer_type is initialized as a function of landmask (=1 over land; =2 over
+                                        !oceans.
+
+ real(kind=RKIND),parameter:: aer_aod550_val = 0.12
+ real(kind=RKIND),parameter:: aer_angexp_val = 1.3
+ real(kind=RKIND),parameter:: aer_ssa_val    = 0.85
+ real(kind=RKIND),parameter:: aer_asy_val    = 0.9
+
+ real(kind=RKIND),dimension(:,:),allocatable  ::   taod5502d_p!total aerosol optical depth at 550 nm           [-]
+ real(kind=RKIND),dimension(:,:,:),allocatable::   taod5503d_p!aerosol optical depth at 550 nm                 [-]
+
+ real(kind=RKIND),dimension(:,:,:,:),allocatable:: tauaer_p   !aerosol optical depth in RRTMG SW               [-]
+ real(kind=RKIND),dimension(:,:,:,:),allocatable:: ssaaer_p   !aerosol single scatterin albedo in RRTMG SW     [-]
+ real(kind=RKIND),dimension(:,:,:,:),allocatable:: asyaer_p   !aerosol asymmetry factor in RRTMG SW            [-]
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of short-wave radiation:
@@ -782,6 +854,12 @@
  real(kind=RKIND),dimension(:,:),allocatable:: &
     frc_urb_p,        &!urban fraction                                                                         [-]
     ust_urb_p          !urban u* in similarity theory                                                        [m/s]
+
+!=================================================================================================================
+!.. variables and arrays related to the Noahmp land-surface parameterization:
+!=================================================================================================================
+
+ type(NoahmpIO_type):: mpas_noahmp
 
 !=================================================================================================================
 !.. variables and arrays related to surface characteristics:

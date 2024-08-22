@@ -10,7 +10,8 @@ OBJS = mpas_test_core.o \
        mpas_halo_testing.o \
        mpas_test_core_string_utils.o \
        mpas_test_core_dmpar.o \
-       mpas_test_core_stream_inquiry.o
+       mpas_test_core_stream_inquiry.o \
+       mpas_test_openacc.o
 
 all: core_test
 
@@ -28,7 +29,7 @@ core_input_gen:
 gen_includes:
 	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) Registry.xml > Registry_processed.xml
 	(if [ ! -d inc ]; then mkdir -p inc; fi) # To generate *.inc files
-	(cd inc; $(REG_PARSE) < ../Registry_processed.xml )
+	(cd inc; $(REG_PARSE) ../Registry_processed.xml $(CPPFLAGS) )
 
 post_build:
 	if [ ! -e $(ROOT_DIR)/default_inputs ]; then mkdir $(ROOT_DIR)/default_inputs; fi
@@ -41,7 +42,7 @@ mpas_test_core.o: mpas_test_core_halo_exch.o mpas_test_core_streams.o \
                   mpas_test_core_field_tests.o mpas_test_core_timekeeping_tests.o \
                   mpas_test_core_sorting.o mpas_halo_testing.o \
                   mpas_test_core_string_utils.o mpas_test_core_dmpar.o \
-                  mpas_test_core_stream_inquiry.o
+                  mpas_test_core_stream_inquiry.o mpas_test_openacc.o
 
 mpas_test_core_halo_exch.o:
 
