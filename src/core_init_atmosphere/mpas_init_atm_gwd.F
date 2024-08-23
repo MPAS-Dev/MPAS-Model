@@ -43,6 +43,9 @@ module mpas_init_atm_gwd
 
    integer, parameter :: topo_x = 43200            ! x-dimension of global 30-arc-second topography array
    integer, parameter :: topo_y = 21600            ! y-dimension of global 30-arc-second topography array
+   integer, parameter :: tile_x = 1200       ! x-dimension of each tile of global 30-arc-second topography
+   integer, parameter :: tile_y = 1200       ! y-dimension of each tile of global 30-arc-second topography
+
    real (kind=RKIND), parameter :: pts_per_degree = real(topo_x,RKIND) / 360.0_RKIND
 
    ! The following are set at the beginning of the compute_gwd_fields routine depending
@@ -54,10 +57,12 @@ module mpas_init_atm_gwd
    real (kind=RKIND), parameter ::  sg_delta = 2.0 * Pi * Re / (360.0_RKIND * real(pts_per_degree,RKIND))
 
    real (kind=R4KIND), dimension(:,:), pointer :: topo ! Global 30-arc-second topography
+   real (kind=R4KIND), dimension(:), pointer :: topo_new ! Global 30-arc-second topography
    real (kind=RKIND), dimension(:,:), pointer :: box   ! Subset of topography covering a grid cell
+   real (kind=RKIND), dimension(:,:), pointer :: box_new   ! Subset of topography covering a grid cell
    real (kind=RKIND), dimension(:,:), pointer :: dxm   ! Size (meters) in zonal direction of a grid cell
-   real (kind=RKIND) :: box_mean                       ! Mean value of topography in box
-   integer :: nx, ny                                   ! Dimensions of box covering grid cell
+   real (kind=RKIND) :: box_mean, box_mean_new        ! Mean value of topography in box
+   !integer :: nx, ny                                   ! Dimensions of box covering grid cell
    integer (kind=I1KIND), dimension(:,:), pointer :: landuse         ! Global 30-arc-second landuse
    integer (kind=I1KIND), dimension(:,:), pointer :: box_landuse     ! Subset of landuse covering a grid cell
 
@@ -67,6 +72,12 @@ module mpas_init_atm_gwd
 
    integer (kind=I1KIND), dimension(:), pointer :: hlanduse ! Dominant land mask (0 or 1)
    real (kind=RKIND) :: hc   ! critical height
+
+   integer, dimension(:), pointer :: local_tile_x ! 
+   integer, dimension(:), pointer :: local_tile_y ! 
+   integer, dimension(:), pointer :: local_box_x ! 
+   integer, dimension(:), pointer :: local_box_y ! 
+   integer:: max_local_tiles, cum_local_tiles, num_local_box_points
 
    contains
 
@@ -116,12 +127,13 @@ module mpas_init_atm_gwd
       character(len=StrKIND), pointer :: config_topo_data
       character(len=StrKIND) :: geog_sub_path
       character(len=StrKIND+1) :: geog_data_path      ! same as config_geog_data_path, but guaranteed to have a trailing slash
-
+      real (kind=RKIND) :: var2d_tmp, con_tmp!, oa1, oa2, oa3, oa4, ol1, ol2, ol3, ol4
       ! Variables for smoothing variance
       integer, dimension(:,:), pointer:: cellsOnCell
       integer (kind=I1KIND) :: sum_landuse
       real (kind=RKIND) :: sum_var
-
+      integer :: nx, ny
+      
 
       allocate(topo(topo_x,topo_y))
       allocate(landuse(topo_x,topo_y))
@@ -192,13 +204,29 @@ module mpas_init_atm_gwd
 !      call mpas_pool_get_array(mesh, 'gamma', hgamma)
 !      call mpas_pool_get_array(mesh, 'sigma', hsigma)
 
-      allocate(hlanduse(nCells+1))    ! +1, since we access hlanduse(cellsOnCell(i,iCell)) later on for iCell=1,nCells
+      !
+      ! Get number of points to extract in the zonal direction
+      !
+      ! if (cos(lat/rad2deg) > (2.0 * pts_per_degree * dx * 180.0) / (real(topo_x,RKIND) * Pi * Re)) then
+      !    nx = ceiling((180.0 * dx * pts_per_degree) / (Pi * Re * cos(lat/rad2deg)))
+      ! else
+      !    nx = topo_x / 2
+      ! end if
 
-      iErr = read_global_30s_topo(geog_data_path, geog_sub_path)
-      if (iErr /= 0) then
-         call mpas_log_write('Error reading global 30-arc-sec topography for GWD statistics', messageType=MPAS_LOG_ERR)
-         return
-      end if
+      ! !
+      ! ! Get number of points to extract in the meridional direction
+      ! !
+      ! ny = ceiling((180.0 * dx * pts_per_degree) / (Pi * Re))
+
+      nx = 22000
+      ny = 300
+
+      allocate(local_box_x(nx*ny))
+      allocate(local_box_y(nx*ny))
+
+      allocate(hlanduse(nCells+1))    ! +1, since we access hlanduse(cellsOnCell(i,iCell)) later on for iCell=1,nCells
+      
+     
 
       iErr = read_global_30s_landuse(geog_data_path)
       if (iErr /= 0) then
@@ -225,11 +253,56 @@ module mpas_init_atm_gwd
          call mpas_log_write('in the computation of GWD static fields.')
       end if
 
+      !iErr = determine_complete_tile_set(nCells, latCell, lonCell, config_gwd_cell_scaling, onUnitSphere, sphere_radius)
+
+      max_local_tiles = (topo_x/tile_x) * (topo_y/tile_y)
+      call mpas_log_write(' hi from compute_gwd_fields -- before allocate max_local_tiles:$i', intArgs=(/max_local_tiles/))
+      allocate(local_tile_x(max_local_tiles))
+      allocate(local_tile_y(max_local_tiles))
+
       !
       ! Main loop to compute each of the GWDO fields for every horizontal
       ! grid cell in the mesh.
       !
+      cum_local_tiles=0
       do iCell=1,nCells
+      !do iCell=5,65
+   
+            !
+            ! First, get an estimate of the mean diameter (in meters) of the grid 
+            ! cell by averaging the distances to each of the neighboring cells
+            !
+            dc = 0.0
+            do i=1,nEdgesOnCell(iCell)
+               dc = dc + dcEdge(edgesOnCell(i,iCell))
+            end do
+            dc = dc / real(nEdgesOnCell(iCell),RKIND)
+            if (onUnitSphere) then
+               dc = dc * sphere_radius
+            end if
+            dc = dc * config_gwd_cell_scaling
+   
+            !
+            call get_box_size_from_lat_lon(latCell(iCell),lonCell(iCell),dc,nx,ny)
+         
+         !call mpas_log_write('---- get box lon, lat ($10.5f, $10.5f) nx, ny ($i, $i)', realArgs=(/latCell(iCell)*rad2deg, lonCell(iCell)*rad2deg/), intArgs=(/nx,ny/))
+   
+            call get_box_points(latCell(iCell)*rad2deg,lonCell(iCell)*rad2deg, nx, ny)
+   
+            !iErr = determine_complete_tile_set(nCells, latCell, lonCell, config_gwd_cell_scaling, onUnitSphere, sphere_radius, dc)
+            iErr = determine_complete_tile_set(nx, ny)
+
+            if (cum_local_tiles >= max_local_tiles) exit 
+      end do   
+
+      iErr = read_global_30s_topo(geog_data_path, geog_sub_path)
+      if (iErr /= 0) then
+         call mpas_log_write('Error reading global 30-arc-sec topography for GWD statistics', messageType=MPAS_LOG_ERR)
+         return
+      end if
+
+      do iCell=1,nCells
+      !do iCell=5,65
 
          !
          ! First, get an estimate of the mean diameter (in meters) of the grid 
@@ -245,6 +318,13 @@ module mpas_init_atm_gwd
          end if
          dc = dc * config_gwd_cell_scaling
 
+
+      !call mpas_log_write('---- get box lon, lat ($10.5f, $10.5f) nx, ny ($i, $i)', realArgs=(/latCell(iCell)*rad2deg, lonCell(iCell)*rad2deg/), intArgs=(/nx,ny/))
+
+         !call get_box_points(latCell(iCell)*rad2deg, lonCell(iCell)*rad2deg, dc)
+         call get_box_size_from_lat_lon(latCell(iCell), lonCell(iCell), dc, nx, ny)
+         !iErr = determine_complete_tile_set(nCells, latCell, lonCell, config_gwd_cell_scaling, onUnitSphere, sphere_radius, dc)
+         !iErr = determine_complete_tile_set()
          !
          ! Cut out a rectangular piece of the global 30-arc-second topography
          ! data that is centered at the lat/lon of the current cell being
@@ -255,36 +335,44 @@ module mpas_init_atm_gwd
          ! computes the mean elevation in the array and stores that value in
          ! the module variable 'box_mean'.
          !
-         call get_box(latCell(iCell)*rad2deg, lonCell(iCell)*rad2deg, dc)
+         call get_box(latCell(iCell)*rad2deg, lonCell(iCell)*rad2deg, nx, ny)
+
+         call get_box_points(latCell(iCell)*rad2deg,lonCell(iCell)*rad2deg, nx, ny)
+         call get_box_new(latCell(iCell)*rad2deg, lonCell(iCell)*rad2deg, nx, ny)
 
          !
          ! With a box of 30-arc-second data for the current grid cell, call
          ! subroutines to compute each sub-grid orography statistic
          !
-         var2d(iCell) = get_var()
-         con(iCell) = get_con()
-         oa1(iCell) = get_oa1()
-         oa2(iCell) = get_oa2()
-         oa3(iCell) = get_oa3()
-         oa4(iCell) = get_oa4()
+         var2d(iCell) = get_var(nx, ny)
+         var2d_tmp = get_var_new(nx, ny)
+         call mpas_log_write('iCell = $i ....  var2d: $r  var2d_tmp: $r', intArgs=(/iCell/), realArgs=(/var2d(iCell), var2d_tmp/))
+         con(iCell) = get_con(nx, ny)
+         con_tmp = get_con_new(nx, ny)
+         call mpas_log_write('iCell = $i ....  con: $r  con_tmp: $r', intArgs=(/iCell/), realArgs=(/con(iCell), con_tmp/))
+         oa1(iCell) = get_oa1(nx, ny)
+         oa2(iCell) = get_oa2(nx, ny)
+         oa3(iCell) = get_oa3(nx, ny)
+         oa4(iCell) = get_oa4(nx, ny)
 
          ! Critical height, to be used in OL computation
          ! See Appendix of Kim, Y-J, 1996: Representation of Sub-Grid Scale Orographic Effects
          ! in a General Circulation Model. J. Climate, 9, 2698-2717.
          hc = 1116.2_RKIND - 0.878_RKIND * var2d(iCell)
 
-         ol1(iCell) = get_ol1()
-         ol2(iCell) = get_ol2()
-         ol3(iCell) = get_ol3()
-         ol4(iCell) = get_ol4()
+         ol1(iCell) = get_ol1(nx, ny)
+         ol2(iCell) = get_ol2(nx, ny)
+         ol3(iCell) = get_ol3(nx, ny)
+         ol4(iCell) = get_ol4(nx, ny)
 
-         hlanduse(iCell) = get_dom_landmask()  ! get dominant land mask in cell
+         hlanduse(iCell) = get_dom_landmask(nx, ny)  ! get dominant land mask in cell
 
 !         elvmax(iCell) = get_elvmax()
 !         htheta(iCell) = get_htheta()
 !         hgamma(iCell) = get_hgamma()
 !         hsigma(iCell) = get_hsigma()
       end do
+
 
 
       ! Smooth variance at isolated points
@@ -314,6 +402,140 @@ module mpas_init_atm_gwd
 
    end function compute_gwd_fields
 
+   subroutine get_box_size_from_lat_lon(lat, lon, dx, nx, ny)
+      
+      implicit none
+
+      real (kind=RKIND), intent(in) :: lat
+      real (kind=RKIND), intent(in) :: lon
+      real (kind=RKIND), intent(in) :: dx
+
+      integer, intent(out) :: nx
+      integer, intent(out) :: ny
+
+      !
+      ! Get number of points to extract in the zonal direction
+      !
+      if (cos(lat) > (2.0 * pts_per_degree * dx * 180.0) / (real(topo_x,RKIND) * Pi * Re)) then
+         nx = ceiling((180.0 * dx * pts_per_degree) / (Pi * Re * cos(lat)))
+      else
+         nx = topo_x / 2
+      end if
+
+      !
+      ! Get number of points to extract in the meridional direction
+      !
+      ny = ceiling((180.0 * dx * pts_per_degree) / (Pi * Re))
+
+
+   end subroutine get_box_size_from_lat_lon
+
+
+
+   function unique_tile(ix, jx, len) result (is_unique)
+      
+      implicit none
+
+      integer, intent(in) :: ix
+      integer, intent(in) :: jx
+      integer, intent(in) :: len
+
+      integer :: i
+      logical :: is_unique
+
+      do i = 1, len
+         if(local_tile_x(i)==ix .and. local_tile_y(i)==jx) then 
+            is_unique = .false.
+            return
+         end if
+      end do
+
+      is_unique = .true.
+
+   end function unique_tile
+
+   function locate_tile_in_set(tile_index_i, tile_index_j) result (tile_index)
+      
+      implicit none
+
+      integer, intent(in) :: tile_index_i
+      integer, intent(in) :: tile_index_j
+
+      integer :: itile, tile_index
+
+      do itile = 1, cum_local_tiles
+         if(local_tile_x(itile)==tile_index_i .and. local_tile_y(itile)==tile_index_j) then 
+            tile_index = itile
+            return
+         end if
+      end do
+
+      tile_index = -1
+
+   end function locate_tile_in_set
+
+   function determine_complete_tile_set(nx, ny) result(iErr)
+
+      implicit none
+      !integer, intent(in) :: nCells
+      !REAL(kind=RKIND), DIMENSION(:), POINTER, intent(in) :: latCell
+      !REAL(kind=RKIND), DIMENSION(:), POINTER, intent(in) :: lonCell
+      integer :: iErr
+      integer, intent(in) :: nx, ny
+
+      !integer, parameter :: tile_x = 1200       ! x-dimension of each tile of global 30-arc-second topography
+      !integer, parameter :: tile_y = 1200       ! y-dimension of each tile of global 30-arc-second topography
+
+      integer :: ix, jx, ii, l,i, iCell, itile, jtile
+
+      !max_local_tiles = (topo_x/tile_x) * (topo_y/tile_y)
+      !call mpas_log_write(' hi from determine_complete_tile_set -- before allocate max_local_tiles:$i', intArgs=(/max_local_tiles/))
+      !allocate(local_tile_x(max_local_tiles))
+      !allocate(local_tile_y(max_local_tiles))
+
+      
+      !call mpas_log_write(' hi from determine_complete_tile_set -- after allocate')
+      !do iCell=1,nCells
+
+         !
+         ! Cut out a rectangular piece of the global 30-arc-second topography
+         ! data that is centered at the lat/lon of the current cell being
+         ! processed and that is just large enough to cover the cell. The
+         ! rectangular array of topography data is stored in the module
+         ! variable 'box', and the dimensions of this array are given by the
+         ! module variables 'nx' and 'ny'. The get_box() routine also
+         ! computes the mean elevation in the array and stores that value in
+         ! the module variable 'box_mean'.
+         !
+         !call get_box_points(latCell(iCell)*rad2deg, lonCell(iCell)*rad2deg, dc)
+
+         !ix = nint((lonCell(iCell)*rad2deg) * pts_per_degree)
+         !jx = nint((latCell(iCell)*rad2deg - start_lat) * pts_per_degree)
+         ii = cum_local_tiles
+         do l=1,nx*ny
+            itile = floor( real(local_box_x(l) - 1) / real(tile_x)) * tile_x + 1
+            jtile = floor( real(local_box_y(l) - 1) / real(tile_y)) * tile_y + 1
+            !itile = (ix / tile_x) * tile_x + 1 
+            !jtile = (jx / tile_y) * tile_y + 1
+            !call mpas_log_write(' Checking if point ($i, $i) with lon lat ($i, $i) is already present', intArgs=(/ix, jx, nint(lonCell(iCell)*rad2deg), nint(latCell(iCell)*rad2deg)/))
+            !call mpas_log_write(' Checking if local box point ($i, $i) in tile ($i, $i) is already present', intArgs=(/local_box_x(l), local_box_y(l), itile, jtile/))
+            if(unique_tile(itile, jtile, ii)) then
+               ii = ii + 1
+               local_tile_x(ii) = itile
+               local_tile_y(ii) = jtile
+               !call mpas_log_write('---- Adding tile to local tile list ($i, $i)', intArgs=(/local_tile_x(ii),local_tile_y(ii)/))
+               !call mpas_log_write('---- local box ($i, $i)', intArgs=(/local_box_x(l),local_box_y(l)/))
+            end if
+         end do
+
+         cum_local_tiles = ii
+
+      !end do
+
+      call mpas_log_write(' hi from end of determine_complete_tile_set. We need ($i / $i) tiles ', intArgs=(/ii, max_local_tiles/))
+      !
+   end function determine_complete_tile_set
+
 
    !***********************************************************************
    !
@@ -341,12 +563,14 @@ module mpas_init_atm_gwd
       integer, parameter :: tile_bdr = 3        ! number of layers of border/halo points surrounding each tile
 
       integer (c_int) :: istatus
-      integer :: ix, iy, ishift, ix_shift
+      integer :: ix, iy, ishift, ix_shift, il
+      integer(kind=I8KIND):: ix_shift_long
       integer (c_int) :: isigned, endian, wordsize, nx, ny, nz
       real (c_float) :: scalefactor
       real (c_float), dimension(:,:,:), pointer, contiguous :: tile
       type (c_ptr) :: tile_ptr
       character(len=StrKIND) :: filename
+      character(len=StrKIND):: message
       character(kind=c_char), dimension(StrKIND+1) :: c_filename
 
       allocate(tile(tile_x+2*tile_bdr,tile_y+2*tile_bdr,1))
@@ -362,6 +586,9 @@ module mpas_init_atm_gwd
 
       ishift = 0
 
+      allocate(topo_new(tile_x*tile_y*cum_local_tiles))
+      call mpas_log_write('---- topo_x:$i topo_y: $i', intArgs=(/topo_x,topo_y/))
+      call mpas_log_write('---- tile_x:$i tile_y: $i', intArgs=(/tile_x,tile_y/))
       !
       ! For GMTED2010 data, the dataset starts at 0.0 longitude, but we need to shift the starting location
       ! in the topo array to -180.0, so we introduce an offset in the x-coordinate of topo_x/2
@@ -369,6 +596,31 @@ module mpas_init_atm_gwd
       if (trim(sub_path) == 'topo_gmted2010_30s/') then
          ishift = topo_x / 2
       end if
+
+      do il=1,cum_local_tiles
+         ix = local_tile_x(il)
+         iy = local_tile_y(il)
+         write(filename,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(path)//trim(sub_path), ix, '-', (ix+tile_x-1), '.', &
+                                                                                      iy, '-', (iy+tile_y-1)
+         call mpas_f_to_c_string(filename, c_filename)
+         call read_geogrid(c_filename, tile_ptr, nx, ny, nz, isigned, endian, &
+                           wordsize, istatus)
+         tile(:,:,:) = tile(:,:,:) * scalefactor
+         if (istatus /= 0) then
+            call mpas_log_write('Error reading topography tile '//trim(filename), messageType=MPAS_LOG_ERR)
+            iErr = 1
+            return
+         end if
+         
+         !ix_shift = mod((ix-1) + ishift, topo_x) + 1
+         ix_shift = (il-1)*tile_x*tile_y + 1
+         call mpas_log_write(' Reading tile ($i/$i) into topo_new ($i,$i) ishift: $i)', intArgs=(/il,cum_local_tiles,ix_shift,ix_shift+tile_x*tile_y-1,ishift/))
+         !call mpas_log_write(' topo_x,y ($i,$i) ', intArgs=(/topo_x, topo_y/))
+         !write(message,fmt='(A,i18,i18,A,i18,A,i18)') 'Reading tile (',il,cum_local_tiles,') topo_new start=', ix_shift_long,' end=',ix_shift_long+tile_x*tile_y-1
+         !call mpas_log_write(message)
+         topo_new(ix_shift:(ix_shift+tile_x*tile_y-1)) = reshape(tile((tile_bdr+1):(tile_x+tile_bdr),(tile_bdr+1):(tile_y+tile_bdr),1),(/tile_x*tile_y/))
+
+      end do
 
       do iy=1,topo_y,tile_y
       do ix=1,topo_x,tile_x
@@ -476,9 +728,10 @@ module mpas_init_atm_gwd
    !> \details 1 = land, 0 = water
    !
    !-----------------------------------------------------------------------
-   integer (kind=I1KIND) function get_dom_landmask( )
+   integer (kind=I1KIND) function get_dom_landmask(nx, ny)
 
       implicit none
+      integer, intent(in) :: nx, ny
 
       integer :: i, j      
       real (kind=RKIND) :: xland
@@ -503,6 +756,65 @@ module mpas_init_atm_gwd
    end function get_dom_landmask 
 
 
+   subroutine get_box_points(lat, lon, nx, ny)
+
+      implicit none
+      real (kind=RKIND), intent(in) :: lat, lon
+
+      integer, intent(in) :: nx, ny
+
+      integer :: i, j, ii, jj, ic, jc, l
+      real (kind=RKIND) :: sg_lat
+
+      !call mpas_log_write('---- get box lon, lat ($10.5f, $10.5f) nx, ny ($i, $i)', realArgs=(/lon,lat/), intArgs=(/nx,ny/))
+      !
+      !
+      ! Find coordinates in global topography array of the box center
+      !
+      ic = nint((lon) * pts_per_degree) + 1
+      jc = nint((lat - start_lat) * pts_per_degree) + 1
+
+      if (ic <= 0) ic = ic + topo_x
+      if (ic > topo_x) ic = ic - topo_x
+
+      !
+      ! Extract sub-array (box) from global array; must properly account for 
+      ! the periodicity in the longitude coordinate, as well as the poles
+      !
+      l = 0
+      do j=1,ny
+      do i=1,nx
+
+         ii = i - nx/2 + ic
+         jj = j - ny/2 + jc
+
+         if (jj <= 0) then
+            jj = -jj + 1
+            ii = ii + topo_y
+         end if
+         if (jj > topo_y) then
+            jj = topo_y - (jj - topo_y - 1)
+            ii = ii + topo_y
+         end if
+         do while (ii <= 0)
+            ii = ii + topo_x
+         end do
+         do while (ii > topo_x)
+            ii = ii - topo_x
+         end do
+         l = l + 1
+         local_box_x(l) = ii
+         local_box_y(l) = jj
+         
+ 
+      end do
+      end do
+      num_local_box_points = l
+
+   end subroutine get_box_points
+
+
+
    !***********************************************************************
    !
    !  subroutine get_box
@@ -523,30 +835,17 @@ module mpas_init_atm_gwd
    !>  this subroutine and stored in the module variable 'box_mean'.
    !
    !-----------------------------------------------------------------------
-   subroutine get_box(lat, lon, dx)
+   subroutine get_box(lat, lon, nx, ny)
 
       implicit none
 
-      real (kind=RKIND), intent(in) :: lat, lon, dx
+      real (kind=RKIND), intent(in) :: lat, lon
+      integer, intent(in) :: nx, ny
 
       integer :: i, j, ii, jj, ic, jc
       real (kind=RKIND) :: sg_lat
 
-
-      !
-      ! Get number of points to extract in the zonal direction
-      !
-      if (cos(lat/rad2deg) > (2.0 * pts_per_degree * dx * 180.0) / (real(topo_x,RKIND) * Pi * Re)) then
-         nx = ceiling((180.0 * dx * pts_per_degree) / (Pi * Re * cos(lat/rad2deg)))
-      else
-         nx = topo_x / 2
-      end if
-
-      !
-      ! Get number of points to extract in the meridional direction
-      !
-      ny = ceiling((180.0 * dx * pts_per_degree) / (Pi * Re))
-
+      !call mpas_log_write('---- get box lon, lat ($10.5f, $10.5f) nx, ny ($i, $i)', realArgs=(/lon,lat/), intArgs=(/nx,ny/))
       !
       ! Find coordinates in global topography array of the box center
       !
@@ -610,6 +909,73 @@ module mpas_init_atm_gwd
    end subroutine get_box
 
 
+   subroutine get_box_new(lat, lon, nx, ny)
+
+      implicit none
+
+      real (kind=RKIND), intent(in) :: lat, lon
+      integer, intent(in) :: nx, ny
+      integer :: itile, ix_shift, ix, jx, ibox, tile_index_i, tile_index_j
+      integer :: tile_base, tile_offset, i, j
+      
+
+      if (associated(box_new)) deallocate(box_new)
+      allocate(box_new(nx, ny))
+
+      
+      ! if (associated(box_landuse)) deallocate(box_landuse)
+      ! allocate(box_landuse(nx,ny))
+
+      ! if (associated(dxm)) deallocate(dxm)
+      ! allocate(dxm(nx,ny))
+
+      !
+      ! Extract sub-array (box) from global array; must properly account for 
+      ! the periodicity in the longitude coordinate, as well as the poles
+      !
+      box_mean_new = 0.0
+      ibox = 1
+      do j=1,ny
+         do i=1,nx
+
+      !j = 25
+      !i = 16
+         ibox = (j-1)*nx + i
+         ! pixels on the global topo grid
+         ix = local_box_x(ibox)  
+         jx = local_box_y(ibox)
+
+
+         tile_index_i = floor( real(ix - 1) / real(tile_x)) * tile_x + 1
+         tile_index_j = floor( real(jx - 1) / real(tile_y)) * tile_y + 1
+
+
+
+         itile = locate_tile_in_set(tile_index_i, tile_index_j)
+
+         !call mpas_log_write('In box_new for (i,j):($i,$i), (ix,jx):($i,$i), tile_index_i,tile_index_j:($i,$i), itile:$i ', intArgs=(/i,j,ix,jx,tile_index_i,tile_index_j,itile/))
+
+         !ix_shift = (itile-1)*tile_x*tile_y + 1
+         tile_base = (itile-1)*tile_x*tile_y + 1
+         !tile_base = local_tile_x(tile_index_i) + local_tile_y(tile_index_j)* + 
+         tile_offset = (ix - local_tile_x(itile)) + (jx - local_tile_y(itile)) * tile_x
+         !tile_offset = mod(ix, local_tile_x(tile_index_i)) + mod(jx, local_tile_y(tile_index_j)) * tile_x
+         
+         box_new(i,j) = topo_new(tile_base + tile_offset)
+         box_mean_new = box_mean_new + box_new(i,j)
+         !call mpas_log_write('In box_new for (i,j):($i,$i), (tile_base,tile_offset):($i,$i)', intArgs=(/i,j,tile_base,tile_offset/))
+         if (box_new(i,j) .ne. box(i,j)) call mpas_log_write('In box_new for (i,j):($i,$i), box_new(i,j)= $r   box(i,j)= $r ', intArgs=(/i,j/), realArgs=(/box_new(i,j),box(i,j)/))
+         ibox = ibox + 1 
+         end do
+      end do
+      !
+      ! Compute mean topography in the extracted box
+      !
+      box_mean_new = box_mean_new / real(nx*ny, RKIND)
+
+   end subroutine get_box_new
+
+
    !***********************************************************************
    !
    !  function get_var
@@ -620,11 +986,12 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_var()
+   real (kind=RKIND) function get_var(nx, ny)
 
       implicit none
 
       integer :: i, j
+      integer, intent(in) :: nx, ny
       real (kind=RKIND) :: s2
 
       s2 = 0.0
@@ -640,6 +1007,27 @@ module mpas_init_atm_gwd
    end function get_var
 
 
+   real (kind=RKIND) function get_var_new(nx, ny)
+
+      implicit none
+
+      integer :: i, j
+      integer, intent(in) :: nx, ny
+      real (kind=RKIND) :: s2
+
+      s2 = 0.0
+
+      do j=1,ny
+         do i=1,nx
+            s2 = s2 + (box_new(i,j) - box_mean_new)**2
+         end do
+      end do
+
+      get_var_new = sqrt(s2 / real(nx*ny,RKIND))
+
+   end function get_var_new
+
+
    !***********************************************************************
    !
    !  function get_con
@@ -650,11 +1038,12 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_con()
+   real (kind=RKIND) function get_con(nx, ny)
 
       implicit none
 
       integer :: i, j
+      integer, intent(in) :: nx, ny
       real (kind=RKIND) :: s2, s4, var, xland, mean_land, mean_water, oro
 
       s2 = 0.0
@@ -715,6 +1104,72 @@ module mpas_init_atm_gwd
    end function get_con
 
 
+   real (kind=RKIND) function get_con_new(nx, ny)
+
+   implicit none
+
+   integer :: i, j
+   integer, intent(in) :: nx, ny
+   real (kind=RKIND) :: s2, s4, var, xland, mean_land, mean_water, oro
+
+   s2 = 0.0
+   s4 = 0.0
+   mean_land = 0.0
+   mean_water = 0.0
+   xland = 0.0
+
+   !
+   ! Compute grid-box mean
+   !
+   do j=1,ny
+      do i=1,nx
+         if (box_landuse(i,j) /= WATER) then
+            xland = xland + 1.0
+            mean_land = mean_land + box_new(i,j)
+         else
+            mean_water = mean_water + box_new(i,j)
+         end if
+      end do
+   end do
+   if (xland > 0.0) then
+      mean_land = mean_land / xland
+   end if
+   if (xland < real(nx*ny,kind=RKIND)) then
+      mean_water = mean_water / (real(nx*ny,kind=RKIND) - xland)
+   end if
+   xland = xland / real(nx*ny,kind=RKIND)
+
+   if (xland >= 0.5_RKIND) then
+      oro = mean_land
+   else
+      oro = mean_water
+   end if
+
+   do j=1,ny
+      do i=1,nx
+         s2 = s2 + (box_new(i,j) - box_mean_new)**2
+         s4 = s4 + (box_new(i,j) - oro)**4
+      end do
+   end do
+
+   var = s2 / real(nx*ny,RKIND)
+
+   if (sqrt(var) < 1.0) then
+      get_con_new = 0.0
+   else
+      get_con_new = s4 / (var**2 * real(nx*ny,RKIND))
+   end if
+
+   !
+   ! Zero-ing all convexity statistics over dominantly water points.
+   !
+   if (xland < 0.5_RKIND) then
+      get_con_new = 0.0
+   end if
+
+   end function get_con_new
+
+
    !***********************************************************************
    !
    !  function get_oa1
@@ -727,11 +1182,12 @@ module mpas_init_atm_gwd
    !>  the comment from N. Wood in the footnote of Kim and Doyle (QRJMS, 2005).
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_oa1()
+   real (kind=RKIND) function get_oa1(nx, ny)
 
       implicit none
 
       integer :: i, j
+      integer, intent(in) :: nx, ny
       integer :: nu, nd
 
       nu = 0
@@ -766,9 +1222,10 @@ module mpas_init_atm_gwd
    !>  the comment from N. Wood in the footnote of Kim and Doyle (QRJMS, 2005).
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_oa2()
+   real (kind=RKIND) function get_oa2(nx, ny)
 
       implicit none
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       integer :: nu, nd
@@ -807,9 +1264,10 @@ module mpas_init_atm_gwd
    !>  the comment from N. Wood in the footnote of Kim and Doyle (QRJMS, 2005).
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_oa3()
+   real (kind=RKIND) function get_oa3(nx, ny)
 
       implicit none
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       integer :: nu, nd
@@ -849,9 +1307,10 @@ module mpas_init_atm_gwd
    !>  the comment from N. Wood in the footnote of Kim and Doyle (QRJMS, 2005).
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_oa4()
+   real (kind=RKIND) function get_oa4(nx, ny)
 
       implicit none
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       integer :: nu, nd
@@ -889,9 +1348,10 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_ol1()
+   real (kind=RKIND) function get_ol1(nx, ny)
 
       implicit none
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       integer :: nw
@@ -922,9 +1382,10 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_ol2()
+   real (kind=RKIND) function get_ol2(nx, ny)
 
       implicit none
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       integer :: nw
@@ -955,9 +1416,10 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_ol3()
+   real (kind=RKIND) function get_ol3(nx, ny)
 
       implicit none
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       integer :: nw
@@ -994,9 +1456,10 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_ol4()
+   real (kind=RKIND) function get_ol4(nx, ny)
 
       implicit none
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       integer :: nw
@@ -1033,9 +1496,10 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_elvmax()
+   real (kind=RKIND) function get_elvmax(nx, ny)
 
       implicit none
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
 
@@ -1062,9 +1526,10 @@ module mpas_init_atm_gwd
    !> \details Computation following Lott and Miller (QJRMS 1997)
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_htheta()
+   real (kind=RKIND) function get_htheta(nx, ny)
 
       implicit none
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       real (kind=RKIND) :: dx, dy
@@ -1110,9 +1575,10 @@ module mpas_init_atm_gwd
    !> \details Computation following Lott and Miller (QJRMS 1997)
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_hgamma()
+   real (kind=RKIND) function get_hgamma(nx, ny)
 
       implicit none
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       real (kind=RKIND) :: dx, dy
@@ -1163,9 +1629,10 @@ module mpas_init_atm_gwd
    !> \details Computation following Lott and Miller (QJRMS 1997)
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_hsigma()
+   real (kind=RKIND) function get_hsigma(nx, ny)
 
       implicit none
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       real (kind=RKIND) :: dx, dy
