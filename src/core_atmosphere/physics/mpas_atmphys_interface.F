@@ -387,7 +387,7 @@
           enddo
        endif
        !initializes nc_p when running the option "mp_thompson_aerosols" or mp_nssl:
-       if(f_nca) then
+       if(f_nc) then
           nullify(nc)
           call mpas_pool_get_dimension(state,'index_nc',index_nc)
           nc   => scalars(index_nc,:,:)
@@ -667,7 +667,7 @@
           qg_p(i,k,j) = qg(k,i)
 
           rainprod_p(i,k,j) = rainprod(k,i)
-          evapprod_p(i,k,j) = evapprod(k,k)
+          evapprod_p(i,k,j) = evapprod(k,i)
           recloud_p(i,k,j)  = re_cloud(k,i)
           reice_p(i,k,j)    = re_ice(k,i)
           resnow_p(i,k,j)   = re_snow(k,i)
@@ -735,7 +735,7 @@
             call mpas_pool_get_dimension(state,'index_ns'  ,index_ns  )
             call mpas_pool_get_dimension(state,'index_ng'  ,index_ng  )
             call mpas_pool_get_dimension(state,'index_volg' ,index_volg  )
-                call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
+            call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
              ni   => scalars(index_ni,:,:)
              nr   => scalars(index_nr,:,:)
              nc   => scalars(index_nc,:,:)
@@ -755,7 +755,7 @@
                volh => scalars(index_volh,:,:)
              ENDIF
    
-             do j = jts, jte
+             do j = jts, jte ! note that jts=jte=1
              do k = kts, kte
              do i = its, ite
                IF ( config_nssl_hail_on ) THEN
@@ -1047,6 +1047,7 @@
           case("mp_thompson","mp_thompson_aerosols")
              call mpas_pool_get_dimension(state,'index_ni',index_ni)
              call mpas_pool_get_dimension(state,'index_nr',index_nr)
+             call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
              ni   => scalars(index_ni,:,:)
              nr   => scalars(index_nr,:,:)
 
@@ -1102,6 +1103,7 @@
          call mpas_pool_get_dimension(state,'index_zrw'  ,index_zrw  )
          call mpas_pool_get_dimension(state,'index_zgw'  ,index_zgw  )
          call mpas_pool_get_dimension(state,'index_zhw'  ,index_zhw  )
+         call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
 
           IF ( config_nssl_hail_on ) THEN
             qh   => scalars(index_qh,:,:)

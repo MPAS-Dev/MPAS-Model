@@ -1556,7 +1556,7 @@
 
                         <var name="qc" array_group="moist" units="kg kg^{-1}"
                              description="Cloud water mixing ratio"
-                             packages="bl_mynn_in;bl_ysu_in;cu_tiedtke_in;mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in"/>
+                             packages="bl_mynn_in;bl_ysu_in;cu_ntiedtke_in;mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in"/>
 
                         <var name="qr" array_group="moist" units="kg kg^{-1}"
                              description="Rain water mixing ratio"
@@ -1564,7 +1564,7 @@
 
                         <var name="qi" array_group="moist" units="kg kg^{-1}"
                              description="Ice mixing ratio"
-                             packages="bl_mynn_in;bl_ysu_in;cu_tiedtke_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in"/>
+                             packages="bl_mynn_in;bl_ysu_in;cu_ntiedtke_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in"/>
 
                         <var name="qs" array_group="moist" units="kg kg^{-1}"
                              description="Snow mixing ratio"
@@ -1938,7 +1938,7 @@
 
                         <var name="tend_qc" name_in_code="qc" array_group="moist" units="kg m^{-3} s^{-1}"
                              description="Tendency of cloud water mass per unit volume divided by d(zeta)/dz"
-                             packages="bl_mynn_in;bl_ysu_in;cu_tiedtke_in;mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in"/>
+                             packages="bl_mynn_in;bl_ysu_in;cu_ntiedtke_in;mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in"/>
 
                         <var name="tend_qr" name_in_code="qr" array_group="moist" units="kg m^{-3} s^{-1}"
                              description="Tendency of rain water mass per unit volume divided by d(zeta)/dz"
@@ -1946,7 +1946,7 @@
 
                         <var name="tend_qi" name_in_code="qi" array_group="moist" units="kg m^{-3} s^{-1}"
                              description="Tendency of ice mass per unit volume divided by d(zeta)/dz"
-                             packages="bl_mynn_in;bl_ysu_in;cu_tiedtke_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in"/>
+                             packages="bl_mynn_in;bl_ysu_in;cu_ntiedtke_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in"/>
 
                         <var name="tend_qs" name_in_code="qs" array_group="moist" units="kg m^{-3} s^{-1}"
                              description="Tendency of snow mass per unit volume divided by d(zeta)/dz"
@@ -2054,13 +2054,13 @@
                              units="kg kg^{-1} s^{-1}"
                              description="Lateral boundary tendency of water vapor mixing ratio"/>
 
-                        <var name="lbc_qc" name_in_code="qc" array_group="moist"  packages="bl_mynn_in;cu_tiedtke_in;mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in" units="kg kg^{-1} s^{-1}"
+                        <var name="lbc_qc" name_in_code="qc" array_group="moist"  packages="bl_mynn_in;cu_ntiedtke_in;mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in" units="kg kg^{-1} s^{-1}"
                              description="Lateral boundary tendency of cloud water mixing ratio"/>
 
                         <var name="lbc_qr" name_in_code="qr" array_group="moist"  packages="mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in" units="kg kg^{-1} s^{-1}"
                              description="Lateral boundary tendency of rain water mixing ratio"/>
 
-                        <var name="lbc_qi" name_in_code="qi" array_group="moist"  packages="bl_mynn_in;cu_tiedtke_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in" units="kg kg^{-1} s^{-1}"
+                        <var name="lbc_qi" name_in_code="qi" array_group="moist"  packages="bl_mynn_in;cu_ntiedtke_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in" units="kg kg^{-1} s^{-1}"
                              description="Lateral boundary tendency of ice mixing ratio"/>
 
                         <var name="lbc_qs" name_in_code="qs" array_group="moist"  packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in" units="kg kg^{-1} s^{-1}"
@@ -2078,7 +2078,7 @@
                         <var name="lbc_ni" name_in_code="ni" array_group="number" packages="bl_mynn_in;mp_thompson_in;mp_thompson_aers_in;mp_nssl2m_in" units="m^{-3} s^{-1}"
                              description="Lateral boundary tendency of ice number concentration"/>
 
-                        <var name="lbc_nc" name_in_code="nc" array_group="number" packages="mp_thompson_aers_inmp_nssl2m_in" units="m^{-3} s^{-1}"
+                        <var name="lbc_nc" name_in_code="nc" array_group="number" packages="mp_thompson_aers_in;mp_nssl2m_in" units="m^{-3} s^{-1}"
                              description="Lateral boundary tendency of droplet number concentration"/>
 
                         <var name="lbc_ns" name_in_code="ns" array_group="number" packages="mp_nssl2m_in" units="m^{-3} s^{-1}"
