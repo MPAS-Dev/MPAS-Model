@@ -127,8 +127,6 @@ module mpas_init_atm_gwd
       character(len=StrKIND), pointer :: config_topo_data
       character(len=StrKIND) :: geog_sub_path
       character(len=StrKIND+1) :: geog_data_path      ! same as config_geog_data_path, but guaranteed to have a trailing slash
-      real (kind=RKIND) :: var2d_tmp, con_tmp, oa1_tmp, oa2_tmp, oa3_tmp, oa4_tmp, ol1_tmp, ol2_tmp, ol3_tmp, ol4_tmp, hlanduse_tmp
-      real (kind=RKIND) :: elvmax_1, htheta_1, hgamma_1, hsigma_1, elvmax_tmp, htheta_tmp, hgamma_tmp, hsigma_tmp
 
       ! Variables for smoothing variance
       integer, dimension(:,:), pointer:: cellsOnCell
@@ -204,20 +202,6 @@ module mpas_init_atm_gwd
 !      call mpas_pool_get_array(mesh, 'gamma', hgamma)
 !      call mpas_pool_get_array(mesh, 'sigma', hsigma)
 
-      !
-      ! Get number of points to extract in the zonal direction
-      !
-      ! if (cos(lat/rad2deg) > (2.0 * pts_per_degree * dx * 180.0) / (real(topo_x,RKIND) * Pi * Re)) then
-      !    nx = ceiling((180.0 * dx * pts_per_degree) / (Pi * Re * cos(lat/rad2deg)))
-      ! else
-      !    nx = topo_x / 2
-      ! end if
-
-      ! !
-      ! ! Get number of points to extract in the meridional direction
-      ! !
-      ! ny = ceiling((180.0 * dx * pts_per_degree) / (Pi * Re))
-
       nx = 22000
       ny = 300
 
@@ -225,10 +209,7 @@ module mpas_init_atm_gwd
       allocate(local_box_y(nx*ny))
 
       allocate(hlanduse(nCells+1))    ! +1, since we access hlanduse(cellsOnCell(i,iCell)) later on for iCell=1,nCells
-      
-     
-
-      
+       
 
       !
       ! It is possible that this code is called before the mesh fields have been scaled
@@ -249,10 +230,8 @@ module mpas_init_atm_gwd
          call mpas_log_write('in the computation of GWD static fields.')
       end if
 
-      !iErr = determine_complete_tile_set(nCells, latCell, lonCell, config_gwd_cell_scaling, onUnitSphere, sphere_radius)
 
       max_local_tiles = (topo_x/tile_x) * (topo_y/tile_y)
-      call mpas_log_write(' hi from compute_gwd_fields -- before allocate max_local_tiles:$i', intArgs=(/max_local_tiles/))
       allocate(local_tile_x(max_local_tiles))
       allocate(local_tile_x_land(max_local_tiles))
       allocate(local_tile_y(max_local_tiles))
@@ -264,30 +243,26 @@ module mpas_init_atm_gwd
       !
       cum_local_tiles=0
       do iCell=1,nCells
-      !do iCell=5,25
    
-            !
-            ! First, get an estimate of the mean diameter (in meters) of the grid 
-            ! cell by averaging the distances to each of the neighboring cells
-            !
-            dc = 0.0
-            do i=1,nEdgesOnCell(iCell)
-               dc = dc + dcEdge(edgesOnCell(i,iCell))
-            end do
-            dc = dc / real(nEdgesOnCell(iCell),RKIND)
-            if (onUnitSphere) then
-               dc = dc * sphere_radius
-            end if
-            dc = dc * config_gwd_cell_scaling
-   
-            !
-            call get_box_size_from_lat_lon(latCell(iCell),lonCell(iCell),dc,nx,ny)
-   
-            call get_box_points(latCell(iCell)*rad2deg,lonCell(iCell)*rad2deg, nx, ny)
+         !
+         ! First, get an estimate of the mean diameter (in meters) of the grid 
+         ! cell by averaging the distances to each of the neighboring cells
+         !
+         dc = 0.0
+         do i=1,nEdgesOnCell(iCell)
+            dc = dc + dcEdge(edgesOnCell(i,iCell))
+         end do
+         dc = dc / real(nEdgesOnCell(iCell),RKIND)
+         if (onUnitSphere) then
+            dc = dc * sphere_radius
+         end if
+         dc = dc * config_gwd_cell_scaling
 
-            iErr = determine_complete_tile_set(nx, ny)
+         call get_box_size_from_lat_lon(latCell(iCell),lonCell(iCell),dc,nx,ny)
+         call get_box_points(latCell(iCell)*rad2deg,lonCell(iCell)*rad2deg, nx, ny)
 
-            if (cum_local_tiles >= max_local_tiles) exit 
+         iErr = determine_complete_tile_set(nx, ny)
+         if (cum_local_tiles >= max_local_tiles) exit 
       end do
 
       call mpas_log_write(' End of determine_complete_tile_set. We need ($i / $i) tiles ', intArgs=(/cum_local_tiles, max_local_tiles/))
@@ -305,7 +280,6 @@ module mpas_init_atm_gwd
       end if
       
       do iCell=1,nCells
-      !do iCell=5,25
 
          !
          ! First, get an estimate of the mean diameter (in meters) of the grid 
@@ -364,7 +338,6 @@ module mpas_init_atm_gwd
          ! hsigma_1 = get_hsigma(nx,ny)
          
       end do
-
 
 
       ! Smooth variance at isolated points
@@ -474,29 +447,8 @@ module mpas_init_atm_gwd
       integer :: iErr
       integer, intent(in) :: nx, ny
 
-      !integer, parameter :: tile_x = 1200       ! x-dimension of each tile of global 30-arc-second topography
-      !integer, parameter :: tile_y = 1200       ! y-dimension of each tile of global 30-arc-second topography
-
       integer :: ix, jx, ii, l,i, iCell, itile, jtile
 
-      !max_local_tiles = (topo_x/tile_x) * (topo_y/tile_y)
-      !call mpas_log_write(' hi from determine_complete_tile_set -- before allocate max_local_tiles:$i', intArgs=(/max_local_tiles/))
-      !allocate(local_tile_x(max_local_tiles))
-      !allocate(local_tile_y(max_local_tiles))
-
-      
-     
-
-         !
-         ! Cut out a rectangular piece of the global 30-arc-second topography
-         ! data that is centered at the lat/lon of the current cell being
-         ! processed and that is just large enough to cover the cell. The
-         ! rectangular array of topography data is stored in the module
-         ! variable 'box', and the dimensions of this array are given by the
-         ! module variables 'nx' and 'ny'. The get_box() routine also
-         ! computes the mean elevation in the array and stores that value in
-         ! the module variable 'box_mean'.
-         !
       ii = cum_local_tiles
       do l=1,nx*ny
          
@@ -550,7 +502,6 @@ module mpas_init_atm_gwd
 
       integer (c_int) :: istatus
       integer :: ix, iy, ix_shift, il
-      integer(kind=I8KIND):: ix_shift_long
       integer (c_int) :: isigned, endian, wordsize, nx, ny, nz
       real (c_float) :: scalefactor
       real (c_float), dimension(:,:,:), pointer, contiguous :: tile
@@ -574,8 +525,6 @@ module mpas_init_atm_gwd
 
       allocate(topo(tile_x*tile_y*cum_local_tiles))
       
-      call mpas_log_write('---- topo_x:$i topo_y: $i', intArgs=(/topo_x,topo_y/))
-      call mpas_log_write('---- tile_x:$i tile_y: $i', intArgs=(/tile_x,tile_y/))
       !
       ! For GMTED2010 data, the dataset starts at 0.0 longitude, but we need to shift the starting location
       ! in the topo array to -180.0, so we introduce an offset in the x-coordinate of topo_x/2
@@ -601,12 +550,9 @@ module mpas_init_atm_gwd
          end if
          
          ix_shift = (il-1)*tile_x*tile_y + 1
-         !call mpas_log_write(' Reading tile ($i/$i) into topo_new ($i,$i) ishift: $i)', intArgs=(/il,cum_local_tiles,ix_shift,ix_shift+tile_x*tile_y-1,topo_shift/))
-         
          topo(ix_shift:(ix_shift+tile_x*tile_y-1)) = reshape(tile((tile_bdr+1):(tile_x+tile_bdr),(tile_bdr+1):(tile_y+tile_bdr),1),(/tile_x*tile_y/))
 
       end do
-
 
       deallocate(tile)
 
@@ -678,12 +624,9 @@ module mpas_init_atm_gwd
          end if
          
          ix_shift = (il-1)*tile_x*tile_y + 1
-         !call mpas_log_write(' Reading tile ($i/$i) into landuse_new ($i,$i) ishift: $i)', intArgs=(/il,cum_local_tiles,ix_shift,ix_shift+tile_x*tile_y-1,topo_shift/))
-         
          landuse(ix_shift:(ix_shift+tile_x*tile_y-1)) = reshape(int(tile(1:tile_x,1:tile_y,1), kind=I1KIND),(/tile_x*tile_y/))
          
       end do
-
 
       deallocate(tile)
 
@@ -820,7 +763,7 @@ module mpas_init_atm_gwd
       
 
       if (associated(box)) deallocate(box)
-      allocate(box(nx, ny))
+      allocate(box(nx,ny))
       
       if (associated(box_landuse)) deallocate(box_landuse)
       allocate(box_landuse(nx,ny))
@@ -868,6 +811,8 @@ module mpas_init_atm_gwd
             ibox = ibox + 1 
          end do
       end do
+
+
       !
       ! Compute mean topography in the extracted box
       !
@@ -905,7 +850,6 @@ module mpas_init_atm_gwd
       get_var = sqrt(s2 / real(nx*ny,RKIND))
 
    end function get_var
-
 
 
    !***********************************************************************
@@ -982,7 +926,6 @@ module mpas_init_atm_gwd
       end if
 
    end function get_con
-
 
 
    !***********************************************************************
@@ -1185,6 +1128,7 @@ module mpas_init_atm_gwd
       get_ol1 = real(nw,RKIND) / real(nt,RKIND)
 
    end function get_ol1
+
 
    !***********************************************************************
    !
@@ -1431,6 +1375,7 @@ module mpas_init_atm_gwd
       end if
 
    end function get_hgamma
+
 
    !***********************************************************************
    !
