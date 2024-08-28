@@ -1175,9 +1175,9 @@
 			<var name="surface_pressure"/>
 #ifdef DO_PHYSICS
 			<var name="cldfrac"/>
-			<var name="re_cloud" packages="mp_thompson_in;mp_wsm6_in"/>
-			<var name="re_ice" packages="mp_thompson_in;mp_wsm6_in"/>
-			<var name="re_snow" packages="mp_thompson_in;mp_wsm6_in"/>
+			<var name="re_cloud" packages="mp_thompson_in;mp_nssl2m_in;mp_wsm6_in"/>
+			<var name="re_ice" packages="mp_thompson_in;mp_nssl2m_in;mp_wsm6_in"/>
+			<var name="re_snow" packages="mp_thompson_in;mp_nssl2m_in;mp_wsm6_in"/>
 			<var name="refl10cm_max"/>
 			<var name="rainc"/>
 			<var name="rainnc"/>
@@ -1578,17 +1578,17 @@
                              description="Hail mixing ratio"
                              packages="nssl_hail_in"/>
 
-                        <var name="ni" array_group="number" units="nb kg^{-1}"
-                             description="Cloud ice number concentration"
-                             packages="bl_mynn_in;mp_thompson_in;mp_thompson_aers_in;mp_nssl2m_in"/>
+                        <var name="nc" array_group="number" units="nb kg^{-1}"
+                             description="Cloud droplet number concentration"
+                             packages="mp_thompson_aers_in;mp_nssl2m_in"/>
 
                         <var name="nr" array_group="number" units="nb kg^{-1}"
                              description="Rain number concentration"
                              packages="mp_thompson_in;mp_thompson_aers_in;mp_nssl2m_in"/>
 
-                        <var name="nc" array_group="number" units="nb kg^{-1}"
-                             description="Cloud droplet number concentration"
-                             packages="mp_thompson_aers_in;mp_nssl2m_in"/>
+                        <var name="ni" array_group="number" units="nb kg^{-1}"
+                             description="Cloud ice number concentration"
+                             packages="bl_mynn_in;mp_thompson_in;mp_thompson_aers_in;mp_nssl2m_in"/>
 
                         <var name="ns" array_group="number" units="nb kg^{-1}"
                              description="Snow number concentration"
@@ -2072,14 +2072,14 @@
                         <var name="lbc_qh" name_in_code="qh" array_group="moist"  packages="mp_nssl2m_in" units="kg kg^{-1} s^{-1}"
                              description="Lateral boundary tendency of hail mixing ratio"/>
 
+                        <var name="lbc_nc" name_in_code="nc" array_group="number" packages="mp_thompson_aers_in;mp_nssl2m_in" units="m^{-3} s^{-1}"
+                             description="Lateral boundary tendency of droplet number concentration"/>
+
                         <var name="lbc_nr" name_in_code="nr" array_group="number" packages="mp_thompson_in;mp_thompson_aers_in;mp_nssl2m_in" units="m^{-3} s^{-1}"
                              description="Lateral boundary tendency of rain number concentration"/>
 
                         <var name="lbc_ni" name_in_code="ni" array_group="number" packages="bl_mynn_in;mp_thompson_in;mp_thompson_aers_in;mp_nssl2m_in" units="m^{-3} s^{-1}"
                              description="Lateral boundary tendency of ice number concentration"/>
-
-                        <var name="lbc_nc" name_in_code="nc" array_group="number" packages="mp_thompson_aers_in;mp_nssl2m_in" units="m^{-3} s^{-1}"
-                             description="Lateral boundary tendency of droplet number concentration"/>
 
                         <var name="lbc_ns" name_in_code="ns" array_group="number" packages="mp_nssl2m_in" units="m^{-3} s^{-1}"
                              description="Lateral boundary tendency of snow number concentration"/>
@@ -3403,43 +3403,43 @@
 
                 <var name="rthmpten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
                      description="tendency of potential temperature due to cloud microphysics"
-                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in"/>
+                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
                 <var name="rqvmpten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of water vapor mixing ratio due to cloud microphysics"
-                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in"/>
+                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
                 <var name="rqcmpten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of cloud water mixing ratio due to cloud microphysics"
-                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in"/>
+                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
                 <var name="rqrmpten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of rain mixing ratio due to cloud microphysics"
-                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in"/>
+                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
                 <var name="rqimpten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of cloud ice mixing ratio due to cloud microphysics"
-                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in"/>
+                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
                 <var name="rqsmpten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of snow mixing ratio due to cloud microphysics"
-                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in"/>
+                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
                 <var name="rqgmpten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of graupel mixing ratio due to cloud microphysics"
-                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl2m_in"/>
+                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
                 <var name="rnimpten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of cloud ice number concentration due to microphysics"
-                     packages="mp_thompson_in;mp_thompson_aers_in;mp_nssl2m_in"/>
+                     packages="mp_thompson_in;mp_thompson_aers_in"/>
 
                 <var name="rnrmpten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of rain number concentration due to microphysics"
-                     packages="mp_thompson_in;mp_thompson_aers_in;mp_nssl2m_in"/>
+                     packages="mp_thompson_in;mp_thompson_aers_in"/>
 
                 <var name="rncmpten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of cloud water number concentration due to microphysics"
-                     packages="mp_thompson_aers_in;mp_nssl2m_in"/>
+                     packages="mp_thompson_aers_in"/>
 
                 <var name="rnifampten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of ice-friendly aerosol number concentration due to microphysics"

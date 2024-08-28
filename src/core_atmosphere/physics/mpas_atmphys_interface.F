@@ -729,16 +729,16 @@
 
 
           case("mp_nssl2m")
+            call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
             call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
             call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
-            call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
             call mpas_pool_get_dimension(state,'index_ns'  ,index_ns  )
             call mpas_pool_get_dimension(state,'index_ng'  ,index_ng  )
             call mpas_pool_get_dimension(state,'index_volg' ,index_volg  )
             call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
+             nc   => scalars(index_nc,:,:)
              ni   => scalars(index_ni,:,:)
              nr   => scalars(index_nr,:,:)
-             nc   => scalars(index_nc,:,:)
              ns   => scalars(index_ns,:,:)
              ng   => scalars(index_ng,:,:)
              IF ( config_nssl_ccn_on ) THEN
@@ -759,17 +759,20 @@
              do k = kts, kte
              do i = its, ite
                IF ( config_nssl_hail_on ) THEN
-                qh_p(i,k,j) = qh(k,i)
-                nh_p(i,k,j) = nh(k,i)
-                volh_p(i,k,j) = volh(k,i)
+                qh_p(i,k,j)   = scalars(index_qh,k,i)
+                nh_p(i,k,j)   = scalars(index_nh,k,i)
+                volh_p(i,k,j) = scalars(index_volh,k,i)
                ENDIF
-                ni_p(i,k,j) = ni(k,i)
-                nr_p(i,k,j) = nr(k,i)
-                nc_p(i,k,j) = nc(k,i)
-                ns_p(i,k,j) = ns(k,i)
-                ng_p(i,k,j) = ng(k,i)
-                nccn_p(i,k,j) = nccn(k,i)
-                volg_p(i,k,j) = volg(k,i)
+              !  nc_p(i,k,j) = nc(k,i)
+                nc_p(i,k,j) = scalars(index_nc,k,i)
+                ni_p(i,k,j) = scalars(index_ni,k,i)
+                nr_p(i,k,j) = scalars(index_nr,k,i)
+                ns_p(i,k,j) = scalars(index_ns,k,i)
+                ng_p(i,k,j) = scalars(index_ng,k,i)
+                IF ( config_nssl_ccn_on ) THEN
+                 nccn_p(i,k,j) = scalars(index_nccn,k,i)
+                ENDIF
+                volg_p(i,k,j) = scalars(index_volg,k,i)
                 refl10cm_p(i,k,j) = refl10cm(k,i)
              enddo
              enddo
@@ -787,10 +790,10 @@
                do j = jts, jte
                do k = kts, kte
                do i = its, ite
-                  zrw_p(i,k,j) = zrw(k,i)
-                  zgw_p(i,k,j) = zgw(k,i)
+                  zrw_p(i,k,j) = scalars(index_zrw,k,i)
+                  zgw_p(i,k,j) = scalars(index_zgw,k,i)
                   IF ( config_nssl_hail_on ) THEN
-                    zhw_p(i,k,j) = zhw(k,i)
+                    zhw_p(i,k,j) = scalars(index_zhw,k,i)
                   ENDIF
                enddo
                enddo
@@ -806,7 +809,7 @@
 
 !begin calculation of cloud microphysics tendencies:
  mp_tend_select: select case(trim(mp_scheme))
-    case("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_nssl2m")
+    case("mp_thompson","mp_thompson_aerosols","mp_wsm6")
        call mpas_pool_get_array(tend_physics,'rthmpten',rthmpten)
        call mpas_pool_get_array(tend_physics,'rqvmpten',rqvmpten)
        call mpas_pool_get_array(tend_physics,'rqcmpten',rqcmpten)
@@ -828,7 +831,7 @@
        enddo
 
        mp2_tend_select: select case(trim(mp_scheme))
-          case("mp_thompson","mp_thompson_aerosols","mp_nssl2m")
+          case("mp_thompson","mp_thompson_aerosols")
              call mpas_pool_get_array(tend_physics,'rnimpten',rnimpten)
              call mpas_pool_get_array(tend_physics,'rnrmpten',rnrmpten)
 
@@ -850,16 +853,6 @@
                       rncmpten(k,i) = nc(k,i)
                       rnifampten(k,i) = nifa(k,i)
                       rnwfampten(k,i) = nwfa(k,i)
-                   enddo
-                   enddo
-
-                case("mp_nssl2m")
-                ! eventually can add the rest of the mp_nssl variables here, but need to add to registry first
-                   call mpas_pool_get_array(tend_physics,'rncmpten',rncmpten)
-
-                   do k = kts,kte
-                   do i = its,ite
-                      rncmpten(k,i) = nc(k,i)
                    enddo
                    enddo
 
@@ -1090,22 +1083,18 @@
 
        case("mp_nssl2m")
 
-         call mpas_pool_get_dimension(state,'index_qh'  ,index_qh  )
+         call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
          call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
          call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
-         call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
          call mpas_pool_get_dimension(state,'index_ns'  ,index_ns  )
          call mpas_pool_get_dimension(state,'index_ng'  ,index_ng  )
-         call mpas_pool_get_dimension(state,'index_nh'  ,index_nh  )
-         call mpas_pool_get_dimension(state,'index_nccn'  ,index_nccn  )
          call mpas_pool_get_dimension(state,'index_volg'  ,index_volg  )
-         call mpas_pool_get_dimension(state,'index_volh'  ,index_volh  )
-         call mpas_pool_get_dimension(state,'index_zrw'  ,index_zrw  )
-         call mpas_pool_get_dimension(state,'index_zgw'  ,index_zgw  )
-         call mpas_pool_get_dimension(state,'index_zhw'  ,index_zhw  )
          call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
 
           IF ( config_nssl_hail_on ) THEN
+            call mpas_pool_get_dimension(state,'index_qh'  ,index_qh  )
+            call mpas_pool_get_dimension(state,'index_nh'  ,index_nh  )
+            call mpas_pool_get_dimension(state,'index_volh'  ,index_volh  )
             qh   => scalars(index_qh,:,:)
             nh   => scalars(index_nh,:,:)
             volh => scalars(index_volh,:,:)
@@ -1115,44 +1104,50 @@
           nc   => scalars(index_nc,:,:)
           ns   => scalars(index_ns,:,:)
           ng   => scalars(index_ng,:,:)
+          volg => scalars(index_volg,:,:)
           IF ( config_nssl_ccn_on ) THEN
+            call mpas_pool_get_dimension(state,'index_nccn'  ,index_nccn  )
             nccn => scalars(index_nccn,:,:)
           ENDIF
-          volg => scalars(index_volg,:,:)
 
           do j = jts, jte
           do k = kts, kte
           do i = its, ite
              IF ( config_nssl_hail_on ) THEN
-              qh(k,i) = qh_p(i,k,j)
-              nh(k,i) = nh_p(i,k,j)
-              volh(k,i) = volh_p(i,k,j)
+              scalars(index_qh,k,i)   = qh_p(i,k,j)
+              scalars(index_nh,k,i)   = nh_p(i,k,j)
+              scalars(index_volh,k,i) = volh_p(i,k,j)
              ENDIF
-             ni(k,i) = ni_p(i,k,j)
-             nr(k,i) = nr_p(i,k,j)
-             nc(k,i) = nc_p(i,k,j)
-             ns(k,i) = ns_p(i,k,j)
-             ng(k,i) = ng_p(i,k,j)
-             nccn(k,i) = nccn_p(i,k,j)
-             volg(k,i) = volg_p(i,k,j)
+             scalars(index_ni,k,i) = ni_p(i,k,j)
+             scalars(index_nr,k,i) = nr_p(i,k,j)
+             scalars(index_nc,k,i) = nc_p(i,k,j)
+             scalars(index_ns,k,i) = ns_p(i,k,j)
+             scalars(index_ng,k,i) = ng_p(i,k,j)
+             IF ( config_nssl_ccn_on ) THEN
+               scalars(index_nccn,k,i) = nccn_p(i,k,j)
+             ENDIF
+             scalars(index_volg,k,i) = volg_p(i,k,j)
              refl10cm(k,i) = refl10cm_p(i,k,j)
           enddo
           enddo
           enddo
 
           IF ( config_nssl_3moment ) THEN
+            call mpas_pool_get_dimension(state,'index_zrw'  ,index_zrw  )
+            call mpas_pool_get_dimension(state,'index_zgw'  ,index_zgw  )
             zrw   => scalars(index_zrw,:,:)
             zgw   => scalars(index_zgw,:,:)
             IF ( config_nssl_hail_on ) THEN
+              call mpas_pool_get_dimension(state,'index_zhw'  ,index_zhw  )
               zhw   => scalars(index_zhw,:,:)
             ENDIF
             do j = jts, jte
             do k = kts, kte
             do i = its, ite
-               zrw(k,i) = zrw_p(i,k,j)
-               zgw(k,i) = zgw_p(i,k,j)
+               scalars(index_zrw,k,i) = zrw_p(i,k,j)
+               scalars(index_zgw,k,i) = zgw_p(i,k,j)
                IF ( config_nssl_hail_on ) THEN
-                zhw(k,i) = zhw_p(i,k,j)
+                scalars(index_zhw,k,i) = zhw_p(i,k,j)
                ENDIF
             enddo
             enddo
@@ -1167,7 +1162,7 @@
 
 !end calculation of cloud microphysics tendencies:
  mp_tend_select: select case(trim(mp_scheme))
-    case("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_nssl2m")
+    case("mp_thompson","mp_thompson_aerosols","mp_wsm6")
        call mpas_pool_get_array(tend_physics,'rthmpten',rthmpten)
        call mpas_pool_get_array(tend_physics,'rqvmpten',rqvmpten)
        call mpas_pool_get_array(tend_physics,'rqcmpten',rqcmpten)
@@ -1189,7 +1184,7 @@
        enddo
 
        mp2_tend_select: select case(trim(mp_scheme))
-          case("mp_thompson","mp_thompson_aerosols","mp_nssl2m")
+          case("mp_thompson","mp_thompson_aerosols")
              call mpas_pool_get_array(tend_physics,'rnimpten',rnimpten)
              call mpas_pool_get_array(tend_physics,'rnrmpten',rnrmpten)
 
@@ -1211,15 +1206,6 @@
                       rncmpten(k,i)   = (nc(k,i)-rncmpten(k,i))/dt_dyn
                       rnifampten(k,i) = (nifa(k,i)-rnifampten(k,i))/dt_dyn
                       rnwfampten(k,i) = (nwfa(k,i)-rnwfampten(k,i))/dt_dyn
-                   enddo
-                   enddo
-
-                case("mp_nssl2m")
-                   call mpas_pool_get_array(tend_physics,'rncmpten',rncmpten)
-
-                   do k = kts,kte
-                   do i = its,ite
-                      rncmpten(k,i)   = (nc(k,i)-rncmpten(k,i))/dt_dyn
                    enddo
                    enddo
 
