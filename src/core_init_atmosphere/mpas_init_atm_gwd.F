@@ -295,7 +295,7 @@ module mpas_init_atm_gwd
          end if
          dc = dc * config_gwd_cell_scaling
 
-         call get_box_size_from_lat_lon(latCell(iCell), lonCell(iCell), dc, nx, ny)
+         call get_box_size_from_lat_lon(latCell(iCell)*rad2deg, lonCell(iCell)*rad2deg, dc, nx, ny)
 
          if (iCell==2621501) call mpas_log_write(' iCell is selected nx, ny = $i $i, lat lon $r $r', intArgs=(/nx, ny/), realArgs=(/latCell(iCell)*rad2deg,lonCell(iCell)*rad2deg/))
 
