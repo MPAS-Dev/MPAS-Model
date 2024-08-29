@@ -84,11 +84,11 @@
 
 
 !--- local OUT pointers (with no Noah LSM equivalent as defined in WRF):
- real(kind=RKIND),dimension(:),pointer:: t2mvxy,t2mbxy,q2mvxy,q2mbxy,tradxy,neexy,gppxy,nppxy,fvegxy,runsfxy,  &
-                                         runsbxy,ecanxy,edirxy,etranxy,fsaxy,firaxy,aparxy,psnxy,savxy,sagxy,  &
-                                         rssunxy,rsshaxy,bgapxy,wgapxy,tgvxy,tgbxy,chvxy,chbxy,shgxy,shcxy,    &
-                                         shbxy,evgxy,evbxy,ghvxy,ghbxy,irgxy,ircxy,irbxy,trxy,evcxy,chleafxy,  &
-                                         chucxy,chv2xy,chb2xy,rs,qtdrain
+ real(kind=RKIND),dimension(:),pointer:: t2mvxy,t2mbxy,t2mxy,q2mvxy,q2mbxy,q2mxy,tradxy,neexy,gppxy,nppxy,  &
+                                         fvegxy,runsfxy,runsbxy,ecanxy,edirxy,etranxy,fsaxy,firaxy,aparxy,  &
+                                         psnxy,savxy,sagxy,rssunxy,rsshaxy,bgapxy,wgapxy,tgvxy,tgbxy,chvxy, &
+                                         chbxy,shgxy,shcxy,shbxy,evgxy,evbxy,ghvxy,ghbxy,irgxy,ircxy,irbxy, &
+                                         trxy,evcxy,chleafxy,chucxy,chv2xy,chb2xy,rs,qtdrain
 
 
 !--- local OUT additional variables:
@@ -377,8 +377,10 @@
 !    see lines 242-290 in module NoahmpIOVarType.F90):
  call mpas_pool_get_array(output_noahmp,'t2mvxy'  ,t2mvxy  )
  call mpas_pool_get_array(output_noahmp,'t2mbxy'  ,t2mbxy  )
+ call mpas_pool_get_array(output_noahmp,'t2mxy'   ,t2mxy   )
  call mpas_pool_get_array(output_noahmp,'q2mvxy'  ,q2mvxy  )
  call mpas_pool_get_array(output_noahmp,'q2mbxy'  ,q2mbxy  )
+ call mpas_pool_get_array(output_noahmp,'q2mxy'   ,q2mxy   )
  call mpas_pool_get_array(output_noahmp,'tradxy'  ,tradxy  )
  call mpas_pool_get_array(output_noahmp,'neexy'   ,neexy   )
  call mpas_pool_get_array(output_noahmp,'gppxy'   ,gppxy   )
@@ -423,10 +425,12 @@
  call mpas_pool_get_array(output_noahmp,'qtdrain',qtdrain  )
 
  do i = its,ite
-    mpas_noahmp%t2mvxy(i)   = t2mvxy(i)
-    mpas_noahmp%t2mbxy(i)   = t2mbxy(i)
-    mpas_noahmp%q2mvxy(i)   = q2mvxy(i)
-    mpas_noahmp%q2mbxy(i)   = q2mbxy(i)
+!   mpas_noahmp%t2mvxy(i)   = t2mvxy(i)
+!   mpas_noahmp%t2mbxy(i)   = t2mbxy(i)
+!   mpas_noahmp%t2mxy(i)    = t2mxy(i)
+!   mpas_noahmp%q2mvxy(i)   = q2mvxy(i)
+!   mpas_noahmp%q2mbxy(i)   = q2mbxy(i)
+!   mpas_noahmp%q2mxy(i)    = q2mxy(i)
     mpas_noahmp%tradxy(i)   = tradxy(i)
     mpas_noahmp%neexy(i)    = neexy(i)
     mpas_noahmp%gppxy(i)    = gppxy(i)
@@ -685,11 +689,11 @@
 
 
 !--- local OUT pointers (with no Noah LSM equivalent as defined in WRF):
- real(kind=RKIND),dimension(:),pointer:: t2mvxy,t2mbxy,q2mvxy,q2mbxy,tradxy,neexy,gppxy,nppxy,fvegxy,runsfxy,  &
-                                         runsbxy,ecanxy,edirxy,etranxy,fsaxy,firaxy,aparxy,psnxy,savxy,sagxy,  &
-                                         rssunxy,rsshaxy,bgapxy,wgapxy,tgvxy,tgbxy,chvxy,chbxy,shgxy,shcxy,    &
-                                         shbxy,evgxy,evbxy,ghvxy,ghbxy,irgxy,ircxy,irbxy,trxy,evcxy,chleafxy,  &
-                                         chucxy,chv2xy,chb2xy,rs,qtdrain
+ real(kind=RKIND),dimension(:),pointer:: t2mvxy,t2mbxy,t2mxy,q2mvxy,q2mbxy,q2mxy,tradxy,neexy,gppxy,nppxy,  &
+                                         fvegxy,runsfxy,runsbxy,ecanxy,edirxy,etranxy,fsaxy,firaxy,aparxy,  &
+                                         psnxy,savxy,sagxy,rssunxy,rsshaxy,bgapxy,wgapxy,tgvxy,tgbxy,chvxy, &
+                                         chbxy,shgxy,shcxy,shbxy,evgxy,evbxy,ghvxy,ghbxy,irgxy,ircxy,irbxy, &
+                                         trxy,evcxy,chleafxy,chucxy,chv2xy,chb2xy,rs,qtdrain
 
 
 !--- local OUT additional variables:
@@ -702,7 +706,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: acc_etranixy
 
 !-----------------------------------------------------------------------------------------------------------------
-!call mpas_log_write('--- enter subroutine lsm_noahmp_toMPAS:')
+ call mpas_log_write('--- enter subroutine lsm_noahmp_toMPAS:')
 
 
 !--- initialization of local dimensions:
@@ -865,8 +869,10 @@
 !    lines 242-290 in module NoahmpIOVarType.F90:
  call mpas_pool_get_array(output_noahmp,'t2mvxy'  ,t2mvxy  )
  call mpas_pool_get_array(output_noahmp,'t2mbxy'  ,t2mbxy  )
+ call mpas_pool_get_array(output_noahmp,'t2mxy'   ,t2mxy   )
  call mpas_pool_get_array(output_noahmp,'q2mvxy'  ,q2mvxy  )
  call mpas_pool_get_array(output_noahmp,'q2mbxy'  ,q2mbxy  )
+ call mpas_pool_get_array(output_noahmp,'q2mxy'   ,q2mxy   )
  call mpas_pool_get_array(output_noahmp,'tradxy'  ,tradxy  )
  call mpas_pool_get_array(output_noahmp,'neexy'   ,neexy   )
  call mpas_pool_get_array(output_noahmp,'gppxy'   ,gppxy   )
@@ -913,8 +919,10 @@
  do i = its,ite
     t2mvxy(i)   = mpas_noahmp%t2mvxy(i)
     t2mbxy(i)   = mpas_noahmp%t2mbxy(i)
+    t2mxy(i)    = mpas_noahmp%t2mxy(i)
     q2mvxy(i)   = mpas_noahmp%q2mvxy(i)
     q2mbxy(i)   = mpas_noahmp%q2mbxy(i)
+    q2mxy(i)    = mpas_noahmp%q2mxy(i)
     tradxy(i)   = mpas_noahmp%tradxy(i)
     neexy(i)    = mpas_noahmp%neexy(i)
     gppxy(i)    = mpas_noahmp%gppxy(i)

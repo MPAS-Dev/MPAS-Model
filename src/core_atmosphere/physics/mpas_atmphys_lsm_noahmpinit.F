@@ -245,7 +245,7 @@
                                          grainxy,lfmassxy,qrainxy,qsnowxy,rtmassxy,sneqvoxy,stblcpxy,stmassxy, &
                                          tahxy,tgxy,tvxy,xsaixy,waxy,woodxy,wslakexy,wtxy,zwtxy
  real(kind=RKIND),dimension(:),pointer:: irwatsi,ireloss,irrsplh,irwatmi,irmivol,irwatfi,irfivol
- real(kind=RKIND),dimension(:),pointer:: qtdrain,t2mbxy,t2mvxy
+ real(kind=RKIND),dimension(:),pointer:: qtdrain,t2mbxy,t2mvxy,t2mxy
  
  real(kind=RKIND),dimension(:,:),pointer:: dzs,sh2o,smois,tslb
  real(kind=RKIND),dimension(:,:),pointer:: snicexy,snliqxy,tsnoxy,zsnsoxy
@@ -388,6 +388,7 @@
 
  call mpas_pool_get_array(output_noahmp,'t2mbxy',t2mbxy  )
  call mpas_pool_get_array(output_noahmp,'t2mvxy',t2mvxy  )
+ call mpas_pool_get_array(output_noahmp,'t2mxy' ,t2mxy   )
  call mpas_pool_get_array(output_noahmp,'qtdrain',qtdrain)
 
 
@@ -476,6 +477,7 @@
     qtdrain(i)  = mpas_noahmp%qtdrain(i)
     t2mbxy(i)   = mpas_noahmp%t2mbxy(i)
     t2mvxy(i)   = mpas_noahmp%t2mvxy(i)
+    t2mxy(i)    = mpas_noahmp%t2mxy(i)
  enddo
 
  do i = its, ite
