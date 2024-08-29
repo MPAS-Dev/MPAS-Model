@@ -212,6 +212,11 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: invAreaCell
       integer, dimension(:), pointer :: bdyMaskCell
       integer, dimension(:), pointer :: bdyMaskEdge
+      real (kind=RKIND), dimension(:,:), pointer :: zz
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb_cell
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb3_cell
+      real (kind=RKIND), dimension(:), pointer :: fzm
+      real (kind=RKIND), dimension(:), pointer :: fzp
 #endif
 
 
@@ -271,6 +276,22 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
       !$acc enter data copyin(bdyMaskEdge)
+
+      call mpas_pool_get_array(mesh, 'zz', zz)
+      !$acc enter data copyin(zz)
+
+      call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
+      !$acc enter data copyin(zb_cell)
+
+      call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
+      !$acc enter data copyin(zb3_cell)
+
+      call mpas_pool_get_array(mesh, 'fzm', fzm)
+      !$acc enter data copyin(fzm)
+
+      call mpas_pool_get_array(mesh, 'fzp', fzp)
+      !$acc enter data copyin(fzp)
+
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -319,6 +340,11 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: invAreaCell
       integer, dimension(:), pointer :: bdyMaskCell
       integer, dimension(:), pointer :: bdyMaskEdge
+      real (kind=RKIND), dimension(:,:), pointer :: zz
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb_cell
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb3_cell
+      real (kind=RKIND), dimension(:), pointer :: fzm
+      real (kind=RKIND), dimension(:), pointer :: fzp
 #endif
 
 
@@ -378,6 +404,21 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
       !$acc exit data delete(bdyMaskEdge)
+
+      call mpas_pool_get_array(mesh, 'zz', zz)
+      !$acc exit data delete(zz)
+
+      call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
+      !$acc exit data delete(zb_cell)
+
+      call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
+      !$acc exit data delete(zb3_cell)
+
+      call mpas_pool_get_array(mesh, 'fzm', fzm)
+      !$acc exit data delete(fzm)
+
+      call mpas_pool_get_array(mesh, 'fzp', fzp)
+      !$acc exit data delete(fzp)
 #endif
 
    end subroutine mpas_atm_dynamics_finalize
@@ -2086,6 +2127,10 @@ module atm_time_integration
       integer :: iCell, iEdge, i, k
       real (kind=RKIND) :: flux
 
+      MPAS_ACC_TIMER_START('atm_set_smlstep_pert_variables [ACC_data_xfer]')
+      !$acc enter data copyin(u_tend, w_tend)
+      MPAS_ACC_TIMER_STOP('atm_set_smlstep_pert_variables [ACC_data_xfer]')
+
       ! we solve for omega instead of w (see Klemp et al MWR 2007),
       ! so here we change the w_p tendency to an omega_p tendency
 
@@ -2093,24 +2138,35 @@ module atm_time_integration
       ! this requires us to use the same flux divergence as is used in the theta eqn - see Klemp et al MWR 2003.
 
 !!      do iCell=cellStart,cellEnd
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell=cellSolveStart,cellSolveEnd
 
          if (bdyMaskCell(iCell) <= nRelaxZone) then  !  no conversion in specified zone, regional_MPAS
-         do i=1,nEdgesOnCell(iCell)
-            iEdge = edgesOnCell(i,iCell)
+            !$acc loop seq
+            do i=1,nEdgesOnCell(iCell)
+               iEdge = edgesOnCell(i,iCell)
 !DIR$ IVDEP
-            do k = 2, nVertLevels
-               flux = edgesOnCell_sign(i,iCell) * (fzm(k) * u_tend(k,iEdge) + fzp(k) * u_tend(k-1,iEdge))
-               w_tend(k,iCell) = w_tend(k,iCell)   &
-                        - (zb_cell(k,i,iCell) + sign(1.0_RKIND, u_tend(k,iEdge)) * zb3_cell(k,i,iCell)) * flux
+               !$acc loop vector
+               do k = 2, nVertLevels
+                  flux = edgesOnCell_sign(i,iCell) * (fzm(k) * u_tend(k,iEdge) + fzp(k) * u_tend(k-1,iEdge))
+                  w_tend(k,iCell) = w_tend(k,iCell)   &
+                           - (zb_cell(k,i,iCell) + sign(1.0_RKIND, u_tend(k,iEdge)) * zb3_cell(k,i,iCell)) * flux
+               end do
             end do
-         end do
 !DIR$ IVDEP
-         do k = 2, nVertLevels
-            w_tend(k,iCell) = ( fzm(k) * zz(k,iCell) + fzp(k) * zz(k-1,iCell)   ) * w_tend(k,iCell)
-         end do
+            !$acc loop vector
+            do k = 2, nVertLevels
+               w_tend(k,iCell) = ( fzm(k) * zz(k,iCell) + fzp(k) * zz(k-1,iCell)   ) * w_tend(k,iCell)
+            end do
          end if ! no conversion in specified zone
       end do
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_set_smlstep_pert_variables [ACC_data_xfer]')
+      !$acc exit data delete(u_tend)
+      !$acc exit data copyout(w_tend)
+      MPAS_ACC_TIMER_STOP('atm_set_smlstep_pert_variables [ACC_data_xfer]')
 
    end subroutine atm_set_smlstep_pert_variables_work
 
