@@ -202,8 +202,8 @@ module mpas_init_atm_gwd
 !      call mpas_pool_get_array(mesh, 'gamma', hgamma)
 !      call mpas_pool_get_array(mesh, 'sigma', hsigma)
 
-      nx = 22000
-      ny = 300
+      nx = topo_x
+      ny = topo_y
 
       allocate(local_box_x(nx*ny))
       allocate(local_box_y(nx*ny))
@@ -296,6 +296,9 @@ module mpas_init_atm_gwd
          dc = dc * config_gwd_cell_scaling
 
          call get_box_size_from_lat_lon(latCell(iCell), lonCell(iCell), dc, nx, ny)
+
+         if (iCell==2621501) call mpas_log_write(' iCell is selected nx, ny = $i $i, lat lon $r $r', intArgs=(/nx, ny/), realArgs=(/latCell(iCell)*rad2deg,lonCell(iCell)*rad2deg/))
+
          !
          ! Cut out a rectangular piece of the global 30-arc-second topography
          ! data that is centered at the lat/lon of the current cell being
