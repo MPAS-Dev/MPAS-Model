@@ -258,7 +258,7 @@ module mpas_init_atm_gwd
          end if
          dc = dc * config_gwd_cell_scaling
 
-         call get_box_size_from_lat_lon(latCell(iCell),lonCell(iCell),dc,nx,ny)
+         call get_box_size_from_lat_lon(latCell(iCell)*rad2deg,lonCell(iCell)*rad2deg,dc,nx,ny)
          call get_box_points(latCell(iCell)*rad2deg,lonCell(iCell)*rad2deg, nx, ny)
 
          iErr = determine_complete_tile_set(nx, ny)
@@ -384,8 +384,8 @@ module mpas_init_atm_gwd
       !
       ! Get number of points to extract in the zonal direction
       !
-      if (cos(lat) > (2.0 * pts_per_degree * dx * 180.0) / (real(topo_x,RKIND) * Pi * Re)) then
-         nx = ceiling((180.0 * dx * pts_per_degree) / (Pi * Re * cos(lat)))
+      if (cos(lat/rad2deg) > (2.0 * pts_per_degree * dx * 180.0) / (real(topo_x,RKIND) * Pi * Re)) then
+         nx = ceiling((180.0 * dx * pts_per_degree) / (Pi * Re * cos(lat/rad2deg)))
       else
          nx = topo_x / 2
       end if
