@@ -19,6 +19,15 @@ module mpas_init_atm_gwd
 
    private
 
+   type :: mpas_gwd_tile_type
+
+      real (kind=R4KIND), dimension(:), pointer :: array
+      integer :: tile_start_x, tile_start_y
+   ! linked list next pointer
+      type (mpas_gwd_tile_type), pointer :: next => null()
+
+   end type mpas_gwd_tile_type
+
    interface
       subroutine read_geogrid(fname, rarray, nx, ny, nz, isigned, endian, &
                               wordsize, status) bind(C)
@@ -242,42 +251,8 @@ module mpas_init_atm_gwd
       ! grid cell in the mesh.
       !
       cum_local_tiles=0
-      do iCell=1,nCells
-   
-         !
-         ! First, get an estimate of the mean diameter (in meters) of the grid 
-         ! cell by averaging the distances to each of the neighboring cells
-         !
-         dc = 0.0
-         do i=1,nEdgesOnCell(iCell)
-            dc = dc + dcEdge(edgesOnCell(i,iCell))
-         end do
-         dc = dc / real(nEdgesOnCell(iCell),RKIND)
-         if (onUnitSphere) then
-            dc = dc * sphere_radius
-         end if
-         dc = dc * config_gwd_cell_scaling
-
-         call get_box_size_from_lat_lon(latCell(iCell),lonCell(iCell),dc,nx,ny)
-         call get_box_points(latCell(iCell),lonCell(iCell), nx, ny)
-
-         iErr = determine_complete_tile_set(nx, ny)
-         if (cum_local_tiles >= max_local_tiles) exit 
-      end do
 
       call mpas_log_write(' End of determine_complete_tile_set. We need ($i / $i) tiles ', intArgs=(/cum_local_tiles, max_local_tiles/))
-
-      iErr = read_global_30s_topo(geog_data_path, geog_sub_path)
-      if (iErr /= 0) then
-         call mpas_log_write('Error reading global 30-arc-sec topography for GWD statistics', messageType=MPAS_LOG_ERR)
-         return
-      end if
-
-      iErr = read_global_30s_landuse(geog_data_path)
-      if (iErr /= 0) then
-         call mpas_log_write('Error reading global 30-arc-sec landuse for GWD statistics', messageType=MPAS_LOG_ERR)
-         return
-      end if
       
       do iCell=1,nCells
 
@@ -307,8 +282,8 @@ module mpas_init_atm_gwd
          ! computes the mean elevation in the array and stores that value in
          ! the module variable 'box_mean'.
          !
-         call get_box_points(latCell(iCell),lonCell(iCell), nx, ny)
-         call get_box(nx, ny)
+         call get_box_points(latCell(iCell),lonCell(iCell), nx, ny, geog_data_path, geog_sub_path)
+         call get_box(nx, ny, geog_data_path, geog_sub_path)
 
          !
          ! With a box of 30-arc-second data for the current grid cell, call
@@ -442,6 +417,46 @@ module mpas_init_atm_gwd
 
    end function locate_tile_in_set
 
+
+   function locate_tile_in_list(tile_index_i, tile_index_j, is_topo) result (tile_index)
+      
+      implicit none
+      type(mpas_gwd_tile_type), pointer :: tilesHead
+      type(mpas_gwd_tile_type), pointer :: thisTile
+      integer, intent(in) :: tile_index_i
+      integer, intent(in) :: tile_index_j
+      logical, intent(in) :: is_topo
+
+      integer :: itile, tile_index
+
+      ! loop over tiles
+      thisTile => tilesHead
+
+      do while (associated(thisTile))
+
+         if(thisTile=>tile_start_x==tile_index_i .and. thisTile=>tile_start_y==tile_index_j) then 
+            tile_index = itile
+            return
+         end if
+
+         thisTile => thisTile % next
+
+      enddo   ! associated(thisTile)
+
+
+
+
+      do itile = 1, cum_local_tiles
+         if(local_tile_x(itile)==tile_index_i .and. local_tile_y(itile)==tile_index_j) then 
+            tile_index = itile
+            return
+         end if
+      end do
+
+      tile_index = -1
+
+   end function locate_tile_in_set
+
    function determine_complete_tile_set(nx, ny) result(iErr)
 
       implicit none
@@ -474,6 +489,151 @@ module mpas_init_atm_gwd
 
       !
    end function determine_complete_tile_set
+
+
+   function get_tile_from_box_point(tilesHead, box_x, box_y, nx, ny) result(iErr)
+
+      implicit none
+      integer :: iErr
+      integer, intent(in) :: box_x, box_y, nx, ny
+      type(mpas_gwd_tile_type), pointer, intent(in) :: tilesHead
+      type(mpas_gwd_tile_type), pointer :: thisTile
+
+      integer :: ix, jx, ii, l,i, iCell, tile_start_x, tile_start_y
+
+      ii = cum_local_tiles
+      
+         
+      if (box_x > topo_shift) then
+         tile_start_x = floor( real(box_x - topo_shift - 1) / real(tile_x)) * tile_x + 1
+      else
+         tile_start_x = floor( real(box_x + topo_shift - 1) / real(tile_x)) * tile_x + 1
+      end if
+      tile_start_y = floor( real(box_y - 1) / real(tile_y)) * tile_y + 1
+      
+
+      ! loop over tiles
+      thisTile => tilesHead
+
+      do while (associated(thisTile))
+
+         if(thisTile%tile_start_x==tile_start_x .and. thisTile%tile_start_y==tile_start_y) then 
+            exit
+         end if
+
+         thisTile => thisTile % next
+
+      enddo   ! associated(thisTile)
+
+      if (.not. associated(thisTile)) then 
+         thisTile = add_tile(tilesHead, tile_start_x, tile_start_y)
+      end if
+
+
+      if(unique_tile(itile, jtile, ii)) then
+         ii = ii + 1
+         local_tile_x(ii) = itile
+         local_tile_x_land(ii) = floor( real(box_y - 1) / real(tile_x)) * tile_x + 1
+         local_tile_y(ii) = jtile
+         !call mpas_log_write('---- Adding tile to local tile list ($i, land_x:$i, $i)', intArgs=(/local_tile_x(ii),local_tile_x_land(ii), local_tile_y(ii)/))
+         !call mpas_log_write('-------- local box_x : $i local_box_x(l) - topo_shift: $i', intArgs=(/local_box_x(l),local_box_x(l) - topo_shift/))
+      end if
+      
+
+      cum_local_tiles = ii
+
+      !
+   end function determine_complete_tile_set
+
+
+   function add_tile(tilesHead, tile_start_x, tile_start_y) result(tilesHead)
+
+      implicit none
+      integer :: iErr
+      integer, intent(in) :: tile_start_x, tile_start_y
+      type(mpas_gwd_tile_type), pointer, intent(inout) :: tilesHead
+      type(mpas_gwd_tile_type), pointer :: newTile
+
+      allocate(newTile)
+      allocate(newTile%array(topo_x*topo_y))
+      newTile%tile_start_x = tile_start_x
+      newTile%tile_start_y = tile_start_y
+      newTile%next => tilesHead
+
+      read_30s_topo_tile(path, sub_path, newTile%array, newTile%tile_start_x, newTile%tile_start_y)
+      tilesHead => newTile
+
+      cum_local_tiles = cum_local_tiles + 1
+
+   end function add_tile
+
+   function read_30s_topo_tile(path, sub_path, topo, tile_start_x, tile_start_y) result(iErr)
+
+      implicit none
+
+      character(len=*), intent(in) :: path
+      character(len=*), intent(in) :: sub_path
+
+      integer :: iErr
+
+      integer, parameter :: tile_x = 1200       ! x-dimension of each tile of global 30-arc-second topography
+      integer, parameter :: tile_y = 1200       ! y-dimension of each tile of global 30-arc-second topography
+      integer, parameter :: tile_bdr = 3        ! number of layers of border/halo points surrounding each tile
+
+      integer (c_int) :: istatus
+      integer :: ix, iy, ix_shift, il
+      integer (c_int) :: isigned, endian, wordsize, nx, ny, nz
+      real (c_float) :: scalefactor
+      real (c_float), dimension(:,:,:), pointer, contiguous :: tile
+      type (c_ptr) :: tile_ptr
+      character(len=StrKIND) :: filename
+      character(len=StrKIND):: message
+      character(kind=c_char), dimension(StrKIND+1) :: c_filename
+
+      allocate(tile(tile_x+2*tile_bdr,tile_y+2*tile_bdr,1))
+      tile_ptr = c_loc(tile)
+
+      isigned  = 1
+      endian   = 0
+      wordsize = 2
+      scalefactor = 1.0
+      nx = tile_x + 2*tile_bdr
+      ny = tile_y + 2*tile_bdr
+      nz = 1
+
+      topo_shift = 0
+
+      allocate(topo(tile_x*tile_y))
+      
+      !
+      ! For GMTED2010 data, the dataset starts at 0.0 longitude, but we need to shift the starting location
+      ! in the topo array to -180.0, so we introduce an offset in the x-coordinate of topo_x/2
+      !
+      if (trim(sub_path) == 'topo_gmted2010_30s/') then
+         topo_shift = topo_x / 2
+      end if
+
+      write(filename,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(path)//trim(sub_path), tile_start_x, '-', (tile_start_x+tile_x-1), '.', &
+      tile_start_y, '-', (tile_start_y+tile_y-1)
+      call mpas_f_to_c_string(filename, c_filename)
+      call read_geogrid(c_filename, tile_ptr, nx, ny, nz, isigned, endian, &
+                        wordsize, istatus)
+      tile(:,:,:) = tile(:,:,:) * scalefactor
+      if (istatus /= 0) then
+         call mpas_log_write('Error reading topography tile '//trim(filename), messageType=MPAS_LOG_ERR)
+         iErr = 1
+         return
+      end if
+      
+      ix_shift = (il-1)*tile_x*tile_y + 1
+      topo(1:(tile_x*tile_y-1)) = reshape(tile((tile_bdr+1):(tile_x+tile_bdr),(tile_bdr+1):(tile_y+tile_bdr),1),(/tile_x*tile_y/))   
+
+      deallocate(tile)
+
+      iErr = 0
+
+   end function read_30s_topo_tile
+
 
 
    !***********************************************************************
@@ -675,9 +835,11 @@ module mpas_init_atm_gwd
 
 
 
-   subroutine get_box_points(lat, lon, nx, ny)
+   subroutine get_box_points(lat, lon, nx, ny, path, sub_path)
 
       implicit none
+      character(len=*), intent(in) :: path
+      character(len=*), intent(in) :: sub_path
       real (kind=RKIND), intent(in) :: lat, lon
 
       integer, intent(in) :: nx, ny
@@ -721,8 +883,32 @@ module mpas_init_atm_gwd
             ii = ii - topo_x
          end do
          l = l + 1
-         local_box_x(l) = ii
-         local_box_y(l) = jj
+      
+         thisTile = get_tile_from_box_point(tilesHead, ii, jj, nx, ny)
+
+         ! ibox = (j-1)*nx + i        
+
+         ! if (ix - topo_shift > 0 ) then 
+         !    ix = ix - topo_shift
+         ! else
+         !    ix = ix + topo_shift
+         ! end if
+
+         ! tile_index_i = floor( real(ix - 1) / real(tile_x)) * tile_x + 1
+         ! tile_index_j = floor( real(jx - 1) / real(tile_y)) * tile_y + 1
+
+         ! itile = locate_tile_in_set(tile_index_i, tile_index_j, .true.)
+
+         !call mpas_log_write('In box_new for (i,j):($i,$i), (ix,jx):($i,$i), tile_index_i,tile_index_j:($i,$i), itile:$i ', intArgs=(/i,j,ix,jx,tile_index_i,tile_index_j,itile/))
+
+         ! tile_base = (itile-1)*tile_x*tile_y + 1
+         tile_offset = (ii - thisTile%tile_start_x) + (jx - thisTile%tile_start_y) * tile_x
+         
+         box(i,j) = thisTile%topo(tile_offset)
+         box_landuse(i,j) = landuse(tile_offset)
+         sg_lat = (start_lat + (real(jx-1,RKIND) + 0.5) / pts_per_degree) / rad2deg  ! Add 0.5 for cell center
+         dxm(i,j) = sg_delta * cos(sg_lat)
+         box_mean = box_mean + box(i,j)
  
       end do
       end do
