@@ -258,8 +258,8 @@ module mpas_init_atm_gwd
          end if
          dc = dc * config_gwd_cell_scaling
 
-         call get_box_size_from_lat_lon(latCell(iCell)*rad2deg,lonCell(iCell)*rad2deg,dc,nx,ny)
-         call get_box_points(latCell(iCell)*rad2deg,lonCell(iCell)*rad2deg, nx, ny)
+         call get_box_size_from_lat_lon(latCell(iCell),lonCell(iCell),dc,nx,ny)
+         call get_box_points(latCell(iCell),lonCell(iCell), nx, ny)
 
          iErr = determine_complete_tile_set(nx, ny)
          if (cum_local_tiles >= max_local_tiles) exit 
@@ -295,9 +295,7 @@ module mpas_init_atm_gwd
          end if
          dc = dc * config_gwd_cell_scaling
 
-         call get_box_size_from_lat_lon(latCell(iCell)*rad2deg, lonCell(iCell)*rad2deg, dc, nx, ny)
-
-         if (iCell==2621501) call mpas_log_write(' iCell is selected nx, ny = $i $i, lat lon $r $r', intArgs=(/nx, ny/), realArgs=(/latCell(iCell)*rad2deg,lonCell(iCell)*rad2deg/))
+         call get_box_size_from_lat_lon(latCell(iCell), lonCell(iCell), dc, nx, ny)
 
          !
          ! Cut out a rectangular piece of the global 30-arc-second topography
@@ -309,8 +307,8 @@ module mpas_init_atm_gwd
          ! computes the mean elevation in the array and stores that value in
          ! the module variable 'box_mean'.
          !
-         call get_box_points(latCell(iCell)*rad2deg,lonCell(iCell)*rad2deg, nx, ny)
-         call get_box(latCell(iCell)*rad2deg, lonCell(iCell)*rad2deg, nx, ny)
+         call get_box_points(latCell(iCell),lonCell(iCell), nx, ny)
+         call get_box(nx, ny)
 
          !
          ! With a box of 30-arc-second data for the current grid cell, call
@@ -384,8 +382,8 @@ module mpas_init_atm_gwd
       !
       ! Get number of points to extract in the zonal direction
       !
-      if (cos(lat/rad2deg) > (2.0 * pts_per_degree * dx * 180.0) / (real(topo_x,RKIND) * Pi * Re)) then
-         nx = ceiling((180.0 * dx * pts_per_degree) / (Pi * Re * cos(lat/rad2deg)))
+      if (cos(lat) > (2.0 * pts_per_degree * dx * 180.0) / (real(topo_x,RKIND) * Pi * Re)) then
+         nx = ceiling((180.0 * dx * pts_per_degree) / (Pi * Re * cos(lat)))
       else
          nx = topo_x / 2
       end if
@@ -691,8 +689,8 @@ module mpas_init_atm_gwd
       !
       ! Find coordinates in global topography array of the box center
       !
-      ic = nint((lon - start_lon) * pts_per_degree) + 1
-      jc = nint((lat - start_lat) * pts_per_degree) + 1
+      ic = nint((lon*rad2deg - start_lon) * pts_per_degree) + 1
+      jc = nint((lat*rad2deg - start_lat) * pts_per_degree) + 1
 
       if (ic <= 0) ic = ic + topo_x
       if (ic > topo_x) ic = ic - topo_x
@@ -753,11 +751,10 @@ module mpas_init_atm_gwd
    !>  this subroutine and stored in the module variable 'box_mean'.
    !
    !-----------------------------------------------------------------------
-   subroutine get_box(lat, lon, nx, ny)
+   subroutine get_box(nx, ny)
 
       implicit none
 
-      real (kind=RKIND), intent(in) :: lat, lon
       integer, intent(in) :: nx, ny
       integer :: itile, ix_shift, ix, ix_land, ix_topo, jx, ibox, tile_index_i, tile_index_j
       integer :: tile_base, tile_offset, i, j
