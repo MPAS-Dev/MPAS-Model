@@ -2224,19 +2224,19 @@ module atm_time_integration
       do iCell=cellSolveStart,cellSolveEnd
 
          if (bdyMaskCell(iCell) <= nRelaxZone) then  !  no conversion in specified zone, regional_MPAS
-         do i=1,nEdgesOnCell(iCell)
-            iEdge = edgesOnCell(i,iCell)
+            do i=1,nEdgesOnCell(iCell)
+               iEdge = edgesOnCell(i,iCell)
+!DIR$ IVDEP
+               do k = 2, nVertLevels
+                  flux = edgesOnCell_sign(i,iCell) * (fzm(k) * u_tend(k,iEdge) + fzp(k) * u_tend(k-1,iEdge))
+                  w_tend(k,iCell) = w_tend(k,iCell)   &
+                           - (zb_cell(k,i,iCell) + sign(1.0_RKIND, u_tend(k,iEdge)) * zb3_cell(k,i,iCell)) * flux
+               end do
+            end do
 !DIR$ IVDEP
             do k = 2, nVertLevels
-               flux = edgesOnCell_sign(i,iCell) * (fzm(k) * u_tend(k,iEdge) + fzp(k) * u_tend(k-1,iEdge))
-               w_tend(k,iCell) = w_tend(k,iCell)   &
-                        - (zb_cell(k,i,iCell) + sign(1.0_RKIND, u_tend(k,iEdge)) * zb3_cell(k,i,iCell)) * flux
+               w_tend(k,iCell) = ( fzm(k) * zz(k,iCell) + fzp(k) * zz(k-1,iCell)   ) * w_tend(k,iCell)
             end do
-         end do
-!DIR$ IVDEP
-         do k = 2, nVertLevels
-            w_tend(k,iCell) = ( fzm(k) * zz(k,iCell) + fzp(k) * zz(k-1,iCell)   ) * w_tend(k,iCell)
-         end do
          end if ! no conversion in specified zone
       end do
 
