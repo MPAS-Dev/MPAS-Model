@@ -228,6 +228,17 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: kiteAreasOnVertex
       real (kind=RKIND), dimension(:), pointer :: fEdge
       real (kind=RKIND), dimension(:), pointer :: fVertex
+      real (kind=RKIND), dimension(:,:), pointer :: zz
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb_cell
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb3_cell
+      real (kind=RKIND), dimension(:), pointer :: fzm
+      real (kind=RKIND), dimension(:), pointer :: fzp
+      real (kind=RKIND), dimension(:,:), pointer :: zgrid
+      real (kind=RKIND), dimension(:), pointer :: rdzw
+      real (kind=RKIND), dimension(:,:), pointer :: zxu
+      real (kind=RKIND), dimension(:,:), pointer :: dss
+      real (kind=RKIND), dimension(:), pointer :: specZoneMaskCell
+      real (kind=RKIND), dimension(:), pointer :: specZoneMaskEdge
 #endif
 
 
@@ -335,6 +346,39 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'fEdge', fEdge)
       !$acc enter data copyin(fEdge)
+
+      call mpas_pool_get_array(mesh, 'zz', zz)
+      !$acc enter data copyin(zz)
+
+      call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
+      !$acc enter data copyin(zb_cell)
+
+      call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
+      !$acc enter data copyin(zb3_cell)
+
+      call mpas_pool_get_array(mesh, 'fzm', fzm)
+      !$acc enter data copyin(fzm)
+
+      call mpas_pool_get_array(mesh, 'fzp', fzp)
+      !$acc enter data copyin(fzp)
+
+      call mpas_pool_get_array(mesh, 'zgrid', zgrid)
+      !$acc enter data copyin(zgrid)
+
+      call mpas_pool_get_array(mesh, 'rdzw', rdzw)
+      !$acc enter data copyin(rdzw)
+
+      call mpas_pool_get_array(mesh, 'zxu', zxu)
+      !$acc enter data copyin(zxu)
+
+      call mpas_pool_get_array(mesh, 'dss', dss)
+      !$acc enter data copyin(dss)
+
+      call mpas_pool_get_array(mesh, 'specZoneMaskCell', specZoneMaskCell)
+      !$acc enter data copyin(specZoneMaskCell)
+
+      call mpas_pool_get_array(mesh, 'specZoneMaskEdge', specZoneMaskEdge)
+      !$acc enter data copyin(specZoneMaskEdge)
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -399,6 +443,17 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: kiteAreasOnVertex
       real (kind=RKIND), dimension(:), pointer :: fEdge
       real (kind=RKIND), dimension(:), pointer :: fVertex
+      real (kind=RKIND), dimension(:,:), pointer :: zz
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb_cell
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb3_cell
+      real (kind=RKIND), dimension(:), pointer :: fzm
+      real (kind=RKIND), dimension(:), pointer :: fzp
+      real (kind=RKIND), dimension(:,:), pointer :: zgrid
+      real (kind=RKIND), dimension(:), pointer :: rdzw
+      real (kind=RKIND), dimension(:,:), pointer :: zxu
+      real (kind=RKIND), dimension(:,:), pointer :: dss
+      real (kind=RKIND), dimension(:), pointer :: specZoneMaskCell
+      real (kind=RKIND), dimension(:), pointer :: specZoneMaskEdge
 #endif
 
 
@@ -506,6 +561,39 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'fEdge', fEdge)
       !$acc exit data delete(fEdge)
+
+      call mpas_pool_get_array(mesh, 'zz', zz)
+      !$acc exit data delete(zz)
+
+      call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
+      !$acc exit data delete(zb_cell)
+
+      call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
+      !$acc exit data delete(zb3_cell)
+
+      call mpas_pool_get_array(mesh, 'fzm', fzm)
+      !$acc exit data delete(fzm)
+
+      call mpas_pool_get_array(mesh, 'fzp', fzp)
+      !$acc exit data delete(fzp)
+
+      call mpas_pool_get_array(mesh, 'zgrid', zgrid)
+      !$acc exit data delete(zgrid)
+
+      call mpas_pool_get_array(mesh, 'rdzw', rdzw)
+      !$acc exit data delete(rdzw)
+
+      call mpas_pool_get_array(mesh, 'zxu', zxu)
+      !$acc exit data delete(zxu)
+
+      call mpas_pool_get_array(mesh, 'dss', dss)
+      !$acc exit data delete(dss)
+
+      call mpas_pool_get_array(mesh, 'specZoneMaskCell', specZoneMaskCell)
+      !$acc exit data delete(specZoneMaskCell)
+
+      call mpas_pool_get_array(mesh, 'specZoneMaskEdge', specZoneMaskEdge)
+      !$acc exit data delete(specZoneMaskEdge)
 #endif
 
    end subroutine mpas_atm_dynamics_finalize
@@ -2148,7 +2236,7 @@ module atm_time_integration
                                    cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
 
       !  This subroutine performs the entire acoustic step update, following Klemp et al MWR 2007,
-      !  using forward-backward vertically implicit integration.  
+      !  using forward-backward vertically implicit integration.
       !  The gravity-waves are included in the acoustic-step integration.
       !  The input state variables that are updated are ru_p, rw_p (note that this is (rho*omega)_p here),
       !  rtheta_p, and rho_pp.  The time averaged mass flux is accumulated in ruAvg and wwAvg
@@ -2172,7 +2260,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(nVertLevels+1) :: dpzx
 
       real (kind=RKIND), dimension(:,:), pointer :: rho_zz, theta_m, ru_p, rw_p, rtheta_pp,  &
-                                                    rtheta_pp_old, zz, exner, cqu, ruAvg, &
+                                                    rtheta_pp_old, zz, exner, cqu, ruAvg,    &
                                                     wwAvg, rho_pp, cofwt, coftz, zxu,        &
                                                     a_tri, alpha_tri, gamma_tri, dss,        &
                                                     tend_ru, tend_rho, tend_rt, tend_rw,     &
@@ -2263,7 +2351,7 @@ module atm_time_integration
       call mpas_pool_get_array(diag, 'rw_save', rw_save)
 
       ! epssm is the offcentering coefficient for the vertically implicit integration.
-      call mpas_pool_get_config(configs, 'config_epssm', epssm) 
+      call mpas_pool_get_config(configs, 'config_epssm', epssm)
 
       call atm_advance_acoustic_step_work(nCells, nEdges, nCellsSolve, cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
                                    cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
@@ -2351,13 +2439,13 @@ module atm_time_integration
 
       real (kind=RKIND), dimension(nCells+1) :: specZoneMaskCell
       real (kind=RKIND), dimension(nEdges+1) :: specZoneMaskEdge
-      
+
 
       integer, intent(in) :: small_step
       real (kind=RKIND), intent(in) :: dts, epssm,cf1, cf2, cf3
       real (kind=RKIND), dimension(nVertLevels) :: ts, rs
 
-  
+
       !
       ! Local variables
       !
@@ -2371,20 +2459,34 @@ module atm_time_integration
       resm = (1.0 - epssm) / (1.0 + epssm)
       rdts = 1./dts
 
-      if(small_step /= 1) then  !  not needed on first small step 
+      MPAS_ACC_TIMER_START('atm_advance_acoustic_step [ACC_data_xfer]')
+      !$acc enter data copyin(exner,cqu,cofwt,coftz,cofrz,cofwr,cofwz, &
+      !$acc                a_tri,alpha_tri,gamma_tri,rho_zz,theta_m,w, &
+      !$acc                tend_ru,tend_rho,tend_rt,tend_rw,rw,rw_save)
+      !$acc enter data create(rtheta_pp_old)
+      if(small_step == 1) then
+         !$acc enter data create(ru_p,ruAvg,rho_pp,rtheta_pp,wwAvg,rw_p)
+      else
+         !$acc enter data copyin(ru_p,ruAvg,rho_pp,rtheta_pp,wwAvg,rw_p)
+      end if
+      MPAS_ACC_TIMER_STOP('atm_advance_acoustic_step [ACC_data_xfer]')
+
+      if(small_step /= 1) then  !  not needed on first small step
 
         ! forward-backward acoustic step integration.
-        ! begin by updating the horizontal velocity u, 
+        ! begin by updating the horizontal velocity u,
         ! and accumulating the contribution from the updated u to the other tendencies.
 
         ! we are looping over all edges, but only computing on edges of owned cells. This will include updates of
         ! all owned edges plus some edges that are owned by other blocks.  We perform these redundant computations
-        ! so that we do not have to communicate updates of u to update the cell variables (rho, w, and theta). 
+        ! so that we do not have to communicate updates of u to update the cell variables (rho, w, and theta).
 
         !MGD this loop will not be very load balanced with if-test below
 
+        !$acc parallel default(present)
+        !$acc loop gang worker
         do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
- 
+
            cell1 = cellsOnEdge(1,iEdge)
            cell2 = cellsOnEdge(2,iEdge)
 
@@ -2392,6 +2494,7 @@ module atm_time_integration
            if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
 
 !DIR$ IVDEP
+              !$acc loop vector
               do k=1,nVertLevels
                  pgrad = ((rtheta_pp(k,cell2)-rtheta_pp(k,cell1))*invDcEdge(iEdge) )/(.5*(zz(k,cell2)+zz(k,cell1)))
                  pgrad = cqu(k,iEdge)*0.5*c2*(exner(k,cell1)+exner(k,cell2))*pgrad
@@ -2401,6 +2504,7 @@ module atm_time_integration
 
               ! accumulate ru_p for use later in scalar transport
 !DIR$ IVDEP
+              !$acc loop vector
               do k=1,nVertLevels
                  ruAvg(k,iEdge) = ruAvg(k,iEdge) + ru_p(k,iEdge)
               end do
@@ -2408,9 +2512,12 @@ module atm_time_integration
            end if ! end test for block-owned cells
 
         end do ! end loop over edges
+        !$acc end parallel
 
       else !  this is all that us needed for ru_p update for first acoustic step in RK substep
 
+        !$acc parallel default(present)
+        !$acc loop gang worker
         do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
 
            cell1 = cellsOnEdge(1,iEdge)
@@ -2420,129 +2527,163 @@ module atm_time_integration
            if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
 
 !DIR$ IVDEP
+              !$acc loop vector
               do k=1,nVertLevels
                  ru_p(k,iEdge) = dts*tend_ru(k,iEdge)
               end do
 !DIR$ IVDEP
+              !$acc loop vector
               do k=1,nVertLevels
-                 ruAvg(k,iEdge) = ru_p(k,iEdge)                 
+                 ruAvg(k,iEdge) = ru_p(k,iEdge)
               end do
 
            end if ! end test for block-owned cells
 
         end do ! end loop over edges
+        !$acc end parallel
 
       end if ! test for first acoustic step
 
       if (small_step == 1) then  ! initialize here on first small timestep.
+         !$acc parallel default(present)
+         !$acc loop gang worker vector collapse(2)
          do iCell=cellStart,cellEnd
-            rtheta_pp_old(1:nVertLevels,iCell) = 0.0
+            do k=1,nVertLevels
+               rtheta_pp_old(k,iCell) = 0.0
+            end do
          end do
+         !$acc end parallel
       else
+         !$acc parallel default(present)
+         !$acc loop gang worker collapse(2)
          do iCell=cellStart,cellEnd
-            rtheta_pp_old(1:nVertLevels,iCell) = rtheta_pp(1:nVertLevels,iCell)
+            do k=1,nVertLevels
+               rtheta_pp_old(k,iCell) = rtheta_pp(k,iCell)
+            end do
          end do
+         !$acc end parallel
       end if
 
 !$OMP BARRIER
 
+      !$acc parallel default(present)
+      !$acc loop gang worker private(ts,rs)
       do iCell=cellSolveStart,cellSolveEnd  ! loop over all owned cells to solve
 
          if(small_step == 1) then  ! initialize here on first small timestep.
-            wwAvg(1:nVertLevels+1,iCell) = 0.0            
-            rho_pp(1:nVertLevels,iCell) = 0.0            
-            rtheta_pp(1:nVertLevels,iCell) = 0.0            
-            rw_p(:,iCell) = 0.0
+            !$acc loop vector
+            do k=1,nVertLevels
+               wwAvg(k,iCell) = 0.0
+               rho_pp(k,iCell) = 0.0
+               rtheta_pp(k,iCell) = 0.0
+               rw_p(k,iCell) = 0.0
+            end do
+            wwAvg(nVertLevels+1,iCell) = 0.0
+            rw_p(nVertLevels+1,iCell) = 0.0
          end if
-            
+
          if(specZoneMaskCell(iCell) == 0.0) then  ! not specified zone, compute...
 
-         ts(:) = 0.0
-         rs(:) = 0.0
-
-         do i=1,nEdgesOnCell(iCell) 
-            iEdge = edgesOnCell(i,iCell)
-            cell1 = cellsOnEdge(1,iEdge)
-            cell2 = cellsOnEdge(2,iEdge)
-!DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
-               flux = edgesOnCell_sign(i,iCell)*dts*dvEdge(iEdge)*ru_p(k,iEdge) * invAreaCell(iCell)
-               rs(k) = rs(k)-flux
-               ts(k) = ts(k)-flux*0.5*(theta_m(k,cell2)+theta_m(k,cell1))
+               ts(k) = 0.0
+               rs(k) = 0.0
             end do
-         end do
 
-      ! vertically implicit acoustic and gravity wave integration.
-      ! this follows Klemp et al MWR 2007, with the addition of an implicit Rayleigh damping of w
-      ! serves as a gravity-wave absorbing layer, from Klemp et al 2008.
+            !$acc loop seq
+            do i=1,nEdgesOnCell(iCell)
+               iEdge = edgesOnCell(i,iCell)
+               cell1 = cellsOnEdge(1,iEdge)
+               cell2 = cellsOnEdge(2,iEdge)
+!DIR$ IVDEP
+               !$acc loop vector
+               do k=1,nVertLevels
+                  flux = edgesOnCell_sign(i,iCell)*dts*dvEdge(iEdge)*ru_p(k,iEdge) * invAreaCell(iCell)
+                  rs(k) = rs(k)-flux
+                  ts(k) = ts(k)-flux*0.5*(theta_m(k,cell2)+theta_m(k,cell1))
+               end do
+            end do
+
+            ! vertically implicit acoustic and gravity wave integration.
+            ! this follows Klemp et al MWR 2007, with the addition of an implicit Rayleigh damping of w
+            ! serves as a gravity-wave absorbing layer, from Klemp et al 2008.
 
 !DIR$ IVDEP
-         do k=1, nVertLevels
-            rs(k) = rho_pp(k,iCell) + dts*tend_rho(k,iCell) + rs(k)                  &
-                            - cofrz(k)*resm*(rw_p(k+1,iCell)-rw_p(k,iCell)) 
-            ts(k) = rtheta_pp(k,iCell) + dts*tend_rt(k,iCell) + ts(k)                &
-                               - resm*rdzw(k)*( coftz(k+1,iCell)*rw_p(k+1,iCell)     &
-                                               -coftz(k,iCell)*rw_p(k,iCell))
-         end do
+            !$acc loop vector
+            do k=1, nVertLevels
+               rs(k) = rho_pp(k,iCell) + dts*tend_rho(k,iCell) + rs(k)              &
+                               - cofrz(k)*resm*(rw_p(k+1,iCell)-rw_p(k,iCell))
+               ts(k) = rtheta_pp(k,iCell) + dts*tend_rt(k,iCell) + ts(k)            &
+                                  - resm*rdzw(k)*( coftz(k+1,iCell)*rw_p(k+1,iCell) &
+                                                  -coftz(k,iCell)*rw_p(k,iCell))
+            end do
 
 !DIR$ IVDEP
-         do k=2, nVertLevels
-            wwavg(k,iCell) = wwavg(k,iCell) + 0.5*(1.0-epssm)*rw_p(k,iCell)
-         end do
+            !$acc loop vector
+            do k=2, nVertLevels
+               wwAvg(k,iCell) = wwAvg(k,iCell) + 0.5*(1.0-epssm)*rw_p(k,iCell)
+            end do
 
 !DIR$ IVDEP
-         do k=2, nVertLevels
-            rw_p(k,iCell) = rw_p(k,iCell) +  dts*tend_rw(k,iCell)                       &
-                       - cofwz(k,iCell)*((zz(k  ,iCell)*ts(k)                           &
-                                     -zz(k-1,iCell)*ts(k-1))                            &
-                               +resm*(zz(k  ,iCell)*rtheta_pp(k  ,iCell)                &
-                                     -zz(k-1,iCell)*rtheta_pp(k-1,iCell)))              &
-                       - cofwr(k,iCell)*((rs(k)+rs(k-1))                                &
-                               +resm*(rho_pp(k,iCell)+rho_pp(k-1,iCell)))               &
-                       + cofwt(k  ,iCell)*(ts(k  )+resm*rtheta_pp(k  ,iCell))           &
-                       + cofwt(k-1,iCell)*(ts(k-1)+resm*rtheta_pp(k-1,iCell))
-         end do
+            !$acc loop vector
+            do k=2, nVertLevels
+               rw_p(k,iCell) = rw_p(k,iCell) +  dts*tend_rw(k,iCell)                 &
+                          - cofwz(k,iCell)*((zz(k  ,iCell)*ts(k)                     &
+                                        -zz(k-1,iCell)*ts(k-1))                      &
+                                  +resm*(zz(k  ,iCell)*rtheta_pp(k  ,iCell)          &
+                                        -zz(k-1,iCell)*rtheta_pp(k-1,iCell)))        &
+                          - cofwr(k,iCell)*((rs(k)+rs(k-1))                          &
+                                  +resm*(rho_pp(k,iCell)+rho_pp(k-1,iCell)))         &
+                          + cofwt(k  ,iCell)*(ts(k  )+resm*rtheta_pp(k  ,iCell))     &
+                          + cofwt(k-1,iCell)*(ts(k-1)+resm*rtheta_pp(k-1,iCell))
+            end do
 
-         ! tridiagonal solve sweeping up and then down the column
+            ! tridiagonal solve sweeping up and then down the column
 
 !MGD VECTOR DEPENDENCE
-         do k=2,nVertLevels
-            rw_p(k,iCell) = (rw_p(k,iCell)-a_tri(k,iCell)*rw_p(k-1,iCell))*alpha_tri(k,iCell)
-         end do
+            !$acc loop seq
+            do k=2,nVertLevels
+               rw_p(k,iCell) = (rw_p(k,iCell)-a_tri(k,iCell)*rw_p(k-1,iCell))*alpha_tri(k,iCell)
+            end do
 
 !MGD VECTOR DEPENDENCE
-         do k=nVertLevels,1,-1
-            rw_p(k,iCell) = rw_p(k,iCell) - gamma_tri(k,iCell)*rw_p(k+1,iCell)     
-         end do
+            !$acc loop seq
+            do k=nVertLevels,1,-1
+               rw_p(k,iCell) = rw_p(k,iCell) - gamma_tri(k,iCell)*rw_p(k+1,iCell)
+            end do
 
-         ! the implicit Rayleigh damping on w (gravity-wave absorbing) 
-
-!DIR$ IVDEP
-         do k=2,nVertLevels
-            rw_p(k,iCell) = (rw_p(k,iCell) + (rw_save(k  ,iCell) - rw(k  ,iCell)) -dts*dss(k,iCell)*               &
-                        (fzm(k)*zz (k,iCell)+fzp(k)*zz (k-1,iCell))        &
-                        *(fzm(k)*rho_zz(k,iCell)+fzp(k)*rho_zz(k-1,iCell))       &
-                                 *w(k,iCell)    )/(1.0+dts*dss(k,iCell)) &
-                         - (rw_save(k  ,iCell) - rw(k  ,iCell))
-         end do
-
-         ! accumulate (rho*omega)' for use later in scalar transport
-!DIR$ IVDEP
-         do k=2,nVertLevels
-            wwAvg(k,iCell) = wwAvg(k,iCell) + 0.5*(1.0+epssm)*rw_p(k,iCell)
-         end do
-
-         ! update rho_pp and theta_pp given updated rw_p
+            ! the implicit Rayleigh damping on w (gravity-wave absorbing)
 
 !DIR$ IVDEP
-         do k=1,nVertLevels
-            rho_pp(k,iCell) = rs(k) - cofrz(k) *(rw_p(k+1,iCell)-rw_p(k  ,iCell))
-            rtheta_pp(k,iCell) = ts(k) - rdzw(k)*(coftz(k+1,iCell)*rw_p(k+1,iCell)  &
-                               -coftz(k  ,iCell)*rw_p(k  ,iCell))
-         end do
+            !$acc loop vector
+            do k=2,nVertLevels
+               rw_p(k,iCell) = (rw_p(k,iCell) + (rw_save(k  ,iCell) - rw(k  ,iCell)) -dts*dss(k,iCell)* &
+                           (fzm(k)*zz (k,iCell)+fzp(k)*zz (k-1,iCell))                                  &
+                           *(fzm(k)*rho_zz(k,iCell)+fzp(k)*rho_zz(k-1,iCell))                           &
+                                    *w(k,iCell)    )/(1.0+dts*dss(k,iCell))                             &
+                            - (rw_save(k  ,iCell) - rw(k  ,iCell))
+            end do
+
+            ! accumulate (rho*omega)' for use later in scalar transport
+!DIR$ IVDEP
+            !$acc loop vector
+            do k=2,nVertLevels
+               wwAvg(k,iCell) = wwAvg(k,iCell) + 0.5*(1.0+epssm)*rw_p(k,iCell)
+            end do
+
+            ! update rho_pp and theta_pp given updated rw_p
+
+!DIR$ IVDEP
+            !$acc loop vector
+            do k=1,nVertLevels
+               rho_pp(k,iCell) = rs(k) - cofrz(k) *(rw_p(k+1,iCell)-rw_p(k  ,iCell))
+               rtheta_pp(k,iCell) = ts(k) - rdzw(k)*(coftz(k+1,iCell)*rw_p(k+1,iCell)  &
+                                  -coftz(k  ,iCell)*rw_p(k  ,iCell))
+            end do
 
          else ! specifed zone in regional_MPAS
 
+            !$acc loop vector
             do k=1,nVertLevels
                rho_pp(k,iCell) = rho_pp(k,iCell) + dts*tend_rho(k,iCell)
                rtheta_pp(k,iCell) = rtheta_pp(k,iCell) + dts*tend_rt(k,iCell)
@@ -2553,6 +2694,15 @@ module atm_time_integration
          end if
 
       end do !  end of loop over cells
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_advance_acoustic_step [ACC_data_xfer]')
+      !$acc exit data delete(exner,cqu,cofwt,coftz,cofrz,cofwr,cofwz, &
+      !$acc                a_tri,alpha_tri,gamma_tri,rho_zz,theta_m,w, &
+      !$acc                tend_ru,tend_rho,tend_rt,tend_rw,rw,rw_save)
+      !$acc exit data copyout(rtheta_pp_old,ru_p,ruAvg,rho_pp, &
+      !$acc                   rtheta_pp,wwAvg,rw_p)
+      MPAS_ACC_TIMER_STOP('atm_advance_acoustic_step [ACC_data_xfer]')
 
    end subroutine atm_advance_acoustic_step_work
 
