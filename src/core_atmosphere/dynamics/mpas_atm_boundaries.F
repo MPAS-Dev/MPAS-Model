@@ -36,6 +36,11 @@ module mpas_atm_boundaries
 
     public :: nBdyZone, nSpecZone, nRelaxZone
 
+    interface mpas_atm_get_bdy_state
+        module procedure mpas_atm_get_bdy_state_2d
+        module procedure mpas_atm_get_bdy_state_3d
+    end interface mpas_atm_get_bdy_state
+
     private
 
     type (MPAS_Time_Type) :: LBC_intv_end
@@ -311,7 +316,7 @@ module mpas_atm_boundaries
 
     !***********************************************************************
     !
-    !  routine mpas_atm_get_bdy_state
+    !  routine mpas_atm_get_bdy_state_2d
     !
     !> \brief   Returns LBC state at a specified delta-t in the future
     !> \author  Michael Duda
@@ -342,7 +347,7 @@ module mpas_atm_boundaries
     !>   scalars(1,:,:) = mpas_atm_get_bdy_state(clock, domain % blocklist, nVertLevels, nCells, 'qv', 0.0_RKIND)
     !
     !-----------------------------------------------------------------------
-    function mpas_atm_get_bdy_state(clock, block, vertDim, horizDim, field, delta_t) result(return_state)
+    function mpas_atm_get_bdy_state_2d(clock, block, vertDim, horizDim, field, delta_t) result(return_state)
 
         use mpas_pool_routines, only : mpas_pool_get_error_level, mpas_pool_set_error_level
         use mpas_derived_types, only : MPAS_POOL_SILENT
@@ -414,7 +419,86 @@ module mpas_atm_boundaries
             return_state(:,:) = state_scalars(idx,:,:) - dt * tend_scalars(idx,:,:)
         end if
 
-    end function mpas_atm_get_bdy_state
+    end function mpas_atm_get_bdy_state_2d
+
+
+    !***********************************************************************
+    !
+    !  routine mpas_atm_get_bdy_state_3d
+    !
+    !> \brief   Returns LBC state at a specified delta-t in the future
+    !> \author  Michael Duda
+    !> \date    4 September 2024
+    !> \details
+    !>  This function returns an array providing the state for the requested
+    !>  progostic variable delta_t in the future from the current time known
+    !>  by the simulation clock (which is typically the time at the start of
+    !>  the current timestep).
+    !>
+    !>  The innerDim, vertDim, and horizDim should match the nominal block
+    !>  dimensions of the field to be returned by the call; for example, a
+    !>  call to retrieve the state of the 'scalars' field would set
+    !>  innerDim=num_scalars, vertDim=nVertLevels, and horizDim=nCells. This
+    !>  function internally adds 1 to the horizontal dimension to account for
+    !>  the "garbage" element.
+    !>
+    !>  The field is identified by the 'field' argument, and this argument is
+    !>  prefixed with 'lbc_' before attempting to retrieve the field from
+    !>  the 'lbc' pool.
+    !>
+    !>  Example calls to this function:
+    !>
+    !>   scalar(:,:,:) = mpas_atm_get_bdy_state(clock, domain % blocklist, &
+    !>                       num_scalars, nVertLevels, nCells, 'scalars', 0.0_RKIND)
+    !
+    !-----------------------------------------------------------------------
+    function mpas_atm_get_bdy_state_3d(clock, block, innerDim, vertDim, horizDim, field, delta_t) result(return_state)
+
+        use mpas_pool_routines, only : mpas_pool_get_error_level, mpas_pool_set_error_level
+        use mpas_derived_types, only : MPAS_POOL_SILENT
+
+        implicit none
+
+        type (mpas_clock_type), intent(in) :: clock
+        type (block_type), intent(inout) :: block
+        integer, intent(in) :: innerDim, vertDim, horizDim
+        character(len=*), intent(in) :: field
+        real (kind=RKIND), intent(in) :: delta_t
+
+        real (kind=RKIND), dimension(innerDim,vertDim,horizDim+1) :: return_state
+
+        type (mpas_pool_type), pointer :: lbc
+        real (kind=RKIND), dimension(:,:,:), pointer :: tend
+        real (kind=RKIND), dimension(:,:,:), pointer :: state
+        type (MPAS_Time_Type) :: currTime
+        type (MPAS_TimeInterval_Type) :: lbc_interval
+        integer :: dd_intv, s_intv, sn_intv, sd_intv
+        real (kind=RKIND) :: dt
+        integer :: err_level
+        integer :: ierr
+
+
+        currTime = mpas_get_clock_time(clock, MPAS_NOW, ierr)
+
+        lbc_interval = LBC_intv_end - currTime
+
+        call mpas_get_timeInterval(interval=lbc_interval, DD=dd_intv, S=s_intv, S_n=sn_intv, S_d=sd_intv, ierr=ierr)
+        dt = 86400.0_RKIND * real(dd_intv, kind=RKIND) + real(s_intv, kind=RKIND) &
+             + (real(sn_intv, kind=RKIND) / real(sd_intv, kind=RKIND))
+
+        dt = dt - delta_t
+
+        call mpas_pool_get_subpool(block % structs, 'lbc', lbc)
+
+        nullify(tend)
+        nullify(state)
+
+        call mpas_pool_get_array(lbc, 'lbc_'//trim(field), tend, 1)
+        call mpas_pool_get_array(lbc, 'lbc_'//trim(field), state, 2)
+
+        return_state(:,:,:) = state(:,:,:) - dt * tend(:,:,:)
+
+    end function mpas_atm_get_bdy_state_3d
 
 
     !***********************************************************************
