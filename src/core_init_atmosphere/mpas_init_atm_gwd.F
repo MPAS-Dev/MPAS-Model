@@ -21,7 +21,8 @@ module mpas_init_atm_gwd
 
    type :: mpas_gwd_tile_type
 
-      real (kind=R4KIND), dimension(:), pointer :: array
+      real (kind=R4KIND), dimension(:), pointer :: topo_array
+      real (kind=R4KIND), dimension(:), pointer :: land_array
       integer :: tile_start_x, tile_start_y
    ! linked list next pointer
       type (mpas_gwd_tile_type), pointer :: next => null()
@@ -293,7 +294,7 @@ module mpas_init_atm_gwd
          ! subroutines to compute each sub-grid orography statistic
          !
          var2d(iCell) = get_var(nx, ny)
-         !con(iCell) = get_con(nx, ny)
+         con(iCell) = get_con(nx, ny)
          oa1(iCell) = get_oa1(nx, ny)
          oa2(iCell) = get_oa2(nx, ny)
          oa3(iCell) = get_oa3(nx, ny)
@@ -309,7 +310,7 @@ module mpas_init_atm_gwd
          ol3(iCell) = get_ol3(nx, ny)
          ol4(iCell) = get_ol4(nx, ny)
 
-         !hlanduse(iCell) = get_dom_landmask(nx, ny)  ! get dominant land mask in cell
+         hlanduse(iCell) = get_dom_landmask(nx, ny)  ! get dominant land mask in cell
 
          ! elvmax_1 = get_elvmax(nx,ny)
          ! htheta_1 = get_htheta(nx,ny)
@@ -492,14 +493,14 @@ module mpas_init_atm_gwd
       character(len=*), intent(in) :: path
       character(len=*), intent(in) :: sub_path
 
-      integer :: ix, jx, ii, l,i, iCell, tile_start_x, tile_start_y
+      integer :: ix, jx, ii, l,i, iCell, tile_start_x, tile_start_y, tile_start_x_topo
       
          
-      ! if (box_x > topo_shift) then
-      !    tile_start_x = floor( real(box_x - topo_shift - 1) / real(tile_x)) * tile_x + 1
-      ! else
-      !    tile_start_x = floor( real(box_x + topo_shift - 1) / real(tile_x)) * tile_x + 1
-      ! end if
+      if (box_x > topo_shift) then
+         tile_start_x_topo = floor( real(box_x - topo_shift - 1) / real(tile_x)) * tile_x + 1
+      else
+         tile_start_x_topo = floor( real(box_x + topo_shift - 1) / real(tile_x)) * tile_x + 1
+      end if
       tile_start_x = floor( real(box_x - 1) / real(tile_x)) * tile_x + 1
       tile_start_y = floor( real(box_y - 1) / real(tile_y)) * tile_y + 1
 
@@ -518,35 +519,37 @@ module mpas_init_atm_gwd
       enddo   ! associated(thisTile)
 
       if (.not. associated(thisTile)) then 
-         thisTile => add_tile(tilesHead, tile_start_x, tile_start_y, path, sub_path)
+         thisTile => add_tile(tilesHead, tile_start_x, tile_start_y, tile_start_x_topo, path, sub_path)
       end if
 
       !
    end function get_tile_from_box_point
 
 
-   function add_tile(tilesHead, tile_start_x, tile_start_y, path, sub_path) result(newTile)
+   function add_tile(tilesHead, tile_start_x, tile_start_y, tile_start_x_topo, path, sub_path) result(newTile)
 
       implicit none
       integer :: iErr
-      integer, intent(in) :: tile_start_x, tile_start_y
+      integer, intent(in) :: tile_start_x, tile_start_y, tile_start_x_topo
       type(mpas_gwd_tile_type), pointer :: tilesHead
       type(mpas_gwd_tile_type), pointer :: newTile
       character(len=*), intent(in) :: path
       character(len=*), intent(in) :: sub_path
 
       allocate(newTile)
-      allocate(newTile%array(topo_x*topo_y))
+      allocate(newTile%topo_array(topo_x*topo_y))
+      allocate(newTile%land_array(topo_x*topo_y))
       newTile%tile_start_x = tile_start_x
       newTile%tile_start_y = tile_start_y
       newTile%next => tilesHead
 
-      iErr = read_30s_topo_tile(path, sub_path, newTile%array, newTile%tile_start_x, newTile%tile_start_y)
+      iErr = read_30s_topo_tile(path, sub_path, newTile%topo_array, tile_start_x_topo, newTile%tile_start_y)
+      iErr = read_30s_landuse_tile(path, sub_path, newTile%land_array, newTile%tile_start_x, newTile%tile_start_y)
       tilesHead => newTile
 
       cum_local_tiles = cum_local_tiles + 1
 
-      call mpas_log_write('In add_tile for tile_start:($i,$i), cum_local_tiles:$i ', intArgs=(/tile_start_x, tile_start_y,cum_local_tiles /))
+      !call mpas_log_write('In add_tile for tile_start:($i,$i), cum_local_tiles:$i ', intArgs=(/tile_start_x, tile_start_y,cum_local_tiles /))
 
    end function add_tile
 
@@ -588,6 +591,14 @@ module mpas_init_atm_gwd
 
       topo_shift = 0
 
+      ! if (tile_start_x - topo_shift > 0 ) then 
+      !    ix = tile_start_x - topo_shift
+      ! else
+      !    ix = tile_start_x + topo_shift
+      ! end if
+      iy = tile_start_y
+      ix = tile_start_x
+
       !allocate(topo(tile_x*tile_y))
       
       !
@@ -598,8 +609,10 @@ module mpas_init_atm_gwd
          topo_shift = topo_x / 2
       end if
 
-      write(filename,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(path)//trim(sub_path), tile_start_x, '-', (tile_start_x+tile_x-1), '.', &
-      tile_start_y, '-', (tile_start_y+tile_y-1)
+      !write(filename,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(path)//trim(sub_path), tile_start_x, '-', (tile_start_x+tile_x-1), '.', &
+      !tile_start_y, '-', (tile_start_y+tile_y-1)
+      write(filename,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(path)//trim(sub_path), ix, '-', (ix+tile_x-1), '.', &
+      iy, '-', (iy+tile_y-1)
       call mpas_f_to_c_string(filename, c_filename)
       call read_geogrid(c_filename, tile_ptr, nx, ny, nz, isigned, endian, &
                         wordsize, istatus)
@@ -610,7 +623,6 @@ module mpas_init_atm_gwd
          return
       end if
       
-      ix_shift = (il-1)*tile_x*tile_y + 1
       !topo(1:(tile_x*tile_y-1)) = reshape(tile((tile_bdr+1):(tile_x+tile_bdr),(tile_bdr+1):(tile_y+tile_bdr),1),(/tile_x*tile_y/))   
       topo = reshape(tile((tile_bdr+1):(tile_x+tile_bdr),(tile_bdr+1):(tile_y+tile_bdr),1),(/tile_x*tile_y/))
 
@@ -620,6 +632,61 @@ module mpas_init_atm_gwd
 
    end function read_30s_topo_tile
 
+
+   function read_30s_landuse_tile(path, sub_path, landuse, tile_start_x, tile_start_y) result(iErr)
+
+      implicit none
+
+      character(len=*), intent(in) :: path
+      character(len=*), intent(in) :: sub_path
+      REAL(kind=R4KIND), DIMENSION(:), POINTER, intent(in) :: landuse
+      integer, intent(in) :: tile_start_x
+      integer, intent(in) :: tile_start_y
+      integer :: iErr
+
+      integer, parameter :: tile_x = 1200       ! x-dimension of each tile of global 30-arc-second landuse
+      integer, parameter :: tile_y = 1200       ! y-dimension of each tile of global 30-arc-second landuse
+
+      integer (c_int) :: istatus
+      integer :: ix, iy, ix_shift, il
+      integer (c_int) :: isigned, endian, wordsize, nx, ny, nz
+      real (c_float) :: scalefactor
+      real (c_float), dimension(:,:,:), pointer, contiguous :: tile
+      type (c_ptr) :: tile_ptr
+      character(len=StrKIND) :: filename
+      character(kind=c_char), dimension(StrKIND+1) :: c_filename
+      character(len=StrKIND):: message
+
+      allocate(tile(tile_x,tile_y,1))
+      tile_ptr = c_loc(tile)
+
+      isigned  = 1
+      endian   = 0
+      wordsize = 1
+      scalefactor = 1.0
+      nx = tile_x
+      ny = tile_y
+      nz = 1
+
+      write(filename,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(path)//'/landuse_30s/', tile_start_x, '-', (tile_start_x+tile_x-1), '.', &
+      tile_start_y, '-', (tile_start_y+tile_y-1)
+      call mpas_f_to_c_string(filename, c_filename)
+      call read_geogrid(c_filename, tile_ptr, nx, ny, nz, isigned, endian, &
+                        wordsize, istatus)
+      tile(:,:,:) = tile(:,:,:) * scalefactor
+      if (istatus /= 0) then
+         call mpas_log_write('Error reading landuse tile '//trim(filename))
+         iErr = 1
+         return
+      end if
+      
+      landuse = reshape(int(tile(1:tile_x,1:tile_y,1), kind=I1KIND),(/tile_x*tile_y/))
+
+      deallocate(tile)
+
+      iErr = 0
+
+   end function read_30s_landuse_tile
 
 
    !***********************************************************************
@@ -883,11 +950,11 @@ module mpas_init_atm_gwd
          l = l + 1
       
 
-         if (ii - topo_shift > 0 ) then 
-            ii = ii - topo_shift
-         else
-            ii = ii + topo_shift
-         end if
+         ! if (ii - topo_shift > 0 ) then 
+         !    ii = ii - topo_shift
+         ! else
+         !    ii = ii + topo_shift
+         ! end if
 
          thisTile => get_tile_from_box_point(tilesHead, ii, jj, nx, ny, path, sub_path)
 
@@ -904,12 +971,12 @@ module mpas_init_atm_gwd
          
          ! tile_base = (itile-1)*tile_x*tile_y + 1
          tile_offset = (ii - thisTile%tile_start_x) + (jj - thisTile%tile_start_y) * tile_x + 1
-         if (tile_offset < 0) then 
-             call mpas_log_write('In box_new for (i,j):($i,$i), tile_offset:$i tile_start_end $i, $i', intArgs=(/ii,jj,tile_offset, thisTile%tile_start_x, thisTile%tile_start_y/))
-             call mpas_log_write('In box_new for (i,j):($i,$i), lat:$r, lon:$r', intArgs=(/ii,jj/), realArgs=(/lat*rad2deg, lon*rad2deg /))
-         end if
-         box(i,j) = thisTile%array(tile_offset)
-         !box_landuse(i,j) = landuse(tile_offset)
+         !if (tile_offset < 0) then 
+         !    call mpas_log_write('In box_new for (i,j):($i,$i), tile_offset:$i tile_start_end $i, $i', intArgs=(/ii,jj,tile_offset, thisTile%tile_start_x, thisTile%tile_start_y/))
+         !    call mpas_log_write('In box_new for (i,j):($i,$i), lat:$r, lon:$r', intArgs=(/ii,jj/), realArgs=(/lat*rad2deg, lon*rad2deg /))
+        !end if
+         box(i,j) = thisTile%topo_array(tile_offset)
+         box_landuse(i,j) = thisTile%land_array(tile_offset)
          sg_lat = (start_lat + (real(jj-1,RKIND) + 0.5) / pts_per_degree) / rad2deg  ! Add 0.5 for cell center
          dxm(i,j) = sg_delta * cos(sg_lat)
          box_mean = box_mean + box(i,j)
