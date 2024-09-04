@@ -24,7 +24,7 @@ module mpas_init_atm_gwd
       real (kind=R4KIND), dimension(:), pointer :: topo_array
       real (kind=R4KIND), dimension(:), pointer :: land_array
       integer :: tile_start_x, tile_start_y
-   ! linked list next pointer
+      ! linked list next pointer
       type (mpas_gwd_tile_type), pointer :: next => null()
 
    end type mpas_gwd_tile_type
@@ -68,12 +68,10 @@ module mpas_init_atm_gwd
    ! Nominal delta-x (in meters) for sub-grid topography cells
    real (kind=RKIND), parameter ::  sg_delta = 2.0 * Pi * Re / (360.0_RKIND * real(pts_per_degree,RKIND))
 
-   real (kind=R4KIND), dimension(:), pointer :: topo ! Global 30-arc-second topography
    real (kind=RKIND), dimension(:,:), pointer :: box   ! Subset of topography covering a grid cell
    real (kind=RKIND), dimension(:,:), pointer :: dxm   ! Size (meters) in zonal direction of a grid cell
    real (kind=RKIND) :: box_mean                       ! Mean value of topography in box
    !integer :: nx, ny                                   ! Dimensions of box covering grid cell
-   integer (kind=I1KIND), dimension(:), pointer :: landuse         ! Global 30-arc-second landuse
    integer (kind=I1KIND), dimension(:,:), pointer :: box_landuse     ! Subset of landuse covering a grid cell
 
    ! NB: At present, only the USGS GLCC land cover dataset is supported, so we can assume 16 == water 
@@ -83,8 +81,6 @@ module mpas_init_atm_gwd
    integer (kind=I1KIND), dimension(:), pointer :: hlanduse ! Dominant land mask (0 or 1)
    real (kind=RKIND) :: hc   ! critical height
 
-   integer, dimension(:), pointer :: local_tile_x, local_tile_x_land ! 
-   integer, dimension(:), pointer :: local_tile_y ! 
    integer, dimension(:), pointer :: local_box_x ! 
    integer, dimension(:), pointer :: local_box_y ! 
    integer:: max_local_tiles, cum_local_tiles
@@ -245,9 +241,6 @@ module mpas_init_atm_gwd
       tilesHead => null()
 
       max_local_tiles = (topo_x/tile_x) * (topo_y/tile_y)
-      allocate(local_tile_x(max_local_tiles))
-      allocate(local_tile_x_land(max_local_tiles))
-      allocate(local_tile_y(max_local_tiles))
 
       topo_shift = topo_x / 2
       !
@@ -286,7 +279,7 @@ module mpas_init_atm_gwd
          ! computes the mean elevation in the array and stores that value in
          ! the module variable 'box_mean'.
          !
-         call get_box_points(latCell(iCell),lonCell(iCell), nx, ny, geog_data_path, geog_sub_path, tilesHead)
+         call get_box(latCell(iCell),lonCell(iCell), nx, ny, geog_data_path, geog_sub_path, tilesHead)
          !call get_box(nx, ny, geog_data_path, geog_sub_path)
 
          !
@@ -338,9 +331,6 @@ module mpas_init_atm_gwd
          end if
       end do
 
-
-      !deallocate(topo)
-      !deallocate(landuse)
       deallocate(hlanduse)
 
       iErr = 0
@@ -376,52 +366,6 @@ module mpas_init_atm_gwd
    end subroutine get_box_size_from_lat_lon
 
 
-
-   function unique_tile(ix, jx, len) result (is_unique)
-      
-      implicit none
-
-      integer, intent(in) :: ix
-      integer, intent(in) :: jx
-      integer, intent(in) :: len
-
-      integer :: i
-      logical :: is_unique
-
-      do i = 1, len
-         if(local_tile_x(i)==ix .and. local_tile_y(i)==jx) then 
-            is_unique = .false.
-            return
-         end if
-      end do
-
-      is_unique = .true.
-
-   end function unique_tile
-
-   function locate_tile_in_set(tile_index_i, tile_index_j, is_topo) result (tile_index)
-      
-      implicit none
-
-      integer, intent(in) :: tile_index_i
-      integer, intent(in) :: tile_index_j
-      logical, intent(in) :: is_topo
-
-      integer :: itile, tile_index
-
-
-      do itile = 1, cum_local_tiles
-         if(local_tile_x(itile)==tile_index_i .and. local_tile_y(itile)==tile_index_j) then 
-            tile_index = itile
-            return
-         end if
-      end do
-
-      tile_index = -1
-
-   end function locate_tile_in_set
-
-
    function locate_tile_in_list(tile_index_i, tile_index_j, is_topo) result (tile_index)
       
       implicit none
@@ -448,39 +392,6 @@ module mpas_init_atm_gwd
       enddo   ! associated(thisTile)
 
    end function locate_tile_in_list
-
-   function determine_complete_tile_set(nx, ny) result(iErr)
-
-      implicit none
-      integer :: iErr
-      integer, intent(in) :: nx, ny
-
-      integer :: ix, jx, ii, l,i, iCell, itile, jtile
-
-      ii = cum_local_tiles
-      do l=1,nx*ny
-         
-         if (local_box_x(l) > topo_shift) then
-            itile = floor( real(local_box_x(l) - topo_shift - 1) / real(tile_x)) * tile_x + 1
-         else
-            itile = floor( real(local_box_x(l) + topo_shift - 1) / real(tile_x)) * tile_x + 1
-         end if
-         jtile = floor( real(local_box_y(l) - 1) / real(tile_y)) * tile_y + 1
-         
-         if(unique_tile(itile, jtile, ii)) then
-            ii = ii + 1
-            local_tile_x(ii) = itile
-            local_tile_x_land(ii) = floor( real(local_box_x(l) - 1) / real(tile_x)) * tile_x + 1
-            local_tile_y(ii) = jtile
-            !call mpas_log_write('---- Adding tile to local tile list ($i, land_x:$i, $i)', intArgs=(/local_tile_x(ii),local_tile_x_land(ii), local_tile_y(ii)/))
-            !call mpas_log_write('-------- local box_x : $i local_box_x(l) - topo_shift: $i', intArgs=(/local_box_x(l),local_box_x(l) - topo_shift/))
-         end if
-      end do
-
-      cum_local_tiles = ii
-
-      !
-   end function determine_complete_tile_set
 
 
    function get_tile_from_box_point(tilesHead, box_x, box_y, nx, ny, path, sub_path) result(thisTile)
@@ -553,6 +464,18 @@ module mpas_init_atm_gwd
 
    end function add_tile
 
+   !***********************************************************************
+   !
+   !  function read_global_30s_topo
+   !
+   !> \brief   Reads global 30-arc-second topography into 'topo' module variable
+   !> \author  Michael Duda
+   !> \date    28 August 2017
+   !> \details 
+   !>  This subroutine reads the global 30-arc-second topography from the subdirectory 
+   !>  identified by the 'sub_path' argument within the 'path' provided as the first argument.
+   !
+   !-----------------------------------------------------------------------
    function read_30s_topo_tile(path, sub_path, topo, tile_start_x, tile_start_y) result(iErr)
 
       implicit none
@@ -623,7 +546,6 @@ module mpas_init_atm_gwd
          return
       end if
       
-      !topo(1:(tile_x*tile_y-1)) = reshape(tile((tile_bdr+1):(tile_x+tile_bdr),(tile_bdr+1):(tile_y+tile_bdr),1),(/tile_x*tile_y/))   
       topo = reshape(tile((tile_bdr+1):(tile_x+tile_bdr),(tile_bdr+1):(tile_y+tile_bdr),1),(/tile_x*tile_y/))
 
       deallocate(tile)
@@ -632,7 +554,18 @@ module mpas_init_atm_gwd
 
    end function read_30s_topo_tile
 
-
+   !***********************************************************************
+   !
+   !  function read_global_30s_landuse
+   !
+   !> \brief   Reads global 30-arc-second landuse into 'landuse' module variable
+   !> \author  Michael Duda
+   !> \date    14 March 2017
+   !> \details 
+   !>  This subroutine reads the global 30-arc-second USGS landuse from
+   !>   the subdirectory 'landuse_30s' of the path provided as an argument.
+   !
+   !-----------------------------------------------------------------------
    function read_30s_landuse_tile(path, sub_path, landuse, tile_start_x, tile_start_y) result(iErr)
 
       implicit none
@@ -689,165 +622,11 @@ module mpas_init_atm_gwd
    end function read_30s_landuse_tile
 
 
-   !***********************************************************************
-   !
-   !  function read_global_30s_topo
-   !
-   !> \brief   Reads global 30-arc-second topography into 'topo' module variable
-   !> \author  Michael Duda
-   !> \date    28 August 2017
-   !> \details 
-   !>  This subroutine reads the global 30-arc-second topography from the subdirectory 
-   !>  identified by the 'sub_path' argument within the 'path' provided as the first argument.
-   !
-   !-----------------------------------------------------------------------
-   function read_global_30s_topo(path, sub_path) result(iErr)
-
-      implicit none
-
-      character(len=*), intent(in) :: path
-      character(len=*), intent(in) :: sub_path
-
-      integer :: iErr
-
-      integer, parameter :: tile_x = 1200       ! x-dimension of each tile of global 30-arc-second topography
-      integer, parameter :: tile_y = 1200       ! y-dimension of each tile of global 30-arc-second topography
-      integer, parameter :: tile_bdr = 3        ! number of layers of border/halo points surrounding each tile
-
-      integer (c_int) :: istatus
-      integer :: ix, iy, ix_shift, il
-      integer (c_int) :: isigned, endian, wordsize, nx, ny, nz
-      real (c_float) :: scalefactor
-      real (c_float), dimension(:,:,:), pointer, contiguous :: tile
-      type (c_ptr) :: tile_ptr
-      character(len=StrKIND) :: filename
-      character(len=StrKIND):: message
-      character(kind=c_char), dimension(StrKIND+1) :: c_filename
-
-      allocate(tile(tile_x+2*tile_bdr,tile_y+2*tile_bdr,1))
-      tile_ptr = c_loc(tile)
-
-      isigned  = 1
-      endian   = 0
-      wordsize = 2
-      scalefactor = 1.0
-      nx = tile_x + 2*tile_bdr
-      ny = tile_y + 2*tile_bdr
-      nz = 1
-
-      topo_shift = 0
-
-      allocate(topo(tile_x*tile_y*cum_local_tiles))
-      
-      !
-      ! For GMTED2010 data, the dataset starts at 0.0 longitude, but we need to shift the starting location
-      ! in the topo array to -180.0, so we introduce an offset in the x-coordinate of topo_x/2
-      !
-      if (trim(sub_path) == 'topo_gmted2010_30s/') then
-         topo_shift = topo_x / 2
-      end if
-
-      do il=1,cum_local_tiles
-         ix = local_tile_x(il)
-         iy = local_tile_y(il)
-
-         write(filename,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(path)//trim(sub_path), ix, '-', (ix+tile_x-1), '.', &
-                                                                                      iy, '-', (iy+tile_y-1)
-         call mpas_f_to_c_string(filename, c_filename)
-         call read_geogrid(c_filename, tile_ptr, nx, ny, nz, isigned, endian, &
-                           wordsize, istatus)
-         tile(:,:,:) = tile(:,:,:) * scalefactor
-         if (istatus /= 0) then
-            call mpas_log_write('Error reading topography tile '//trim(filename), messageType=MPAS_LOG_ERR)
-            iErr = 1
-            return
-         end if
-         
-         ix_shift = (il-1)*tile_x*tile_y + 1
-         topo(ix_shift:(ix_shift+tile_x*tile_y-1)) = reshape(tile((tile_bdr+1):(tile_x+tile_bdr),(tile_bdr+1):(tile_y+tile_bdr),1),(/tile_x*tile_y/))
-
-      end do
-
-      deallocate(tile)
-
-      iErr = 0
-
-   end function read_global_30s_topo
+   
 
 
-   !***********************************************************************
-   !
-   !  function read_global_30s_landuse
-   !
-   !> \brief   Reads global 30-arc-second landuse into 'landuse' module variable
-   !> \author  Michael Duda
-   !> \date    14 March 2017
-   !> \details 
-   !>  This subroutine reads the global 30-arc-second USGS landuse from
-   !>   the subdirectory 'landuse_30s' of the path provided as an argument.
-   !
-   !-----------------------------------------------------------------------
-   function read_global_30s_landuse(path) result(iErr)
-
-      implicit none
-
-      character(len=*), intent(in) :: path
-
-      integer :: iErr
-
-      integer, parameter :: tile_x = 1200       ! x-dimension of each tile of global 30-arc-second landuse
-      integer, parameter :: tile_y = 1200       ! y-dimension of each tile of global 30-arc-second landuse
-
-      integer (c_int) :: istatus
-      integer :: ix, iy, ix_shift, il
-      integer (c_int) :: isigned, endian, wordsize, nx, ny, nz
-      real (c_float) :: scalefactor
-      real (c_float), dimension(:,:,:), pointer, contiguous :: tile
-      type (c_ptr) :: tile_ptr
-      character(len=StrKIND) :: filename
-      character(kind=c_char), dimension(StrKIND+1) :: c_filename
-      character(len=StrKIND):: message
-
-      allocate(tile(tile_x,tile_y,1))
-      tile_ptr = c_loc(tile)
-
-      isigned  = 1
-      endian   = 0
-      wordsize = 1
-      scalefactor = 1.0
-      nx = tile_x
-      ny = tile_y
-      nz = 1
-
-      allocate(landuse(tile_x*tile_y*cum_local_tiles))
-
-      do il=1,cum_local_tiles
-         ix = local_tile_x_land(il)
-         iy = local_tile_y(il)
-
-         write(filename,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(path)//'/landuse_30s/', ix, '-', (ix+tile_x-1), '.', &
-                                                                                      iy, '-', (iy+tile_y-1)
-         call mpas_f_to_c_string(filename, c_filename)
-         call read_geogrid(c_filename, tile_ptr, nx, ny, nz, isigned, endian, &
-                           wordsize, istatus)
-         tile(:,:,:) = tile(:,:,:) * scalefactor
-         if (istatus /= 0) then
-            call mpas_log_write('Error reading landuse tile '//trim(filename))
-            iErr = 1
-            return
-         end if
-         
-         ix_shift = (il-1)*tile_x*tile_y + 1
-         landuse(ix_shift:(ix_shift+tile_x*tile_y-1)) = reshape(int(tile(1:tile_x,1:tile_y,1), kind=I1KIND),(/tile_x*tile_y/))
-         
-      end do
-
-      deallocate(tile)
-
-      iErr = 0
-
-   end function read_global_30s_landuse
-
+   
+   
 
    !***********************************************************************
    !
@@ -887,8 +666,27 @@ module mpas_init_atm_gwd
    end function get_dom_landmask 
 
 
-
-   subroutine get_box_points(lat, lon, nx, ny, path, sub_path, tilesHead)
+   !***********************************************************************
+   !
+   !  subroutine get_box
+   !
+   !> \brief   Cuts out a rectangular box of data centered at a given (lat,lon)
+   !> \author  Michael Duda
+   !> \date    29 May 2015
+   !> \details 
+   !>  This subroutine extracts a rectangular sub-array of the 30-arc-second
+   !>  global topography dataset, stored in the module variable 'topo'; the
+   !>  sub-array will be centered at the (lat,lon) specified in the argument
+   !>  list, and will have a width and height large enough to span 'dx' meters.
+   !>  The extracted sub-array is stored in the module variable 'box', and the
+   !>  dimensions of this sub-array are stored in the module variables 'nx' and
+   !>  'ny'.
+   !>  Since the mean value of the terrain in a grid cell is needed by many of
+   !>  the GWDO statistics computations, this mean value is also computed by
+   !>  this subroutine and stored in the module variable 'box_mean'.
+   !
+   !-----------------------------------------------------------------------
+   subroutine get_box(lat, lon, nx, ny, path, sub_path, tilesHead)
 
       implicit none
       character(len=*), intent(in) :: path
@@ -986,98 +784,12 @@ module mpas_init_atm_gwd
 
       box_mean = box_mean / real(nx*ny, RKIND)
 
-   end subroutine get_box_points
-
-
-
-   !***********************************************************************
-   !
-   !  subroutine get_box
-   !
-   !> \brief   Cuts out a rectangular box of data centered at a given (lat,lon)
-   !> \author  Michael Duda
-   !> \date    29 May 2015
-   !> \details 
-   !>  This subroutine extracts a rectangular sub-array of the 30-arc-second
-   !>  global topography dataset, stored in the module variable 'topo'; the
-   !>  sub-array will be centered at the (lat,lon) specified in the argument
-   !>  list, and will have a width and height large enough to span 'dx' meters.
-   !>  The extracted sub-array is stored in the module variable 'box', and the
-   !>  dimensions of this sub-array are stored in the module variables 'nx' and
-   !>  'ny'.
-   !>  Since the mean value of the terrain in a grid cell is needed by many of
-   !>  the GWDO statistics computations, this mean value is also computed by
-   !>  this subroutine and stored in the module variable 'box_mean'.
-   !
-   !-----------------------------------------------------------------------
-   subroutine get_box(nx, ny)
-
-      implicit none
-
-      integer, intent(in) :: nx, ny
-      integer :: itile, ix_shift, ix, ix_land, ix_topo, jx, ibox, tile_index_i, tile_index_j
-      integer :: tile_base, tile_offset, i, j
-      real (kind=RKIND) :: sg_lat
-      character(len=StrKIND):: message
-      
-
-      if (associated(box)) deallocate(box)
-      allocate(box(nx,ny))
-      
-      if (associated(box_landuse)) deallocate(box_landuse)
-      allocate(box_landuse(nx,ny))
-
-      if (associated(dxm)) deallocate(dxm)
-      allocate(dxm(nx,ny))
-
-      !
-      ! Extract sub-array (box) from global array; must properly account for 
-      ! the periodicity in the longitude coordinate, as well as the poles
-      !
-      box_mean = 0.0
-      ibox = 1
-      do j=1,ny
-         do i=1,nx
-
-            ibox = (j-1)*nx + i
-            ! pixels on the global topo grid 
-            ix = local_box_x(ibox) !+ topo_shift
-            ix_topo = local_box_x(ibox)
-            jx = local_box_y(ibox)
-
-            if (ix - topo_shift > 0 ) then 
-               ix = ix - topo_shift
-            else
-               ix = ix + topo_shift
-            end if
-
-            tile_index_i = floor( real(ix - 1) / real(tile_x)) * tile_x + 1
-            tile_index_j = floor( real(jx - 1) / real(tile_y)) * tile_y + 1
-
-            itile = locate_tile_in_set(tile_index_i, tile_index_j, .true.)
-
-            !call mpas_log_write('In box_new for (i,j):($i,$i), (ix,jx):($i,$i), tile_index_i,tile_index_j:($i,$i), itile:$i ', intArgs=(/i,j,ix,jx,tile_index_i,tile_index_j,itile/))
-
-            tile_base = (itile-1)*tile_x*tile_y + 1
-            tile_offset = (ix - local_tile_x(itile)) + (jx - local_tile_y(itile)) * tile_x
-            
-            box(i,j) = topo(tile_base + tile_offset)
-            !box_landuse(i,j) = landuse(tile_base + tile_offset)
-            sg_lat = (start_lat + (real(jx-1,RKIND) + 0.5) / pts_per_degree) / rad2deg  ! Add 0.5 for cell center
-            dxm(i,j) = sg_delta * cos(sg_lat)
-            box_mean = box_mean + box(i,j)
-
-            ibox = ibox + 1 
-         end do
-      end do
-
-
-      !
-      ! Compute mean topography in the extracted box
-      !
-      box_mean = box_mean / real(nx*ny, RKIND)
-
    end subroutine get_box
+
+
+
+   
+   
 
 
    !***********************************************************************
