@@ -515,9 +515,9 @@ module mpas_init_atm_gwd
       do while (associated(tilesHead))
          thisTile => tilesHead
          tilesHead => thisTile % next
-         deallocate(thisTile)
          deallocate(thisTile%topo_array)
-         deallocate(thisTile%land_array)   
+         deallocate(thisTile%land_array)
+         deallocate(thisTile)
       enddo   ! associated(thisTile)
       
       iErr = 0
