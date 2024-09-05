@@ -140,7 +140,7 @@ module mpas_init_atm_gwd
       character(len=StrKIND) :: geog_sub_path
       character(len=StrKIND+1) :: geog_data_path      ! same as config_geog_data_path, but guaranteed to have a trailing slash
 
-      TYPE(mpas_gwd_tile_type), POINTER :: tilesHead
+      TYPE(mpas_gwd_tile_type), POINTER :: tilesHead ! Pointer to linked list of tiles
 
       ! Variables for smoothing variance
       integer, dimension(:,:), pointer:: cellsOnCell
@@ -173,7 +173,6 @@ module mpas_init_atm_gwd
          case('GMTED2010')
             call mpas_log_write('--- Using GMTED2010 terrain dataset for GWDO static fields')
             geog_sub_path = 'topo_gmted2010_30s/'
-            
             ! NB: the GMTED2010 data on disk actually has start_lon = 0.0, but the read_global_30s_topo()
             !     routine will shift the dataset when writing to the topo array so that the start_lon seen
             !     by the rest of this code is -180.0.
@@ -218,11 +217,12 @@ module mpas_init_atm_gwd
 !      call mpas_pool_get_array(mesh, 'gamma', hgamma)
 !      call mpas_pool_get_array(mesh, 'sigma', hsigma)
 
-      
+      allocate(hlanduse(nCells+1))    ! +1, since we access hlanduse(cellsOnCell(i,iCell)) later on for iCell=1,nCells
+
+      ! Allocate fields to hold all points in a box. Using a very conservative
+      ! box size estimate.
       allocate(local_box_x(topo_x*topo_y))
       allocate(local_box_y(topo_x*topo_y))
-
-      allocate(hlanduse(nCells+1))    ! +1, since we access hlanduse(cellsOnCell(i,iCell)) later on for iCell=1,nCells
        
 
       !
@@ -254,8 +254,6 @@ module mpas_init_atm_gwd
       ! grid cell in the mesh.
       !
       cum_local_tiles=0
-
-      call mpas_log_write(' End of determine_complete_tile_set. We need ($i / $i) tiles ', intArgs=(/cum_local_tiles, max_local_tiles/))
       
       do iCell=1,nCells
 
@@ -273,20 +271,19 @@ module mpas_init_atm_gwd
          end if
          dc = dc * config_gwd_cell_scaling
 
-         call get_box_size_from_lat_lon(latCell(iCell), lonCell(iCell), dc, nx, ny)
-
          !
          ! Cut out a rectangular piece of the global 30-arc-second topography
-         ! data that is centered at the lat/lon of the current cell being
+         ! data that is centered at the lat/lon (in radians) of the current cell being
          ! processed and that is just large enough to cover the cell. The
          ! rectangular array of topography data is stored in the module
-         ! variable 'box', and the dimensions of this array are given by the
-         ! module variables 'nx' and 'ny'. The get_box() routine also
+         ! variable 'box', and the dimensions of this array are obtained from 
+         ! the routine get_box_size_from_lat_lon and store in the
+         ! local variables 'nx' and 'ny'. The get_box() routine also
          ! computes the mean elevation in the array and stores that value in
          ! the module variable 'box_mean'.
          !
+         call get_box_size_from_lat_lon(latCell(iCell), lonCell(iCell), dc, nx, ny)
          call get_box(latCell(iCell),lonCell(iCell), nx, ny, geog_data_path, geog_sub_path, tilesHead)
-         !call get_box(nx, ny, geog_data_path, geog_sub_path)
 
          !
          ! With a box of 30-arc-second data for the current grid cell, call
@@ -339,6 +336,8 @@ module mpas_init_atm_gwd
 
       deallocate(hlanduse)
 
+      iErr = remove_tiles(tilesHead)
+
       iErr = 0
 
    end function compute_gwd_fields
@@ -348,11 +347,12 @@ module mpas_init_atm_gwd
    !
    !  subroutine get_box_size_from_lat_lon
    !
-   !> \brief   Routine to obtain box size given dx, lat, lon (in radians)
+   !> \brief   Routine to obtain box size given the mean diameter (meters), lat, lon (radians)
    !> \author  Abishek Gopal
    !> \date    05 Sep 2024
    !> \details 
-   !>  Routine to obtain box size given dx, lat, lon (in radians)
+   !>  Routine to obtain box size (nx, ny) given the mean diameter of the grid cell (meters),
+   !     and the latitude and longitude coordinates (radians)
    !
    !-----------------------------------------------------------------------
    subroutine get_box_size_from_lat_lon(lat, lon, dx, nx, ny)
@@ -402,16 +402,17 @@ module mpas_init_atm_gwd
    function get_tile_from_box_point(tilesHead, box_x, box_y, path, sub_path) result(thisTile)
 
       implicit none
-      integer :: iErr
       integer, intent(in) :: box_x, box_y
       type(mpas_gwd_tile_type), pointer, intent(in) :: tilesHead
       type(mpas_gwd_tile_type), pointer :: thisTile
       character(len=*), intent(in) :: path
       character(len=*), intent(in) :: sub_path
 
-      integer :: ix, jx, ii, l,i, iCell, tile_start_x, tile_start_y, tile_start_x_topo
+      integer :: tile_start_x, tile_start_y, tile_start_x_topo
       
-         
+      ! Need special handling for the x-coordinates of topo tiles, due to the shift by topo_shift
+      ! in certain datasets. We use tile_start_x, tile_start_y to search for tiles and open landmask tiles,
+      ! whereas tile_start_x_topo is only required to open the correct topo tiles from disk
       if (box_x > topo_shift) then
          tile_start_x_topo = floor( real(box_x - topo_shift - 1) / real(tile_x)) * tile_x + 1
       else
@@ -421,9 +422,9 @@ module mpas_init_atm_gwd
       tile_start_y = floor( real(box_y - 1) / real(tile_y)) * tile_y + 1
 
 
-      ! loop over tiles
+      
       thisTile => tilesHead
-
+      ! loop over tiles
       do while (associated(thisTile))
 
          if(thisTile%tile_start_x==tile_start_x .and. thisTile%tile_start_y==tile_start_y) then 
@@ -434,6 +435,7 @@ module mpas_init_atm_gwd
 
       enddo   ! associated(thisTile)
 
+      ! Couldn't find such a tile, so we add the tile to the front of the linked list
       if (.not. associated(thisTile)) then 
          thisTile => add_tile(tilesHead, tile_start_x, tile_start_y, tile_start_x_topo, path, sub_path)
       end if
@@ -445,14 +447,14 @@ module mpas_init_atm_gwd
 
    !***********************************************************************
    !
-   !  function get_tile_from_box_point
+   !  function add_tile
    !
-   !> \brief   Routine to obtain box size given dx, lat, lon (in radians)
+   !> \brief   Routine to read in a new topo and landmask tile
    !> \author  Abishek Gopal
    !> \date    05 Sep 2024
    !> \details 
-   !>  Routine to obtain box size given dx, lat, lon (in radians)
-   !
+   !>  Routine to read in a new topo and landmask tile, given the tile 
+   !    coordinates
    !-----------------------------------------------------------------------
    function add_tile(tilesHead, tile_start_x, tile_start_y, tile_start_x_topo, path, sub_path) result(newTile)
 
@@ -472,14 +474,55 @@ module mpas_init_atm_gwd
       newTile%next => tilesHead
 
       iErr = read_30s_topo_tile(path, sub_path, newTile%topo_array, tile_start_x_topo, newTile%tile_start_y)
+      if (iErr /= 0) then
+         call mpas_log_write('Error reading global 30-arc-sec topography for GWD statistics', messageType=MPAS_LOG_ERR)
+         return
+      end if
+
       iErr = read_30s_landuse_tile(path, sub_path, newTile%land_array, newTile%tile_start_x, newTile%tile_start_y)
+      if (iErr /= 0) then
+         call mpas_log_write('Error reading global 30-arc-sec landuse for GWD statistics', messageType=MPAS_LOG_ERR)
+         return
+      end if
+
       tilesHead => newTile
 
       cum_local_tiles = cum_local_tiles + 1
 
-      !call mpas_log_write('In add_tile for tile_start:($i,$i), cum_local_tiles:$i ', intArgs=(/tile_start_x, tile_start_y,cum_local_tiles /))
 
    end function add_tile
+
+
+   !***********************************************************************
+   !
+   !  function remove_tiles
+   !
+   !> \brief   Routine to deallocate all tiles in the list
+   !> \author  Abishek Gopal
+   !> \date    05 Sep 2024
+   !> \details 
+   !>  Routine to deallocate all tiles in the list
+   !
+   !-----------------------------------------------------------------------
+   function remove_tiles(tilesHead) result(iErr)
+
+      implicit none
+      integer :: iErr
+      type(mpas_gwd_tile_type), pointer :: tilesHead
+      type(mpas_gwd_tile_type), pointer :: thisTile
+
+      ! loop over tiles
+      do while (associated(tilesHead))
+         thisTile => tilesHead
+         tilesHead => thisTile % next
+         deallocate(thisTile)
+         deallocate(thisTile%topo_array)
+         deallocate(thisTile%land_array)   
+      enddo   ! associated(thisTile)
+      
+      iErr = 0
+
+   end function remove_tiles
 
    !***********************************************************************
    !
