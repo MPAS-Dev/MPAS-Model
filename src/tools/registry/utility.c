@@ -309,21 +309,26 @@ int parse_macros(void(*callback)(const char *macro, const char *val, va_list ap)
 
 	for (i = 0; i < count; i++) {
 		char *tmp;
-		char *macrotmp;
-		char *macro;
-		char *val;
+		char *saveptr;
+		const char *macro;
+		const char *val;
+		const char *empty = "";
 
 		tmp = strdup(macros[i]);
-		macrotmp = strtok_r(tmp, "=", &val);
 
-		if (macrotmp == NULL || val == NULL) {
+		macro = strtok_r(tmp, "=", &saveptr);
+		val = strtok_r(NULL, "=", &saveptr);
+
+		if (macro == NULL) {
 			return 1;
 		}
 
-		if (strstr(macrotmp, "-D") == macrotmp) {
-			macro = &macrotmp[2];
-		} else {
-			macro = macrotmp;
+		if (val == NULL) {
+			val = empty;
+		}
+
+		if (strstr(macro, "-D") == macro) {
+			macro = &macro[2];
 		}
 
 		if (callback != NULL) {
