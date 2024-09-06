@@ -348,8 +348,9 @@ MODULE module_mp_nssl_2mom
                              ! (first nucleation is done with a KW sat. adj. step)
   integer, private :: issfilt = 0     ! flag to turn on filtering of supersaturation field
   integer, private :: icnuclimit = 0  ! limit droplet nucleation based on Konwar et al. (2012) and Chandrakar et al. (2016)
-  integer, private :: irenuc = 2      ! =1 to always allow renucleation of droplets within the cloud (do no use, obsolete)
+  integer, private :: irenuc = 5      ! =1 to always allow renucleation of droplets within the cloud (do no use, obsolete)
                                       ! =2 renucleation following Twomey/Cohard&Pinty
+                                      ! =5 Similar to 7 but can produce extra activated nuclei from the 'smaller' CCN at higher SS
                                       ! =7 New renucleation that requires prediction of the number of activated nuclei
                              ! i.e., not only at cloud base
   integer, private :: irenuc3d = 0      ! =1 to include horizontal gradient in renucleation of droplets within the cloud
