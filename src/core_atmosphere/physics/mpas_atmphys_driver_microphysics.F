@@ -421,6 +421,7 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
+ logical,pointer:: config_nssl_ccn_on
 
 !local variables and arrays:
  integer:: istep
@@ -438,6 +439,7 @@
  errflg = 0
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
+ call mpas_pool_get_config(configs,'config_nssl_ccn_on',config_nssl_ccn_on)
 
 !... allocation of microphysics arrays:
 !$OMP MASTER
@@ -571,6 +573,7 @@
                   has_reqc  = has_reqc    , has_reqi   = has_reqi     , has_reqs   = has_reqs     , &
                   diagflag  = l_diags     , dbz        = refl10cm_p   , &
                   ntmul      = n_microp   , ntcnt      = 1            , lastloop   = .true.       , &
+                  f_cn       =  config_nssl_ccn_on, &
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte           , &
