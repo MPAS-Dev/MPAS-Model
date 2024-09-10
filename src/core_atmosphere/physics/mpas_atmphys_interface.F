@@ -373,7 +373,7 @@
              enddo
           enddo
        enddo
-       !initializes ni_p when running the options "mp_thompson" or "mp_thompson_aerosols":
+       !initializes ni_p when running the options "mp_thompson" or "mp_thompson_aerosols" or mp_nssl:
        if(f_ni) then
           nullify(ni)
           call mpas_pool_get_dimension(state,'index_ni',index_ni)
@@ -386,21 +386,30 @@
              enddo
           enddo
        endif
-       !initializes nc_p, nifa_p, and nwfa_p when running the option "mp_thompson_aerosols":
-       if(f_nc .and. f_nifa .and. f_nwfa) then
+       !initializes nc_p when running the option "mp_thompson_aerosols" or mp_nssl:
+       if(f_nc) then
           nullify(nc)
+          call mpas_pool_get_dimension(state,'index_nc',index_nc)
+          nc   => scalars(index_nc,:,:)
+          do j = jts,jte
+             do k = kts,kte
+                do i = its,ite
+                   nc_p(i,k,j)   = max(0.,nc(k,i))
+                enddo
+             enddo
+          enddo
+       endif
+       !initializes nifa_p and nwfa_p when running the options "mp_thompson_aerosols":
+       if(f_nifa .and. f_nwfa) then
           nullify(nifa)
           nullify(nwfa)
-          call mpas_pool_get_dimension(state,'index_nc',index_nc)
           call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
           call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
-          nc   => scalars(index_nc,:,:)
           nifa => scalars(index_nifa,:,:)
           nwfa => scalars(index_nwfa,:,:)
           do j = jts,jte
              do k = kts,kte
                 do i = its,ite
-                   nc_p(i,k,j)   = max(0.,nc(k,i))
                    nifa_p(i,k,j) = max(0.,nifa(k,i))
                    nwfa_p(i,k,j) = max(0.,nwfa(k,i))
                 enddo
@@ -564,15 +573,21 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: mp_scheme
- integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
- integer,pointer:: index_nc,index_ni,index_nr,index_nifa,index_nwfa
+ logical,pointer:: config_nssl_3moment
+ logical,pointer:: config_nssl_hail_on, config_nssl_ccn_on
+ integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg,index_qh
+ integer,pointer:: index_zrw,index_zgw,index_zhw
+ integer,pointer:: index_ni,index_nr,index_nc,index_ns,index_ng,index_nh,index_nccn
+ integer,pointer:: index_volg,index_volh
+ integer,pointer:: index_nifa,index_nwfa
  real(kind=RKIND),dimension(:),pointer    :: nifa2d,nwfa2d,nt_c,mu_c
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid,w
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,pressure_b
  real(kind=RKIND),dimension(:,:),pointer  :: rho_zz,theta_m,pressure_p
- real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qi,qs,qg
- real(kind=RKIND),dimension(:,:),pointer  :: nc,ni,nr,nifa,nwfa
- real(kind=RKIND),dimension(:,:),pointer  :: rainprod,evapprod
+ real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qi,qs,qg,qh
+ real(kind=RKIND),dimension(:,:),pointer  :: ni,nr,nc,ns,ng,nh,nccn,nifa,nwfa
+ real(kind=RKIND),dimension(:,:),pointer  :: volg,volh,zrw,zgw,zhw
+ real(kind=RKIND),dimension(:,:),pointer  :: rainprod,evapprod,refl10cm
  real(kind=RKIND),dimension(:,:),pointer  :: re_cloud,re_ice,re_snow
  real(kind=RKIND),dimension(:,:),pointer  :: rthmpten,rqvmpten,rqcmpten,rqrmpten,rqimpten,rqsmpten,rqgmpten
  real(kind=RKIND),dimension(:,:),pointer  :: rncmpten,rnimpten,rnrmpten,rnifampten,rnwfampten
@@ -584,6 +599,9 @@
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',mp_scheme)
+ call mpas_pool_get_config(configs,'config_nssl_3moment',config_nssl_3moment)
+ call mpas_pool_get_config(configs,'config_nssl_hail_on',config_nssl_hail_on)
+ call mpas_pool_get_config(configs,'config_nssl_ccn_on',config_nssl_ccn_on)
 
  call mpas_pool_get_array(mesh,'zgrid',zgrid)
  call mpas_pool_get_array(mesh,'zz'   ,zz   )
@@ -627,7 +645,7 @@
 
 !initialize cloud water species and aerosols as function of cloud microphysics scheme:
  mp_select: select case(trim(mp_scheme))
-    case("mp_thompson","mp_thompson_aerosols","mp_wsm6")
+    case("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_nssl2m")
        call mpas_pool_get_dimension(state,'index_qi',index_qi)
        call mpas_pool_get_dimension(state,'index_qs',index_qs)
        call mpas_pool_get_dimension(state,'index_qg',index_qg)
@@ -649,7 +667,7 @@
           qg_p(i,k,j) = qg(k,i)
 
           rainprod_p(i,k,j) = rainprod(k,i)
-          evapprod_p(i,k,j) = evapprod(k,k)
+          evapprod_p(i,k,j) = evapprod(k,i)
           recloud_p(i,k,j)  = re_cloud(k,i)
           reice_p(i,k,j)    = re_ice(k,i)
           resnow_p(i,k,j)   = re_snow(k,i)
@@ -661,6 +679,7 @@
           case("mp_thompson","mp_thompson_aerosols")
              call mpas_pool_get_dimension(state,'index_ni',index_ni)
              call mpas_pool_get_dimension(state,'index_nr',index_nr)
+             call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
              ni   => scalars(index_ni,:,:)
              nr   => scalars(index_nr,:,:)
 
@@ -675,6 +694,7 @@
              do i = its, ite
                 ni_p(i,k,j) = ni(k,i)
                 nr_p(i,k,j) = nr(k,i)
+                refl10cm_p(i,k,j) = refl10cm(k,i)
              enddo
              enddo
              enddo
@@ -707,7 +727,81 @@
              case default
           end select mp3_select
 
-          case default
+
+          case("mp_nssl2m")
+            call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
+            call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
+            call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
+            call mpas_pool_get_dimension(state,'index_ns'  ,index_ns  )
+            call mpas_pool_get_dimension(state,'index_ng'  ,index_ng  )
+            call mpas_pool_get_dimension(state,'index_volg' ,index_volg  )
+            call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
+             nc   => scalars(index_nc,:,:)
+             ni   => scalars(index_ni,:,:)
+             nr   => scalars(index_nr,:,:)
+             ns   => scalars(index_ns,:,:)
+             ng   => scalars(index_ng,:,:)
+             IF ( config_nssl_ccn_on ) THEN
+              call mpas_pool_get_dimension(state,'index_nccn' ,index_nccn  )
+              nccn => scalars(index_nccn,:,:)
+             ENDIF
+             volg => scalars(index_volg,:,:)
+             IF ( config_nssl_hail_on ) THEN
+              call mpas_pool_get_dimension(state,'index_qh'  ,index_qh  )
+              call mpas_pool_get_dimension(state,'index_nh'  ,index_nh  )
+              call mpas_pool_get_dimension(state,'index_volh' ,index_volh  )
+               qh   => scalars(index_qh,:,:)
+               nh   => scalars(index_nh,:,:)
+               volh => scalars(index_volh,:,:)
+             ENDIF
+   
+             do j = jts, jte ! note that jts=jte=1
+             do k = kts, kte
+             do i = its, ite
+               IF ( config_nssl_hail_on ) THEN
+                qh_p(i,k,j)   = scalars(index_qh,k,i)
+                nh_p(i,k,j)   = scalars(index_nh,k,i)
+                volh_p(i,k,j) = scalars(index_volh,k,i)
+               ENDIF
+              !  nc_p(i,k,j) = nc(k,i)
+                nc_p(i,k,j) = scalars(index_nc,k,i)
+                ni_p(i,k,j) = scalars(index_ni,k,i)
+                nr_p(i,k,j) = scalars(index_nr,k,i)
+                ns_p(i,k,j) = scalars(index_ns,k,i)
+                ng_p(i,k,j) = scalars(index_ng,k,i)
+                IF ( config_nssl_ccn_on ) THEN
+                 nccn_p(i,k,j) = scalars(index_nccn,k,i)
+                ENDIF
+                volg_p(i,k,j) = scalars(index_volg,k,i)
+                refl10cm_p(i,k,j) = refl10cm(k,i)
+             enddo
+             enddo
+             enddo
+             
+             IF ( config_nssl_3moment ) THEN
+               call mpas_pool_get_dimension(state,'index_zrw'  ,index_zrw  )
+               call mpas_pool_get_dimension(state,'index_zgw'  ,index_zgw  )
+               zrw   => scalars(index_zrw,:,:)
+               zgw   => scalars(index_zgw,:,:)
+               IF ( config_nssl_hail_on ) THEN
+                call mpas_pool_get_dimension(state,'index_zhw'  ,index_zhw  )
+                zhw   => scalars(index_zhw,:,:)
+               ENDIF
+               do j = jts, jte
+               do k = kts, kte
+               do i = its, ite
+                  zrw_p(i,k,j) = scalars(index_zrw,k,i)
+                  zgw_p(i,k,j) = scalars(index_zgw,k,i)
+                  IF ( config_nssl_hail_on ) THEN
+                    zhw_p(i,k,j) = scalars(index_zhw,k,i)
+                  ENDIF
+               enddo
+               enddo
+               enddo
+             ENDIF
+             
+
+        case default
        end select mp2_select
 
     case default
@@ -794,8 +888,13 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: mp_scheme
- integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
- integer,pointer:: index_nc,index_ni,index_nr,index_nifa,index_nwfa
+ logical,pointer:: config_nssl_3moment
+ logical,pointer:: config_nssl_hail_on, config_nssl_ccn_on
+ integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg,index_qh
+ integer,pointer:: index_zrw,index_zgw,index_zhw
+ integer,pointer:: index_ni,index_nr,index_nc,index_ns,index_ng,index_nh,index_nccn
+ integer,pointer:: index_volg,index_volh
+ integer,pointer:: index_nifa,index_nwfa
  real(kind=RKIND),dimension(:),pointer    :: surface_pressure,tend_sfc_pressure
  real(kind=RKIND),dimension(:),pointer    :: nifa2d,nwfa2d
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid
@@ -803,9 +902,11 @@
  real(kind=RKIND),dimension(:,:),pointer  :: rho_zz,theta_m,pressure_p
  real(kind=RKIND),dimension(:,:),pointer  :: rt_diabatic_tend
  real(kind=RKIND),dimension(:,:),pointer  :: dtheta_dt_mp
- real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qi,qs,qg
- real(kind=RKIND),dimension(:,:),pointer  :: nc,ni,nr,nifa,nwfa
- real(kind=RKIND),dimension(:,:),pointer  :: rainprod,evapprod
+ real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qi,qs,qg,qh
+ real(kind=RKIND),dimension(:,:),pointer  :: ni,nr,nc,ns,ng,nh,nccn
+ real(kind=RKIND),dimension(:,:),pointer  :: volg,volh,zrw,zgw,zhw
+ real(kind=RKIND),dimension(:,:),pointer  :: nifa,nwfa
+ real(kind=RKIND),dimension(:,:),pointer  :: rainprod,evapprod,refl10cm
  real(kind=RKIND),dimension(:,:),pointer  :: re_cloud,re_ice,re_snow
  real(kind=RKIND),dimension(:,:),pointer  :: rthmpten,rqvmpten,rqcmpten,rqrmpten,rqimpten,rqsmpten,rqgmpten
  real(kind=RKIND),dimension(:,:),pointer  :: rncmpten,rnimpten,rnrmpten,rnifampten,rnwfampten
@@ -819,6 +920,9 @@
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',mp_scheme)
+ call mpas_pool_get_config(configs,'config_nssl_3moment',config_nssl_3moment)
+ call mpas_pool_get_config(configs,'config_nssl_hail_on',config_nssl_hail_on)
+ call mpas_pool_get_config(configs,'config_nssl_ccn_on',config_nssl_ccn_on)
 
  call mpas_pool_get_array(mesh,'zz'   ,zz   )
  call mpas_pool_get_array(mesh,'zgrid',zgrid)
@@ -840,6 +944,7 @@
  call mpas_pool_get_dimension(state,'index_qv'  ,index_qv  )
  call mpas_pool_get_dimension(state,'index_qc'  ,index_qc  )
  call mpas_pool_get_dimension(state,'index_qr'  ,index_qr  )
+
  call mpas_pool_get_array(state,'scalars',scalars,time_lev)
  qv   => scalars(index_qv,:,:)
  qc   => scalars(index_qc,:,:)
@@ -901,7 +1006,7 @@
 
 !update cloud water species and aerosols as functions of cloud microphysics schemes:
  mp_select: select case(trim(mp_scheme))
-    case("mp_thompson","mp_thompson_aerosols","mp_wsm6")
+    case("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_nssl2m")
        call mpas_pool_get_dimension(state,'index_qi',index_qi)
        call mpas_pool_get_dimension(state,'index_qs',index_qs)
        call mpas_pool_get_dimension(state,'index_qg',index_qg)
@@ -935,6 +1040,7 @@
           case("mp_thompson","mp_thompson_aerosols")
              call mpas_pool_get_dimension(state,'index_ni',index_ni)
              call mpas_pool_get_dimension(state,'index_nr',index_nr)
+             call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
              ni   => scalars(index_ni,:,:)
              nr   => scalars(index_nr,:,:)
 
@@ -943,6 +1049,7 @@
              do i = its,ite
                 ni(k,i) = ni_p(i,k,j)
                 nr(k,i) = nr_p(i,k,j)
+                refl10cm(k,i) = refl10cm_p(i,k,j)
              enddo
              enddo
              enddo
@@ -971,9 +1078,81 @@
                    enddo
                    enddo
                    enddo
-
                 case default
              end select mp3_select
+
+       case("mp_nssl2m")
+
+         call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
+         call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
+         call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
+         call mpas_pool_get_dimension(state,'index_ns'  ,index_ns  )
+         call mpas_pool_get_dimension(state,'index_ng'  ,index_ng  )
+         call mpas_pool_get_dimension(state,'index_volg'  ,index_volg  )
+         call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
+
+          IF ( config_nssl_hail_on ) THEN
+            call mpas_pool_get_dimension(state,'index_qh'  ,index_qh  )
+            call mpas_pool_get_dimension(state,'index_nh'  ,index_nh  )
+            call mpas_pool_get_dimension(state,'index_volh'  ,index_volh  )
+            qh   => scalars(index_qh,:,:)
+            nh   => scalars(index_nh,:,:)
+            volh => scalars(index_volh,:,:)
+          ENDIF
+          ni   => scalars(index_ni,:,:)
+          nr   => scalars(index_nr,:,:)
+          nc   => scalars(index_nc,:,:)
+          ns   => scalars(index_ns,:,:)
+          ng   => scalars(index_ng,:,:)
+          volg => scalars(index_volg,:,:)
+          IF ( config_nssl_ccn_on ) THEN
+            call mpas_pool_get_dimension(state,'index_nccn'  ,index_nccn  )
+            nccn => scalars(index_nccn,:,:)
+          ENDIF
+
+          do j = jts, jte
+          do k = kts, kte
+          do i = its, ite
+             IF ( config_nssl_hail_on ) THEN
+              scalars(index_qh,k,i)   = qh_p(i,k,j)
+              scalars(index_nh,k,i)   = nh_p(i,k,j)
+              scalars(index_volh,k,i) = volh_p(i,k,j)
+             ENDIF
+             scalars(index_ni,k,i) = ni_p(i,k,j)
+             scalars(index_nr,k,i) = nr_p(i,k,j)
+             scalars(index_nc,k,i) = nc_p(i,k,j)
+             scalars(index_ns,k,i) = ns_p(i,k,j)
+             scalars(index_ng,k,i) = ng_p(i,k,j)
+             IF ( config_nssl_ccn_on ) THEN
+               scalars(index_nccn,k,i) = nccn_p(i,k,j)
+             ENDIF
+             scalars(index_volg,k,i) = volg_p(i,k,j)
+             refl10cm(k,i) = refl10cm_p(i,k,j)
+          enddo
+          enddo
+          enddo
+
+          IF ( config_nssl_3moment ) THEN
+            call mpas_pool_get_dimension(state,'index_zrw'  ,index_zrw  )
+            call mpas_pool_get_dimension(state,'index_zgw'  ,index_zgw  )
+            zrw   => scalars(index_zrw,:,:)
+            zgw   => scalars(index_zgw,:,:)
+            IF ( config_nssl_hail_on ) THEN
+              call mpas_pool_get_dimension(state,'index_zhw'  ,index_zhw  )
+              zhw   => scalars(index_zhw,:,:)
+            ENDIF
+            do j = jts, jte
+            do k = kts, kte
+            do i = its, ite
+               scalars(index_zrw,k,i) = zrw_p(i,k,j)
+               scalars(index_zgw,k,i) = zgw_p(i,k,j)
+               IF ( config_nssl_hail_on ) THEN
+                scalars(index_zhw,k,i) = zhw_p(i,k,j)
+               ENDIF
+            enddo
+            enddo
+            enddo
+          ENDIF
 
           case default
        end select mp2_select
