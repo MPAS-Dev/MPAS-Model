@@ -8,7 +8,7 @@
 
 
 !---------------------------------------------------------------------
-! code snapshot: "Aug 26 2024" at "12:50:44"
+! code snapshot: "Sep  9 2024" at "18:22:05"
 !---------------------------------------------------------------------
 !---------------------------------------------------------------------
 ! IMPORTANT: Best results are attained using the 5th-order WENO (Weighted Essentially Non-Oscillatory) advection option (4) for scalars:
@@ -560,6 +560,8 @@ MODULE module_mp_nssl_2mom
   real   , private  :: dwtempmin = 242. ! lowest temperature to allow wet growth conversion to hail
   real   , private  :: dwehwmin = 0.   ! Minimum ehw to use to find wet growth diameter (if > ehw0, then wet growth diam becomes smaller)
   real   , private  :: dg0thresh = 0.15 ! graupel wet growth diameter above which we say do not bother
+  real   , private  :: wetgrthtoffset = -1. ! maximum temperature (Celcius) for wet growth (shedding)
+  real   , private  :: hailcnvtoffset = -2. ! maximum temperature (Celcius) for hail conversion
   integer :: ifddenfac = 0  ! = 1 to use density threshold to count FD as GR when converting to HL
   real    :: fddenthresh = 500. ! if ifddenfac > 0, then hail from FD with lower density are considered to come from graupel
   integer :: icvhl2h = 0   ! allow conversion of hail back to graupel when hail density gets close to minimum allowed
@@ -914,11 +916,11 @@ MODULE module_mp_nssl_2mom
       real xvfmn, xvfmx  ! min, max frozen drop volumes
       real xvgmn, xvgmx  ! min, max graupel volumes
       real xvhmn, xvhmn0, xvhmx, xvhmx0  ! min, max hail volumes
-      real xvhlmn, xvhlmx  ! min, max lg hail volumes
+      real xvhlmn, xvhlmx, xvhlmx0  ! min, max lg hail volumes
 
-      real, parameter :: dhlmn = 0.3e-3, dhlmx = 40.e-3
+      real, parameter :: dhlmn = 0.3e-3
       real, parameter :: dhmn0 = 0.3e-3
-      real, private :: dhmn = dhmn0, dhmx = -1.
+      real, private :: dhmn = dhmn0, dhmx = -1.,  dhlmx = -1. !  40.e-3
 
       real, parameter :: cwradn = 2.0e-6, xcradmn = cwradn    ! minimum radius
       real, parameter :: cwradx = 60.e-6, xcradmx = cwradx    ! maximum radius
@@ -941,7 +943,7 @@ MODULE module_mp_nssl_2mom
       parameter( xvfmn=0.523599*(0.1e-3)**3, xvfmx=0.523599*(10.e-3)**3 )  ! mks xvfmx = (pi/6)*(10mm)**3
       parameter( xvgmn=0.523599*(0.1e-3)**3, xvgmx=0.523599*(10.e-3)**3 )  ! mks xvfmx = (pi/6)*(10mm)**3
       parameter( xvhmn0=0.523599*(0.3e-3)**3, xvhmx0=0.523599*(20.e-3)**3 )  ! mks xvfmx = (pi/6)*(20mm)**3
-      parameter( xvhlmn=0.523599*(dhlmn)**3, xvhlmx=0.523599*(dhlmx)**3 )  ! mks xvfmx = (pi/6)*(40mm)**3
+      parameter( xvhlmn=0.523599*(dhlmn)**3, xvhlmx0=0.523599*(40.e-3)**3 )  ! mks xvfmx = (pi/6)*(40mm)**3
 
 !
 !  electrical permitivity of air C / (N m**2) -  check the units
@@ -1117,7 +1119,7 @@ MODULE module_mp_nssl_2mom
                         iqcinit,        &
                         ssmxinit,      &
                         xvdmx,          &
-                        dhmn, dhmx,     &
+                        dhmn, dhmx, dhlmx,     &
                         fwms,fwmh,fwmhl,  &
                         ifwmhopt,         &
                         ihxw2rain,        &
@@ -1374,7 +1376,7 @@ MODULE module_mp_nssl_2mom
       ! hack to switch CCN field to CCNA (activated ccn)
 !       invertccn = .true.
         turn_on_ccna = .true.
-        irenuc = 7
+        irenuc = 5
       ENDIF
       ccnuf     = Abs( nssl_params(14) )
       IF ( present(nssl_ufccn) ) iufccn = nssl_ufccn
@@ -2133,6 +2135,12 @@ MODULE module_mp_nssl_2mom
            xvhmx = xvhmx0
          ELSE
            xvhmx = 0.523599*(dhmx)**3
+         ENDIF
+
+         IF ( dhlmx <= 0.0 ) THEN
+           xvhlmx = xvhlmx0
+         ELSE
+           xvhlmx = 0.523599*(dhlmx)**3
          ENDIF
 
          IF ( ipconc == 5 .and. imorrgdnglimit >= 1 ) THEN
@@ -7853,13 +7861,12 @@ END SUBROUTINE nssl_2mom_driver
        ngscnt = 0
 
 
-       do kz = nzmpb,nz
+       do kz = 1,nz
         do ix = ixcol,ixcol
         flag = .false.
 
-        
         DO il = l1,l2
-          flag =  flag .or. ( an(ix,jy,kz,il)  .gt. qxmin(il) ) 
+          flag =  flag .or. ( an(ix,jy,kz,il)  > 0.0 )
         ENDDO
 
         if ( flag ) then
@@ -7868,7 +7875,7 @@ END SUBROUTINE nssl_2mom_driver
         ngscnt = ngscnt + 1
         igs(ngscnt) = ix
         kgs(ngscnt) = kz
-        if ( ngscnt .eq. ngs ) goto 1100
+        if ( ngscnt .eq. nz ) goto 1100
         end if
         end do !!ix
         nxmpb = 1
@@ -7894,11 +7901,11 @@ END SUBROUTINE nssl_2mom_driver
        temg(mgs) = t0(igs(mgs),jy,kgs(mgs))
        temcg(mgs) = temg(mgs) - tfr
 
-        
+
 !
       end do
 !
-! only need fadvisc for 
+! only need fadvisc for droplets
       IF ( lc .gt. 1 .and. (ildo == 0 .or. ildo == lc ) ) then
         do mgs = 1,ngscnt
          fadvisc(mgs) = advisc0*(416.16/(temg(mgs)+120.0))* &
@@ -7947,58 +7954,52 @@ END SUBROUTINE nssl_2mom_driver
         cx(mgs,li) = Max(an(igs(mgs),jy,kgs(mgs),lni), 0.0)
        end do
       end if
+
       if ( ipconc .ge. 2 .and. lc .gt. 1 .and. (ildo == 0 .or. ildo == lc ) ) then
        do mgs = 1,ngscnt
         cx(mgs,lc) = Max(an(igs(mgs),jy,kgs(mgs),lnc), 0.0)
-!        cx(mgs,lc) = Min( ccwmx, cx(mgs,lc) )
        end do
       end if
+
       if ( ipconc .ge. 3 .and. lr .gt. 1 .and. (ildo == 0 .or. ildo == lr ) ) then
        do mgs = 1,ngscnt
         cx(mgs,lr) = Max(an(igs(mgs),jy,kgs(mgs),lnr), 0.0)
-!        IF ( qx(mgs,lr) .le. qxmin(lr) ) THEN
-!        ELSE
-!          cx(mgs,lr) = Max( 0.0, cx(mgs,lr) )
-!        ENDIF
        end do
       end if
+
       if ( ipconc .ge. 4  .and. ls .gt. 1 .and. (ildo == 0 .or. ildo == ls ) ) then
        do mgs = 1,ngscnt
         cx(mgs,ls) = Max(an(igs(mgs),jy,kgs(mgs),lns), 0.0)
-!        IF ( qx(mgs,ls) .le. qxmin(ls) ) THEN
-!        ELSE
-!          cx(mgs,ls) = Max( 0.0, cx(mgs,ls) )
-!        ENDIF
        end do
       end if
 
       if ( ipconc .ge. 5  .and. lh .gt. 1 .and. (ildo == 0 .or. ildo == lh ) ) then
        do mgs = 1,ngscnt
-
         cx(mgs,lh) = Max(an(igs(mgs),jy,kgs(mgs),lnh), 0.0)
-!        IF ( qx(mgs,lh) .le. qxmin(lh) ) THEN
-!        ELSE
-!          cx(mgs,lh) = Max( 0.0, cx(mgs,lh) )
-!        ENDIF
-
        end do
       ENDIF
 
       if ( ipconc .ge. 5  .and. lhl .gt. 1 .and. (ildo == 0 .or. ildo == lhl ) ) then
        do mgs = 1,ngscnt
-
         cx(mgs,lhl) = Max(an(igs(mgs),jy,kgs(mgs),lnhl), 0.0)
-!        IF ( qx(mgs,lhl) .le. qxmin(lhl) ) THEN
-!          cx(mgs,lhl) = 0.0
-!        ELSEIF ( cx(mgs,lhl) .eq. 0.0 .and. qx(mgs,lhl) .lt. 3.0*qxmin(lhl) ) THEN
-!          qx(mgs,lhl) = 0.0
-!        ELSE
-!          cx(mgs,lhl) = Max( 0.0, cx(mgs,lhl) )
-!        ENDIF
-
        end do
       end if
-       
+
+      ! Vaporize tiny values
+      DO il = l1,l2
+      IF ( lz(il) < 1 ) THEN
+      do mgs = 1,ngscnt
+        IF ( cx(mgs,il) <= cxmin .or. qx(mgs,il) < qxmin(il) ) THEN
+          cx(mgs,il) = 0.0
+          an(igs(mgs),jgs,kgs(mgs),lv) = an(igs(mgs),jgs,kgs(mgs),lv) + an(igs(mgs),jgs,kgs(mgs),il)
+          qx(mgs,il) = 0.0
+          an(igs(mgs),jgs,kgs(mgs),il) = qx(mgs,il)
+          an(igs(mgs),jgs,kgs(mgs),ln(il)) = cx(mgs,il)
+        ENDIF
+      end do
+      ENDIF
+      ENDDO
+
       do mgs = 1,ngscnt
         xdn(mgs,lc) = xdn0(lc)
         xdn(mgs,lr) = xdn0(lr)
@@ -9776,7 +9777,7 @@ END SUBROUTINE nssl_2mom_driver
       real volb, t2s
       real, parameter :: aa1 = 9.44e15, aa2 = 5.78e3  ! a1 in Ziegler
 
-      real ec0, ex1, ft, rhoinv(ngs)
+      real rhoinv(ngs)
       
       real chw, g1, rd1
 
@@ -12703,9 +12704,9 @@ END SUBROUTINE nssl_2mom_driver
       real, parameter :: mfrag = 1.0e-10 ! assumed ice fragment mass for collisional splintering (Schuur & Rutledge 00b)
       double precision cautn(ngs), rh(ngs), nh(ngs)
       real ex1, ft, rhoinv(ngs)
-      double precision ec0(ngs)
+      real :: ec0(ngs)
       
-      real ac1,bc, taus, c1,d1,e1,f1,p380,tmp,tmp1,tmp2,tmp3,tmp4,tmp5,tmp6,temp3 ! , sstdy, super
+      real ac1,bc, c1,d1,e1,f1,p380,tmp,tmp1,tmp2,tmp3,tmp4,tmp5,tmp6,temp3 ! , sstdy, super
       real :: flim
       real dw,dwr
       double precision :: tmpz, tmpzmlt
@@ -15129,12 +15130,12 @@ END SUBROUTINE nssl_2mom_driver
            gf1palp(mgs) = y
 
            IF (   iferwisventr == 2 ) THEN
+!        ventrn =  Gamma(alphar + 2.5 + br/2.)/Gamma(alphar + 1.) ! adapted from Wisner et al. 1972
            tmp = alpha(mgs,lr) + 2.5 + br/2.
            i = Int(dgami*(tmp))
            del = tmp - dgam*i
            x = gmoi(i) + (gmoi(i+1) - gmoi(i))*del*dgami
 
-!           ventrx(mgs) = Gamma_sp(alpha(mgs,lr) + 1.5 + br/6.)/Gamma_sp(alpha(mgs,lr) + 1.)
 
            ventrxn(mgs) = x/y
            
@@ -18569,6 +18570,7 @@ END SUBROUTINE nssl_2mom_driver
 
 
         IF ( ipconc >= 7 ) THEN
+        ! vent coeff. for reflectivity rate from evaporation
         alpr = Min(alpharmax,alpha(mgs,lr) )
 
            tmp = alpr + 5.5 + br/2.
@@ -19626,6 +19628,127 @@ END SUBROUTINE nssl_2mom_driver
       end do
 
 
+         IF ( incwet >= 1 ) THEN
+         ! 'incwet' = incomplete gamma for wet growth
+         ! Find diameter where wet growth starts, then compute dry and wet growth 
+         ! over [dwet,infinity]. Subtract dry growth from qxacw etc. to get total
+         ! dry growth part
+         dhwet(:) = dg0thresh + 0.0001
+         dhlwet(:) = dg0thresh + 0.0001
+         dfwet(:) = dg0thresh + 0.0001
+         
+         DO mgs = 1,ngscnt
+
+             sqrtrhovt = Sqrt( rhovt(mgs) )
+             fventh = sqrtrhovt*(fpndl(mgs)**(1./3.)) * (fakvisc(mgs))**(-0.5) 
+             fventm = sqrtrhovt*(fschm(mgs)**(1./3.)) * (fakvisc(mgs))**(-0.5)
+             ltemq = (tfr-163.15)/fqsat+1.5
+             qvs0 = pqs(mgs)*tabqvs(ltemq)
+             denomdp = felf(mgs) + fcw(mgs)*temcg(mgs)
+             denominvdp = 1.d0/(felf(mgs) + fcw(mgs)*temcg(mgs))
+         
+         IF (((qhacw(mgs) + qhacr(mgs))*dtp > qxmin(lh) .and. qx(mgs,lh) > hlcnhqmin .and. &
+              temg(mgs) .le. tfr + wetgrthtoffset .and.  temg(mgs) .ge. 243.15 )  ) THEN
+!         dw = 0.01*( Exp( -temcg(mgs)/( 1.1e4 * rho0(mgs)*ehw(mgs)*qx(mgs,lc) - 1.3e3*rho0(mgs)*qx(mgs,li) + 1.0 ) ) - 1.0 )
+!         dwr = 0.01*( Exp( -temcg(mgs)/( 1.1e4 * rho0(mgs)*(ehw(mgs)*qx(mgs,lc)+ehr(mgs)*qx(mgs,lr)) - &
+!                1.3e3*rho0(mgs)*qx(mgs,li) + 1.0 ) ) - 1.0 )
+            x =   1.1e4 * rho0(mgs)*(ehw(mgs)*qx(mgs,lc)+ehr(mgs)*qx(mgs,lr)) - &
+                1.3e3*rho0(mgs)*qx(mgs,li) + 1.0 
+            IF ( x > 1.e-20 ) THEN
+              arg = Min(70.0, (-temcg(mgs)/x )) ! prevent overflow of the exp function in 32 bit
+              dwr = 0.01*(exp(arg) - 1.0)
+            ELSE
+              dwr = 1.e30
+            ENDIF
+          d = dwr
+
+           IF ( dwr < 0.2 .and. dwr > 0.0 .and. rho0(mgs)*(qx(mgs,lc)+qx(mgs,lr)) > 1.e-4 ) THEN
+
+                      h1 = ( -ftka(mgs)*temcg(mgs) - felv(mgs)*fwvdf(mgs)*rho0(mgs)*(qx(mgs,lv) - qvs0) )
+                      h2 = ehi(mgs)*qx(mgs,li)*rho0(mgs)*fci(mgs)*temcg(mgs)
+                      h3 = Max(dwehwmin, ehw(mgs))*qx(mgs,lc) 
+                      h4 = ehr(mgs)* qx(mgs,lr)
+                      ! iterate to find minimum diameter for wet growth. Start with value of dwr
+                      DO n = 1,10
+                        d = Max(d, 1.e-4)
+                        dold = d
+                        vth = axx(mgs,lh)*d**bxx(mgs,lh) 
+                        x2 = fventh*sqrtrhovt*Sqrt(d*vth)
+                       IF ( x2 > 1.4 ) THEN
+                         ah = 0.78 + 0.308*x2  ! heat ventillation
+                       ELSE
+                         ah = 1.0 + 0.108*x2**2 ! mass ventillation (Beard and Pruppacher 1971, eq. 9)
+                       ENDIF
+
+
+                        d = 8.*ah*h1/ &
+                            ( ( Max(0.001,vth - vtxbar(mgs,lc,1))*h3 +                              &
+                            Max(0.001,vth - vtxbar(mgs,lr,1))*h4) *rho0(mgs)*denomdp +               &
+                            Max(0.001,vth - vtxbar(mgs,li,1))*h2)
+
+                        IF ( Abs(dold - d)/dold < 0.05 .or. ( n > 3 .and. d > dg0thresh ) ) EXIT
+                        
+                      ENDDO
+              ENDIF
+              
+              dhwet(mgs) = Max( d, dwetmin )
+          ELSE
+            dhwet(mgs) = dg0thresh + 0.0001
+          ENDIF
+
+         IF (((qhlacw(mgs) + qhlacr(mgs))*dtp > qxmin(lhl) .and. qx(mgs,lhl) > 0.01e-3 &
+               .and. temg(mgs) .le. tfr + wetgrthtoffset  .and.  temg(mgs) .ge. 243.15 )  ) THEN
+!         dw = 0.01*( Exp( -temcg(mgs)/( 1.1e4 * rho0(mgs)*ehlw(mgs)*qx(mgs,lc) - 1.3e3*rho0(mgs)*qx(mgs,li) + 1.0 ) ) - 1.0 )
+!         dwr = 0.01*( Exp( -temcg(mgs)/( 1.1e4 * rho0(mgs)*(ehlw(mgs)*qx(mgs,lc)+ehlr(mgs)*qx(mgs,lr)) - &
+!                1.3e3*rho0(mgs)*qx(mgs,li) + 1.0 ) ) - 1.0 )
+            x =   1.1e4 * rho0(mgs)*(ehlw(mgs)*qx(mgs,lc)+ehlr(mgs)*qx(mgs,lr)) - &
+                1.3e3*rho0(mgs)*qx(mgs,li) + 1.0 
+            IF ( x > 1.e-20 ) THEN
+              arg = Min(70.0, (-temcg(mgs)/x )) ! prevent overflow of the exp function in 32 bit
+              dwr = 0.01*(exp(arg) - 1.0)
+            ELSE
+              dwr = 1.e30
+            ENDIF
+          d = dwr
+           IF ( dwr < 0.2 .and. dwr > 0.0 .and. rho0(mgs)*(qx(mgs,lc)+qx(mgs,lr)) > 1.e-4 ) THEN
+
+!                      write(91,*) 'dw,dwr,temcg = ',100.*dw,100.*dwr,temcg(mgs)
+                      h1 = ( -ftka(mgs)*temcg(mgs) - felv(mgs)*fwvdf(mgs)*rho0(mgs)*(qx(mgs,lv) - qvs0) )
+                      h2 = ehi(mgs)*qx(mgs,li)*rho0(mgs)*fci(mgs)*temcg(mgs)
+                      h3 = Max(dwehwmin, ehlw(mgs))*qx(mgs,lc) 
+                      h4 = ehlr(mgs)* qx(mgs,lr)
+                      ! iterate to find minimum diameter for wet growth. Start with value of dwr
+                      DO n = 1,10
+                        d = Max(d, 1.e-4)
+                        dold = d
+                        vth = axx(mgs,lhl)*d**bxx(mgs,lhl) 
+                        x2 = fventh*sqrtrhovt*Sqrt(d*vth)
+                       IF ( x2 > 1.4 ) THEN
+                         ah = 0.78 + 0.308*x2  ! heat ventillation
+                       ELSE
+                         ah = 1.0 + 0.108*x2**2 ! mass ventillation (Beard and Pruppacher 1971, eq. 9)
+                       ENDIF
+
+
+                        d = 8.*ah*h1/ &
+                            ( ( Max(0.001,vth - vtxbar(mgs,lc,1))*h3 +                              &
+                            Max(0.001,vth - vtxbar(mgs,lr,1))*h4) *rho0(mgs)*denomdp +               &
+                            Max(0.001,vth - vtxbar(mgs,li,1))*h2)
+
+                        IF ( Abs(dold - d)/dold < 0.05 .or. ( n > 3 .and. d > dg0thresh ) ) EXIT
+                        
+                      ENDDO
+              ENDIF
+              
+              dhlwet(mgs) = Max( d, dwetmin )
+          ELSE
+            dhlwet(mgs) = dg0thresh + 0.0001
+          ENDIF
+
+            
+          ENDDO
+          
+          ENDIF ! incwet
 
 
 
@@ -19672,6 +19795,78 @@ END SUBROUTINE nssl_2mom_driver
      &   + fwet2(mgs)*(qhaci(mgs) + qhacs(mgs)) )
        qhwet(mgs) = max( 0.0, qhwet(mgs))
          ELSE
+           IF ( dhwet(mgs) < dg0thresh ) THEN
+             ! find portion of qc and qr collection that are dry/wet growth for d > dwet
+
+               ratio = dhwet(mgs)/xdia(mgs,lh,1)
+               
+               tmp1 = gaminterp(ratio,alpha(mgs,lh),13,1) ! alpha + 3
+               tmp2 = gaminterp(ratio,alpha(mgs,lh),12,1) ! alpha + 2
+               tmp3 = gaminterp(ratio,alpha(mgs,lh), 9,1) ! alpha + 1
+
+            IF ( qhacw(mgs)*dtp > qxmin(lh) ) THEN
+              vt = abs(vtxbar(mgs,lh,1)-vtxbar(mgs,lc,1))
+
+          qxacwtmp = 0.25*pi*ehw(mgs)*cx(mgs,lh)*(qx(mgs,lc)-qcwresv(mgs))*vt*   &
+     &         (  tmp1*da0lh(mgs)*xdia(mgs,lh,3)**2 +     &
+     &            tmp2*dab1lh(mgs,lh,lc)*xdia(mgs,lh,3)*xdia(mgs,lc,3) +    &
+     &            tmp3*da1lc(mgs)*xdia(mgs,lc,3)**2 )
+             ELSE
+              qxacwtmp = 0.0
+             ENDIF
+
+            IF ( qhacr(mgs)*dtp > qxmin(lh) ) THEN
+
+       vt = Sqrt((vtxbar(mgs,lh,1)-vtxbar(mgs,lr,1))**2 +    &
+     &            0.04*vtxbar(mgs,lh,1)*vtxbar(mgs,lr,1) )
+
+         qxacrtmp = 0.25*pi*ehr(mgs)*cx(mgs,lh)*qx(mgs,lr)*vt*   &
+     &         (  tmp1*da0lh(mgs)*xdia(mgs,lh,3)**2 +     &
+     &            tmp2*dab1lh(mgs,lh,lr)*xdia(mgs,lh,3)*xdia(mgs,lr,3) +    &
+     &            tmp3*da1lr(mgs)*xdia(mgs,lr,3)**2 )
+             ELSE
+               qxacrtmp = 0.0
+             ENDIF
+
+        x = gaminterp(ratio,alpha(mgs,lh),9,1) ! alpha + 1
+        y = gaminterp(ratio,alpha(mgs,lh),3,1) ! alpha + b/2 + 5/2
+        
+        hxventtmp =  0.78*x + y*hwventy(mgs)  !   &
+
+        qxacitmp = 0.0
+        IF ( qhaci(mgs)*dtp > qxmin(lh) ) THEN
+              vt = abs(vtxbar(mgs,lh,1)-vtxbar(mgs,li,1))
+
+          qxacitmp = 0.25*pi*ehiclsn(mgs)*cx(mgs,lh)*qx(mgs,li)*vt*   &
+     &         (  tmp1*da0lh(mgs)*xdia(mgs,lh,3)**2 +     &
+     &            tmp2*dab1lh(mgs,lh,li)*xdia(mgs,lh,3)*xdia(mgs,li,3) +    &
+     &            tmp3*da1(li)*xdia(mgs,li,3)**2 )
+        ENDIF
+
+        qxacstmp = 0.0
+        IF ( qhacs(mgs)*dtp > qxmin(lh) ) THEN
+              vt = abs(vtxbar(mgs,lh,1)-vtxbar(mgs,ls,1))
+
+          qxacstmp = 0.25*pi*ehsclsn(mgs)*cx(mgs,lh)*qx(mgs,ls)*vt*   &
+     &         (  da0lh(mgs)*xdia(mgs,lh,3)**2 +     &
+     &            dab1lh(mgs,lh,ls)*xdia(mgs,lh,3)*xdia(mgs,ls,3) +    &
+     &            da1(ls)*xdia(mgs,ls,3)**2 )
+        ENDIF
+
+             qxwettmp =   &
+     &       xdia(mgs,lh,1)*hxventtmp*cx(mgs,lh)*fwet1(mgs)   &
+     &     + fwet2(mgs)*(qxacitmp + qxacstmp)
+
+          ! as dry growth but subtract part for D > Dw and add wet growth for D > Dw
+          qhwet(mgs) = qhacw(mgs) + qhacr(mgs) + qhaci(mgs) + qhacs(mgs) &
+                        - ehi(mgs)*qxacitmp - ehs(mgs)*qxacstmp          &
+                        -  qxacwtmp - qxacrtmp + qxwettmp
+
+         ! qhacw(mgs) = Min( qhacw(mgs), 0.5*qx(mgs,lc)*dtpinv )
+           
+           ELSE
+             qhwet(mgs) = qhdry(mgs)
+           ENDIF
          ENDIF
 
 !      ENDIF
@@ -20094,14 +20289,20 @@ END SUBROUTINE nssl_2mom_driver
           ltest =  xdia(mgs,lh,1)*(4. + alpha(mgs,lh)) > Abs( hlcnhdia ) ! test on mass-weighted diameter
         ENDIF
 
+    ! if incwet > 0, then should use dhwet here to avoid calculating again
          IF ( iusedw == 0 .and. ihlcnh == 1 ) THEN
            dg0(mgs) = -1.
          ELSE
-         IF (((qhacw(mgs) + qhacr(mgs))*dtp > qxmin(lh) .and. qx(mgs,lh) > hlcnhqmin .and. temg(mgs) .le. tfr-2.0  &
-               .and.  temg(mgs) .gt. dwtempmin ) .or. ( wetgrowth(mgs) .and. qx(mgs,lh) > hlcnhqmin ) ) THEN
+         IF ( temg(mgs) .le. tfr+hailcnvtoffset .and. &
+              (( (qhacw(mgs) + qhacr(mgs))*dtp > qxmin(lh) .and. qx(mgs,lh) > hlcnhqmin &
+               .and.  temg(mgs) .gt. dwtempmin ) .or. ( wetgrowth(mgs) .and. qx(mgs,lh) > hlcnhqmin )) ) THEN
 !         dw = 0.01*( Exp( -temcg(mgs)/( 1.1e4 * rho0(mgs)*ehw(mgs)*qx(mgs,lc) - 1.3e3*rho0(mgs)*qx(mgs,li) + 1.0 ) ) - 1.0 )
 !         dwr = 0.01*( Exp( -temcg(mgs)/( 1.1e4 * rho0(mgs)*(ehw(mgs)*qx(mgs,lc)+ehr(mgs)*qx(mgs,lr)) - &
 !                1.3e3*rho0(mgs)*qx(mgs,li) + 1.0 ) ) - 1.0 )
+          IF ( incwet > 0 ) THEN
+            d = dhwet(mgs)
+          ELSE
+            ! First guess for dwet (not that good, but it is something)
             x =   1.1e4 * rho0(mgs)*(ehw(mgs)*qx(mgs,lc)+ehr(mgs)*qx(mgs,lr)) - &
                 1.3e3*rho0(mgs)*qx(mgs,li) + 1.0 
             IF ( x > 1.e-20 ) THEN
@@ -20110,7 +20311,7 @@ END SUBROUTINE nssl_2mom_driver
             ELSE
               dwr = 1.e30
             ENDIF
-          d = dwr
+            d = dwr
            IF ( dwr < 0.2 .and. dwr > 0.0 .and. rho0(mgs)*(qx(mgs,lc)+qx(mgs,lr)) > 1.e-4 ) THEN
                       sqrtrhovt = Sqrt( rhovt(mgs) )
                       fventh = sqrtrhovt*(fpndl(mgs)**(1./3.)) * (fakvisc(mgs))**(-0.5) 
@@ -20164,10 +20365,11 @@ END SUBROUTINE nssl_2mom_driver
                         
                       ENDDO
               ENDIF
+              ENDIF ! incwet
               
               dg0(mgs) = Min( dwmax, Max( d, dwmin ) )
           ELSE
-            IF ( qx(mgs,lh) > qxmin(lh) .and. qx(mgs,lh) > hlcnhqmin .and. temg(mgs) .le. tfr-2.0  ) THEN
+            IF ( qx(mgs,lh) > qxmin(lh) .and. qx(mgs,lh) > hlcnhqmin .and. temg(mgs) .le. tfr+hailcnvtoffset  ) THEN
               dg0(mgs) = dwmax
             ELSE
               dg0(mgs) = dg0thresh + 0.0001
@@ -20175,7 +20377,7 @@ END SUBROUTINE nssl_2mom_driver
           ENDIF
           
             IF ( ihlcnh == 3 .and. (qhacw(mgs) + qhacr(mgs))*dtp > qxmin(lh) .and. qx(mgs,lh) > hlcnhqmin &
-                   .and. temg(mgs) .le. tfr-2.0 ) THEN
+                   .and. temg(mgs) .le. tfr+hailcnvtoffset ) THEN
            ! set a secondary condition on to capture large graupel that is riming but not in wet growth
                 dg0(mgs) = Min( dg0(mgs), dg0thresh - 0.0001 )
             ENDIF
@@ -20191,7 +20393,7 @@ END SUBROUTINE nssl_2mom_driver
      &        ltest .and. qx(mgs,lh) .gt. hlcnhqmin ) .or. wtest ) THEN ! {
 !     :        xdia(mgs,lh,3) .gt. 2.e-3 .and. qx(mgs,lh) .gt. 1.0e-3  THEN ! 0823.2008 erm test
 !        IF ( xdia(mgs,lh,3) .gt. 1.e-3 ) THEN
-        IF ( qhacw(mgs) .gt. 0.0 .and. qhacw(mgs) .gt. qhaci(mgs) .and. temg(mgs) .le. tfr-2.0 ) THEN ! {
+        IF ( qhacw(mgs) .gt. 0.0 .and. qhacw(mgs) .gt. qhaci(mgs) .and. temg(mgs) .le. tfr+hailcnvtoffset ) THEN ! {
         ! dh0 is the diameter dividing wet growth from dry growth (Ziegler 1985), modified by MY05
 !          dh0 = 0.01*(exp(temcg(mgs)/(1.1e4*(qx(mgs,lc)+qx(mgs,lr)) - 
 !     :           1.3e3*qx(mgs,li) + 1.0e-3 ) ) - 1.0)
@@ -20239,7 +20441,7 @@ END SUBROUTINE nssl_2mom_driver
          
 
           IF ( wtest  .and. &
-               ( qhacw(mgs)*dtp > qxmin(lh) .and. temg(mgs) .lt. tfr-2. .and. qx(mgs,lh) > hlcnhqmin ) ) THEN
+               ( qhacw(mgs)*dtp > qxmin(lh) .and. temg(mgs) .lt. tfr+hailcnvtoffset .and. qx(mgs,lh) > hlcnhqmin ) ) THEN
         ! convert number, mass, and reflectivity for d > dw
            IF ( ipconc == 5 ) THEN
             ! dg0(mgs) = Min( dg0(mgs), hldia1 )
@@ -20322,7 +20524,7 @@ END SUBROUTINE nssl_2mom_driver
         ! convert number, mass, and reflectivity for d > hldia1,
         ! regardless of wet growth status, but as long as riming > 0
         DO mgs = 1,ngscnt
-        IF ( qhacw(mgs)*dtp > qxmin(lh) .and. temg(mgs) .lt. tfr-2. .and. qx(mgs,lh) > qxmin(lh) ) THEN
+        IF ( qhacw(mgs)*dtp > qxmin(lh) .and. temg(mgs) .lt. tfr+hailcnvtoffset .and. qx(mgs,lh) > qxmin(lh) ) THEN
            ratio = Min( maxratiolu, hldia1/xdia(mgs,lh,1) )
 
            ! number

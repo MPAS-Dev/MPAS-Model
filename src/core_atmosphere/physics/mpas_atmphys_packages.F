@@ -121,7 +121,11 @@
  elseif(config_microp_scheme == 'mp_wsm6') then
     mp_wsm6_in = .true.
  elseif(config_microp_scheme == 'mp_nssl2m') then
-    mp_nssl2m_in = .true.
+   call mpas_log_write('    config_nssl_hail_on            = $l', logicArgs=(/config_nssl_hail_on/))
+   call mpas_log_write('    config_nssl_ccn_on             = $l', logicArgs=(/config_nssl_ccn_on/))
+   call mpas_log_write('    config_nssl_3moment            = $l', logicArgs=(/config_nssl_3moment/))
+   call mpas_log_write('    config_nssl_hail_on            = $l', logicArgs=(/config_nssl_hail_on/))
+   mp_nssl2m_in = .true.
     if( config_nssl_hail_on ) then
       nssl_hail_in = .true.
     endif
