@@ -246,7 +246,6 @@ module mpas_init_atm_gwd
       ! Main loop to compute each of the GWDO fields for every horizontal
       ! grid cell in the mesh.
       !
-      
       do iCell=1,nCells
 
          !
@@ -306,7 +305,6 @@ module mpas_init_atm_gwd
          ! htheta(iCell) = get_htheta(box, dxm, nx, ny)
          ! hgamma(iCell) = get_hgamma(box, dxm, nx, ny)
          ! hsigma(iCell) = get_hsigma(box, dxm, nx, ny)
-         
       end do
 
 
@@ -540,7 +538,7 @@ module mpas_init_atm_gwd
       integer, parameter :: tile_y = 1200       ! y-dimension of each tile of global 30-arc-second topography
       integer, parameter :: tile_bdr = 3        ! number of layers of border/halo points surrounding each tile
       integer (c_int) :: istatus
-      integer :: ix, iy, ix_shift, il
+      integer :: ix, iy
       integer (c_int) :: isigned, endian, wordsize, nx, ny, nz
       real (c_float) :: scalefactor
       real (c_float), dimension(:,:,:), pointer, contiguous :: tile
@@ -608,7 +606,7 @@ module mpas_init_atm_gwd
       
       integer :: iErr
       integer (c_int) :: istatus
-      integer :: ix, iy, ix_shift, il
+      integer :: ix, iy
       integer (c_int) :: isigned, endian, wordsize, nx, ny, nz
       real (c_float) :: scalefactor
       real (c_float), dimension(:,:,:), pointer, contiguous :: tile
