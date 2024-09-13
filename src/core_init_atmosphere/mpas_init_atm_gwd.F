@@ -24,8 +24,8 @@ module mpas_init_atm_gwd
    ! A derived type to hold contents of a tile (both topo and landuse)
    type :: mpas_gwd_tile_type
 
-      real (kind=R4KIND), dimension(:,:), pointer :: topo_array
-      integer (kind=I1KIND), dimension(:,:), pointer :: land_array
+      real (kind=R4KIND), dimension(:), pointer :: topo_array
+      integer (kind=I1KIND), dimension(:), pointer :: land_array
       ! coordinates of the tile to be read. 
       ! NB: tile_start_x can be used as is to read landuse tiles, but need an 
       ! adjustment to account for the shifting of topo array start_lon to -180.0.
@@ -446,8 +446,8 @@ module mpas_init_atm_gwd
       type(mpas_gwd_tile_type), pointer :: newTile
 
       allocate(newTile)
-      allocate(newTile%topo_array(tile_x,tile_y))
-      allocate(newTile%land_array(tile_x,tile_y))
+      allocate(newTile%topo_array(tile_x*tile_y))
+      allocate(newTile%land_array(tile_x*tile_y))
       newTile%tile_start_x = tile_start_x
       newTile%tile_start_y = tile_start_y
       newTile%next => tilesHead
@@ -520,7 +520,7 @@ module mpas_init_atm_gwd
 
       character(len=*), intent(in) :: path
       character(len=*), intent(in) :: sub_path
-      real(kind=R4KIND), dimension(:,:), pointer :: topo
+      real(kind=R4KIND), dimension(:), pointer :: topo
       integer, intent(in) :: tile_start_x
       integer, intent(in) :: tile_start_y
 
@@ -565,8 +565,8 @@ module mpas_init_atm_gwd
          return
       end if
       
-      topo = tile((tile_bdr+1):(tile_x+tile_bdr),(tile_bdr+1):(tile_y+tile_bdr),1)
-
+      !topo = tile((tile_bdr+1):(tile_x+tile_bdr),(tile_bdr+1):(tile_y+tile_bdr),1)
+      topo = reshape(tile((tile_bdr+1):(tile_x+tile_bdr),(tile_bdr+1):(tile_y+tile_bdr),1),(/tile_x*tile_y/))
       deallocate(tile)
 
       iErr = 0
@@ -591,7 +591,7 @@ module mpas_init_atm_gwd
 
       character(len=*), intent(in) :: path
       character(len=*), intent(in) :: sub_path
-      integer (kind=I1KIND), dimension(:,:), pointer :: landuse
+      integer (kind=I1KIND), dimension(:), pointer :: landuse
       integer, intent(in) :: tile_start_x
       integer, intent(in) :: tile_start_y
       
@@ -628,7 +628,8 @@ module mpas_init_atm_gwd
          return
       end if
       
-      landuse = int(tile(:,:,1), kind=I1KIND)
+      !landuse = int(tile(:,:,1), kind=I1KIND)
+      landuse = int(reshape(tile,(/tile_x*tile_y/)), kind=I1KIND)
 
       deallocate(tile)
 
@@ -763,10 +764,13 @@ module mpas_init_atm_gwd
          ! which would involve reading in the data from disk if said tile is not already in memory
          thisTile => get_tile_from_box_point(tilesHead, ii, jj, path, sub_path)
          
-         ix = (ii - thisTile%tile_start_x) + 1
-         jx = (jj - thisTile%tile_start_y) + 1
-         box(i,j) = thisTile%topo_array(ix, jx)
-         box_landuse(i,j) = thisTile%land_array(ix, jx)
+         !ix = (ii - thisTile%tile_start_x) + 1
+         !jx = (jj - thisTile%tile_start_y) + 1
+         tile_offset = (ii - thisTile%tile_start_x) + (jj - thisTile%tile_start_y) * tile_x + 1
+         box(i,j) = thisTile%topo_array(tile_offset)
+         box_landuse(i,j) = thisTile%land_array(tile_offset)
+         !box(i,j) = thisTile%topo_array(ix, jx)
+         !box_landuse(i,j) = thisTile%land_array(ix, jx)
          sg_lat = (start_lat + (real(jj-1,RKIND) + 0.5) / pts_per_degree) / rad2deg  ! Add 0.5 for cell center
          dxm(i,j) = sg_delta * cos(sg_lat)
          box_mean = box_mean + box(i,j)
