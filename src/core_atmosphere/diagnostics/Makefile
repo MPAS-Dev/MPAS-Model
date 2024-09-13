@@ -10,12 +10,13 @@ DIAGNOSTIC_MODULES = \
 	mpas_convective_diagnostics.o \
 	mpas_pv_diagnostics.o \
 	mpas_soundings.o \
+	calc_ctt.o \
 
 mpas_isobaric_diagnostics.o: mpas_atm_diagnostics_utils.o
 
 mpas_cloud_diagnostics.o: mpas_atm_diagnostics_utils.o
 
-mpas_convective_diagnostics.o: mpas_atm_diagnostics_utils.o
+mpas_convective_diagnostics.o: mpas_atm_diagnostics_utils.o calc_ctt.o
 
 mpas_pv_diagnostics.o: mpas_atm_diagnostics_utils.o
 
