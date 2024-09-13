@@ -274,7 +274,7 @@ MODULE module_mp_nssl_2mom
   integer, private :: itfall = 0
   integer, private :: iscfall = 1
   integer, private :: irfall = -1
-  integer, private :: iifall = -1
+  integer, private :: iifall =  2
   integer, private :: isfall =  2 ! default limit with method II (more restrictive)
   logical, private :: do_accurate_sedimentation = .true. ! if true, recalculate fall speeds on sub time steps; (more expensive)
                                                          ! if false, reuse fall speeds on multiple steps (can have a noticeable speedup)
@@ -2095,6 +2095,7 @@ MODULE module_mp_nssl_2mom
       IF ( lhl .gt. 1 ) ido(lhl) = idohl
 
       linfall(:) = infall
+      linfall(lc) = 0
       IF ( irfall .lt. 0 ) irfall = infall
       IF ( isfall .lt. 0 ) isfall = infall
       IF ( iifall .lt. 0 ) iifall = infall
@@ -4654,7 +4655,7 @@ END SUBROUTINE nssl_2mom_driver
 !  to put a lower bound on number conc.
 !
 
-        IF ( linfall(il) == 3 .or. linfall(il) == 4 ) THEN
+        IF ( linfall(il) == 3 .or. linfall(il) == 4 .and. il >= lr ) THEN
           ! set up for method I or I+II
           DO kz = kzb,kze
               tmpn2(ix,jy,kz) = z(ix,kz,il)
