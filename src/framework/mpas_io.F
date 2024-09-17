@@ -84,6 +84,10 @@ module mpas_io
 
 #ifdef MPAS_PIO_SUPPORT
    integer, private :: io_global_err = PIO_noerr
+   interface put_att_pio
+       module procedure put_att_0d_generic_pio
+       module procedure put_att_1d_generic_pio
+   end interface put_att_pio
 #endif
 #ifdef MPAS_SMIOL_SUPPORT
    integer, private :: io_global_err = SMIOL_SUCCESS
@@ -5033,6 +5037,149 @@ module mpas_io
 
    end subroutine MPAS_io_get_att_real1d
 
+   function handle_put_att_pio_redef(handle) result (pio_ierr)
+      implicit none
+      type(MPAS_IO_Handle_type), intent(inout) :: handle
+      integer :: pio_ierr
+
+      call mpas_log_write('Calling PIO_redef')
+      pio_ierr = PIO_redef(handle % pio_file)
+      if (pio_ierr /= PIO_noerr) then
+         io_global_err = pio_ierr
+         return
+      end if
+      call mpas_log_write('Successfully called PIO_redef')
+
+   end function handle_put_att_pio_redef
+
+   function handle_put_att_pio_enddef(handle) result (pio_ierr)
+      implicit none
+      type(MPAS_IO_Handle_type), intent(inout) :: handle
+      integer :: pio_ierr
+
+      call mpas_log_write('Calling PIO_enddef')
+      pio_ierr = PIO_enddef(handle % pio_file)
+      if (pio_ierr /= PIO_noerr) then
+         io_global_err = pio_ierr
+         return
+      end if
+      call mpas_log_write('Successfully called PIO_enddef')
+
+   end function handle_put_att_pio_enddef
+
+   function put_att_0d_generic_pio(handle, varid, attName, attValue, ierr) result(pio_ierr)
+      implicit none
+      type(MPAS_IO_Handle_type), intent(inout) :: handle
+      integer, intent(in) :: varid
+      character(len=*), intent(in) :: attName
+      class(*), intent(in) :: attValue
+      integer, optional :: ierr
+      integer :: pio_ierr
+      character(len=*), parameter :: log_message_prefix = 'Calling PIO_put_att for'
+
+      select type(attValue)
+         type is (integer)
+            call mpas_log_write(log_message_prefix//' integer attribute '//trim(attname))
+            pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
+         type is (real(kind=R4KIND))
+            pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
+            call mpas_log_write(log_message_prefix//' real(kind=R4KIND) attribute '//trim(attname))
+         type is (real(kind=R8KIND))
+            call mpas_log_write(log_message_prefix//' real(kind=R8KIND) attribute '//trim(attname))
+            pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
+         type is (character(len=*))
+            call mpas_log_write(log_message_prefix//' text attribute '//trim(attname))
+            pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
+      end select
+
+      if (pio_ierr /= PIO_noerr) then
+         io_global_err = pio_ierr
+         if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+
+         if (handle % preexisting_file .and. .not. handle % data_mode) then
+            if (handle_put_att_pio_redef(handle) /= PIO_noerr) return
+
+            select type(attValue)
+               type is (integer)
+                  call mpas_log_write('Calling PIO_put_att for integer attribute '//trim(attname))
+                  pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
+               type is (real(kind=R4KIND))
+                  call mpas_log_write('Calling PIO_put_att for real(kind=R4KIND) attribute '//trim(attname))
+                  pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
+               type is (real(kind=R8KIND))
+                  call mpas_log_write('Calling PIO_put_att for real(kind=R8KIND) attribute '//trim(attname))
+                  pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
+               type is (character(len=*))
+                  call mpas_log_write('Calling PIO_put_att for text attribute '//trim(attname))
+                  pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
+            end select
+
+            if (pio_ierr /= PIO_noerr) then
+               io_global_err = pio_ierr
+               return
+            end if
+
+            if (handle_put_att_pio_enddef(handle) /= PIO_noerr) return
+
+            if (present(ierr)) ierr = MPAS_IO_NOERR
+         end if
+         return
+      end if
+   end function put_att_0d_generic_pio
+
+   function put_att_1d_generic_pio(handle, varid, attName, attValue, ierr) result(pio_ierr)
+      implicit none
+      type(MPAS_IO_Handle_type), intent(inout) :: handle
+      integer, intent(in) :: varid
+      character(len=*), intent(in) :: attName
+      class(*), dimension(:), intent(in) :: attValue
+      integer, optional :: ierr
+      integer :: pio_ierr
+      character(len=*), parameter :: log_message_prefix = 'Calling PIO_put_att for'
+
+      select type(attValue)
+         type is (integer)
+            call mpas_log_write(log_message_prefix//' integer 1D-array attribute '//trim(attname))
+            pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
+         type is (real(kind=R4KIND))
+            pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
+            call mpas_log_write(log_message_prefix//' real(kind=R4KIND) 1D-array attribute '//trim(attname))
+         type is (real(kind=R8KIND))
+            call mpas_log_write(log_message_prefix//' real(kind=R8KIND) 1D-array attribute '//trim(attname))
+            pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
+      end select
+
+      if (pio_ierr /= PIO_noerr) then
+         io_global_err = pio_ierr
+         if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
+
+         if (handle % preexisting_file .and. .not. handle % data_mode) then
+            if (handle_put_att_pio_redef(handle) /= PIO_noerr) return
+            select type(attValue)
+               type is (integer)
+                  call mpas_log_write('Calling PIO_put_att for integer 1D-array attribute '//trim(attname))
+                  pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
+               type is (real(kind=R4KIND))
+                  call mpas_log_write('Calling PIO_put_att for real(kind=R4KIND) 1D-array attribute '//trim(attname))
+                  pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
+               type is (real(kind=R8KIND))
+                  call mpas_log_write('Calling PIO_put_att for real(kind=R8KIND) 1D-array attribute '//trim(attname))
+                  pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
+            end select
+
+            if (pio_ierr /= PIO_noerr) then
+               io_global_err = pio_ierr
+               return
+            end if
+
+            if (handle_put_att_pio_enddef(handle) /= PIO_noerr) return
+            if (present(ierr)) ierr = MPAS_IO_NOERR
+         end if
+         return
+      end if
+   end function put_att_1d_generic_pio
+
+
 
    subroutine MPAS_io_get_att_text(handle, attName, attValue, fieldname, ierr)
 
@@ -5338,7 +5485,7 @@ module mpas_io
       end if
 
 #ifdef MPAS_PIO_SUPPORT
-      pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValueLocal) 
+      pio_ierr = put_att_pio(handle, varid, attName, attValueLocal, ierr=ierr)
       if (pio_ierr /= PIO_noerr) then
          io_global_err = pio_ierr
          if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
@@ -5523,7 +5670,7 @@ module mpas_io
       end if
 
 #ifdef MPAS_PIO_SUPPORT
-      pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValueLocal) 
+      pio_ierr = put_att_pio(handle, varid, attName, attValueLocal, ierr=ierr)
       if (pio_ierr /= PIO_noerr) then
          io_global_err = pio_ierr
          if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
@@ -5689,7 +5836,7 @@ module mpas_io
           (MPAS_IO_NATIVE_PRECISION /= MPAS_IO_SINGLE_PRECISION)) then
          singleVal = real(attValueLocal,R4KIND)
 #ifdef MPAS_PIO_SUPPORT
-         pio_ierr = PIO_put_att(handle % pio_file, varid, attName, singleVal) 
+         pio_ierr = put_att_pio(handle, varid, attName, singleVal, ierr=ierr)
 #endif
 
 #ifdef MPAS_SMIOL_SUPPORT
@@ -5703,7 +5850,7 @@ module mpas_io
           (MPAS_IO_NATIVE_PRECISION /= MPAS_IO_DOUBLE_PRECISION)) then
          doubleVal = real(attValueLocal,R8KIND)
 #ifdef MPAS_PIO_SUPPORT
-         pio_ierr = PIO_put_att(handle % pio_file, varid, attName, doubleVal) 
+        pio_ierr = put_att_pio(handle, varid, attName, doubleVal, ierr=ierr)
 #endif
 
 #ifdef MPAS_SMIOL_SUPPORT
@@ -5715,7 +5862,7 @@ module mpas_io
 #endif
       else
 #ifdef MPAS_PIO_SUPPORT
-         pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValueLocal) 
+        pio_ierr = put_att_pio(handle, varid, attName, attValueLocal, ierr=ierr)
 #endif
 
 #ifdef MPAS_SMIOL_SUPPORT
@@ -5733,6 +5880,14 @@ module mpas_io
          if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
          return
       end if
+
+!      if (handle % preexisting_file) then
+!         pio_ierr = PIO_enddef(handle % pio_file)
+!         if (pio_ierr /= PIO_noerr) then
+!            io_global_err = pio_ierr
+!            return
+!         end if
+!      end if
 #endif
 #ifdef MPAS_SMIOL_SUPPORT
       if (local_ierr /= SMIOL_SUCCESS) then
@@ -5919,7 +6074,7 @@ module mpas_io
          allocate(singleVal(size(attValueLocal)))
          singleVal(:) = real(attValueLocal(:),R4KIND)
 #ifdef MPAS_PIO_SUPPORT
-         pio_ierr = PIO_put_att(handle % pio_file, varid, attName, singleVal) 
+        pio_ierr = put_att_pio(handle, varid, attName, singleVal, ierr=ierr)
 #endif
          deallocate(singleVal)
       else if ((new_attlist_node % attHandle % precision == MPAS_IO_DOUBLE_PRECISION) .and. &
@@ -5927,12 +6082,12 @@ module mpas_io
          allocate(doubleVal(size(attValueLocal)))
          doubleVal(:) = real(attValueLocal(:),R8KIND)
 #ifdef MPAS_PIO_SUPPORT
-         pio_ierr = PIO_put_att(handle % pio_file, varid, attName, doubleVal) 
+         pio_ierr = put_att_pio(handle, varid, attName, doubleVal, ierr=ierr)
 #endif
          deallocate(doubleVal)
       else
 #ifdef MPAS_PIO_SUPPORT
-         pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValueLocal) 
+         pio_ierr = put_att_pio(handle, varid, attName, attValueLocal, ierr=ierr)
 #endif
       end if
 #ifdef MPAS_PIO_SUPPORT
@@ -5948,6 +6103,9 @@ module mpas_io
       ! Maybe we should add attribute to list only after a successfull call to PIO?
 
    end subroutine MPAS_io_put_att_real1d
+
+
+
 
 
    subroutine MPAS_io_put_att_text(handle, attName, attValue, fieldname, syncVal, ierr)
@@ -6100,43 +6258,7 @@ module mpas_io
       end if
 
 #ifdef MPAS_PIO_SUPPORT
-      pio_ierr = PIO_put_att(handle % pio_file, varid, attName, trim(attValueLocal)) 
-      if (pio_ierr /= PIO_noerr) then
-
-         io_global_err = pio_ierr
-         if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
-
-         !
-         ! If we are working with a pre-existing file and the text attribute is larger than in the file, we need 
-         ! to enter define mode before writing the attribute. Note the PIO_redef documentation:
-         !     'Entering and leaving netcdf define mode causes a file sync operation to occur, 
-         !      these operations can be very expensive in parallel systems.'
-         !
-         if (handle % preexisting_file .and. .not. handle % data_mode) then
-            pio_ierr = PIO_redef(handle % pio_file)
-            if (pio_ierr /= PIO_noerr) then
-               io_global_err = pio_ierr
-               return
-            end if
-
-            pio_ierr = PIO_put_att(handle % pio_file, varid, attName, trim(attValueLocal)) 
-            if (pio_ierr /= PIO_noerr) then
-               io_global_err = pio_ierr
-               return
-            end if
-
-            pio_ierr = PIO_enddef(handle % pio_file)
-            if (pio_ierr /= PIO_noerr) then
-               io_global_err = pio_ierr
-               return
-            end if
-
-            if (present(ierr)) ierr = MPAS_IO_NOERR
-
-         end if
-
-         return
-      end if
+      pio_ierr = put_att_pio(handle, varid, attName, attValueLocal, ierr=ierr)
 #endif
 
 #ifdef MPAS_SMIOL_SUPPORT
