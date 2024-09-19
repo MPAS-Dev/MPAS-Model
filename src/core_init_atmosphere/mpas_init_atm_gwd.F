@@ -51,14 +51,14 @@ module mpas_init_atm_gwd
       end subroutine read_geogrid
    end interface
 
-   real (kind=RKIND), parameter :: Re = 6371229.0_RKIND        ! Earth radius in MPAS-Atmosphere
+   real (kind=RKIND), parameter :: Re = 6371229.0_RKIND   ! Earth radius in MPAS-Atmosphere
    real (kind=RKIND), parameter :: Pi = 2.0_RKIND * asin(1.0_RKIND)
    real (kind=RKIND), parameter :: rad2deg = 180.0_RKIND / Pi
 
-   integer, parameter :: topo_x = 43200            ! x-dimension of global 30-arc-second topography array
-   integer, parameter :: topo_y = 21600            ! y-dimension of global 30-arc-second topography array
-   integer, parameter :: tile_x = 1200       ! x-dimension of each tile of global 30-arc-second topography
-   integer, parameter :: tile_y = 1200       ! y-dimension of each tile of global 30-arc-second topography
+   integer, parameter :: topo_x = 43200   ! x-dimension of global 30-arc-second topography array
+   integer, parameter :: topo_y = 21600   ! y-dimension of global 30-arc-second topography array
+   integer, parameter :: tile_x = 1200    ! x-dimension of each tile of global 30-arc-second topography
+   integer, parameter :: tile_y = 1200    ! y-dimension of each tile of global 30-arc-second topography
 
    real (kind=RKIND), parameter :: pts_per_degree = real(topo_x,RKIND) / 360.0_RKIND
 
@@ -79,7 +79,7 @@ module mpas_init_atm_gwd
 
    integer (kind=I1KIND), dimension(:), pointer :: hlanduse ! Dominant land mask (0 or 1)
    real (kind=RKIND) :: hc   ! critical height
-   
+
    contains
 
 
@@ -129,18 +129,23 @@ module mpas_init_atm_gwd
       character(len=StrKIND) :: geog_sub_path
       character(len=StrKIND+1) :: geog_data_path      ! same as config_geog_data_path, but guaranteed to have a trailing slash
 
-      TYPE(mpas_gwd_tile_type), pointer :: tilesHead ! Pointer to linked list of tiles
+      type(mpas_gwd_tile_type), pointer :: tilesHead  ! Pointer to linked list of tiles
 
       ! Variables for smoothing variance
       integer, dimension(:,:), pointer:: cellsOnCell
       integer (kind=I1KIND) :: sum_landuse
       real (kind=RKIND) :: sum_var
 
-      real (kind=RKIND), dimension(:,:), pointer :: box => null() ! Subset of topography covering a grid cell
-      real (kind=RKIND), dimension(:,:), pointer :: dxm => null()   ! Size (meters) in zonal direction of a grid cell
-      real (kind=RKIND) :: box_mean                       ! Mean value of topography in box
-      integer (kind=I1KIND), dimension(:,:), pointer :: box_landuse => null()     ! Subset of landuse covering a grid cell
+      real (kind=RKIND), dimension(:,:), pointer :: box ! Subset of topography covering a grid cell
+      real (kind=RKIND), dimension(:,:), pointer :: dxm ! Size (meters) in zonal direction of a grid cell
+      real (kind=RKIND) :: box_mean                     ! Mean value of topography in box
+      integer (kind=I1KIND), dimension(:,:), pointer :: box_landuse ! Subset of landuse covering a grid cell
       integer :: nx, ny
+
+      box => null()
+      dxm => null()
+      box_landuse => null()
+      tilesHead => null()
 
       call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', mesh)
       call mpas_pool_get_subpool(domain % blocklist % structs, 'state', state)
@@ -231,7 +236,6 @@ module mpas_init_atm_gwd
          call mpas_log_write('in the computation of GWD static fields.')
       end if
 
-      tilesHead => null()
 
       !
       ! Main loop to compute each of the GWDO fields for every horizontal
@@ -259,10 +263,12 @@ module mpas_init_atm_gwd
          ! processed and that is just large enough to cover the cell. The
          ! rectangular array of topography data is stored in the module
          ! variable 'box', and the dimensions of this array are obtained from 
-         ! the routine get_box_size_from_lat_lon and store in the
+         ! the routine get_box_size_from_lat_lon() and stored in the
          ! local variables 'nx' and 'ny'. The get_box() routine also
          ! computes the mean elevation in the array and stores that value in
-         ! the module variable 'box_mean'.
+         ! the module variable 'box_mean'. 'tilesHead' points to the head of the linked
+         ! list of tiles, which is used by get_box() and its internal subroutines to search
+         ! for tile data and add new tiles to the head of this list as necessary. 
          !
          call get_box_size_from_lat_lon(latCell(iCell)*rad2deg, lonCell(iCell)*rad2deg, dc, nx, ny)
  
@@ -319,7 +325,7 @@ module mpas_init_atm_gwd
 
       deallocate(hlanduse)
 
-      iErr = remove_tiles(tilesHead)
+      iErr = free_tile_list(tilesHead)
 
    end function compute_gwd_fields
 
@@ -406,7 +412,7 @@ module mpas_init_atm_gwd
       ! loop over tiles
       do while (associated(thisTile))
 
-         if(thisTile%tile_start_x==tile_start_x .and. thisTile%tile_start_y==tile_start_y) then 
+         if (thisTile%tile_start_x==tile_start_x .and. thisTile%tile_start_y==tile_start_y) then 
             exit
          end if
 
@@ -414,7 +420,7 @@ module mpas_init_atm_gwd
 
       end do   ! associated(thisTile)
 
-      ! Couldn't find such a tile, so we add the tile to the front of the linked list
+      ! Could not find such a tile, so we add the tile to the front of the linked list
       if (.not. associated(thisTile)) then 
          thisTile => add_tile(tilesHead, tile_start_x, tile_start_y, tile_start_x_topo, path, sub_path)
       end if
@@ -471,7 +477,7 @@ module mpas_init_atm_gwd
 
    !***********************************************************************
    !
-   !  function remove_tiles
+   !  function free_tile_list
    !
    !> \brief   Routine to deallocate all tiles in the list
    !> \author  Abishek Gopal
@@ -480,7 +486,7 @@ module mpas_init_atm_gwd
    !>  Routine to deallocate all tiles in the list
    !
    !-----------------------------------------------------------------------
-   function remove_tiles(tilesHead) result(iErr)
+   function free_tile_list(tilesHead) result(iErr)
 
       implicit none
 
@@ -500,7 +506,7 @@ module mpas_init_atm_gwd
       
       iErr = 0
 
-   end function remove_tiles
+   end function free_tile_list
 
    !***********************************************************************
    !
@@ -705,13 +711,13 @@ module mpas_init_atm_gwd
       integer, intent(in) :: nx, ny
       character(len=*), intent(in) :: path
       character(len=*), intent(in) :: sub_path
-      TYPE(mpas_gwd_tile_type), pointer, intent(in) :: tilesHead
-      real (kind=RKIND), dimension(:,:), pointer :: box   ! Subset of topography covering a grid cell
-      integer (kind=I1KIND), dimension(:,:), pointer :: box_landuse     ! Subset of landuse covering a grid cell
-      real (kind=RKIND), dimension(:,:), pointer :: dxm   ! Size (meters) in zonal direction of a grid cell
-      real (kind=RKIND), intent(inout) :: box_mean                       ! Mean value of topography in box
+      type(mpas_gwd_tile_type), pointer, intent(in) :: tilesHead
+      real (kind=RKIND), dimension(:,:), pointer :: box               ! Subset of topography covering a grid cell
+      integer (kind=I1KIND), dimension(:,:), pointer :: box_landuse   ! Subset of landuse covering a grid cell
+      real (kind=RKIND), dimension(:,:), pointer :: dxm               ! Size (meters) in zonal direction of a grid cell
+      real (kind=RKIND), intent(inout) :: box_mean                    ! Mean value of topography in box
       
-      TYPE(mpas_gwd_tile_type), pointer :: thisTile
+      type(mpas_gwd_tile_type), pointer :: thisTile
       integer :: i, j, ii, jj, ic, jc, ix, jx, tile_offset
       real (kind=RKIND) :: sg_lat
 
@@ -830,8 +836,8 @@ module mpas_init_atm_gwd
 
       implicit none
 
-      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
-      integer (kind=I1KIND), dimension(:,:), pointer, intent(in) :: box_landuse     ! Subset of landuse covering a grid cell
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box              ! Subset of topography covering a grid cell
+      integer (kind=I1KIND), dimension(:,:), pointer, intent(in) :: box_landuse  ! Subset of landuse covering a grid cell
       real (kind=RKIND), intent(in) :: box_mean
       integer, intent(in) :: nx, ny
 
