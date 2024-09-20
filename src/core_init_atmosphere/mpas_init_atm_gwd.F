@@ -215,7 +215,6 @@ module mpas_init_atm_gwd
       ! call mpas_pool_get_array(mesh, 'sigma', hsigma)
 
       allocate(hlanduse(nCells+1))    ! +1, since we access hlanduse(cellsOnCell(i,iCell)) later on for iCell=1,nCells
- 
 
       !
       ! It is possible that this code is called before the mesh fields have been scaled
@@ -235,7 +234,6 @@ module mpas_init_atm_gwd
          call mpas_log_write('Using effective cell diameters scaled by a factor of $r', realArgs=(/config_gwd_cell_scaling/))
          call mpas_log_write('in the computation of GWD static fields.')
       end if
-
 
       !
       ! Main loop to compute each of the GWDO fields for every horizontal
