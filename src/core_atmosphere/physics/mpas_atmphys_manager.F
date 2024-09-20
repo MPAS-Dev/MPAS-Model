@@ -447,7 +447,6 @@
  call mpas_pool_get_dimension(mesh,'nAerLevels' ,nAerLevels )
  call mpas_pool_get_dimension(mesh,'nOznLevels' ,nOznLevels )
  call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
- call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
  call mpas_pool_get_dimension(mesh,'nSoilLevels',nSoilLevels)
  call mpas_pool_get_dimension(mesh,'nVertLevels',nVertLevels)
 
