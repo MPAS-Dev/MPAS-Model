@@ -1348,10 +1348,10 @@
                 <var name="kiteAreasOnVertex" type="real" dimensions="vertexDegree nVertices" units="m^2"
                      description="Intersection areas between primal (Voronoi) and dual (triangular) mesh cells"/>
 
-                <var name="fEdge" type="real" dimensions="nEdges" units="unitless"
+                <var name="fEdge" type="real" dimensions="nEdges" units="s^{-1}"
                      description="Coriolis parameter at an edge"/>
 
-                <var name="fVertex" type="real" dimensions="nVertices" units="unitless"
+                <var name="fVertex" type="real" dimensions="nVertices" units="s^{-1}"
                      description="Coriolis parameter at a vertex"/>
 
                 <var name="meshDensity" type="real" dimensions="nCells" units="unitless"
@@ -1395,20 +1395,20 @@
                 <var name="zgrid" type="real" dimensions="nVertLevelsP1 nCells" units="m MSL"
                      description="Geometric height of layer interfaces"/>
 
-                <var name="rdzw" type="real" dimensions="nVertLevels" units="unitless"
+                <var name="rdzw" type="real" dimensions="nVertLevels" units="m^{-1}"
                      description="Reciprocal dzw"/>
 
-                <var name="dzu" type="real" dimensions="nVertLevels" units="unitless"
+                <var name="dzu" type="real" dimensions="nVertLevels" units="m"
                      description="d(zeta) at w levels"/>
 
-                <var name="rdzu" type="real" dimensions="nVertLevels" units="unitless"
+                <var name="rdzu" type="real" dimensions="nVertLevels" units="m^{-1}"
                      description="Reciprocal dzu"/>
 
                 <var name="fzm" type="real" dimensions="nVertLevels" units="unitless"
-                     description="Weight for linear interpolation to w(k) point for u(k) level variable"/>
+                     description="Weight for interpolation to w(k) point for u(k) level variable"/>
 
                 <var name="fzp" type="real" dimensions="nVertLevels" units="unitless"
-                     description="Weight for linear interpolation to w(k) point for u(k-1) level variable"/>
+                     description="Weight for interpolation to w(k) point for u(k-1) level variable"/>
 
                 <var name="zxu" type="real" dimensions="nVertLevels nEdges" units="unitless"
                      description="dz/dx on horizontal coordinate surfaces at u levels"/>
@@ -3225,7 +3225,7 @@
 
         <var_struct name="tend_physics" time_levs="1">
 
-                <var name="tend_ru_physics" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-2} s^{-1}"
+                <var name="tend_ru_physics" type="real" dimensions="nVertLevels nEdges Time" units="kg m^{-2} s^{-2}"
                      description="Total horizontal momentum tendency from physics"
                      persistence="scratch" />
 
