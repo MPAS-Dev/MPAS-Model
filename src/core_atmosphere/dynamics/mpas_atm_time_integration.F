@@ -4288,7 +4288,7 @@ module atm_time_integration
 
       real (kind=RKIND), dimension(:,:), pointer :: defc_a, defc_b
 
-      real(kind=RKIND), dimension(:,:), pointer :: tend_w_pgf, tend_w_buoy
+      !real(kind=RKIND), dimension(:,:), pointer :: tend_w_pgf, tend_w_buoy
 
       real (kind=RKIND), pointer :: coef_3rd_order, c_s
       logical, pointer :: config_mix_full
@@ -4403,8 +4403,8 @@ module atm_time_integration
       call mpas_pool_get_array(tend, 'u_euler', tend_u_euler)
       call mpas_pool_get_array(tend, 'theta_euler', tend_theta_euler)
       call mpas_pool_get_array(tend, 'w_euler', tend_w_euler)
-      call mpas_pool_get_array(tend, 'w_pgf', tend_w_pgf)
-      call mpas_pool_get_array(tend, 'w_buoy', tend_w_buoy)
+      !call mpas_pool_get_array(tend, 'w_pgf', tend_w_pgf)
+      !call mpas_pool_get_array(tend, 'w_buoy', tend_w_buoy)
 
       call mpas_pool_get_array(diag, 'cqw', cqw)
       call mpas_pool_get_array(diag, 'cqu', cqu)
@@ -4443,7 +4443,8 @@ module atm_time_integration
          cellsOnEdge, verticesOnEdge, edgesOnCell, edgesOnEdge, cellsOnCell, edgesOnVertex, nEdgesOnCell, nEdgesOnEdge, &
          latCell, latEdge, angleEdge, u_init, v_init, advCellsForEdge, nAdvCellsForEdge, adv_coefs, adv_coefs_3rd, &
          rdzu, rdzw, fzm, fzp, qv_init, t_init, cf1, cf2, cf3, r_earth, ur_cell, vr_cell, defc_a, defc_b, &
-         tend_w_pgf, tend_w_buoy, coef_3rd_order, c_s, config_mix_full, config_horiz_mixing, config_del4u_div_factor, &
+         !tend_w_pgf, tend_w_buoy, 
+         coef_3rd_order, c_s, config_mix_full, config_horiz_mixing, config_del4u_div_factor, &
          config_h_mom_eddy_visc2, config_v_mom_eddy_visc2, config_h_theta_eddy_visc2, config_v_theta_eddy_visc2, &
          config_h_theta_eddy_visc4, config_h_mom_eddy_visc4, config_visc4_2dsmag, config_len_disp, rk_step, dt, &
          config_mpas_cam_coef, &
@@ -4467,7 +4468,8 @@ module atm_time_integration
       cellsOnEdge, verticesOnEdge, edgesOnCell, edgesOnEdge, cellsOnCell, edgesOnVertex, nEdgesOnCell, nEdgesOnEdge, &
       latCell, latEdge, angleEdge, u_init, v_init, advCellsForEdge, nAdvCellsForEdge, adv_coefs, adv_coefs_3rd, &
       rdzu, rdzw, fzm, fzp, qv_init, t_init, cf1, cf2, cf3, r_earth, ur_cell, vr_cell, defc_a, defc_b, &
-      tend_w_pgf, tend_w_buoy, coef_3rd_order, c_s, config_mix_full, config_horiz_mixing, config_del4u_div_factor, &
+      !tend_w_pgf, tend_w_buoy, 
+      coef_3rd_order, c_s, config_mix_full, config_horiz_mixing, config_del4u_div_factor, &
       config_h_mom_eddy_visc2, config_v_mom_eddy_visc2, config_h_theta_eddy_visc2, config_v_theta_eddy_visc2, &
       config_h_theta_eddy_visc4, config_h_mom_eddy_visc4, config_visc4_2dsmag, config_len_disp, rk_step, dt, &
       config_mpas_cam_coef, &
@@ -4576,8 +4578,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(maxEdges,nCells+1) :: defc_a
       real (kind=RKIND), dimension(maxEdges,nCells+1) :: defc_b
 
-      real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: tend_w_pgf
-      real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: tend_w_buoy
+      !real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: tend_w_pgf
+      !real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: tend_w_buoy
 
       real (kind=RKIND) :: coef_3rd_order, c_s
       logical :: config_mix_full
