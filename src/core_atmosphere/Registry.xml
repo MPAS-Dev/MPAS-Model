@@ -2279,9 +2279,9 @@
                      description="Whether to activate the CCN category in NSSL MP"
                      possible_values=".true. or .false."/>
 
-                <nml_option name="config_nssl_cccn" type="real" default_value="0.8e6" in_defaults="false"
-                     units="scm"
-                     description="NSSL-MP cloud condensation nuclei concentration (scm)"
+                <nml_option name="config_nssl_cccn" type="real" default_value="0.8e9" in_defaults="false"
+                     units="sm-3"
+                     description="NSSL-MP cloud condensation nuclei concentration (sm-3)"
                      possible_values="Positive real values"/>
 
                 <nml_option name="config_nssl_alphar" type="real" default_value="0.0" in_defaults="false"
