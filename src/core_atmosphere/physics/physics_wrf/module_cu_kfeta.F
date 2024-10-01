@@ -53,26 +53,6 @@ use module_wrf_error
 CONTAINS
 
 #if defined(mpas)
-<<<<<<< HEAD
-   SUBROUTINE KF_eta_CPS(                                            &
-              ids,ide, jds,jde, kds,kde                              &
-             ,ims,ime, jms,jme, kms,kme                              &
-             ,its,ite, jts,jte, kts,kte                              &
-             ,DT,KTAU,dxCell,areaCell,CUDT,CURR_SECS,ADAPT_STEP_FLAG &
-             ,rho,RAINCV,PRATEC,NCA                                  &
-             ,U,V,TH,T,W,dz8w,Pcps,pi                                &
-             ,W0AVG,XLV0,XLV1,XLS0,XLS1,CP,R,G,EP1                   &
-             ,EP2,SVP1,SVP2,SVP3,SVPT0                               &
-             ,STEPCU,CU_ACT_FLAG,warm_rain,CUTOP,CUBOT               &
-             ,QV                                                     &
-            ! optionals
-             ,F_QR    ,F_QI    ,F_QS                                 &
-             ,RTHCUTEN,RQVCUTEN,RQCCUTEN,RQRCUTEN                    &
-             ,RQICUTEN,RQSCUTEN                                      &
-                                                             )
-#else
-=======
->>>>>>> 4909e7f04 (Update the MPAS-A Kain-Fritsch CPS to WRF 4.4.1)
    SUBROUTINE KF_eta_CPS(                                    &
               ids,ide, jds,jde, kds,kde                      &
              ,ims,ime, jms,jme, kms,kme                      &

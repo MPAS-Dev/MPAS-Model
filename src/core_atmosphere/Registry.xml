@@ -3357,7 +3357,7 @@
 
                 <var name="rqvdynten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of water vapor due to horizontal and vertical advections"
-                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_tiedtke_in"/>
+                     packages="cu_grell_freitas_in;cu_kain_fritsch_in;cu_ntiedtke_in"/>
 
 
                 <!-- KAIN_FRITSCH: -->
