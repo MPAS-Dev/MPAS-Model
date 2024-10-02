@@ -1622,9 +1622,15 @@
                 <!-- MW: adding a PV scalar ARRAY for optional PV scalar diagnostic variable because the scalar advection subroutine expects a scalar array input !-->
                 <var_array name="pv_scalars" type="real" dimensions="nVertLevels nCells Time" streams="restart">
                         <var name="pv_scalar" array_group="passive" units="PVU"
-                                description="Ertel's potential vorticity to be advected by the model (1 PVU = 10^{-6} m^{2} s^{-1} K kg^{-1})"
+                                description="Ertel's potential vorticity scalar initialized as diagnostic PV field at t=0 and passively advected by the model"
                                 packages="pv_scalar"
                                 streams="restart"/>
+
+                        <var name="pv_scalar_dt" array_group="passive" units="PVU"
+                                description="Ertel's PV scalar passively advected by the model but reset to updated diagnostic PV field at end of each time step"
+                                packages="pv_scalar"
+                                streams="restart"/>
+
                 </var_array>
 
         </var_struct>
@@ -1929,8 +1935,13 @@
                 <!--     pv_scalars_tend only contains one variable but we need the array because the scalar transport code expects it -->
                 <var_array name="pv_scalars_tend" type="real" dimensions="nVertLevels nCells Time">
                         <var name="tend_pv_scalar" array_group="passive" units="PVU kg m^{-3} s^{-1}"
-                             description="Tendency of Ertel's potential vorticity from scalar advection multiplied by dry air density divided by d(zeta)/dz"
+                             description="Tendency of pv_scalar variable from scalar advection multiplied by dry air density divided by d(zeta)/dz"
                              packages="pv_scalar" />
+
+                        <var name="tend_pv_scalar_dt" array_group="passive" units="PVU kg m^{-3} s^{-1}"
+                             description="Tendency of pv_scalar_dt variable from scalar advection multiplied by dry air density divided by d(zeta)/dz"
+                             packages="pv_scalar" />
+
                 </var_array>
 
         </var_struct>

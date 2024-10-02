@@ -294,10 +294,11 @@ module mpas_pv_diagnostics
         integer, pointer :: index_pv_scalar
 
         real(kind=RKIND), dimension(:,:), pointer :: ertel_pv
-        real(kind=RKIND), dimension(:,:,:), pointer :: pv_scalars
+        real(kind=RKIND), dimension(:,:,:), pointer :: pv_scalars_1, pv_scalars_2
 
         call mpas_pool_get_dimension(state, 'index_pv_scalar', index_pv_scalar)  
-        call mpas_pool_get_array(state, 'pv_scalars', pv_scalars, 1)
+        call mpas_pool_get_array(state, 'pv_scalars', pv_scalars_1, 1)
+        call mpas_pool_get_array(state, 'pv_scalars', pv_scalars_2, 2)
         call mpas_pool_get_array(diag, 'ertel_pv', ertel_pv)
 
         call exchange_halo_group(domain, 'diagnostics:pv_diag')
@@ -306,7 +307,8 @@ module mpas_pv_diagnostics
         call calc_epv(domain, mesh, state, diag, exchange_halo_group) 
 
         call mpas_log_write('Initializing pv_scalar as the initial PV field.')
-        pv_scalars(index_pv_scalar,:,:) = ertel_pv(:,:)  
+        pv_scalars_1(index_pv_scalar,:,:) = ertel_pv(:,:)  
+        pv_scalars_2(index_pv_scalar,:,:) = ertel_pv(:,:)  
 
     end subroutine pv_diagnostics_scalar_init
         
@@ -388,13 +390,16 @@ module mpas_pv_diagnostics
 
         implicit none
 
-        logical, pointer :: config_pv_diag, config_pv_tend
+        logical, pointer :: config_pv_diag, config_pv_tend, config_pv_scalar
         integer, pointer :: nCells, nVertLevels
-        real(kind=RKIND), dimension(:,:), pointer :: rho
+        integer, pointer :: index_pv_scalar_dt  
+        real(kind=RKIND), dimension(:,:), pointer :: rho, ertel_pv
+        real(kind=RKIND), dimension(:,:,:), pointer :: pv_scalars_1, pv_scalars_2
         integer :: k
 
         call mpas_pool_get_config(configs, 'config_pv_diag', config_pv_diag)  
         call mpas_pool_get_config(configs, 'config_pv_tend', config_pv_tend)
+        call mpas_pool_get_config(configs, 'config_pv_scalar', config_pv_scalar) 
 
         call mpas_pool_get_dimension(mesh, 'nCells', nCells)
         call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
@@ -415,6 +420,19 @@ module mpas_pv_diagnostics
               call store_previous_vars(mesh, state, diag) 
            end if
         end if      
+
+         ! Reset pv_scalar_dt to updated PV field 
+         ! Note: this variable is updated at each timestep, whereas pv_scalar is not 
+         if (config_pv_scalar) then 
+            call mpas_pool_get_dimension(state, 'index_pv_scalar_dt', index_pv_scalar_dt) 
+            call mpas_pool_get_array(state, 'pv_scalars', pv_scalars_1, 1)
+            call mpas_pool_get_array(state, 'pv_scalars', pv_scalars_2, 2)
+            call mpas_pool_get_array(diag, 'ertel_pv', ertel_pv)            
+
+            call mpas_log_write('Resetting pv_scalar_dt to the updated PV field.') 
+            pv_scalars_1(index_pv_scalar_dt,:,:) = ertel_pv(:,:)
+            pv_scalars_2(index_pv_scalar_dt,:,:) = ertel_pv(:,:) 
+         end if 
 
     end subroutine pv_diagnostics_reset  
 
@@ -3456,10 +3474,16 @@ module mpas_pv_diagnostics
       type (mpas_pool_type), intent(inout) :: diag, tend
        procedure (halo_exchange_routine) :: exchange_halo_group     ! MC - new halo
 
-      logical, pointer :: config_pv_isobaric, config_pv_microphys
+      logical, pointer :: config_pv_isobaric, config_pv_microphys, config_pv_scalar
       integer :: iCell, k
       integer, pointer :: nCells, nVertLevels, index_qv
       real (kind=RKIND) :: pvuVal, missingVal
+
+      ! For PV scalar advection tendency
+      integer, pointer :: index_pv_scalar_dt
+      real(kind=RKIND), pointer :: config_dt
+      real (kind=RKIND), dimension(:,:), pointer :: ertel_pv_prev, depv_dt_scalar_adv
+      real (kind=RKIND), dimension(:,:,:), pointer :: pv_scalars
 
       ! For calculating theta tendencies from theta_m tendencies
       ! Note: this is more accurate than using theta tendencies directly from physics schemes, which 
@@ -3566,6 +3590,24 @@ module mpas_pv_diagnostics
       call mpas_log_write("Calling calc_pvBudget:")
       call calc_pvBudget(domain, configs, state, diag, mesh, tend, tend_physics, diag_physics, exchange_halo_group)
 
+      ! Calculate PV advection from passive scalar transport
+      call mpas_pool_get_config(configs, 'config_pv_scalar', config_pv_scalar)  
+
+      if (config_pv_scalar) then 
+         call mpas_pool_get_config(configs, 'config_dt', config_dt)
+         call mpas_pool_get_dimension(state, 'index_pv_scalar_dt', index_pv_scalar_dt)
+
+         call mpas_pool_get_array(state, 'pv_scalars', pv_scalars, 1)                    ! Note: state variable time levels updated prior to call to this subroutine
+         call mpas_pool_get_array(diag, 'ertel_pv_prev', ertel_pv_prev)  
+         call mpas_pool_get_array(diag, 'depv_dt_scalar_adv', depv_dt_scalar_adv)
+
+         call mpas_log_write(" ")
+         call mpas_log_write('Calculating PV scalar advection tendency')
+         call mpas_log_write(" ")
+
+         depv_dt_scalar_adv(:,:) = (pv_scalars(index_pv_scalar_dt,:,:) - ertel_pv_prev(:,:)) / config_dt
+     end if    
+
       ! Interpolate fields to DT:
       pvuVal = 2.0_RKIND
       missingVal = -99999.0_RKIND
@@ -3605,7 +3647,7 @@ module mpas_pv_diagnostics
       type (mpas_pool_type), intent(inout) :: diag
       type (mpas_pool_type), intent(in) :: tend_physics
 
-      logical, pointer :: config_pv_tend, config_pv_isobaric, config_pv_microphys
+      logical, pointer :: config_pv_tend, config_pv_isobaric, config_pv_microphys, config_pv_scalar
 
       integer, pointer :: nCells, nVertLevels
       integer :: iCell, k
@@ -3652,9 +3694,12 @@ module mpas_pv_diagnostics
                                                    acc_depv_dt_mp_frez_ice_isobaric, acc_depv_dt_mp_allproc_isobaric
       real(kind=RKIND), dimension(:,:), pointer :: acc_dtheta_dt_cu_isobaric, acc_dtheta_dt_mp_isobaric 
 
+      real(kind=RKIND), dimension(:,:), pointer :: depv_dt_scalar_adv, acc_depv_dt_scalar_adv
+
       call mpas_pool_get_config(configs, 'config_pv_tend', config_pv_tend)
       call mpas_pool_get_config(configs, 'config_pv_microphys', config_pv_microphys)
       call mpas_pool_get_config(configs, 'config_pv_isobaric', config_pv_isobaric)
+      call mpas_pool_get_config(configs, 'config_pv_scalar', config_pv_scalar)
 
       ! Instantaneous and accumulated PV tendencies 
       call mpas_pool_get_array(diag, 'depv_dt_lw', depv_dt_lw)
@@ -3757,6 +3802,9 @@ module mpas_pv_diagnostics
       call mpas_pool_get_array(diag, 'acc_dtheta_dt_cu_isobaric', acc_dtheta_dt_cu_isobaric)
       call mpas_pool_get_array(diag, 'acc_dtheta_dt_mp_isobaric', acc_dtheta_dt_mp_isobaric)
 
+      ! Scalar
+      call mpas_pool_get_array(diag, 'depv_dt_scalar_adv', depv_dt_scalar_adv)
+      call mpas_pool_get_array(diag, 'acc_depv_dt_scalar_adv', acc_depv_dt_scalar_adv)
       ! Accumulate tendencies 
       acc_depv_dt_lw(:,:) = acc_depv_dt_lw(:,:) + depv_dt_lw(:,:)
       acc_depv_dt_sw(:,:) = acc_depv_dt_sw(:,:) + depv_dt_sw(:,:)
@@ -3791,7 +3839,15 @@ module mpas_pv_diagnostics
           acc_depv_dt_mp_melt_ice(:,:) = acc_depv_dt_mp_melt_ice(:,:) + depv_dt_mp_melt_ice(:,:)
           acc_depv_dt_mp_frez_ice(:,:) = acc_depv_dt_mp_frez_ice(:,:) + depv_dt_mp_frez_ice(:,:)
           acc_depv_dt_mp_allproc(:,:) = acc_depv_dt_mp_allproc(:,:) + depv_dt_mp_allproc(:,:)
-      end if
+      end if 
+
+      ! PV scalar advection tendency
+      if (config_pv_scalar) then 
+          call mpas_log_write("Before update: maxval acc_depv_dt_scalar_adv is $r", realArgs=(/real(MAXVAL(acc_depv_dt_scalar_adv), kind=RKIND)/))    
+          acc_depv_dt_scalar_adv(:,:) = acc_depv_dt_scalar_adv(:,:) + depv_dt_scalar_adv(:,:)    
+          call mpas_log_write("maxval depv_dt_scalar_adv is $r", realArgs=(/real(MAXVAL(depv_dt_scalar_adv), kind=RKIND)/))
+          call mpas_log_write("After update: maxval acc_depv_dt_scalar_adv is $r", realArgs=(/real(MAXVAL(acc_depv_dt_scalar_adv), kind=RKIND)/))
+      end if 
 
       ! If PV variables on isobaric levels are requested, accumulate the isobaric tendencies 
       if (config_pv_isobaric) then

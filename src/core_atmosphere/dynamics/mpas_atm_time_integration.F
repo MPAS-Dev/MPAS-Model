@@ -535,7 +535,6 @@ module atm_time_integration
       ! MC -- options for pv_scalar transport
       logical, parameter :: config_monotonic_pv = .false.
       logical, parameter :: config_positive_definite_pv = .false.
-      logical, parameter :: advance_density_pv = .false.
 
       real (kind=RKIND)  :: time_dyn_step
       logical, parameter :: debug = .false.
@@ -700,6 +699,11 @@ module atm_time_integration
       ! Communicate halos for theta_m, scalars, pressure_p, and rtheta_p
       !
       call exchange_halo_group(domain, 'dynamics:theta_m,scalars,pressure_p,rtheta_p')
+
+      ! MC: If config_pv_scalar, also do halo exchange for pv_scalars
+      if (config_pv_scalar) then 
+         call exchange_halo_group(domain, 'diagnostics:pv_scalars_1')  
+      end if  
 
       call mpas_timer_start('atm_rk_integration_setup')
 
@@ -1049,6 +1053,14 @@ module atm_time_integration
                call advance_scalars('scalars', domain, rk_step, rk_timestep, config_monotonic, config_positive_definite, &
                                     config_time_integration_order, config_split_dynamics_transport, exchange_halo_group)
 
+               ! MC: add advance_scalars call when config_pv_scalar is true
+               if (config_pv_scalar) then
+                  call mpas_timer_start('Tendency and PV diagnostics')     
+                  call advance_scalars('pv_scalars', domain, rk_step, rk_timestep, config_monotonic_pv, config_positive_definite_pv, &
+                                       config_time_integration_order, config_split_dynamics_transport, exchange_halo_group)
+                  call mpas_timer_stop('Tendency and PV diagnostics')             
+               end if        
+
                if (config_apply_lbcs) then  ! adjust boundary tendencies for regional_MPAS scalar transport
 
                   call exchange_halo_group(domain, 'dynamics:scalars')
@@ -1131,6 +1143,12 @@ module atm_time_integration
                ! Communicate halos for w[1,2], pv_edge[1,2], rho_edge[1,2], scalars[1,2]
                !
                call exchange_halo_group(domain, 'dynamics:w,pv_edge,rho_edge,scalars')
+
+               ! MC: adding halo exchange for pv_scalars if enabled
+               if (config_pv_scalar) then 
+                  call exchange_halo_group(domain, 'diagnostics:pv_scalars_2')        
+               end if        
+
             else
                !
                ! Communicate halos for w[1,2], pv_edge[1,2], rho_edge[1,2]
@@ -1271,10 +1289,10 @@ module atm_time_integration
 
 
             ! MC -- adding PV scalar advection
-            if (config_pv_scalar .and. (rk_step == 3)) then
+            if (config_pv_scalar) then
                call mpas_timer_start('Tendency and PV diagnostics')     
                call advance_scalars('pv_scalars', domain, rk_step, rk_timestep, config_monotonic_pv, config_positive_definite_pv, &
-                                    config_time_integration_order, advance_density_pv, exchange_halo_group)
+                                    config_time_integration_order, config_split_dynamics_transport, exchange_halo_group)
                call mpas_timer_stop('Tendency and PV diagnostics')             
             end if        
 
@@ -1337,6 +1355,11 @@ module atm_time_integration
 
             if (rk_step < 3) then
                call exchange_halo_group(domain, 'dynamics:scalars')
+
+               ! MC: adding halo exchange for PV scalars if enabled
+               if (config_pv_scalar) then 
+                  call exchange_halo_group(domain, 'diagnostics:pv_scalars_2')        
+               end if
             end if
 
          end do RK3_SPLIT_TRANSPORT
@@ -1403,12 +1426,20 @@ module atm_time_integration
       if ( config_tend ) then
          call mpas_timer_start('Tendency and PV diagnostics')     
          call mpas_pool_get_array(diag, 'acc_qv_tend_dyn_large', acc_qv_tend_dyn_large)
-         acc_qv_tend_dyn_large(:,:) = acc_qv_tend_dyn_large(:,:) + ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt
+
+         if (config_monotonic) then
+            acc_qv_tend_dyn_large(:,:) = acc_qv_tend_dyn_large(:,:) + ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt
+         else
+            acc_qv_tend_dyn_large(:,:) = acc_qv_tend_dyn_large(:,:) + 0._RKIND
+         end if 
 
          if ( config_pv_tend ) then      
             call mpas_pool_get_array(diag, 'dqv_dt_dyn', dqv_dt_dyn) 
             dqv_dt_dyn(:,:) = 0.0
-            dqv_dt_dyn(:,:) =  ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt  ! MW: added for PV
+
+            if (config_monotonic) then
+               dqv_dt_dyn(:,:) =  ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt  ! MW: added for PV
+            end if 
          end if   
 
          call mpas_timer_stop('Tendency and PV diagnostics')

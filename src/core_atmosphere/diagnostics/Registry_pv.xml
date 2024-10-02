@@ -207,6 +207,17 @@
              streams="restart"/>
     
 
+        <!-- PV tendencies from advecting pv_scalar_dt as a passive tracer -->        
+        <var name="depv_dt_scalar_adv" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="PV tendency from scalar advection of pv_scalar_dt"
+             packages="pv_scalar" />
+
+        <var name="acc_depv_dt_scalar_adv" type="real" dimensions="nVertLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated PV tendency from scalar advection of pv_scalar_dt"
+             packages="pv_scalar" 
+             streams="restart"/>
+
+
         <!-- Static variables on dynamic tropopause -->
         <var name="iLev_DT" type="integer" dimensions="nCells Time" units="-"
              description="Lowest vertical model level at or above dynamic tropopause (< 1 if 2 PVU below column; > nVertLevels if 2 PVU above column)"

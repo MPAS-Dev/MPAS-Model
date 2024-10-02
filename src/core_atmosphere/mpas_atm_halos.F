@@ -67,6 +67,7 @@ module mpas_atm_halos
       call mpas_pool_get_config(domain % blocklist % configs, 'config_tend', config_tend)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_pv_diag', config_pv_diag)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_pv_tend', config_pv_tend)
+      call mpas_pool_get_config(domain % blocklist % configs, 'config_pv_scalar', config_pv_scalar)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_pv_microphys', config_pv_microphys)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_isobaric', config_isobaric)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_pv_isobaric', config_pv_isobaric)
@@ -235,6 +236,15 @@ module mpas_atm_halos
             call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:ertel_pv', 'ertel_pv', timeLevel=1, haloLayers=(/1,2/))
          end if
 
+         ! PV scalar
+         if (config_pv_scalar) then 
+            call mpas_dmpar_exch_group_create(domain, 'diagnostics:pv_scalars_1') 
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:pv_scalars_1', 'pv_scalars', timeLevel=1, haloLayers=(/1,2/))
+
+            call mpas_dmpar_exch_group_create(domain, 'diagnostics:pv_scalars_2')
+            call mpas_dmpar_exch_group_add_field(domain, 'diagnostics:pv_scalars_2', 'pv_scalars', timeLevel=2, haloLayers=(/1,2/))
+         end if
+            
          ! PV tendencies
          if (config_pv_tend) then
             call mpas_dmpar_exch_group_create(domain, 'diagnostics:dpv_prev')
@@ -492,6 +502,18 @@ module mpas_atm_halos
             call mpas_halo_exch_group_complete(domain, 'diagnostics:ertel_pv')
          end if
 
+         ! PV scalars
+         if (config_pv_scalar) then
+            call mpas_halo_exch_group_create(domain, 'diagnostics:pv_scalars_1')
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:pv_scalars_1', 'pv_scalars', timeLevel=1, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_complete(domain, 'diagnostics:pv_scalars_1')
+
+            call mpas_halo_exch_group_create(domain, 'diagnostics:pv_scalars_2')
+            call mpas_halo_exch_group_add_field(domain, 'diagnostics:pv_scalars_2', 'pv_scalars', timeLevel=2, haloLayers=(/1,2/))
+            call mpas_halo_exch_group_complete(domain, 'diagnostics:pv_scalars_2')
+         end if
+
+
          ! PV tendencies
          if (config_pv_tend) then
             call mpas_halo_exch_group_create(domain, 'diagnostics:dpv_prev')
@@ -663,6 +685,11 @@ module mpas_atm_halos
             call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:pv_diag_wCell')
          end if
 
+         if (config_pv_scalar) then
+            call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:pv_scalars_1')
+            call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:pv_scalars_2')
+         end if 
+
          if (config_pv_tend) then 
             call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:dpv_prev')
             call mpas_dmpar_exch_group_destroy(domain, 'diagnostics:dpv_th_tend')
@@ -734,8 +761,12 @@ module mpas_atm_halos
             !call mpas_halo_exch_group_destroy(domain, 'diagnostics:iLev_DT')
             call mpas_halo_exch_group_destroy(domain, 'diagnostics:ertel_pv')
             call mpas_halo_exch_group_destroy(domain, 'diagnostics:pv_diag_wCell')
-
          end if   
+
+         if (config_pv_scalar) then
+            call mpas_halo_exch_group_destroy(domain, 'diagnostics:pv_scalars_1')
+            call mpas_halo_exch_group_destroy(domain, 'diagnostics:pv_scalars_2')
+         end if
 
          if (config_pv_tend) then 
             call mpas_halo_exch_group_destroy(domain, 'diagnostics:dpv_prev')
