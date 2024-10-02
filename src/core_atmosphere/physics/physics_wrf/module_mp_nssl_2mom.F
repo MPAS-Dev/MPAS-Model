@@ -1423,7 +1423,7 @@ MODULE module_mp_nssl_2mom
 
     IF ( ihlcnh <= 0 ) THEN
       IF ( ipconc == 5 ) THEN
-       ihlcnh = 3
+       ihlcnh = 1
       ELSEIF ( ipconc >= 6 ) THEN
        ihlcnh = 3
       ENDIF
