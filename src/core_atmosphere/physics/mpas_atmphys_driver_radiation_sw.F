@@ -375,7 +375,7 @@
  integer:: i,j,k,n
 
 !local pointers:
- logical,pointer:: config_o3climatology,cu_rad_feedback
+ logical,pointer:: config_o3climatology,cu_radt_feedback
  character(len=StrKIND),pointer:: radt_sw_scheme
  character(len=StrKIND),pointer:: microp_scheme
  character(len=StrKIND),pointer:: convection_scheme
@@ -399,7 +399,7 @@
  call mpas_pool_get_config(configs,'config_microp_scheme'    ,microp_scheme       )
  call mpas_pool_get_config(configs,'config_microp_re'        ,config_microp_re    )
  call mpas_pool_get_config(configs,'config_convection_scheme',convection_scheme   )
- call mpas_pool_get_config(configs,'config_cu_rad_feedback'  ,cu_rad_feedback     )
+ call mpas_pool_get_config(configs,'config_cu_radt_feedback' ,cu_radt_feedback    )
 
  call mpas_pool_get_array(mesh,'latCell',latCell)
  call mpas_pool_get_array(mesh,'lonCell',lonCell)
@@ -437,7 +437,7 @@
 
     case("cu_kain_fritsch")
       !assign appropriate cloud fraction:
-       if(cu_rad_feedback) then
+       if(cu_radt_feedback) then
           call mpas_pool_get_array(diag_physics,'cldfracwcu',cldfracwcu)
           do j = jts,jte
           do k = kts,kte
@@ -447,7 +447,7 @@
           enddo
           enddo
        else
-          call mpas_pool_get_array(diag_physics,'cldfrac'   ,cldfrac   )
+          call mpas_pool_get_array(diag_physics,'cldfrac',cldfrac)
           do j = jts,jte
           do k = kts,kte
           do i = its,ite
@@ -458,7 +458,7 @@
        endif
 
     case default
-       call mpas_pool_get_array(diag_physics,'cldfrac'   ,cldfrac   )
+       call mpas_pool_get_array(diag_physics,'cldfrac',cldfrac)
        do j = jts,jte
        do k = kts,kte
        do i = its,ite
