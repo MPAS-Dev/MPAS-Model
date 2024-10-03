@@ -70,6 +70,8 @@
 ! * moved the declarations of arrays delta_p,wstar_p,uoce_p,and voce_p since they are now used in both modules
 !   module_bl_ysu.F and module_bl_mynn.F.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-10-27.
+! * added cloud fraction and condensate arrays from Kain-Fritsch convection parameterization.
+!   Jerold A. Herwehe (herwehe.jerry@epa.gov) / 2016-12-05.
 ! * added the variable opt_thcnd (option to treat thermal conductivity in NoahLSM). added additional options and
 !   arrays to run the Noah LSM scheme from WRF version 3.9.0.
 !   Laura D. Fowler (laura@ucar.edu) / 2017-01-27.
@@ -228,7 +230,7 @@
     znu_hyd_p          !(pres_hyd_p / P0) needed in the Tiedtke convection scheme              [Pa]
 
 !=================================================================================================================
-!... variables related to ozone climatlogy:
+!... variables related to ozone climatology:
 !=================================================================================================================
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
@@ -315,15 +317,22 @@
     rthcuten_p,       &!
     rqvcuten_p,       &!
     rqccuten_p,       &!
-    rqicuten_p         !
+    rqicuten_p,       &!
+    rqvdynten_p        !
 
-!... kain fritsch specific arrays:
+!... kain-fritsch specific arrays:
  real(kind=RKIND),dimension(:,:),allocatable::   &
     cubot_p,          &!lowest convective level                                                 [-]
     cutop_p,          &!highest convective level                                                [-]
     nca_p              !counter for cloud relaxation time                                       [-]
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     w0avg_p          !
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    cldfrac_dp_p,     &!cloud fraction from deep convection                                     [-]
+    cldfrac_sh_p,     &!cloud fraction from shallow convection                                  [-]
+    cldfracwcu_p       !cloud fraction including Cu                                             [-]
+ real(kind=RKIND),dimension(:,:),allocatable::   &
+    cldfracwcut_p      !total cloud fraction including Cu                                       [-]
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rqrcuten_p,       &!
@@ -352,16 +361,18 @@
     xmb_shallow_p      !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    rthdynten_p,      &!
-    qccu_p,           &!
-    qicu_p             !
+    rthdynten_p        !
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rthraten_p         !
 
+!... grell and kain-fritsch specific arrays:
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    qccu_p,           &!convective cloud water mixing ratio                                 [kg/kg]
+    qicu_p             !convective cloud ice mixing ratio                                   [kg/kg]
+
 !... grell and tiedkte specific arrays:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    rqvdynten_p,      &!
     rqvdynblten_p,    &!
     rthdynblten_p      !
 
@@ -750,10 +761,14 @@
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     cldfrac_p,        &!cloud fraction                                                                         [-]
+    cldfracrad_p,     &!cloud fraction local to cloudiness and radiation                                       [-]
     qvrad_p,          &!water vapor mixing ratio local to cloudiness and radiation                         [kg/kg]
     qcrad_p,          &!cloud liquid water mixing ratio local to cloudiness and radiation                  [kg/kg]
     qirad_p,          &!cloud ice mixing ratio local to cloudiness and radiation                           [kg/kg]
     qsrad_p            !snow mixing ratio local to cloudiness and radiation                                [kg/kg]
+
+ real(kind=RKIND),dimension(:,:),allocatable:: &
+    cldfract_p         !total cloud fraction                                                                   [-]
 
 !=================================================================================================================
 !.. variables and arrays related to land-surface parameterization:

@@ -82,6 +82,8 @@
 ! * in the call to rrtmg_lwrad, substituted the variables qv_p, qc_p, qi_p, and qs_p with qvrad_p, qcrad_p,
 !   qirad_p, and qsrad_p initialized in subroutine cloudiness_from_MPAS.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-07-09.
+! * implemented cloud fraction and condensates feedback from Kain-Fritsch convection parameterization.
+!   Jerold A. Herwehe (herwehe.jerry@epa.gov) / 2016-12-08.
 ! * substituted "use mpas_atmphys_o3climatology" with "use module_ra_rrtmg_vinterp" since we moved subroutine
 !   vinterp_ozn to is own module in physics_wrf.
 !   laura D. Fowler (laura@ucar.edu) / 2017-01-27.
@@ -315,16 +317,17 @@
  type(mpas_pool_type),intent(inout):: diag_physics
 
 !local pointers:
- logical,pointer:: config_o3climatology
- logical,pointer:: config_microp_re
+ logical,pointer:: config_o3climatology,cu_radt_feedback
  character(len=StrKIND),pointer:: radt_lw_scheme
  character(len=StrKIND),pointer:: microp_scheme
+ character(len=StrKIND),pointer:: convection_scheme
+ logical,pointer:: config_microp_re
 
  real(kind=RKIND),dimension(:),pointer    :: latCell,lonCell
  real(kind=RKIND),dimension(:),pointer    :: skintemp,snow,xice,xland
  real(kind=RKIND),dimension(:),pointer    :: m_ps,pin
  real(kind=RKIND),dimension(:),pointer    :: sfc_albedo,sfc_emiss
- real(kind=RKIND),dimension(:,:),pointer  :: cldfrac,m_hybi,o3clim,o3vmr
+ real(kind=RKIND),dimension(:,:),pointer  :: cldfrac,cldfracwcu,m_hybi,o3clim,o3vmr
  real(kind=RKIND),dimension(:,:),pointer  :: re_cloud,re_ice,re_snow
  real(kind=RKIND),dimension(:,:,:),pointer:: aerosols,ozmixm
 
@@ -335,10 +338,12 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
- call mpas_pool_get_config(configs,'config_microp_re'     ,config_microp_re    )
- call mpas_pool_get_config(configs,'config_o3climatology' ,config_o3climatology)
- call mpas_pool_get_config(configs,'config_radt_lw_scheme',radt_lw_scheme      )
- call mpas_pool_get_config(configs,'config_microp_scheme' ,microp_scheme       )
+ call mpas_pool_get_config(configs,'config_o3climatology'    ,config_o3climatology)
+ call mpas_pool_get_config(configs,'config_radt_lw_scheme'   ,radt_lw_scheme      )
+ call mpas_pool_get_config(configs,'config_microp_scheme'    ,microp_scheme       )
+ call mpas_pool_get_config(configs,'config_microp_re'        ,config_microp_re    )
+ call mpas_pool_get_config(configs,'config_convection_scheme',convection_scheme   )
+ call mpas_pool_get_config(configs,'config_cu_radt_feedback' ,cu_radt_feedback    )
 
  call mpas_pool_get_array(mesh,'latCell',latCell)
  call mpas_pool_get_array(mesh,'lonCell',lonCell)
@@ -355,7 +360,6 @@
 
  call mpas_pool_get_array(diag_physics,'sfc_albedo',sfc_albedo)
  call mpas_pool_get_array(diag_physics,'sfc_emiss' ,sfc_emiss )
- call mpas_pool_get_array(diag_physics,'cldfrac'   ,cldfrac   )
  call mpas_pool_get_array(diag_physics,'o3clim'    ,o3clim    )
  call mpas_pool_get_array(diag_physics,'o3vmr'     ,o3vmr     )
  call mpas_pool_get_array(diag_physics,'m_hybi'    ,m_hybi    )
@@ -370,13 +374,42 @@
     xland_p(i,j)     = xland(i)
  enddo
  enddo
- do j = jts,jte
- do k = kts,kte
- do i = its,ite
-    cldfrac_p(i,k,j) = cldfrac(k,i)
- enddo
- enddo
- enddo
+
+ convection_select: select case(convection_scheme)
+
+    case("cu_kain_fritsch")
+      !assign appropriate cloud fraction:
+       if(cu_radt_feedback) then
+          call mpas_pool_get_array(diag_physics,'cldfracwcu',cldfracwcu)
+          do j = jts,jte
+          do k = kts,kte
+          do i = its,ite
+             cldfracrad_p(i,k,j) = cldfracwcu(k,i)
+          enddo
+          enddo
+          enddo
+       else
+          call mpas_pool_get_array(diag_physics,'cldfrac',cldfrac)
+          do j = jts,jte
+          do k = kts,kte
+          do i = its,ite
+             cldfracrad_p(i,k,j) = cldfrac(k,i)
+          enddo
+          enddo
+          enddo
+       endif
+
+    case default
+       call mpas_pool_get_array(diag_physics,'cldfrac',cldfrac)
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          cldfracrad_p(i,k,j) = cldfrac(k,i)
+       enddo
+       enddo
+       enddo
+
+ end select convection_select
 
 !initialization:
  do j = jts,jte
@@ -850,7 +883,7 @@
 !           qv3d       = qv_p          , qc3d      = qc_p        , qi3d     = qi_p     , &
 !           qs3d       = qs_p          , cldfra3d  = cldfrac_p   , tsk      = tsk_p    , &
             qv3d       = qvrad_p       , qc3d      = qcrad_p     , qi3d     = qirad_p  , &
-            qs3d       = qsrad_p       , cldfra3d  = cldfrac_p   , tsk      = tsk_p    , &
+            qs3d       = qsrad_p       , cldfra3d  = cldfracrad_p, tsk      = tsk_p    , &
             emiss      = sfc_emiss_p   , xland     = xland_p     , xice     = xice_p   , &
             snow       = snow_p        , icloud    = icloud      , o3input  = o3input  , &
             noznlevels = num_oznlevels , pin       = pin_p       , o3clim   = o3clim_p , &
@@ -908,7 +941,7 @@
                 qg3d          = qg_p          , f_qc          = f_qc          ,              &
                 f_qr          = f_qr          , f_qi          = f_qi          ,              &
                 f_qs          = f_qs          , f_ice_phy     = f_ice         ,              &
-                f_rain_phy    = f_rain        , cldfra        = cldfrac_p     ,              &
+                f_rain_phy    = f_rain        , cldfra        = cldfracrad_p  ,              &
                 xland         = xland_p       , xice          = xice_p        ,              &
                 num_months    = num_months    , levsiz        = num_oznlevels ,              & 
                 pin0          = pin_p         , ozmixm        = ozmixm_p      ,              &
