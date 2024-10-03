@@ -761,7 +761,7 @@
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     cldfrac_p,        &!cloud fraction                                                                         [-]
-    cldfracrad_p,     &!cloud fraction local to cloudiness and radiation
+    cldfracrad_p,     &!cloud fraction local to cloudiness and radiation                                       [-]
     qvrad_p,          &!water vapor mixing ratio local to cloudiness and radiation                         [kg/kg]
     qcrad_p,          &!cloud liquid water mixing ratio local to cloudiness and radiation                  [kg/kg]
     qirad_p,          &!cloud ice mixing ratio local to cloudiness and radiation                           [kg/kg]

@@ -2188,7 +2188,7 @@
                      description="KF (1) original or (2) moisture-advection based convection trigger"
                      possible_values="1 or 2"/>
 
-                <nml_option name="config_cu_rad_feedback" type="logical" default_value="false" in_defaults="false"
+                <nml_option name="config_cu_radt_feedback" type="logical" default_value="false" in_defaults="false"
                      units="-"
                      description="whether to enable KF subgrid-scale cloud feedbacks to the SW and LW radiation schemes"
                      possible_values=".true. or .false."/>
@@ -2510,11 +2510,11 @@
                      packages="cu_kain_fritsch_in"/>
 
                 <var name="cldfracwcu" type="real" dimensions="nVertLevels nCells Time" units="unitless"
-                     description="horizontal cloud fraction including Cu"
+                     description="horizontal cloud fraction including convective cloud fraction"
                      packages="cu_kain_fritsch_in"/>
 
                 <var name="cldfracwcut" type="real" dimensions="nCells Time" units="unitless"
-                     description="total cloud fraction including Cu"
+                     description="total cloud fraction including convective cloud fraction"
                      packages="cu_kain_fritsch_in"/>
 
 

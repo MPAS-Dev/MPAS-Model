@@ -282,10 +282,9 @@
 !inout arguments:
  type(mpas_pool_type),intent(inout):: diag_physics
 
- logical, pointer:: cu_rad_feedback
-
 !local variables and pointers:
  character(len=StrKIND),pointer:: radt_cld_scheme
+ logical, pointer:: cu_radt_feedback
 
  integer:: i,j,k
 
@@ -298,7 +297,7 @@
 
  call mpas_pool_get_config(configs,'config_radt_cld_scheme'  ,radt_cld_scheme  )
  call mpas_pool_get_config(configs,'config_convection_scheme',convection_scheme)
- call mpas_pool_get_config(configs,'config_cu_rad_feedback'  ,cu_rad_feedback  )
+ call mpas_pool_get_config(configs,'config_cu_radt_feedback' ,cu_radt_feedback )
 
 !copy MPAS arrays to local arrays:
  call cloudiness_from_MPAS(configs,mesh,diag_physics,sfc_input,its,ite)
@@ -342,9 +341,9 @@
        enddo
        enddo
 
-       if(cu_rad_feedback) then
-      !adjust cloud fraction and condensates before radiation calls if Cu feedback is enabled by
-      !incorporating subgrid-scale convective clouds into resolved cloudiness (based on CESM):
+       if(cu_radt_feedback) then
+       !adjust cloud fraction and condensates before radiation calls if Cu feedback is enabled by
+       !incorporating subgrid-scale convective clouds into resolved cloudiness (based on CESM):
           do j = jts,jte
           do k = kts,kte
           do i = its,ite
