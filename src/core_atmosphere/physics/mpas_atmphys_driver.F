@@ -296,14 +296,14 @@
           enddo
        endif
 
-       call allocate_seaice
+       call allocate_seaice(block%configs)
 !$OMP PARALLEL DO
        do thread=1,nThreads
           call driver_seaice(block%configs,diag_physics,sfc_input, &
                              cellSolveThreadStart(thread),cellSolveThreadEnd(thread))
        enddo
 !$OMP END PARALLEL DO
-       call deallocate_seaice
+       call deallocate_seaice(block%configs)
     endif
 
     !call to pbl schemes:
