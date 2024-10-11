@@ -80,9 +80,6 @@
  if(.not.allocated(xice_p)      ) allocate(xice_p(ims:ime,jms:jme)      )
  if(.not.allocated(z0_p)        ) allocate(z0_p(ims:ime,jms:jme)        )
  if(.not.allocated(znt_p)       ) allocate(znt_p(ims:ime,jms:jme)       )
- if(.not.allocated(q2_p)        ) allocate(q2_p(ims:ime,jms:jme)        )
- if(.not.allocated(t2m_p)       ) allocate(t2m_p(ims:ime,jms:jme)       )
- if(.not.allocated(th2m_p)      ) allocate(th2m_p(ims:ime,jms:jme)      )
 
  if(.not.allocated(tsk_sea)     ) allocate(tsk_sea(ims:ime,jms:jme)     )
  if(.not.allocated(tsk_ice)     ) allocate(tsk_ice(ims:ime,jms:jme)     )
@@ -148,9 +145,6 @@
  if(allocated(xice_p)      ) deallocate(xice_p      )
  if(allocated(z0_p)        ) deallocate(z0_p        )
  if(allocated(znt_p)       ) deallocate(znt_p       )
- if(allocated(q2_p)        ) deallocate(q2_p        )
- if(allocated(t2m_p)       ) deallocate(t2m_p       )
- if(allocated(th2m_p)      ) deallocate(th2m_p      )
 
  if(allocated(chs_sea)     ) deallocate(chs_sea     )
  if(allocated(chs2_sea)    ) deallocate(chs2_sea    )
@@ -354,7 +348,6 @@
  real(kind=RKIND),dimension(:),pointer:: acsnom,acsnow,chs,chs2,cpm,cqs2,qgh,qsfc,grdflx,hfx, qfx,lh,noahres, &
                                          potevp,sfc_albedo,sfc_emiss,sfcrunoff,snopcx,z0,znt
  real(kind=RKIND),dimension(:),pointer:: snow,snowc,snowh,skintemp,xice
- real(kind=RKIND),dimension(:),pointer:: t2m,th2m,q2
  real(kind=RKIND),dimension(:,:),pointer:: tslb
 
 !local variables and arrays:
@@ -382,9 +375,6 @@
  call mpas_pool_get_array(diag_physics,'sfcrunoff' ,sfcrunoff )
  call mpas_pool_get_array(diag_physics,'z0'        ,z0        )
  call mpas_pool_get_array(diag_physics,'znt'       ,znt       )
- call mpas_pool_get_array(diag_physics,'t2m'       ,t2m       )
- call mpas_pool_get_array(diag_physics,'th2m'      ,th2m      )
- call mpas_pool_get_array(diag_physics,'q2'        ,q2        )
 
  call mpas_pool_get_array(sfc_input,'snow'    ,snow    )
  call mpas_pool_get_array(sfc_input,'snowc'   ,snowc   )
@@ -393,7 +383,7 @@
  call mpas_pool_get_array(sfc_input,'tslb'    ,tslb    )
  call mpas_pool_get_array(sfc_input,'xice'    ,xice    )
 
-!--- weigh local variables needed in the calculation of t2m, th2m, and q2 over seaice points:
+!--- reconstruct local variables as functions of the seaice fraction:
  do j = jts,jte
     do i = its,ite
        if(xice_p(i,j).ge.xice_threshold .and. xice_p(i,j).le.1._RKIND) then
@@ -413,16 +403,6 @@
        endif
     enddo
  enddo
-
- call sfcdiags( &
-             hfx   = hfx_p  , qfx     = qfx_p   , tsk  = tsk_p , qsfc = qsfc_p , chs = chs_p , &
-             chs2  = chs2_p , cqs2    = cqs2_p  , t2   = t2m_p , th2  = th2m_p , q2  = q2_p  , &
-             psfc  = psfc_p , t3d     = t_p     , qv3d = qv_p  , cp   = cp     , R_d = R_d   , &
-             rovcp = rcp    , ua_phys = ua_phys                                              , &
-             ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,           &
-             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,           &
-             its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
-                    )
 
 !--- update all variables:
  do j = jts,jte
@@ -454,11 +434,6 @@
        lh(i)   = lh_p(i,j)
        sfc_albedo(i) = sfc_albedo_p(i,j)
        sfc_emiss(i)  = sfc_emiss_p(i,j)
-
-       !--- 2-meter diagnostics:
-       q2(i)   = q2_p(i,j)
-       t2m(i)  = t2m_p(i,j)
-       th2m(i) = th2m_p(i,j)
     enddo
  enddo
 
