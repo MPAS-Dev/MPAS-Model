@@ -3335,14 +3335,14 @@ module mpas_io_streams
 
          if (field_cursor % field_type == FIELD_0D_INT) then
 
-!call mpas_log_write('Writing out field '//trim(field_cursor % int0dField % fieldName))
-!call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/field_cursor % isDecomposed/))
-!call mpas_log_write('   > outer dimension size $i', intArgs=(/field_cursor % totalDimSize/))
+            ! call mpas_log_write('Writing out field '//trim(field_cursor % int0dField % fieldName))
+            ! call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/field_cursor % isDecomposed/))
+            ! call mpas_log_write('   > outer dimension size $i', intArgs=(/field_cursor % totalDimSize/))
 
-!call mpas_log_write('Copying field from first block')
+            !call mpas_log_write('Copying field from first block')
             int0d_temp = field_cursor % int0dField % scalar
 
-!call mpas_log_write('MGD calling MPAS_io_put_var now...')
+            !call mpas_log_write('MGD calling MPAS_io_put_var now...')
             call MPAS_io_put_var(stream % fileHandle, field_cursor % int0dField % fieldName, int0d_temp, io_err)
             call MPAS_io_err_mesg(stream % fileHandle % ioContext, io_err, .false.)
             if (io_err /= MPAS_IO_NOERR .and. present(ierr)) ierr = MPAS_IO_ERR
@@ -3376,7 +3376,7 @@ module mpas_io_streams
                      end if
 
                      if (field_cursor % int1dField % isVarArray) then
-! I suspect we will never hit this code, as it doesn't make sense, really
+                        ! I suspect we will never hit this code, as it doesn't make sense, really
                         int0d_temp = field_1dint_ptr % array(j)
                      else
                         int1d_temp(i:i+ownedSize-1) = field_1dint_ptr % array(1:ownedSize)
@@ -3543,14 +3543,14 @@ module mpas_io_streams
 
          else if (field_cursor % field_type == FIELD_0D_REAL) then
 
-!call mpas_log_write('Writing out field '//trim(field_cursor % real0dField % fieldName))
-!call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/field_cursor % isDecomposed/))
-!call mpas_log_write('   > outer dimension size $i', intArgs=(/field_cursor % totalDimSize/))
+            !call mpas_log_write('Writing out field '//trim(field_cursor % real0dField % fieldName))	
+            !call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/field_cursor % isDecomposed/))	
+            !call mpas_log_write('   > outer dimension size $i', intArgs=(/field_cursor % totalDimSize/))
 
-!call mpas_log_write('Copying field from first block')
+            !call mpas_log_write('Copying field from first block')
             real0d_temp = field_cursor % real0dField % scalar
 
-!call mpas_log_write('MGD calling MPAS_io_put_var now...')
+            !call mpas_log_write('MGD calling MPAS_io_put_var now...')
             call MPAS_io_put_var(stream % fileHandle, field_cursor % real0dField % fieldName, real0d_temp, io_err)
             call MPAS_io_err_mesg(stream % fileHandle % ioContext, io_err, .false.)
             if (io_err /= MPAS_IO_NOERR .and. present(ierr)) ierr = MPAS_IO_ERR
@@ -3584,7 +3584,7 @@ module mpas_io_streams
                      end if
 
                      if (field_cursor % real1dField % isVarArray) then
-! I suspect we will never hit this code, as it doesn't make sense, really
+                        ! I suspect we will never hit this code, as it doesn't make sense, really
                         real0d_temp = field_1dreal_ptr % array(j)
                      else
                         real1d_temp(i:i+ownedSize-1) = field_1dreal_ptr % array(1:ownedSize)
@@ -3891,24 +3891,24 @@ module mpas_io_streams
 
          else if (field_cursor % field_type == FIELD_0D_CHAR) then
 
-!call mpas_log_write('Writing out field '//trim(field_cursor % char0dField % fieldName))
-!call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/field_cursor % isDecomposed/))
-!call mpas_log_write('   > outer dimension size $i', intArgs=(/field_cursor % totalDimSize/))
+            !call mpas_log_write('Writing out field '//trim(field_cursor % char0dField % fieldName))	
+            !call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/field_cursor % isDecomposed/))	
+            !call mpas_log_write('   > outer dimension size $i', intArgs=(/field_cursor % totalDimSize/))
 
-!call mpas_log_write('Copying field from first block')
-!call mpas_log_write('MGD calling MPAS_io_put_var now...')
+            !call mpas_log_write('Copying field from first block')
+            !call mpas_log_write('MGD calling MPAS_io_put_var now...')
             call MPAS_io_put_var(stream % fileHandle, field_cursor % char0dField % fieldName, field_cursor % char0dField % scalar, io_err)
             call MPAS_io_err_mesg(stream % fileHandle % ioContext, io_err, .false.)
             if (io_err /= MPAS_IO_NOERR .and. present(ierr)) ierr = MPAS_IO_ERR
 
          else if (field_cursor % field_type == FIELD_1D_CHAR) then
 
-!call mpas_log_write('Writing out field '//trim(field_cursor % char1dField % fieldName))
-!call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/field_cursor % isDecomposed/))
-!call mpas_log_write('   > outer dimension size $i', intArgs=(/field_cursor % totalDimSize/))
+            !call mpas_log_write('Writing out field '//trim(field_cursor % char1dField % fieldName))	
+            !call mpas_log_write('   > is the field decomposed? $l', logicArgs=(/field_cursor % isDecomposed/))	
+            !call mpas_log_write('   > outer dimension size $i', intArgs=(/field_cursor % totalDimSize/))
 
-!call mpas_log_write('Copying field from first block')
-!call mpas_log_write('MGD calling MPAS_io_put_var now...')
+            !call mpas_log_write('Copying field from first block')
+            !call mpas_log_write('MGD calling MPAS_io_put_var now...')
             call MPAS_io_put_var(stream % fileHandle, field_cursor % char1dField % fieldName, field_cursor % char1dField % array, io_err)
             call MPAS_io_err_mesg(stream % fileHandle % ioContext, io_err, .false.)
             if (io_err /= MPAS_IO_NOERR .and. present(ierr)) ierr = MPAS_IO_ERR
