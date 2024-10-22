@@ -797,7 +797,7 @@
           enddo
 !$acc end parallel
        endif
-!$acc update host(fh, fm)
+!!!$acc update host(fh, fm)
 
     case("sf_mynn")
        call mpas_pool_get_array_gpu(diag_physics,'ch',ch)
@@ -892,7 +892,7 @@
  call mpas_pool_get_config(configs,'config_sfclayer_scheme',sfclayer_scheme   )
 
  call mpas_pool_get_array_gpu(mesh,'areaCell',areaCell)
-!$acc update host(areaCell)
+!!!$acc update host(areaCell)
 
 !copy all MPAS arrays to rectanguler grid:
  call sfclayer_from_MPAS(configs,mesh,diag_physics,sfc_input,its,ite)

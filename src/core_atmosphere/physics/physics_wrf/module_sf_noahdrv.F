@@ -2750,7 +2750,6 @@ CONTAINS
 !
 !  END FASDAS
 !
-
             CALL SFLX_GLACIAL_gpu(ims,ime,its,ite,XLAND,ICE,         &
                  I,J,ISICE,FFROZP,DT,ZLVL,NSOIL,SLDPTH,           &    !C
             &    LWDN,SOLNET,SFCPRS,PRCP,SFCTMP,Q2K,              &    !F
@@ -3349,6 +3348,7 @@ CONTAINS
 ! prevent possible array overwrite, Bill Bovermann, IBM, May 6, 2008
         IF ( SIZE(BB    ) < SLCATS .OR. &
              SIZE(DRYSMC) < SLCATS .OR. &
+             SIZE(HC    ) < SLCATS .OR. &
              SIZE(F11   ) < SLCATS .OR. &
              SIZE(MAXSMC) < SLCATS .OR. &
              SIZE(REFSMC) < SLCATS .OR. &
@@ -3361,7 +3361,7 @@ CONTAINS
         ENDIF
         IF(SLTYPE.EQ.MMINSL)THEN
           DO LC=1,SLCATS
-              READ (19,*) IINDEX,BB(LC),DRYSMC(LC),F11(LC),MAXSMC(LC),&
+              READ (19,*) IINDEX,BB(LC),DRYSMC(LC),HC(LC),F11(LC),MAXSMC(LC),&
                         REFSMC(LC),SATPSI(LC),SATDK(LC), SATDW(LC),   &
                         WLTSMC(LC), QTZ(LC)
           ENDDO
@@ -3379,6 +3379,7 @@ CONTAINS
       CALL wrf_dm_bcast_integer ( IINDEX  , 1 )
       CALL wrf_dm_bcast_real    ( BB      , NSLTYPE )
       CALL wrf_dm_bcast_real    ( DRYSMC  , NSLTYPE )
+      CALL wrf_dm_bcast_real    ( HC      , NSLTYPE )
       CALL wrf_dm_bcast_real    ( F11     , NSLTYPE )
       CALL wrf_dm_bcast_real    ( MAXSMC  , NSLTYPE )
       CALL wrf_dm_bcast_real    ( REFSMC  , NSLTYPE )

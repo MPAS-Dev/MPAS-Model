@@ -732,7 +732,6 @@ CONTAINS
 !$acc               FLX2,FLX3,SNOMLT,RUNOFF1,Q1) &
 !$acc      create(SNDENS,SNCOND,SN_NEW,DF1,DSOIL,DTOT,FRZGRA,SNOWNG, &
 !$acc             FRCSNO,FRCSOI,DF1A,T2V,T24,RCH,RR,ZSOIL)
-
 ! ----------------------------------------------------------------------
 !   INITIALIZATION
 ! ----------------------------------------------------------------------

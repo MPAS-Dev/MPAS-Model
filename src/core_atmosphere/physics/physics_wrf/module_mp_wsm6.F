@@ -179,8 +179,11 @@ CONTAINS
   REAL, DIMENSION( kts:kte ) :: re_qc, re_qi, re_qs
 
 
+
+
+
 !$acc data create(t, qci, qrs, qv1d, t1d, p1d, qr1d, qs1d, qg1d, dBZ, &
-!$acc den1d, qc1d, qi1d, re_qc, re_qi, re_qs)
+!$acc             den1d, qc1d, qi1d, re_qc, re_qi, re_qs)
 
       DO j=jts,jte
 !$acc parallel vector_length(32)
@@ -515,6 +518,8 @@ CONTAINS
       conden(a,b,c,d,e) = (max(b,qmin)-c)/(1.+d*d/(rv*e)*c/(a*a))
 !
 !
+
+
 !$acc data create(rh, qs, rslope, rslope2, rslope3, rslopeb, qrs_tmp, falk, &
 !$acc fall, work1, fallc, falkc, work1c, work2c, workr, worka, den_tmp, delz_tmp, &
 !$acc pigen, pidep, pcond, prevp, psevp, pgevp, psdep, pgdep, praut, psaut, &
@@ -583,11 +588,11 @@ CONTAINS
 !----------------------------------------------------------------
 !     compute the minor time steps.
 !
-!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
+!!!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
       loops = max(nint(delt/dtcldcr),1)
       dtcld = delt/loops
       if(delt.le.dtcldcr) dtcld = delt
-!$acc end parallel
+!!!$acc end parallel
 !
       do loop = 1,loops
 !
@@ -627,7 +632,7 @@ CONTAINS
 ! Inline expansion for fpvs
 !         qs(i,k,1) = fpvs(t(i,k),0,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
 !         qs(i,k,2) = fpvs(t(i,k),1,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
-!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
+!!!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
       hsub = xls
       hvap = xlv0
       cvap = cpv
@@ -638,7 +643,7 @@ CONTAINS
       dldti=cvap-cice
       xai=-dldti/rv
       xbi=xai+hsub/(rv*ttp)
-!$acc end parallel
+!!!$acc end parallel
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(2) private(tr)
       do k = kts, kte
@@ -1558,7 +1563,7 @@ CONTAINS
 ! Inline expansion for fpvs
 !         qs(i,k,1) = fpvs(t(i,k),0,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
 !         qs(i,k,2) = fpvs(t(i,k),1,rd,rv,cpv,cliq,cice,xlv0,xls,psat,t0c)
-!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
+!!!$acc parallel num_gangs(1) num_workers(1) vector_length(1)
       hsub = xls
       hvap = xlv0
       cvap = cpv
@@ -1569,7 +1574,7 @@ CONTAINS
       dldti=cvap-cice
       xai=-dldti/rv
       xbi=xai+hsub/(rv*ttp)
-!$acc end parallel
+!!!$acc end parallel
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(2) private(tr)
       do k = kts, kte
@@ -1823,6 +1828,7 @@ CONTAINS
       lamdag(x,y)=   sqrt(sqrt(pidn0g/(x*y)))      ! (pidn0g/(x*y))**.25
 !
 !$acc data create(n0sfac)
+
 !$acc parallel vector_length(32)
 !$acc loop gang vector collapse(2) private(supcol)
       do k = kts, kte
@@ -2390,8 +2396,8 @@ n_loop : do n=1,iter+1
 !
 !$acc parallel vector_length(32)
 !$acc loop gang private(den,denfac,tk,allold,wd,wi,ww,zi, X, &
-!$acc                   wi,fa1,fa2,ww,wa,was,za,dza,con1,qa,qr,qa2,qr2, &
-!$acc                   qmi,qpi,kb,kt)
+!$acc                   wi,fa1,fa2,ww,wa,wa2,was,za,dza,con1,qa,qr,qa2,qr2, &
+!$acc                   qmi,qpi,kb,kt,qn)
       i_loop : do i=1,im
 ! -----------------------------------
       precip = 0.0
@@ -2569,7 +2575,7 @@ n_loop : do n=1,iter+1
       qn = 0.0
       kb=1
       kt=1
-      !$acc loop seq private(kk,tl,tl2,th,th2,qqd,qqh,qql,qn,zsum,qsum,dqh)
+      !$acc loop seq private(kk,tl,tl2,th,th2,qqd,qqh,qql,zsum,qsum,dqh)
       intp : do k=1,km
 ! find kb and kt
              if( zi(k).lt.za(km+1) ) then

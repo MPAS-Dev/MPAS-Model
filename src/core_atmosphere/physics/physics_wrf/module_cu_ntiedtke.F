@@ -330,9 +330,12 @@ contains
 !-------other local variables----
       integer                      :: zz, pp
 !-----------------------------------------------------------------------
+
+
+
 !$acc data create(rcs,rn,evap,heatflux,dx2d, &
-!$acc slimsk,prsi,ghti,zi,dot,prsl,q1,q2,q3,q1b,t1b,q11,q12,t1,u1,v1,zl, &
-!$acc omg,ghtl,kbot,ktop)
+!$acc             slimsk,prsi,ghti,zi,dot,prsl,q1,q2,q3,q1b,t1b,q11,q12,t1,u1,v1,zl, &
+!$acc             omg,ghtl,kbot,ktop)
 !
 !
 !***  check to see if this is a convection timestep
@@ -629,9 +632,11 @@ contains
       integer i,j,k,lq,km,km1
       real dt,ztpp1
       real zew,zqs,zcor
+
+
 !$acc data create(pum1,pvm1,ztt,ptte,pqte,pvom,pvol,pverv,pgeo, &
-!$acc zqq,pcte,ztp1,zqp1,ztu,zqu,zlu,zlude,zmfu,zmfd,zqsat,pqhfl, &
-!$acc prsfc,pssfc,phhfl,zrain,pgeoh,icbot,ictop,locum)
+!$acc             zqq,pcte,ztp1,zqp1,ztu,zqu,zlu,zlude,zmfu,zmfd,zqsat,pqhfl, &
+!$acc             prsfc,pssfc,phhfl,zrain,pgeoh,icbot,ictop,locum,ktype)
 !
       ztmst=dt
 !
@@ -875,6 +880,10 @@ contains
       real     ztmst,ztau,zerate,zderate,zmfa
       real     zmfs(klon),pmean(klev),zlon
       real     zduten,zdvten,ztdis,pgf_u,pgf_v
+
+
+
+
 
 !$acc data create(ztenh,zqenh,zqsenh,ztd,zqd,zmfus,zmfds,zmfuq, &
 !$acc zmfdq,zdmfup,zdmfdp,zmful,zuu,zvu,zud,zvd,zlglac,zrfl, &
@@ -1678,6 +1687,11 @@ contains
       integer  icall,ik
       real     zzs
       real     zqsat,zcor,zqp,zcond1
+
+
+
+
+
 !$acc data create(zwmax,zph,loflag)
 !------------------------------------------------------------
 !*    1.       specify large scale parameters at half levels
@@ -1898,6 +1912,9 @@ contains
       logical  needreset, lldcum(klon)
 	  logical  flag
       real     zqsat,zqp,zcond,zcond1,zl,zi,zf
+
+
+
 !$acc data create(ptu,pqu,plu,zph,klab,kctop,kcbot,loflag,deepflag, &
 !$acc resetflag,dhen,dh,plude,kup,vptu,vten,zbuo,abuoy,zqold,eta,dz, &
 !$acc coef,zcbase,itoppacel,lldcum)
@@ -2591,6 +2608,11 @@ contains
       real     zzzmb
       logical  llo10
       real  zdz , zmf
+
+
+
+
+
 !$acc data create(zlrain,zbuo,kup,zodetr,zph,zdmfen,zdmfde,zmfuu, &
 !$acc zmfuv,zpbase,zqold,zluold,zprecip,eta,dz,zentr,pdmfen,zoentr, &
 !$acc zdpmean,loflag,llo1)
@@ -3272,6 +3294,10 @@ contains
       real     zhsk,zttest,zqtest,zbuo,zmftop
       real     zqsat,zcor,zqp,zcond0,zcond1
                                                                                    
+
+
+
+
 !$acc data create(ztenwb,zqenwb,zcond,zph,zhsmin,ikhsmin,llo2)
 !----------------------------------------------------------------------          
                                                                                  
@@ -3518,6 +3544,9 @@ contains
       real     zentr,zdz,zzentr,zseen,zqeen,zsdde,zqdde,zdmfdp
       real     zmfdsk,zmfdqk,zbuo,zrain,zbuoyz,zmfduk,zmfdvk
       real     zqsat,zcor,zqp,zcond0,zcond1
+
+
+
 !$acc data create(zdmfen,zdmfde,zcond,zoentr,zbuoy,zph,llo2,itopde)
 !----------------------------------------------------------------------   
 !     1.           calculate moist descent for cumulus downdraft by       
@@ -3809,6 +3838,10 @@ contains
       real     rhevap(klon)
       integer  idbas(klon)
       logical  llddraf
+
+
+
+
 !$acc data create(rhevap,idbas)
 !--------------------------------------------------------------------          
 !*             specify constants  
@@ -4072,6 +4105,9 @@ contains
     integer  jk , ik , jl
     real     zalv , zzp
     real     zdtdt(klon,klev) , zdqdt(klon,klev) , zdp(klon,klev)
+
+
+
 !$acc data create(zdtdt,zdqdt,zdp)
     !*    1.0          SETUP AND INITIALIZATIONS
     ! -------------------------
@@ -4169,6 +4205,8 @@ contains
     real     zzp, zdtdt
    
     real     zdudt(klon,klev), zdvdt(klon,klev), zdp(klon,klev)
+
+
 !$acc data create(zuen,zven,zmfuu,zmfdu,zmfuv,zmfdv,zdudt,zdvdt,zdp)
 !
 !$acc parallel vector_length(128)

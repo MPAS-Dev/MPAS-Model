@@ -185,13 +185,16 @@ module atm_core_interface
               ! equal, all "excess" ranks on a socket beyond min(dynamics_ranks_per_node, radiation_ranks_per_node)
               ! will be assigned either ROLE_INTEGRATE or ROLE_RADIATION as needed.
               !
-              if (socket_rank >= min(dynamics_ranks_per_node, radiation_ranks_per_node)) then
-                  if (dynamics_ranks_per_node > radiation_ranks_per_node) then
-                      role = ROLE_INTEGRATE
-                  else
-                      role = ROLE_RADIATION
-                  end if
-              end if
+!!!              if (socket_rank >= min(dynamics_ranks_per_node, radiation_ranks_per_node)) then
+!!!                  if (dynamics_ranks_per_node > radiation_ranks_per_node) then
+!!!                      role = ROLE_INTEGRATE
+!!!                  else
+!!!                      role = ROLE_RADIATION
+!!!                  end if
+!!!              end if
+              if (socket_rank >= dynamics_ranks_per_node) then
+                  role = ROLE_RADIATION
+              endif
 
 
               !
@@ -209,11 +212,52 @@ module atm_core_interface
 
               if (role == ROLE_INTEGRATE) then
                   num_devices = acc_get_num_devices(acc_device_nvidia)
-                  my_device = (role_rank * num_devices) / role_size
+!!! Version 1
+!!!                  if(local_rank<local_size/2) then
+!!!                      my_device = mod(socket_rank,num_devices)
+!!!                  else
+!!!                      my_device = mod(socket_rank,num_devices) + (num_devices/2)
+!!!                  endif
+
+!!! Version 2
+!!!                  my_device = (role_rank * num_devices) / role_size
+
+!!! Version 3
+                  if(dynamics_ranks_per_node == 8) then
+                      if(local_rank==1) then
+                          my_device = 0
+                      else if (local_rank==3) then
+                          my_device = 1
+                      else if (local_rank==5) then
+                          my_device = 2
+                      else if (local_rank==7) then
+                          my_device = 3
+                      else if (local_rank==57) then
+                          my_device = 4
+                      else if (local_rank==59) then
+                          my_device = 5
+                      else if (local_rank==61) then
+                          my_device = 6
+                      else if (local_rank==63) then
+                          my_device = 7
+                      endif
+                  else if(dynamics_ranks_per_node == 4) then
+                      if(local_rank==1) then
+                          my_device = 1
+                      else if (local_rank==3) then
+                          my_device = 3
+                      else if (local_rank==57) then
+                          my_device = 5
+                      else if (local_rank==59) then
+                          my_device = 7
+                      endif
+                  endif
+
                   call acc_set_device_num(my_device, acc_device_nvidia)
               else
                   call acc_set_device_type(acc_device_host)
               end if
+
 #endif
 
           else ! At least one environment variable could not be successfully read

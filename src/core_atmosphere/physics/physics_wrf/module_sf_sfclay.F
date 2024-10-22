@@ -212,7 +212,7 @@ CONTAINS
 
       INTEGER ::  I,J
 
-!$acc data create(dz8w1d,U1D,V1D,QV1D,P1D,T1D)
+!$acc data create(dz8w1d,U1D,V1D,QV1D,P1D,T1D,DX2D)
       DO J=jts,jte
 !$acc parallel vector_length(32)
 !$acc loop gang vector
@@ -393,9 +393,14 @@ CONTAINS
       REAL    ::  FLUXC,VSGD,Z0Q,VISC,RESTAR,CZIL,GZ0OZQ,GZ0OZT
       REAL    ::  ZW, ZN1, ZN2
       REAL    ::  Z0T, CZC
+
+
+
+
+
 !$acc data create(PSFC,TGDSA,THGB,SCR3,THX,SCR4,THVX,QX,ZQKLP1, &
-!$acc ZQKL,ZA,GOVRTH,RHOX,GZ2OZ0,GZ10OZ0,PSIM10,PSIH10,PSIM2, &
-!$acc PSIH2,WSPDI,DENOMQ,DENOMQ2,DENOMT2)
+!$acc             ZQKL,ZA,GOVRTH,RHOX,GZ2OZ0,GZ10OZ0,PSIM10,PSIH10,PSIM2, &
+!$acc             PSIH2,WSPDI,DENOMQ,DENOMQ2,DENOMT2)
 !-------------------------------------------------------------------
       KL=kte
 
