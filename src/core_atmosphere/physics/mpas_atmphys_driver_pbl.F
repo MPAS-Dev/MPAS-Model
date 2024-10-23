@@ -191,7 +191,7 @@
        !allocation of additional arrays:
        if(.not.allocated(pattern_spp_pbl)) allocate(pattern_spp_pbl(ims:ime,kms:kme,jms:jme))
 
-    case("bl_acm")
+    case("bl_acm2")
        if(.not.allocated(gz1oz0_p)) allocate(gz1oz0_p(ims:ime,jms:jme)      )
        if(.not.allocated(tsk_p)   ) allocate(tsk_p(ims:ime,jms:jme)         )
        if(.not.allocated(rmol_p)  ) allocate(rmol_p(ims:ime,jms:jme)        )
@@ -308,7 +308,7 @@
        !deallocation of additional arrays:
        if(allocated(pattern_spp_pbl)) deallocate(pattern_spp_pbl)
 
-    case("bl_acm")
+    case("bl_acm2")
        if(allocated(gz1oz0_p)) deallocate(gz1oz0_p)
        if(allocated(tsk_p)   ) deallocate(tsk_p   )
        if(allocated(rmol_p)  ) deallocate(rmol_p  )
@@ -527,7 +527,7 @@
        enddo
        enddo
 
-    case("bl_acm")
+    case("bl_acm2")
        call mpas_pool_get_array(sfc_input   ,'skintemp',skintemp)
        call mpas_pool_get_array(diag_physics,'gz1oz0'  ,gz1oz0  )
        call mpas_pool_get_array(diag_physics,'rmol'    ,rmol    )
@@ -762,7 +762,7 @@
           enddo
        endif
 
-    case("bl_acm")
+    case("bl_acm2")
        call mpas_pool_get_array(diag_physics,'exch_h',exch_h)
        call mpas_pool_get_array(diag_physics,'exch_m',exch_m)
        call mpas_pool_get_array(diag_physics,'rmol'  ,rmol  )
@@ -1026,28 +1026,27 @@
 !      call mpas_log_write('--- exit subroutine mynn_bl_driver:')
 !      call mpas_log_write(' ')
 
-    case("bl_acm")
-       call mpas_timer_start('ACM2')
-       call acmpbl ( &
-                 xtime    = itimestep   , dtpbl    = dt_pbl      , u3d      = u_p        , &
-                 v3d      = v_p         , pp3d     = pres_hyd_p  , dz8w     = dz_p       , &
-                 th3d     = th_p        , t3d      = t_p         , qv3d     = qv_p       , &
-                 qc3d     = qc_p        , qi3d     = qi_p        , ust      = ust_p      , &
-                 hfx      = hfx_p       , qfx      = qfx_p       , tsk      = tsk_p      , &
-                 psfc     = psfc_p      , ep1      = ep_1        , g        = gravity    , &
-                 rovcp    = rcp         , rd       = R_d         , cpd      = cp         , &
-                 pblh     = hpbl_p      , kpbl2d   = kpbl_p      , exch_h   = kzh_p      , &
-                 exch_m   = kzm_p                                                        , &
-                 regime   = regime_p    , GZ1OZ0   = gz1oz0_p    , wspd     = wspd_p     , &
-                 psim     = psim_p      , rr3d     = rho_p       , rmol     = rmol_p     , &
-                 mut      = mut_p                                                        , & 
-                 rublten  = rublten_p   , rvblten  = rvblten_p   , rthblten = rthblten_p , &
-                 rqvblten = rqvblten_p  , rqcblten = rqcblten_p  , rqiblten = rqiblten_p , &
-                 ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde   , &
-                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme   , &
-                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte     &
-                )
-       call mpas_timer_stop('ACM2')
+    case("bl_acm2")
+       call mpas_timer_start('bl_acm2')
+       call acmpbl( &
+                 xtime    = itimestep  , dtpbl    = dt_pbl     , u3d      = u_p        , &
+                 v3d      = v_p        , pp3d     = pres_hyd_p , dz8w     = dz_p       , &
+                 th3d     = th_p       , t3d      = t_p        , qv3d     = qv_p       , &
+                 qc3d     = qc_p       , qi3d     = qi_p       , ust      = ust_p      , &
+                 hfx      = hfx_p      , qfx      = qfx_p      , tsk      = tsk_p      , &
+                 psfc     = psfc_p     , ep1      = ep_1       , g        = gravity    , &
+                 rovcp    = rcp        , rd       = R_d        , cpd      = cp         , &
+                 pblh     = hpbl_p     , kpbl2d   = kpbl_p     , exch_h   = kzh_p      , &
+                 exch_m   = kzm_p      , regime   = regime_p   , gz1oZ0   = gz1oz0_p   , &
+                 wspd     = wspd_p     , psim     = psim_p     , rr3d     = rho_p      , &
+                 rmol     = rmol_p     , mut      = mut_p      , rublten  = rublten_p  , &
+                 rvblten  = rvblten_p  , rthblten = rthblten_p , rqvblten = rqvblten_p , &
+                 rqcblten = rqcblten_p , rqiblten = rqiblten_p                         , &
+                 ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
+                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme , &
+                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
+                  )
+       call mpas_timer_stop('bl_acm2')
 
     case default
 

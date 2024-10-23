@@ -59,7 +59,7 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-31.
 ! * added the options sf_mynn and bl_mynn and for the MYNN parameterization from WRF version 3.6.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-04-11.
-! * added ACM2 PBL scheme option bl_acm.
+! * added ACM2 PBL scheme option bl_acm2.
 !   Robert Gilliam (gilliam.robert@epa.gov) / 2016-09-19.
 ! * added the option cu_ntiedtke for the "new" Tiedtke parameterization of convection from WRF version 3.8.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-09-19.
@@ -204,7 +204,7 @@
  if(.not. (config_pbl_scheme .eq. 'off'     .or. &
            config_pbl_scheme .eq. 'bl_mynn' .or. &
            config_pbl_scheme .eq. 'bl_ysu'  .or. &
-           config_pbl_scheme .eq. 'bl_acm')) then
+           config_pbl_scheme .eq. 'bl_acm2')) then
 
     write(mpas_err_message,'(A,A20)') 'illegal value for pbl_scheme: ', &
           trim(config_pbl_scheme)
