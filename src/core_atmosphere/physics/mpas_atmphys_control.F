@@ -278,7 +278,7 @@
     write(mpas_err_message,'(A,A20)') 'illegal value for surface layer scheme: ', &
           trim(config_sfclayer_scheme)
     call physics_error_fatal(mpas_err_message)
- else if(config_sfclayer_scheme .ne. 'sf_pxsfclay') then
+ else
     if(config_pbl_scheme == 'bl_mynn') then
        config_sfclayer_scheme = 'sf_mynn'
     elseif(config_pbl_scheme == 'bl_ysu') then
