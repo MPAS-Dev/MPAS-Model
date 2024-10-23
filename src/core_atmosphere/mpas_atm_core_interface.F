@@ -196,6 +196,9 @@ module atm_core_interface
                   role = ROLE_RADIATION
               endif
 
+              if (dynamics_ranks_per_node == 1 .and. local_rank == 1) then
+                  role = ROLE_INTEGRATE
+              end if
 
               !
               ! Assign devices based on rank in the role within a shared-memory node
@@ -250,6 +253,10 @@ module atm_core_interface
                           my_device = 5
                       else if (local_rank==59) then
                           my_device = 7
+                      endif
+                  else if(dynamics_ranks_per_node == 1) then
+                      if(local_rank==1) then
+                          my_device = 0
                       endif
                   endif
 
