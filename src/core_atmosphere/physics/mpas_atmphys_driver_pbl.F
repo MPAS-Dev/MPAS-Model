@@ -351,7 +351,7 @@
 !local pointers for MYNN scheme:
  real(kind=RKIND),pointer:: len_disp
  real(kind=RKIND),dimension(:),pointer  :: meshDensity
- real(kind=RKIND),dimension(:),pointer  :: ch,qsfc,rmol,skintemp
+ real(kind=RKIND),dimension(:),pointer  :: ch,qsfc,regime,rmol,skintemp
  real(kind=RKIND),dimension(:,:),pointer:: cov,qke,qsq,tsq,sh3d,sm3d,tke_pbl,qke_adv,el_pbl
  real(kind=RKIND),dimension(:,:),pointer:: cldfrac_bl,qc_bl,qi_bl
  real(kind=RKIND),dimension(:,:),pointer:: edmf_a,edmf_ent,edmf_qc,edmf_qt,edmf_thl,edmf_w
