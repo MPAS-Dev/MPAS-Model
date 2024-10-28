@@ -1792,7 +1792,10 @@ CONTAINS
    xam_g = PI*deng/6.
    xbm_g = 3.
    xmu_g = 0.
-!$acc update device(xam_g, xam_s, xam_r, n0g, pi)
+!$acc update device(xam_g,xam_s,xam_r,n0g,pi,rslopermax,rslopesmax,rslopegmax, &
+!$acc               rsloperbmax,rslopesbmax,rslopegbmax,rsloper2max,rslopes2max, &
+!$acc               rslopeg2max,rsloper3max,rslopes3max,rslopeg3max,pidn0r,pidn0s, &
+!$acc               pidn0g,pvtr,pvts,bvtg,pvtg)
 
    call radar_init
 !+---+-----------------------------------------------------------------+
@@ -2103,9 +2106,6 @@ CONTAINS
       real  den(km), denfac(km), tk(km)
       real  wi(km+1), zi(km+1), za(km+1)
       real  qn(km), qr(km)
-!#ifdef DEBUG
-!	  real  tmp(km),tmp1(km),tmp2(km),tmp3(km)
-!#endif
       real  dza(km+1), qa(km+1), qmi(km+1), qpi(km+1)
 
 !!!$acc data present ( dzl, wwl, rql, precip, denl, denfacl, tkl )
@@ -2114,11 +2114,9 @@ CONTAINS
 !$acc parallel vector_length(32)
 !$acc loop gang private(den,denfac,tk,allold,wd,decfl,za,zi,qa,qr,qmi,qpi,qn, &
 !$acc                   con1,dza,fa1,fa2,wa,was,wi,ww,za, &
-!#ifdef DEBUG
-!!$acc                  tmp,tmp1,tmp2,tmp3, &
-!#endif
 !$acc                   kb, kt, kk, dql, qqd )
       i_loop : do i=1,im
+      !$acc cache (ww, wd, wa, was, den, denfac, tk, wi, zi, za, qn, qr, dza, qa, qmi, qpi)
 ! -----------------------------------
 ! skip for no precipitation for all layers
       precip(i) = 0.0
@@ -2396,9 +2394,10 @@ n_loop : do n=1,iter+1
 !
 !$acc parallel vector_length(32)
 !$acc loop gang private(den,denfac,tk,allold,wd,wi,ww,zi, X, &
-!$acc                   wi,fa1,fa2,ww,wa,wa2,was,za,dza,con1,qa,qr,qa2,qr2, &
-!$acc                   qmi,qpi,kb,kt,qn)
+!$acc                   fa1,fa2,ww,wa,wa2,was,za,dza,con1,qa,qr,qn,qa2,qr2, &
+!$acc                   qmi,qpi,kb,kt,zsum,qsum)
       i_loop : do i=1,im
+      !$acc cache(ww, wd, wa, wa2, was, den, denfac, tk, wi, zi, za, qn, qr, qr2, dza, qa, qa2, qmi, qpi)
 ! -----------------------------------
       precip = 0.0
       precip1(i) = 0.0
