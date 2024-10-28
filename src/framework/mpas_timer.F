@@ -27,6 +27,10 @@
         use mpas_threading
         use mpas_log
 
+#ifdef MPAS_NVTX_RANGES
+        use nvtx
+#endif
+
 #ifdef MPAS_PERF_MOD_TIMERS
         use perf_mod
 #endif
@@ -109,6 +113,10 @@
           if ( present(clear_timer_in) ) then
              clear_timer = clear_timer_in
           end if
+
+#ifdef MPAS_NVTX_RANGES
+          call nvtxStartRange(trim(timer_name))
+#endif
 
 #ifdef MPAS_TAU_TIMERS
           call tau_start(trimmed_name)
@@ -254,6 +262,10 @@
 
           trimmed_name = trim(timer_name)
           nlen = len(trimmed_name)
+
+#ifdef MPAS_NVTX_RANGES
+          call nvtxEndRange()
+#endif
 
 #ifdef MPAS_TAU_TIMERS
           call tau_stop(trimmed_name)
