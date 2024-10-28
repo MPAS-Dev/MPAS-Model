@@ -5693,11 +5693,11 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                kdiff(k,iCell) = min((c_s * config_len_disp)**2 * sqrt(d_diag(k)**2 + d_off_diag(k)**2),(0.01*config_len_disp**2) * invDt)
             end do
          end do
+!$acc end parallel
 
          h_mom_eddy_visc4   = config_visc4_2dsmag * config_len_disp**3
          h_theta_eddy_visc4 = h_mom_eddy_visc4
 
-!$acc end parallel
 
       end if
         ! else
