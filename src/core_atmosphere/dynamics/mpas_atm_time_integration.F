@@ -132,6 +132,24 @@ module atm_time_integration
 
    contains
 
+   !-----------------------------------------------------------------------
+   !  routine MPAS_gang_size
+   !
+   !> \brief Compute the suitable OpenACC gang size
+   !> \author Dmitry Alexeev
+   !> \date   3 Sept 2024
+   !> \details
+   !>  Compute the OpenACC gang size such that it's multiple of 32
+   !>  and larger than the given number of levels 
+   !
+   !-----------------------------------------------------------------------
+   function mpas_gang_size(numLevels)
+      integer, intent(in) :: numLevels
+      integer :: mpas_gang_size
+      integer, parameter :: warpSize = 32
+
+      mpas_gang_size = ((numLevels + warpSize-1) / warpSize) * warpSize
+   end function mpas_gang_size
 
    !-----------------------------------------------------------------------
    !  routine MPAS_atm_dynamics_init
@@ -3181,230 +3199,274 @@ module atm_time_integration
 
       real (kind=RKIND), dimension(nCells+1) :: specZoneMaskCell
       real (kind=RKIND), dimension(nEdges+1) :: specZoneMaskEdge
-      
 
       integer, intent(in) :: small_step
-      real (kind=RKIND), intent(in) :: dts, epssm, cf1, cf2, cf3
-      real (kind=RKIND), dimension(nVertLevels) :: ts, rs
-
   
       !
       ! Local variables
       !
-      integer :: cell1, cell2, iEdge, iCell, i, k
+      integer :: cell1, cell2, iEdge, iCell, i, k, ichunk, icstart
+
       real (kind=RKIND) :: c2, rcv, rtheta_pp_tmp
       real (kind=RKIND) :: pgrad, flux, resm, rdts
 
+      integer, parameter :: chunk = 16
+      real (kind=RKIND), intent(in) :: dts, epssm, cf1, cf2, cf3
+      real (kind=RKIND), dimension(nVertLevels) :: ts, rs
+      real (kind=RKIND), dimension(nVertLevels+1, chunk) :: rs_tile
+      logical, dimension(chunk) :: process
+      integer :: gang_size
+
+      gang_size = mpas_gang_size(nVertLevels)
 
       rcv = rgas / (cp - rgas)
       c2 = cp * rcv
       resm = (1.0 - epssm) / (1.0 + epssm)
       rdts = 1./dts
   
-!$acc data present(rtheta_pp, rtheta_pp_old, ru_p, ruavg, rho_pp, &
-!$acc rw_p, wwavg, &
-!$acc zz, cellsonedge, cqu, dcedge, exner, invdcedge, &
-!$acc tend_ru, zxu, tend_rho, a_tri, alpha_tri, cofrz, &
-!$acc coftz, cofwr, cofwt, cofwz, dss, dvedge, edgesoncell, edgesoncell_sign, &
-!$acc fzm, fzp, gamma_tri, invareacell, nedgesoncell, rdzw, rho_zz, rw, &
-!$acc rw_save, tend_rho, tend_rt, tend_rw, theta_m, w)
+      !$acc data present(rtheta_pp, rtheta_pp_old, ru_p, ruavg, rho_pp, &
+      !$acc rw_p, wwavg, &
+      !$acc zz, cellsonedge, cqu, dcedge, exner, invdcedge, &
+      !$acc tend_ru, zxu, tend_rho, a_tri, alpha_tri, cofrz, &
+      !$acc coftz, cofwr, cofwt, cofwz, dss, dvedge, edgesoncell, edgesoncell_sign, &
+      !$acc fzm, fzp, gamma_tri, invareacell, nedgesoncell, rdzw, rho_zz, rw, &
+      !$acc rw_save, tend_rho, tend_rt, tend_rw, theta_m, w)
 
       if(small_step /= 1) then  !  not needed on first small step 
 
-!$acc parallel vector_length(32)
-!$acc loop gang
-        do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
+         !$acc parallel vector_length(gang_size)
+         !$acc loop gang
+         do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
 
-           cell1 = cellsOnEdge(1,iEdge)
-           cell2 = cellsOnEdge(2,iEdge)
+            cell1 = cellsOnEdge(1,iEdge)
+            cell2 = cellsOnEdge(2,iEdge)
 
-           ! update edges for block-owned cells
-           if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
-!DIR$ IVDEP
-!$acc loop vector
-              do k=1,nVertLevels
-                 pgrad = ((rtheta_pp(k,cell2)-rtheta_pp(k,cell1))*invDcEdge(iEdge) )/(.5*(zz(k,cell2)+zz(k,cell1)))
-                 pgrad = cqu(k,iEdge)*0.5*c2*(exner(k,cell1)+exner(k,cell2))*pgrad
-                 pgrad = pgrad + 0.5*zxu(k,iEdge)*gravity*(rho_pp(k,cell1)+rho_pp(k,cell2))
-                 ru_p(k,iEdge) = ru_p(k,iEdge) + dts*(tend_ru(k,iEdge) - (1.0_RKIND - specZoneMaskEdge(iEdge))*pgrad)
-              end do
+            ! update edges for block-owned cells
+            if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
+               !DIR$ IVDEP
+               !$acc loop vector shortloop
+               do k=1,nVertLevels
+                  pgrad = ((rtheta_pp(k,cell2)-rtheta_pp(k,cell1))*invDcEdge(iEdge) )/(.5*(zz(k,cell2)+zz(k,cell1)))
+                  pgrad = cqu(k,iEdge)*0.5*c2*(exner(k,cell1)+exner(k,cell2))*pgrad
+                  pgrad = pgrad + 0.5*zxu(k,iEdge)*gravity*(rho_pp(k,cell1)+rho_pp(k,cell2))
+                  ru_p(k,iEdge) = ru_p(k,iEdge) + dts*(tend_ru(k,iEdge) - (1.0_RKIND - specZoneMaskEdge(iEdge))*pgrad)
+               end do
 
-              ! accumulate ru_p for use later in scalar transport
-!DIR$ IVDEP
-!$acc loop vector
-              do k=1,nVertLevels
-                 ruAvg(k,iEdge) = ruAvg(k,iEdge) + ru_p(k,iEdge)
-              end do
-
+               ! accumulate ru_p for use later in scalar transport
+               !DIR$ IVDEP
+               !$acc loop vector shortloop
+               do k=1,nVertLevels
+                  ruAvg(k,iEdge) = ruAvg(k,iEdge) + ru_p(k,iEdge)
+               end do
            end if ! end test for block-owned cells
 
-        end do ! end loop over edges
-!$acc end parallel
-        end if
+         end do ! end loop over edges
+         !$acc end parallel
 
-        if(small_step ==1) then
-!      else !  this is all that us needed for ru_p update for first acoustic step in RK substep
-!$acc parallel vector_length(32)
-!$acc loop gang
-        do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
+      end if
 
-           cell1 = cellsOnEdge(1,iEdge)
-           cell2 = cellsOnEdge(2,iEdge)
+      if(small_step ==1) then
+         !  this is all that us needed for ru_p update for first acoustic step in RK substep
 
-           ! update edges for block-owned cells
-           if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
-!DIR$ IVDEP
-!$acc loop vector
-              do k=1,nVertLevels
-                 ru_p(k,iEdge) = dts*tend_ru(k,iEdge)
-              end do
-!DIR$ IVDEP
-!$acc loop vector
-              do k=1,nVertLevels
-!!                 ruAvg(k,iEdge) = ruAvg(k,iEdge) + ru_p(k,iEdge)
-                 ruAvg(k,iEdge) = ru_p(k,iEdge)                 
-              end do
+         ! 
+         !$acc parallel vector_length(gang_size)
+         !$acc loop gang
+         do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
 
-           end if ! end test for block-owned cells
+            cell1 = cellsOnEdge(1,iEdge)
+            cell2 = cellsOnEdge(2,iEdge)
 
-        end do ! end loop over edges
-!$acc end parallel
+            ! update edges for block-owned cells
+            if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
+               !DIR$ IVDEP
+               !$acc loop vector shortloop
+               do k=1,nVertLevels
+                  ru_p(k,iEdge) = dts*tend_ru(k,iEdge)
+               end do
+               !DIR$ IVDEP
+               !$acc loop vector shortloop
+               do k=1,nVertLevels
+   !!                 ruAvg(k,iEdge) = ruAvg(k,iEdge) + ru_p(k,iEdge)
+                  ruAvg(k,iEdge) = ru_p(k,iEdge)                 
+               end do
+
+            end if ! end test for block-owned cells
+
+         end do ! end loop over edges
+         !$acc end parallel
       end if ! test for first acoustic step
 
 !$OMP BARRIER
 
       if (small_step == 1) then  ! initialize here on first small timestep.
-!$acc parallel vector_length(32)
-!$acc loop gang vector
-         do iCell=cellStart,cellEnd
-            rtheta_pp_old(1:nVertLevels,iCell) = 0.0
-         end do
-!$acc end parallel
+         !$acc kernels
+         rtheta_pp_old(1:nVertLevels,cellStart:cellEnd) = 0.0
+         !$acc end kernels
       else
-!$acc parallel vector_length(32)
-!$acc loop gang vector
-        do iCell=cellStart,cellEnd
-           rtheta_pp_old(1:nVertLevels,iCell) = rtheta_pp(1:nVertLevels,iCell)
-        end do
-!$acc end parallel
+         !$acc kernels
+         rtheta_pp_old(1:nVertLevels,cellStart:cellEnd) = rtheta_pp(1:nVertLevels,cellStart:cellEnd)
+         !$acc end kernels
       end if
 
 
-!!!OMP BARRIER -- not needed, since rtheta_pp_old not used below when small_step == 1
-!$acc parallel vector_length(32)
-!$acc loop gang private(ts, rs)
+      !$acc parallel vector_length(gang_size)
+      !$acc loop gang(static:2) private(ts, rs)
       do iCell=cellSolveStart,cellSolveEnd  ! loop over all owned cells to solve
-!!$acc cache(ts)
-!!$acc cache(rs)
-
-         if(small_step == 1) then  ! initialize here on first small timestep.
-            wwAvg(1:nVertLevels+1,iCell) = 0.0            
-            rho_pp(1:nVertLevels,iCell) = 0.0            
-            rtheta_pp(1:nVertLevels,iCell) = 0.0            
-!MGD moved to loop above over all cells
-!            rtheta_pp_old(1:nVertLevels,iCell) = 0.0
-            rw_p(:,iCell) = 0.0
-         end if
+         !$acc cache(ts, rs)
             
-         if(specZoneMaskCell(iCell) == 0.0) then  ! not specified zone, compute...
+         if(small_step == 1) then  ! initialize here on first small timestep.
+            !$acc loop vector shortloop
+            do k=1,nVertLevels
+               wwAvg    (k,iCell) = 0.0            
+               rho_pp   (k,iCell) = 0.0            
+               rtheta_pp(k,iCell) = 0.0            
+               rw_p     (k,iCell) = 0.0
+            end do
+            wwAvg(nVertLevels+1,iCell) = 0.0
+            rw_p (nVertLevels+1,iCell) = 0.0
+         end if
 
-!$acc loop vector
+         if(specZoneMaskCell(iCell) /= 0.0) continue
+
+         !$acc loop vector shortloop
          do k=1,nVertLevels
             ts(k) = 0.0
             rs(k) = 0.0
          end do
 
-!$acc loop seq
-
+         !$acc loop seq
          do i=1,nEdgesOnCell(iCell) 
             iEdge = edgesOnCell(i,iCell)
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
-!DIR$ IVDEP
-!$acc loop vector
+            !DIR$ IVDEP
+            !$acc loop vector private(flux) shortloop
             do k=1,nVertLevels
                flux = edgesOnCell_sign(i,iCell)*dts*dvEdge(iEdge)*ru_p(k,iEdge) * invAreaCell(iCell)
                rs(k) = rs(k)-flux
                ts(k) = ts(k)-flux*0.5*(theta_m(k,cell2)+theta_m(k,cell1))
             end do
          end do
-      ! vertically implicit acoustic and gravity wave integration.
-      ! this follows Klemp et al MWR 2007, with the addition of an implicit Rayleigh damping of w
-      ! serves as a gravity-wave absorbing layer, from Klemp et al 2008.
 
-!DIR$ IVDEP
-!$acc loop vector
+        ! vertically implicit acoustic and gravity wave integration.
+        ! this follows Klemp et al MWR 2007, with the addition of an implicit Rayleigh damping of w
+        ! serves as a gravity-wave absorbing layer, from Klemp et al 2008.
+
+         !DIR$ IVDEP
+         !$acc loop vector shortloop
          do k=1, nVertLevels
             rs(k) = rho_pp(k,iCell) + dts*tend_rho(k,iCell) + rs(k)                  &
-                            - cofrz(k)*resm*(rw_p(k+1,iCell)-rw_p(k,iCell)) 
+                              - cofrz(k)*resm*(rw_p(k+1,iCell)-rw_p(k,iCell)) 
             ts(k) = rtheta_pp(k,iCell) + dts*tend_rt(k,iCell) + ts(k)                &
-                               - resm*rdzw(k)*( coftz(k+1,iCell)*rw_p(k+1,iCell)     &
-                                               -coftz(k,iCell)*rw_p(k,iCell))
+                              - resm*rdzw(k)*( coftz(k+1,iCell)*rw_p(k+1,iCell)     &
+                                              -coftz(k,iCell)*rw_p(k,iCell))
          end do
 
-!DIR$ IVDEP
-!$acc loop vector
+         !DIR$ IVDEP
+         !$acc loop vector shortloop
          do k=2, nVertLevels
             wwavg(k,iCell) = wwavg(k,iCell) + 0.5*(1.0-epssm)*rw_p(k,iCell)
-         end do
 
-!DIR$ IVDEP
-!$acc loop vector
-         do k=2, nVertLevels
             rw_p(k,iCell) = rw_p(k,iCell) +  dts*tend_rw(k,iCell)                       &
-                       - cofwz(k,iCell)*((zz(k  ,iCell)*ts(k)                           &
-                                     -zz(k-1,iCell)*ts(k-1))                            &
-                               +resm*(zz(k  ,iCell)*rtheta_pp(k  ,iCell)                &
-                                     -zz(k-1,iCell)*rtheta_pp(k-1,iCell)))              &
-                       - cofwr(k,iCell)*((rs(k)+rs(k-1))                                &
-                               +resm*(rho_pp(k,iCell)+rho_pp(k-1,iCell)))               &
-                       + cofwt(k  ,iCell)*(ts(k)+resm*rtheta_pp(k  ,iCell))           &
-                       + cofwt(k-1,iCell)*(ts(k-1)+resm*rtheta_pp(k-1,iCell))
+                        - cofwz(k,iCell)*((zz(k  ,iCell)*ts(k)                           &
+                                       -zz(k-1,iCell)*ts(k-1))                            &
+                                 +resm*(zz(k  ,iCell)*rtheta_pp(k  ,iCell)                &
+                                       -zz(k-1,iCell)*rtheta_pp(k-1,iCell)))              &
+                        - cofwr(k,iCell)*((rs(k)+rs(k-1))                                &
+                                 +resm*(rho_pp(k,iCell)+rho_pp(k-1,iCell)))               &
+                        + cofwt(k  ,iCell)*(ts(k  )+resm*rtheta_pp(k  ,iCell))           &
+                        + cofwt(k-1,iCell)*(ts(k-1)+resm*rtheta_pp(k-1,iCell))
          end do
 
-         ! tridiagonal solve sweeping up and then down the column
-
-!MGD VECTOR DEPENDENCE
-!$acc loop seq
-         do k=2,nVertLevels
-            rw_p(k,iCell) = (rw_p(k,iCell)-a_tri(k,iCell)*rw_p(k-1,iCell))*alpha_tri(k,iCell)
+         !DIR$ IVDEP
+         !$acc loop vector shortloop
+         do k=1, nVertLevels
+            rho_pp   (k,iCell) = rs(k)
+            rtheta_pp(k,iCell) = ts(k)
          end do
 
-!MGD VECTOR DEPENDENCE
-!$acc loop seq
-         do k=nVertLevels,1,-1
-            rw_p(k,iCell) = rw_p(k,iCell) - gamma_tri(k,iCell)*rw_p(k+1,iCell)     
+      end do
+      !$acc end parallel
+
+
+      ! Gang size of 64 is optimal here regardless of the number of levels
+      ! The last vector loop over nVertLevels therefore is not a "shortloop"
+      !
+      !$acc parallel vector_length(64)
+      !$acc loop gang(static:2) private(rs_tile, process)
+      do icstart=cellSolveStart,cellSolveEnd, chunk
+         !$acc cache(rs_tile, process)
+
+         !$acc loop vector shortloop
+         do ichunk=1, chunk
+             iCell = ichunk + icstart-1
+             if (iCell > cellSolveEnd) continue
+             process(ichunk) = specZoneMaskCell(iCell) == 0.0
          end do
 
+         !$acc loop vector shortloop
+         do ichunk=1, chunk
+             iCell = ichunk + icstart-1
+             
+             rs_tile(1,ichunk) = rw_p(1,iCell)
+             !$acc loop seq
+             do k=2,nVertLevels
+                 if (process(ichunk)) rs_tile(k,ichunk) = (rw_p(k,iCell)-a_tri(k,iCell)*rs_tile(k-1,ichunk))*alpha_tri(k,iCell)
+             end do
+
+             rs_tile(nVertLevels+1,ichunk) = rw_p(nVertLevels+1,iCell)
+             !$acc loop seq
+             do k=nVertLevels,1,-1
+                 if (process(ichunk)) rs_tile(k,ichunk) = rs_tile(k,ichunk) - gamma_tri(k,iCell)*rs_tile(k+1,ichunk)
+             end do 
+         end do   
+
+         !$acc loop seq
+         do ichunk=1, chunk
+             iCell = ichunk + icstart-1
+             !$acc loop vector
+             do k=1,nVertLevels
+                 if (process(ichunk)) rw_p(k,iCell) = rs_tile(k, ichunk)
+             end do
+         end do
+      end do
+      !$acc end parallel
+
+      !$acc parallel loop gang(static:2) vector_length(gang_size)
+      do iCell=cellSolveStart,cellSolveEnd 
          ! the implicit Rayleigh damping on w (gravity-wave absorbing) 
-!DIR$ IVDEP
-!$acc loop vector
-         do k=2,nVertLevels
-            rw_p(k,iCell) = (rw_p(k,iCell) + (rw_save(k  ,iCell) - rw(k  ,iCell)) -dts*dss(k,iCell)*               &
-                        (fzm(k)*zz (k,iCell)+fzp(k)*zz (k-1,iCell))        &
-                        *(fzm(k)*rho_zz(k,iCell)+fzp(k)*rho_zz(k-1,iCell))       &
-                                 *w(k,iCell)    )/(1.0+dts*dss(k,iCell)) &
-                         - (rw_save(k  ,iCell) - rw(k  ,iCell))
-         end do
 
-         ! accumulate (rho*omega)' for use later in scalar transport
-!DIR$ IVDEP
-!$acc loop vector
-         do k=2,nVertLevels
-            wwAvg(k,iCell) = wwAvg(k,iCell) + 0.5*(1.0+epssm)*rw_p(k,iCell)
-         end do
+         if(specZoneMaskCell(iCell) == 0.0) then
 
-         ! update rho_pp and theta_pp given updated rw_p
-!DIR$ IVDEP
-!$acc loop vector
-         do k=1,nVertLevels
-            rho_pp(k,iCell) = rs(k) - cofrz(k) *(rw_p(k+1,iCell)-rw_p(k  ,iCell))
-            rtheta_pp(k,iCell) = ts(k) - rdzw(k)*(coftz(k+1,iCell)*rw_p(k+1,iCell)  &
-                               -coftz(k  ,iCell)*rw_p(k  ,iCell))
-         end do
+            !DIR$ IVDEP
+            !$acc loop vector shortloop
+            do k=2,nVertLevels
+               rw_p(k,iCell) = (rw_p(k,iCell) + (rw_save(k  ,iCell) - rw(k  ,iCell)) -dts*dss(k,iCell)*               &
+                           (fzm(k)*zz (k,iCell)+fzp(k)*zz (k-1,iCell))        &
+                           *(fzm(k)*rho_zz(k,iCell)+fzp(k)*rho_zz(k-1,iCell))       &
+                                    *w(k,iCell)    )/(1.0+dts*dss(k,iCell)) &
+                           - (rw_save(k  ,iCell) - rw(k  ,iCell))
+            end do
+
+            ! accumulate (rho*omega)' for use later in scalar transport
+            !DIR$ IVDEP
+            !$acc loop vector shortloop
+            do k=2,nVertLevels
+               wwAvg(k,iCell) = wwAvg(k,iCell) + 0.5*(1.0+epssm)*rw_p(k,iCell)
+            end do
+
+            ! update rho_pp and theta_pp given updated rw_p
+            !DIR$ IVDEP
+            !$acc loop vector shortloop
+            do k=1,nVertLevels
+               rho_pp(k,iCell) = rho_pp(k,iCell) - cofrz(k) *(rw_p(k+1,iCell)-rw_p(k  ,iCell))
+               rtheta_pp(k,iCell) = rtheta_pp(k,iCell) - rdzw(k)*(coftz(k+1,iCell)*rw_p(k+1,iCell)  &
+                                 -coftz(k  ,iCell)*rw_p(k  ,iCell))
+            end do
 
          else ! specifed zone in regional_MPAS
 
+            !$acc loop vector shortloop
             do k=1,nVertLevels
                rho_pp(k,iCell) = rho_pp(k,iCell) + dts*tend_rho(k,iCell)
                rtheta_pp(k,iCell) = rtheta_pp(k,iCell) + dts*tend_rt(k,iCell)
@@ -3413,10 +3475,10 @@ module atm_time_integration
             end do
 
          end if
-
       end do !  end of loop over cells
-!$acc end parallel
-!$acc end data
+      !$acc end parallel 
+
+      !$acc end data
    end subroutine atm_advance_acoustic_step_work
 
    subroutine atm_divergence_damping_3d( state, diag, mesh, configs, dts, edgeStart, edgeEnd )
@@ -5616,7 +5678,7 @@ module atm_time_integration
       real (kind=RKIND) :: scalar_weight
       real (kind=RKIND) :: inv_r_earth
 
-      real (kind=RKIND) :: invDt, flux, workpv, tendk
+      real (kind=RKIND) :: invDt, flux, workpv
       real (kind=RKIND) :: edge_sign, pr_scale, r_dc, r_dv, u_mix_scale
       real (kind=RKIND) :: h_mom_eddy_visc4, v_mom_eddy_visc2
       real (kind=RKIND) :: h_theta_eddy_visc4, v_theta_eddy_visc2
@@ -6668,7 +6730,7 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: t_init 
 
       real (kind=RKIND) :: cf1, cf2, cf3
-      real (kind=RKIND) :: prandtl_inv, r_areaCell, rgas_cprcv
+      real (kind=RKIND) :: r_areaCell, rgas_cprcv
 
       real (kind=RKIND) :: r_earth
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: ur_cell
@@ -6699,101 +6761,75 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
       integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
 
-
       !
       ! Local variables
       !
       integer :: iEdge, iCell, iVertex, k, cell1, cell2, vertex1, vertex2, eoe, i, j, iq, iAdvCell
 
-      !real (kind=RKIND), parameter :: c_s = 0.125
-      real (kind=RKIND), dimension( 64 ) :: d_diag, d_off_diag,flux_arr1, flux_arr, ru_edge_w, ru_save_temp , tend_wk, delsq_wk, wduz, wdwz, wdtz, we_w, u_mix, h_wk
+      real (kind=RKIND), dimension( 64 ) :: flux_arr, ru_edge_w, ru_save_temp, tend_wk, wduz, wdwz, wdtz
+      real (kind=RKIND) :: tend_ws, ru_edge_ws, flux_ws, tend_us, ru_edge_us, flux_us, h_ws
       integer, dimension(15) ::  iadv_cell_w
-      integer, dimension(64) :: eoe_w
+      integer :: iadv_cell_s
       real (kind=RKIND), dimension(15) :: coefs_w, coefs_3rd_w
-      real (kind=RKIND), dimension( nVertLevels + 1 ) :: dpzx
-      real (kind=RKIND) :: theta_turb_flux, w_turb_flux, r
-      real (kind=RKIND) :: scalar_weight
-      real (kind=RKIND) :: inv_r_earth
+      real (kind=RKIND) :: coefs_s, coefs_3rd_s
 
-      real (kind=RKIND) :: invDt, flux, workpv, tendk
-      real (kind=RKIND) :: edge_sign, pr_scale, r_dc, r_dv, u_mix_scale
-      real (kind=RKIND) :: h_mom_eddy_visc4, v_mom_eddy_visc2
-      real (kind=RKIND) :: h_theta_eddy_visc4, v_theta_eddy_visc2
-      real (kind=RKIND) :: u_diffusion, t_w, q1, q2
-
-      real (kind=RKIND) :: kdiffu, z1, z2, z3, z4, zm, z0, zp
+      real (kind=RKIND) :: scalar_weight, workpv, edge_sign
+      real (kind=RKIND) :: t_w, q1, q2
 
 
-
+      ! Lambda functions
       real (kind=RKIND) :: flux3, flux4
       real (kind=RKIND) :: q_im2, q_im1, q_i, q_ip1, ua, coef3
 
       flux4(q_im2, q_im1, q_i, q_ip1, ua) =                     &
-                ua*( 7.*(q_i + q_im1) - (q_ip1 + q_im2) )/12.0
+                ua*( 7.*(q_i + q_im1) - (q_ip1 + q_im2) ) * 0.08333333333333333
 
       flux3(q_im2, q_im1, q_i, q_ip1, ua, coef3) =              &
                 flux4(q_im2, q_im1, q_i, q_ip1, ua) +           &
-                coef3*abs(ua)*((q_ip1 - q_im2)-3.*(q_i-q_im1))/12.0
+                coef3*abs(ua)*((q_ip1 - q_im2)-3.*(q_i-q_im1)) * 0.08333333333333333
 
 
-      prandtl_inv = 1.0_RKIND / prandtl
-      invDt = 1.0_RKIND / dt
-      inv_r_earth = 1.0_RKIND / r_earth
 
-       v_mom_eddy_visc2   = config_v_mom_eddy_visc2
-       v_theta_eddy_visc2 = config_v_theta_eddy_visc2
-
-!$acc data present(cellsonedge,dvedge,edgesoncell, &
-!$acc tend_ru_physics, &
-!$acc tend_rtheta_physics, &
-!$acc edgesoncell_sign,fzm,fzp,invareacell,nedgesoncell &
-!$acc ,ru,rw,u,edgesonedge, &
-!$acc invdcedge,ke,nedgesonedge, &
-!$acc pv_edge,rdzw,rho_edge, &
-!$acc weightsonedge,adv_coefs,adv_coefs_3rd,advcellsforedge, &
-!$acc w,rdzu, tend_w_euler, &
-!$acc theta_m,ru_save,theta_m_save,tend_u_euler, &
-!$acc nadvcellsforedge,rho_zz, &
-!$acc rt_diabatic_tend,rw_save, &
-!$acc tend_theta_euler,  &
-!$acc h_divergence,tend_u, &
-!$acc tend_theta,tend_w,&
-!$acc tend_rtheta_adv, rthdynten)
-
- 
+      !$acc data present(cellsonedge,dvedge,edgesoncell, &
+      !$acc tend_ru_physics, &
+      !$acc tend_rtheta_physics, &
+      !$acc edgesoncell_sign,fzm,fzp,invareacell,nedgesoncell &
+      !$acc ,ru,rw,u,edgesonedge, &
+      !$acc invdcedge,ke,nedgesonedge, &
+      !$acc pv_edge,rdzw,rho_edge, &
+      !$acc weightsonedge,adv_coefs,adv_coefs_3rd,advcellsforedge, &
+      !$acc w,rdzu, tend_w_euler, &
+      !$acc theta_m,ru_save,theta_m_save,tend_u_euler, &
+      !$acc nadvcellsforedge,rho_zz, &
+      !$acc rt_diabatic_tend,rw_save, &
+      !$acc tend_theta_euler,  &
+      !$acc h_divergence,tend_u, &
+      !$acc tend_theta,tend_w,&
+      !$acc tend_rtheta_adv, rthdynten)
 
 
       ! tendency for density.
       ! accumulate total water here for later use in w tendency calculation.
 
       ! accumulate horizontal mass-flux
-!$acc parallel vector_length(64)
-!$acc loop gang private(h_wk)
- do iCell=cellStart,cellEnd
-!$acc cache(h_wk)
-!$acc loop vector
+      !$acc parallel
+      !$acc loop gang vector collapse(2) private(h_ws)
+      do iCell=cellStart,cellEnd
          do k=1,nVertLevels
-            h_wk(k) = 0.0
-         end do
-!$acc loop seq
-         do i=1,nEdgesOnCell(iCell)
-            iEdge = edgesOnCell(i,iCell)
-            edge_sign = edgesOnCell_sign(i,iCell) * dvEdge(iEdge)
-!DIR$ IVDEP
-!$acc loop vector
-            do k=1,nVertLevels
-               h_wk(k) = h_wk(k) + edge_sign * ru(k,iEdge)
+            h_ws = 0.0
+         
+            !$acc loop seq
+            do i=1,nEdgesOnCell(iCell)
+               iEdge = edgesOnCell(i,iCell)
+               edge_sign = edgesOnCell_sign(i,iCell) * dvEdge(iEdge)
+
+               h_ws = h_ws + edge_sign * ru(k,iEdge)
             end do
-         end do
-!$acc loop vector
-         do k=1,nVertLevels
-            r = invAreaCell(iCell)
-            h_divergence(k,iCell) = h_wk(k) * r
+
+            h_divergence(k,iCell) = h_ws * invAreaCell(iCell)
          end do
       end do
-!$acc end parallel 
-
-     
+      !$acc end parallel 
 
       !
       ! dp / dz and tend_rho
@@ -6804,70 +6840,52 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       !
       ! Compute u (normal) velocity tendency for each edge (cell face)
       !
-!$acc parallel vector_length(64)
-!$acc loop gang private(wduz, tend_wk, eoe_w, we_w)
+      !$acc parallel vector_length(64)
+      !$acc loop gang(static:2) private(wduz, tend_wk)
       do iEdge=edgeSolveStart,edgeSolveEnd
-!$acc cache(tend_wk)
-!$acc cache(wduz)
-!$acc cache(eoe_w)
-!$acc cache(we_w)
+         !$acc cache(wduz, tend_wk)
 
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
 
          ! horizontal pressure gradient 
-!$acc loop vector
+         !$acc loop vector shortloop
          do k=1,nVertLevels
             tend_wk(k) = u(k,iEdge)
          end do
 
-!$acc loop vector shortloop
+         !$acc loop vector shortloop
          do k=1,nVertLevels+1,nVertLevels
             wduz(k) = 0.
          end do
-!$acc loop vector shortloop
+         !$acc loop vector shortloop
          do k=2,nVertLevels,nVertLevels-2
             wduz(k) = 0.5*( rw(k,cell1)+rw(k,cell2))*(fzm(k)*tend_wk(k)+fzp(k)*tend_wk(k-1))
          end do
-!$acc loop vector
+         !$acc loop vector shortloop
          do k=3,nVertLevels-1
             wduz(k) = flux3( tend_wk(k-2),tend_wk(k-1),tend_wk(k),tend_wk(k+1),0.5*(rw(k,cell1)+rw(k,cell2)), 1.0_RKIND )
          end do
 
-!$acc loop vector shortloop
-         do j = 1,nEdgesOnEdge(iEdge)
-            eoe_w(j) = edgesOnEdge(j,iEdge)
-            we_w(j)  = weightsOnEdge(j,iEdge)
-         end do
-
-!$acc loop vector
+         !$acc loop vector shortloop
          do k=1,nVertLevels
             q1 = pv_edge(k,iEdge)
             q2 = 0.0
-!$acc loop seq
+            !$acc loop seq
             do j = 1,nEdgesOnEdge(iEdge)
-               eoe = eoe_w(j)
+               eoe = edgesOnEdge(j,iEdge)
                workpv = 0.5 * (q1 + pv_edge(k,eoe))
-               q2 = q2 + we_w(j) * u(k,eoe) * workpv
+               q2 = q2 + weightsOnEdge(j,iEdge) * u(k,eoe) * workpv
             end do
             t_w = - rdzw(k)*(wduz(k+1)-wduz(k))
             tend_u(k,iEdge) = t_w + rho_edge(k,iEdge) * &
                              (q2 - (ke(k,cell2) - ke(k,cell1)) *  &
                              invDcEdge(iEdge)) - tend_wk(k) * 0.5 * &
-                             (h_divergence(k,cell1)+h_divergence(k,cell2))
+                             (h_divergence(k,cell1)+h_divergence(k,cell2)) + &
+                             tend_u_euler(k,iEdge)  + tend_ru_physics(k,iEdge)
          end do
       end do
-!$acc end parallel
-
-!$acc parallel vector_length(64)
-!$acc loop gang
-      do iEdge=edgeSolveStart,edgeSolveEnd
-!$acc loop vector
-         do k=1,nVertLevels
-            tend_u(k,iEdge) = tend_u(k,iEdge) + tend_u_euler(k,iEdge)  + tend_ru_physics(k,iEdge)
-         end do
-      end do
-!$acc end parallel
+      !$acc end parallel
 
       !  mixing terms are integrated using forward-Euler, so this tendency is only computed in the
       !  first Runge-Kutta substep and saved for use in later RK substeps 2 and 3.
@@ -6881,73 +6899,56 @@ if (config_horiz_mixing == "2d_smagorinsky") then
 
 !----------- rhs for w
 
-
       !
       !  horizontal advection for w
       !
-!$acc parallel vector_length(64)
-!$acc loop gang private(ru_edge_w, flux_arr, iadv_cell_w, coefs_w, coefs_3rd_w, tend_wk)
-      do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
-!$acc cache(ru_edge_w)
-!$acc cache(flux_arr)
-!$acc cache(iadv_cell_w)
-!$acc cache(coefs_w)
-!$acc cache(coefs_3rd_w)
-!$acc cache(tend_wk)
+      !$acc parallel
+      !$acc loop gang vector collapse(2)
+      do iCell=cellSolveStart,cellSolveEnd
+         do k=1,nVertLevels
+            ! w     should be computed on levels 2..nVertLevels
+            ! theta should be computed on levels 1..nVertLevels
 
-!$acc loop vector
-         do k=1,nVertLevels+1
-           tend_wk(k) = 0.0
-         end do
+            tend_ws = 0.0
+            tend_us = 0.0
 
-!$acc loop seq
-         do i=1,nEdgesOnCell(iCell)
-            iEdge = edgesOnCell(i,iCell)
-!$acc loop vector
-            do k=2,nVertLevels
-               ru_edge_w(k) = fzm(k)*ru(k,iEdge) + fzp(k)*ru(k-1,iEdge)
-            end do
+            !$acc loop seq
+            do i=1,nEdgesOnCell(iCell)
+               iEdge = edgesOnCell(i,iCell)
+               if (k >= 2) ru_edge_ws = fzm(k)*ru(k,iEdge) + fzp(k)*ru(k-1,iEdge)
+               ru_edge_us = ru(k,iEdge)
 
-!$acc loop vector
-            do j=1,nAdvCellsForEdge(iEdge)
-               iadv_cell_w(j) = advCellsForEdge(j,iEdge)
-               coefs_w(j)     = adv_coefs(j,iEdge)
-               coefs_3rd_w(j) = adv_coefs_3rd(j,iEdge)
-            end do
+               flux_ws = 0.0
+               flux_us = 0.0
 
-!$acc loop vector
-            do k=1,nVertLevels
-               flux_arr(k) = 0.0
-            end do
+               !$acc loop seq
+               do j=1,nAdvCellsForEdge(iEdge)
+                  iadv_cell_s = advCellsForEdge(j,iEdge)
+                  coefs_s     = adv_coefs(j,iEdge)
+                  coefs_3rd_s = adv_coefs_3rd(j,iEdge)
 
-            ! flux_arr stores the value of w at the cell edge used in the
-            ! horizontal transport
+                  scalar_weight = coefs_s + sign(1.0_RKIND,ru_edge_ws) * coefs_3rd_s
+                  flux_ws = flux_ws + scalar_weight * w(k,iadv_cell_s)
 
-!$acc loop seq
-            do j=1,nAdvCellsForEdge(iEdge)
-!$acc loop vector
-               do k=2,nVertLevels
-                  iAdvCell = iadv_cell_w(j)
-                  scalar_weight = coefs_w(j) + sign(1.0_RKIND,ru_edge_w(k)) * coefs_3rd_w(j)
-                  flux_arr(k) = flux_arr(k) + scalar_weight * w(k,iAdvCell)
+                  scalar_weight = coefs_s + sign(1.0_RKIND,ru_edge_us) * coefs_3rd_s
+                  flux_us = flux_us + scalar_weight * theta_m(k,iadv_cell_s)
                end do
+
+               tend_ws = tend_ws - edgesOnCell_sign(i,iCell) * ru_edge_ws * flux_ws
+               tend_us = tend_us - edgesOnCell_sign(i,iCell) * ru_edge_us * flux_us
+
+               ! extra term for theta
+               cell1 = cellsOnEdge(1,iEdge)
+               cell2 = cellsOnEdge(2,iEdge)
+               tend_us = tend_us - edgesOnCell_sign(i,iCell) * dvEdge(iEdge) * (ru_save(k,iEdge)-ru_edge_us) &
+                                    * 0.5 * (theta_m_save(k,cell2)+theta_m_save(k,cell1))
             end do
 
-!DIR$ IVDEP
-!$acc loop vector
-            do k=2,nVertLevels
-               tend_wk(k) = tend_wk(k) - edgesOnCell_sign(i,iCell)*ru_edge_w(k)*flux_arr(k)
-            end do
-         end do
-
-!DIR$ IVDEP
-!$acc loop vector
-         do k=2,nVertLevels
-           tend_w(k,iCell) = tend_wk(k)
+            if (k >= 2) tend_w(k,iCell) = tend_ws
+            tend_theta        (k,iCell) = tend_us
          end do
       end do
-!$acc end parallel
-
+      !$acc end parallel
 
 
       !
@@ -6967,155 +6968,36 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       !  vertical advection, pressure gradient and buoyancy for w
       !
 
-!$acc parallel vector_length(64)
-!$acc loop gang private(tend_wk, wdwz)
+      !$acc parallel vector_length(64)
+      !$acc loop gang(static:2) private(tend_wk, wdwz)
       do iCell=cellSolveStart,cellSolveEnd
+         !$acc cache(tend_wk, wdwz)
 
-!$acc loop vector
+         !$acc loop vector shortloop
          do k=1,nVertLevels
             tend_wk(k) = w(k,iCell)
          end do
 
-!$acc loop vector shortloop
+         !$acc loop vector shortloop
          do k=1,nVertLevels+1,nVertLevels
             wdwz(k) = 0.
          end do
-!$acc loop vector shortloop
+         !$acc loop vector shortloop
          do k=2,nVertLevels,nVertLevels-2
             wdwz(k) = 0.25*(rw(k,iCell)+rw(k-1,iCell))*(tend_wk(k)+tend_wk(k-1))
          end do
-!$acc loop vector
+         !$acc loop vector shortloop
          do k=3,nVertLevels-1
             wdwz(k) = flux3(tend_wk(k-2),tend_wk(k-1),tend_wk(k),tend_wk(k+1),0.5*(rw(k,iCell)+rw(k-1,iCell)), 1.0_RKIND )
          end do
 
-!DIR$ IVDEP
-!$acc loop vector
+         !DIR$ IVDEP
+         !$acc loop vector shortloop
          do k=2,nVertLevels
-            tend_w(k,iCell) = tend_w(k,iCell) * invAreaCell(iCell) - rdzu(k)*(wdwz(k+1)-wdwz(k))
-         end do
-     end do
-!$acc end parallel
-
-!$acc parallel vector_length(64)
-!$acc loop gang worker
-      do iCell = cellSolveStart,cellSolveEnd
-!DIR$ IVDEP
-         do k=2,nVertLevels
-            tend_w(k,iCell) = tend_w(k,iCell) + tend_w_euler(k,iCell)
+            tend_w(k,iCell) = tend_w(k,iCell) * invAreaCell(iCell) - rdzu(k)*(wdwz(k+1)-wdwz(k)) + tend_w_euler(k,iCell)
          end do
       end do
-!$acc end parallel 
-
-
-!----------- rhs for theta
-
-      !
-      !  horizontal advection for theta
-      !
-!$acc parallel vector_length(64)
-!$acc loop gang private(ru_edge_w, flux_arr, iadv_cell_w, coefs_w, coefs_3rd_w, tend_wk)
-      do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
-!$acc cache(ru_edge_w)
-!$acc cache(flux_arr)
-!$acc cache(iadv_cell_w)
-!$acc cache(coefs_w)
-!$acc cache(coefs_3rd_w)
-!$acc cache(tend_wk)
-
-!$acc loop vector
-         do k=1,nVertLevels+1
-           tend_wk(k) = 0.0
-         end do
-
-!$acc loop seq
-         do i=1,nEdgesOnCell(iCell)
-            iEdge = edgesOnCell(i,iCell)
-
-!$acc loop vector
-            do k=1,nVertLevels
-               ru_edge_w(k) = ru(k,iEdge)
-               flux_arr(k) = 0.0
-            end do
-
-!$acc loop vector shortloop
-            do j=1,nAdvCellsForEdge(iEdge)
-               iadv_cell_w(j) = advCellsForEdge(j,iEdge)
-               coefs_w(j)     = adv_coefs(j,iEdge)
-               coefs_3rd_w(j) = adv_coefs_3rd(j,iEdge)
-            end do
-
-!$acc loop seq
-            do j=1,nAdvCellsForEdge(iEdge)
-!$acc loop vector
-               do k=1,nVertLevels
-                  iAdvCell = iadv_cell_w(j)
-                  scalar_weight = coefs_w(j) + sign(1.0_RKIND,ru_edge_w(k))*coefs_3rd_w(j)
-                  flux_arr(k) = flux_arr(k) + scalar_weight* theta_m(k,iAdvCell)
-               end do
-            end do
-
-!DIR$ IVDEP
-!$acc loop vector
-            do k=1,nVertLevels
-               tend_wk(k) = tend_wk(k) - edgesOnCell_sign(i,iCell) * ru_edge_w(k) * flux_arr(k)
-            end do
-
-         end do
-
-!$acc loop vector
-         do k=1,nVertLevels
-            tend_theta(k,iCell) = tend_wk(k)
-         end do
-      end do
-!$acc end parallel
-!  addition to pick up perturbation flux for rtheta_pp equation
-
-!$acc parallel vector_length(64)
-!$acc loop gang private(flux_arr1,tend_wk, ru_edge_w,ru_save_temp)
-        do iCell=cellSolveStart,cellSolveEnd
-!$acc cache(ru_edge_w)
-!$acc cache(flux_arr1)
-!$acc cache(ru_save_temp)
-!$acc cache(tend_wk)
-
-!$acc loop vector
-         do k=1,nVertLevels
-           tend_wk(k) = tend_theta(k,iCell)
-         end do
-
-!$acc loop vector
-            do i=1,nEdgesOnCell(iCell)
-               iEdge = edgesOnCell(i,iCell)
-               cell1 = cellsOnEdge(1,iEdge)
-               cell2 = cellsOnEdge(2,iEdge)
-!$acc loop vector
-            do k=1,nVertLevels
-               ru_edge_w(k) = ru(k,iEdge)
-               ru_save_temp(k) = ru_save(k,iEdge)
-               flux_arr1(k) = 0.0
-            end do
-!DIR$ IVDEP
-!$acc loop vector
-            do k=1,nVertLevels
-               flux_arr1(k) = edgesOnCell_sign(i,iCell)*dvEdge(iEdge)*(ru_save_temp(k)-ru_edge_w(k))*0.5*(theta_m_save(k,cell2)+theta_m_save(k,cell1))
-               !flux_arr1(k) = edgesOnCell_sign(i,iCell) *dvEdge(iEdge)*(ru_save(k,iCell)-ru_edge_w(k)) &
-               ! *0.5*(theta_m_save(k,cell2)+theta_m_save(k,cell1))
-            end do
-!DIR$ IVDEP
-!$acc loop vector
-            do k = 1,nVertLevels
-!               tend_theta(k,iCell) = tend_theta(k,iCell)-flux_arr1(k)  ! division by areaCell picked up down below
-               tend_wk(k) = tend_wk(k)-flux_arr1(k)
-            end do
-          end do
-!$acc loop vector
-         do k=1,nVertLevels
-            tend_theta(k,iCell) = tend_wk(k)
-         end do
-
-        end do
-!$acc end parallel
+      !$acc end parallel
 
       !
       !  horizontal mixing for theta_m - we could combine this with advection directly (i.e. as a turbulent flux),
@@ -7124,16 +7006,16 @@ if (config_horiz_mixing == "2d_smagorinsky") then
       !  Note: we are also dividing through by the cell area after the horizontal flux divergence
       !
 
-!$acc parallel vector_length(64)
-!$acc loop gang private(wdtz)
+      !$acc parallel vector_length(64)
+      !$acc loop gang(static:2) private(wdtz)
       do iCell = cellSolveStart,cellSolveEnd
-!$acc cache(wdtz)
+         !$acc cache(wdtz)
 
-!$acc loop vector shortloop
+         !$acc loop vector shortloop
          do k=1,nVertLevels+1,nVertLevels
             wdtz(k) = 0.
          end do
-!$acc loop vector shortloop
+         !$acc loop vector shortloop
          do k=2,nVertLevels,nVertLevels-2
             if (k.eq.2) then
                wdtz(k) = rw(k,icell)*(fzm(k)*theta_m(k,iCell)+fzp(k)*theta_m(k-1,iCell))
@@ -7142,25 +7024,25 @@ if (config_horiz_mixing == "2d_smagorinsky") then
                wdtz(k) = rw_save(k,icell)*(fzm(k)*theta_m(k,iCell)+fzp(k)*theta_m(k-1,iCell))  !rtheta_pp redefinition
             end if
          end do
-!$acc loop vector
+         !$acc loop vector shortloop
          do k=3,nVertLevels-1
             wdtz(k) = flux3( theta_m(k-2,iCell),theta_m(k-1,iCell),theta_m(k,iCell),theta_m(k+1,iCell), rw(k,iCell), coef_3rd_order )
             wdtz(k) =  wdtz(k) + (rw_save(k,icell)-rw(k,iCell))*(fzm(k)*theta_m_save(k,iCell)+fzp(k)*theta_m_save(k-1,iCell))! rtheta_pp redefinition
          end do
 
-!DIR$ IVDEP
-!$acc loop vector
+         !DIR$ IVDEP
+         !$acc loop vector shortloop
          do k=1,nVertLevels
-            tend_theta(k,iCell) = tend_theta(k,iCell)*invAreaCell(iCell) -rdzw(k)*(wdtz(k+1)-wdtz(k))
+            tend_theta(k,iCell) = tend_theta(k,iCell)*invAreaCell(iCell) - rdzw(k)*(wdtz(k+1)-wdtz(k))
             tend_rtheta_adv(k,iCell) = tend_theta(k,iCell)   !  this is for the Tiedke scheme
             rthdynten(k,iCell) = tend_theta(k,iCell)/rho_zz(k,iCell)  !  this is for the Grell-Freitas scheme
             tend_theta(k,iCell) = tend_theta(k,iCell) + rho_zz(k,iCell)*rt_diabatic_tend(k,iCell)
             tend_theta(k,iCell) = tend_theta(k,iCell) + tend_theta_euler(k,iCell) + tend_rtheta_physics(k,iCell)
          end do
       end do
-!$acc end parallel
+      !$acc end parallel
 
-!$acc end data
+      !$acc end data
    end subroutine atm_compute_dyn_tend_work_rk23
    
 
