@@ -360,17 +360,17 @@
        enddo
 !$acc end parallel
 
-!$acc parallel vector_length(128)
-!$acc loop gang vector collapse(3)
        do j = jts,jte
+!$acc parallel
+!$acc loop gang vector collapse(2)
        do k = kts,kte
        do i = its,ite
           exch_p(i,k,j)     = 0._RKIND
           rthraten_p(i,k,j) = rthratenlw(k,i) + rthratensw(k,i) 
        enddo
        enddo
-       enddo
 !$acc end parallel
+       enddo
 
 !!!$acc update host(br_p,psim_p,psih_p,regime_p,u10_p,v10_p,ctopo_p,ctopo2_p,exch_p,rthraten_p)
 
@@ -527,7 +527,7 @@
  enddo
 
  do j = jts,jte
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector collapse(2)
  do i = its,ite
  do k = kts,kte

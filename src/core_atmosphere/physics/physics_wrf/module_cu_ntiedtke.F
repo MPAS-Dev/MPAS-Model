@@ -330,10 +330,11 @@ contains
 !-------other local variables----
       integer                      :: zz, pp
 !-----------------------------------------------------------------------
-
-
-
-!$acc data create(rcs,rn,evap,heatflux,dx2d, &
+!$acc data present(raincv,pratec,qfx,hfx,u3d,v3d,w,t3d,qv3d,qc3d,qi3d,pi3d, &
+!$acc              rho3d,qvften,thften,dz8w,pcps,p8w,xland,cu_act_flag, &
+!$acc              dx,rthcuten,rqvcuten,rqccuten,rqicuten, &
+!$acc              rucuten,rvcuten) &
+!$acc      create(rcs,rn,evap,heatflux,dx2d, &
 !$acc             slimsk,prsi,ghti,zi,dot,prsl,q1,q2,q3,q1b,t1b,q11,q12,t1,u1,v1,zl, &
 !$acc             omg,ghtl,kbot,ktop)
 !
@@ -367,14 +368,15 @@ contains
       enddo
 !$acc end parallel
 !
+!$acc parallel
+!$acc loop seq
       do k=kts,kte
-!$acc parallel vector_length(128)
 !$acc loop gang vector
         do i=its,ite
           zi(i,k+1)=zi(i,k)+dz8w(i,k,j)
         enddo
-!$acc end parallel
       enddo
+!$acc end parallel
 !
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)
@@ -393,13 +395,13 @@ contains
       enddo
 !$acc end parallel
 
-!$acc parallel vector_length(128)
+!$acc parallel
       do i=its,ite
          dx2d(i) = dx(i,j)
       enddo
 !$acc end parallel
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector collapse(2)
       do k=kts,kte
 !!!     kp=k+1
@@ -481,7 +483,6 @@ contains
 !!!     pp = pp + 1
       enddo
 !$acc end parallel
-!$acc update host (raincv)
 
       if(present(rqccuten))then
         if ( f_qc ) then
@@ -634,7 +635,10 @@ contains
       real zew,zqs,zcor
 
 
-!$acc data create(pum1,pvm1,ztt,ptte,pqte,pvom,pvol,pverv,pgeo, &
+!$acc data present(pu,pv,pt,pqv,pqc,pqi,pqvf,ptf,poz,pzz,pomg, &
+!$acc              pap,paph,evap,hfx,zprecc,lndj,dx &
+!$acc              ) &
+!$acc      create(pum1,pvm1,ztt,ptte,pqte,pvom,pvol,pverv,pgeo, &
 !$acc             zqq,pcte,ztp1,zqp1,ztu,zqu,zlu,zlude,zmfu,zmfd,zqsat,pqhfl, &
 !$acc             prsfc,pssfc,phhfl,zrain,pgeoh,icbot,ictop,locum,ktype)
 !
@@ -881,17 +885,17 @@ contains
       real     zmfs(klon),pmean(klev),zlon
       real     zduten,zdvten,ztdis,pgf_u,pgf_v
 
-
-
-
-
-!$acc data create(ztenh,zqenh,zqsenh,ztd,zqd,zmfus,zmfds,zmfuq, &
-!$acc zmfdq,zdmfup,zdmfdp,zmful,zuu,zvu,zud,zvd,zlglac,zrfl, &
-!$acc zdpmel,pmfude_rate,pmfdde_rate,zmfuus,zmfdus,zuv2,ztenu, &
-!$acc ztenv,zhcbase,zmfub,zmfub1,zdhpbl,zsfl,zcape,zcape1,zcape2, &
-!$acc ztauc,ztaubl,zheat,wup,wbase,zmfuub,upbl,zmfuvb,zsum12, &
-!$acc zsum22,pmflxr,pmflxs,ilab,idtop,ictop0,ilwmin,kdpl, &
-!$acc loddraf,llo2,zmfs,pmean)
+!$acc data present(pten,pqen,puen,pven,pverv,pqsen,pqhfl,pap,paph, &
+!$acc              pgeo,ptte,pqte,pvom,pvol,prsfc,pssfc,ldcum,ktype,kcbot, &
+!$acc              kctop,ptu,pqu,plu,plude,pmfu,pmfd,prain,pcte,phhfl,lndj, &
+!$acc              zgeoh,dx) &
+!$acc      create(ztenh,zqenh,zqsenh,ztd,zqd,zmfus,zmfds,zmfuq, &
+!$acc             zmfdq,zdmfup,zdmfdp,zmful,zuu,zvu,zud,zvd,zlglac,zrfl, &
+!$acc             zdpmel,pmfude_rate,pmfdde_rate,zmfuus,zmfdus,zuv2,ztenu, &
+!$acc             ztenv,zhcbase,zmfub,zmfub1,zdhpbl,zsfl,zcape,zcape1,zcape2, &
+!$acc             ztauc,ztaubl,zheat,wup,wbase,zmfuub,upbl,zmfuvb,zsum12, &
+!$acc             zsum22,pmflxr,pmflxs,ilab,idtop,ictop0,ilwmin,kdpl, &
+!$acc             loddraf,llo2,zmfs,pmean)
 !-------------------------------------------
 !     1.    specify constants and parameters
 !-------------------------------------------
@@ -1688,11 +1692,13 @@ contains
       real     zzs
       real     zqsat,zcor,zqp,zcond1
 
+!$acc data present(pten,pqen,pqsen,puen,pven,pverv,pgeo, &
+!$acc              paph,pgeoh,ptenh,pqenh,pqsenh,klwmin, &
+!$acc              ptu,pqu,ptd,pqd,puu,pvu,pud,pvd,pmfu, &
+!$acc              pmfd,pmfus,pmfds,pmfuq,pmfdq,pdmfup, &
+!$acc              pdmfdp,pdpmel,plu,plude,klab) &
+!$acc      create(zwmax,zph,loflag)
 
-
-
-
-!$acc data create(zwmax,zph,loflag)
 !------------------------------------------------------------
 !*    1.       specify large scale parameters at half levels
 !*             adjust temperature fields if staticly unstable
@@ -1739,7 +1745,6 @@ contains
       end do
 !$acc end parallel
 !**********************************************************************************
-
 !$acc parallel vector_length(128)
 !$acc loop gang vector
       do jl=1,klon
@@ -1913,11 +1918,13 @@ contains
 	  logical  flag
       real     zqsat,zqp,zcond,zcond1,zl,zi,zf
 
-
-
-!$acc data create(ptu,pqu,plu,zph,klab,kctop,kcbot,loflag,deepflag, &
-!$acc resetflag,dhen,dh,plude,kup,vptu,vten,zbuo,abuoy,zqold,eta,dz, &
-!$acc coef,zcbase,itoppacel,lldcum)
+!$acc data present(pqen,ptenh,pqenh,pqsenh,pgeoh,paph,hfx,qfx,pgeo,pqsen, &
+!$acc              pap,pten,lndj,cutu,cuqu,culab,ldcum,cubot,cutop,ktype, &
+!$acc              wbase,culu,kdpl &
+!$acc              ) &
+!$acc      create(ptu,pqu,plu,zph,klab,kctop,kcbot,loflag,deepflag, &
+!$acc             resetflag,dhen,dh,plude,kup,vptu,vten,zbuo,abuoy,zqold,eta,dz, &
+!$acc             coef,zcbase,itoppacel,lldcum)
 !--------------------------------------------------------------
 !$acc parallel vector_length(128)
 !$acc loop gang vector
@@ -2612,10 +2619,14 @@ contains
 
 
 
-
-!$acc data create(zlrain,zbuo,kup,zodetr,zph,zdmfen,zdmfde,zmfuu, &
-!$acc zmfuv,zpbase,zqold,zluold,zprecip,eta,dz,zentr,pdmfen,zoentr, &
-!$acc zdpmean,loflag,llo1)
+!$acc data present(ptenh,pqenh,puen,pven,pten,pqen,pqsen,pgeo,pgeoh,pap,paph, &
+!$acc              pqte,pverv,klwmin,ldcum,phcbase,ktype,klab,ptu,pqu,plu, &
+!$acc              puu,pvu,pmfu,pmfub,pmfus,pmfuq,pmful,plude,pdmfup,kcbot, &
+!$acc              kctop,kctop0,pqsenh,plglac,lndj,wup,wbase,kdpl,pmfude_rate &
+!$acc              ) &
+!$acc      create(zlrain,zbuo,kup,zodetr,zph,zdmfen,zdmfde,zmfuu, &
+!$acc             zmfuv,zpbase,zqold,zluold,zprecip,eta,dz,zentr,pdmfen,zoentr, &
+!$acc             zdpmean,loflag,llo1)
 !--------------------------------
 !*    1.       specify parameters
 !--------------------------------
@@ -3164,115 +3175,115 @@ contains
 
 !$acc end data
       return
-      end subroutine cuascn
-!---------------------------------------------------------
-!  level 3 souroutines  
-!--------------------------------------------------------
-      subroutine cudlfsn   &                                                      
-     &    (klon,     klev,  &                       
-     &     kcbot,    kctop,    lndj,   ldcum,   &                               
-     &     ptenh,    pqenh,    puen,     pven,     &                              
-     &     pten,     pqsen,    pgeo,                &                             
-     &     pgeoh,    paph,     ptu,      pqu,      plu,&                          
-     &     puu,      pvu,      pmfub,    prfl,          &                         
-     &     ptd,      pqd,      pud,      pvd,            &                        
-     &     pmfd,     pmfds,    pmfdq,    pdmfdp,          &                       
-     &     kdtop,    lddraf)                                                     
+              end subroutine cuascn
+        !---------------------------------------------------------
+        !  level 3 souroutines  
+        !--------------------------------------------------------
+              subroutine cudlfsn   &                                                      
+             &    (klon,     klev,  &                       
+             &     kcbot,    kctop,    lndj,   ldcum,   &                               
+             &     ptenh,    pqenh,    puen,     pven,     &                              
+             &     pten,     pqsen,    pgeo,                &                             
+             &     pgeoh,    paph,     ptu,      pqu,      plu,&                          
+             &     puu,      pvu,      pmfub,    prfl,          &                         
+             &     ptd,      pqd,      pud,      pvd,            &                        
+             &     pmfd,     pmfds,    pmfdq,    pdmfdp,          &                       
+             &     kdtop,    lddraf)                                                     
                                                                                  
-!          this routine calculates level of free sinking for                     
-!          cumulus downdrafts and specifies t,q,u and v values                   
+        !          this routine calculates level of free sinking for                     
+        !          cumulus downdrafts and specifies t,q,u and v values                   
                                                                                  
-!          m.tiedtke         e.c.m.w.f.    12/86 modif. 12/89                    
+        !          m.tiedtke         e.c.m.w.f.    12/86 modif. 12/89                    
                                                                                  
-!          purpose.                                                              
-!          --------                                                              
-!          to produce lfs-values for cumulus downdrafts                          
-!          for massflux cumulus parameterization                                 
+        !          purpose.                                                              
+        !          --------                                                              
+        !          to produce lfs-values for cumulus downdrafts                          
+        !          for massflux cumulus parameterization                                 
                                                                                  
-!          interface                                                             
-!          ---------                                                             
-!          this routine is called from *cumastr*.                                
-!          input are environmental values of t,q,u,v,p,phi                       
-!          and updraft values t,q,u and v and also                               
-!          cloud base massflux and cu-precipitation rate.                        
-!          it returns t,q,u and v values and massflux at lfs.                    
+        !          interface                                                             
+        !          ---------                                                             
+        !          this routine is called from *cumastr*.                                
+        !          input are environmental values of t,q,u,v,p,phi                       
+        !          and updraft values t,q,u and v and also                               
+        !          cloud base massflux and cu-precipitation rate.                        
+        !          it returns t,q,u and v values and massflux at lfs.                    
                                                                                  
-!          method.                                                               
+        !          method.                                                               
                                                                                  
-!          check for negative buoyancy of air of equal parts of                  
-!          moist environmental air and cloud air.                                
+        !          check for negative buoyancy of air of equal parts of                  
+        !          moist environmental air and cloud air.                                
                                                                                  
-!     parameter     description                                   units          
-!     ---------     -----------                                   -----          
-!     input parameters (integer):                                                
+        !     parameter     description                                   units          
+        !     ---------     -----------                                   -----          
+        !     input parameters (integer):                                                
                                                                                  
-!    *klon*         number of grid points per packet                             
-!    *klev*         number of levels                                             
-!    *kcbot*        cloud base level                                             
-!    *kctop*        cloud top level                                              
+        !    *klon*         number of grid points per packet                             
+        !    *klev*         number of levels                                             
+        !    *kcbot*        cloud base level                                             
+        !    *kctop*        cloud top level                                              
                                                                                  
-!    input parameters (logical):                                                 
+        !    input parameters (logical):                                                 
                                                                                  
-!    *lndj*       land sea mask (1 for land)                              
-!    *ldcum*        flag: .true. for convective points                           
+        !    *lndj*       land sea mask (1 for land)                              
+        !    *ldcum*        flag: .true. for convective points                           
                                                                                  
-!    input parameters (real):                                                    
+        !    input parameters (real):                                                    
                                                                                  
-!    *ptenh*        env. temperature (t+1) on half levels          k             
-!    *pqenh*        env. spec. humidity (t+1) on half levels     kg/kg           
-!    *puen*         provisional environment u-velocity (t+1)      m/s            
-!    *pven*         provisional environment v-velocity (t+1)      m/s            
-!    *pten*         provisional environment temperature (t+1)       k            
-!    *pqsen*        environment spec. saturation humidity (t+1)   kg/kg          
-!    *pgeo*         geopotential                                  m2/s2          
-!    *pgeoh*        geopotential on half levels                  m2/s2           
-!    *paph*         provisional pressure on half levels           pa             
-!    *ptu*          temperature in updrafts                        k             
-!    *pqu*          spec. humidity in updrafts                   kg/kg           
-!    *plu*          liquid water content in updrafts             kg/kg           
-!    *puu*          u-velocity in updrafts                        m/s            
-!    *pvu*          v-velocity in updrafts                        m/s            
-!    *pmfub*        massflux in updrafts at cloud base           kg/(m2*s)       
+        !    *ptenh*        env. temperature (t+1) on half levels          k             
+        !    *pqenh*        env. spec. humidity (t+1) on half levels     kg/kg           
+        !    *puen*         provisional environment u-velocity (t+1)      m/s            
+        !    *pven*         provisional environment v-velocity (t+1)      m/s            
+        !    *pten*         provisional environment temperature (t+1)       k            
+        !    *pqsen*        environment spec. saturation humidity (t+1)   kg/kg          
+        !    *pgeo*         geopotential                                  m2/s2          
+        !    *pgeoh*        geopotential on half levels                  m2/s2           
+        !    *paph*         provisional pressure on half levels           pa             
+        !    *ptu*          temperature in updrafts                        k             
+        !    *pqu*          spec. humidity in updrafts                   kg/kg           
+        !    *plu*          liquid water content in updrafts             kg/kg           
+        !    *puu*          u-velocity in updrafts                        m/s            
+        !    *pvu*          v-velocity in updrafts                        m/s            
+        !    *pmfub*        massflux in updrafts at cloud base           kg/(m2*s)       
                                                                                  
-!    updated parameters (real):                                                  
+        !    updated parameters (real):                                                  
                                                                                  
-!    *prfl*         precipitation rate                           kg/(m2*s)       
+        !    *prfl*         precipitation rate                           kg/(m2*s)       
                                                                                  
-!    output parameters (real):                                                   
+        !    output parameters (real):                                                   
                                                                                  
-!    *ptd*          temperature in downdrafts                      k             
-!    *pqd*          spec. humidity in downdrafts                 kg/kg           
-!    *pud*          u-velocity in downdrafts                      m/s            
-!    *pvd*          v-velocity in downdrafts                      m/s            
-!    *pmfd*         massflux in downdrafts                       kg/(m2*s)       
-!    *pmfds*        flux of dry static energy in downdrafts       j/(m2*s)       
-!    *pmfdq*        flux of spec. humidity in downdrafts         kg/(m2*s)       
-!    *pdmfdp*       flux difference of precip. in downdrafts     kg/(m2*s)       
+        !    *ptd*          temperature in downdrafts                      k             
+        !    *pqd*          spec. humidity in downdrafts                 kg/kg           
+        !    *pud*          u-velocity in downdrafts                      m/s            
+        !    *pvd*          v-velocity in downdrafts                      m/s            
+        !    *pmfd*         massflux in downdrafts                       kg/(m2*s)       
+        !    *pmfds*        flux of dry static energy in downdrafts       j/(m2*s)       
+        !    *pmfdq*        flux of spec. humidity in downdrafts         kg/(m2*s)       
+        !    *pdmfdp*       flux difference of precip. in downdrafts     kg/(m2*s)       
                                                                                  
-!    output parameters (integer):                                                
+        !    output parameters (integer):                                                
                                                                                  
-!    *kdtop*        top level of downdrafts                                      
+        !    *kdtop*        top level of downdrafts                                      
                                                                                  
-!    output parameters (logical):                                                
+        !    output parameters (logical):                                                
                                                                                  
-!    *lddraf*       .true. if downdrafts exist                                   
+        !    *lddraf*       .true. if downdrafts exist                                   
                                                                                  
-!          externals                                                             
-!          ---------                                                             
-!          *cuadjtq* for calculating wet bulb t and q at lfs                     
-!----------------------------------------------------------------------          
-      implicit none                                                       
-                   
-      integer  klev,klon                                                            
-      real     ptenh(klon,klev),       pqenh(klon,klev), &                        
-     &         puen(klon,klev),        pven(klon,klev),  &                        
-     &         pten(klon,klev),        pqsen(klon,klev),  &                       
-     &         pgeo(klon,klev),                       &                           
-     &         pgeoh(klon,klev+1),     paph(klon,klev+1),&                        
-     &         ptu(klon,klev),         pqu(klon,klev),   &                        
-     &         puu(klon,klev),         pvu(klon,klev),   &                        
-     &         plu(klon,klev),                          &                         
-     &         pmfub(klon),            prfl(klon)                                
+        !          externals                                                             
+        !          ---------                                                             
+        !          *cuadjtq* for calculating wet bulb t and q at lfs                     
+        !----------------------------------------------------------------------          
+              implicit none                                                       
+                           
+              integer  klev,klon                                                            
+              real     ptenh(klon,klev),       pqenh(klon,klev), &                        
+              &         puen(klon,klev),        pven(klon,klev),  &                        
+              &         pten(klon,klev),        pqsen(klon,klev),  &                       
+              &         pgeo(klon,klev),                       &                           
+              &         pgeoh(klon,klev+1),     paph(klon,klev+1),&                        
+              &         ptu(klon,klev),         pqu(klon,klev),   &                        
+              &         puu(klon,klev),         pvu(klon,klev),   &                        
+              &         plu(klon,klev),                          &                         
+              &         pmfub(klon),            prfl(klon)                                
                                                                                  
       real     ptd(klon,klev),         pqd(klon,klev),   &                        
      &         pud(klon,klev),         pvd(klon,klev),    &                       
@@ -3298,55 +3309,63 @@ contains
 
 
 
-!$acc data create(ztenwb,zqenwb,zcond,zph,zhsmin,ikhsmin,llo2)
-!----------------------------------------------------------------------          
+
+
+
+
+!$acc data present(kcbot,kctop,lndj,ldcum,ptenh,pqenh,puen,pven,pten, &
+!$acc              pqsen,pgeo,pgeoh,paph,ptu,pqu,plu,puu,pvu,pmfub, &
+!$acc              prfl,ptd,pqd,pud,pvd,pmfd,pmfds,pmfdq,pdmfdp,kdtop,lddraf) &
+!$acc      create(ztenwb,zqenwb,zcond,zph,zhsmin,ikhsmin,llo2) 
+        !----------------------------------------------------------------------          
                                                                                  
-!     1.           set default values for downdrafts                             
-!                  ---------------------------------                             
-!$acc parallel vector_length(128)
-!$acc loop gang vector
-      do jl=1,klon                                                          
-        lddraf(jl)=.false.                                                       
-        kdtop(jl)=klev+1      
-        ikhsmin(jl)=klev+1
-        zhsmin(jl)=1.e8                                                  
-      enddo                                                                      
-!$acc end parallel
-!----------------------------------------------------------------------          
+        !     1.           set default values for downdrafts                             
+        !                  ---------------------------------                             
+        !$acc parallel vector_length(128)
+        !$acc loop gang vector
+              do jl=1,klon 
+                lddraf(jl)=.false.                                                       
+                kdtop(jl)=klev+1      
+                ikhsmin(jl)=klev+1
+                zhsmin(jl)=1.e8                                                  
+              enddo                                                
+        !$acc end parallel
+        !----------------------------------------------------------------------          
                                                                                  
-!     2.           determine level of free sinking:                              
-!                  downdrafts shall start at model level of minimum              
-!                  of saturation moist static energy or below                    
-!                  respectively                                                  
+        !     2.           determine level of free sinking:                              
+        !                  downdrafts shall start at model level of minimum              
+        !                  of saturation moist static energy or below                    
+        !                  respectively                                                  
                                                                                  
-!                  for every point and proceed as follows:                       
+        !                  for every point and proceed as follows:                       
                                                                                  
-!                    (1) determine level of minimum of hs                        
-!                    (2) determine wet bulb environmental t and q                
-!                    (3) do mixing with cumulus cloud air                        
-!                    (4) check for negative buoyancy                             
-!                    (5) if buoyancy>0 repeat (2) to (4) for next                
-!                        level below                                             
+        !                    (1) determine level of minimum of hs                        
+        !                    (2) determine wet bulb environmental t and q                
+        !                    (3) do mixing with cumulus cloud air                        
+        !                    (4) check for negative buoyancy                             
+        !                    (5) if buoyancy>0 repeat (2) to (4) for next                
+        !                        level below                                             
                                                                                  
-!                  the assumption is that air of downdrafts is mixture           
-!                  of 50% cloud air + 50% environmental air at wet bulb          
-!                  temperature (i.e. which became saturated due to               
-!                  evaporation of rain and cloud water)                          
-!                  ----------------------------------------------------          
-!$acc parallel vector_length(128)
-!$acc loop seq
-      do jk=3,klev-2
-!$acc loop gang vector private(zhsk)
-         do jl=1,klon
-           zhsk=cpd*pten(jl,jk)+pgeo(jl,jk) +  &
-     &         foelhm(pten(jl,jk))*pqsen(jl,jk)
+        !                  the assumption is that air of downdrafts is mixture           
+        !                  of 50% cloud air + 50% environmental air at wet bulb          
+        !                  temperature (i.e. which became saturated due to               
+        !                  evaporation of rain and cloud water)                          
+        !                  ----------------------------------------------------          
+        !$acc parallel vector_length(128)
+        !$acc loop seq
+              do jk=3,klev-2
+        !$acc loop gang vector private(zhsk)
+                 do jl=1,klon
+                   zhsk=cpd*pten(jl,jk)+pgeo(jl,jk) +  &
+                   &         foelhm(pten(jl,jk))*pqsen(jl,jk)
            if(zhsk .lt. zhsmin(jl)) then
               zhsmin(jl) = zhsk
               ikhsmin(jl)= jk
            end if
          end do
-      end do
-!$acc end parallel
+            end do
+        !$acc end parallel
+
 
       ike=klev-3                                                                 
       do jk=3,ike                                                                
@@ -3544,10 +3563,10 @@ contains
       real     zentr,zdz,zzentr,zseen,zqeen,zsdde,zqdde,zdmfdp
       real     zmfdsk,zmfdqk,zbuo,zrain,zbuoyz,zmfduk,zmfdvk
       real     zqsat,zcor,zqp,zcond0,zcond1
-
-
-
-!$acc data create(zdmfen,zdmfde,zcond,zoentr,zbuoy,zph,llo2,itopde)
+      
+!$acc data present(lddraf,ptenh,pqenh,puen,pven,pgeo,pgeoh,paph,prfl, &
+!$acc              ptd,pqd,pud,pvd,pmfu,pmfd,pmfds,pmfdq,pdmfdp,pmfdde_rate) &
+!$acc      create(zdmfen,zdmfde,zcond,zoentr,zbuoy,zph,llo2,itopde)
 !----------------------------------------------------------------------   
 !     1.           calculate moist descent for cumulus downdraft by       
 !                     (a) calculating entrainment/detrainment rates,      
@@ -3838,11 +3857,11 @@ contains
       real     rhevap(klon)
       integer  idbas(klon)
       logical  llddraf
-
-
-
-
-!$acc data create(rhevap,idbas)
+!$acc data present(pten,pqen,pqsen,ptenh,pqenh,paph,pap,pgeoh,lndj,ldcum, &
+!$acc              kcbot,kctop,kdtop,ktype,lddraf,pmfu,pmfd,pmfus,pmfds, &
+!$acc              pmfuq,pmfdq,pmful,plude,pdmfup,pdmfdp,pdpmel,plglac, &
+!$acc              prain,pmfdde_rate,pmflxr,pmflxs) &
+!$acc      create(rhevap,idbas)
 !--------------------------------------------------------------------          
 !*             specify constants  
 
@@ -4106,9 +4125,10 @@ contains
     real     zalv , zzp
     real     zdtdt(klon,klev) , zdqdt(klon,klev) , zdp(klon,klev)
 
-
-
-!$acc data create(zdtdt,zdqdt,zdp)
+!$acc data present(kctop,kdtop,ldcum,lddraf,paph,pgeoh,pgeo,pten,ptenh,pqen,  &
+!$acc              pqenh,pqsen,plglac,plude,pmfu,pmfd,pmfus,pmfds,pmfuq,pmfdq, &
+!$acc              pmful,pdmfup,pdmfdp,pdpmel,ptent,ptenq,pcte) &
+!$acc      create(zdtdt,zdqdt,zdp)
     !*    1.0          SETUP AND INITIALIZATIONS
     ! -------------------------
 !$acc parallel vector_length(128)
@@ -4206,8 +4226,9 @@ contains
    
     real     zdudt(klon,klev), zdvdt(klon,klev), zdp(klon,klev)
 
-
-!$acc data create(zuen,zven,zmfuu,zmfdu,zmfuv,zmfdv,zdudt,zdvdt,zdp)
+!$acc data present(ktype,kcbot,kctop,ldcum,paph,puen,pven,pmfu,pmfd,puu, &
+!$acc              pud,pvu,pvd,ptenu,ptenv) &
+!$acc      create(zuen,zven,zmfuu,zmfdu,zmfuv,zmfdv,zdudt,zdvdt,zdp)
 !
 !$acc parallel vector_length(128)
 !$acc loop gang vector collapse(2)

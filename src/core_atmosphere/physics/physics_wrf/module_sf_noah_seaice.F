@@ -742,7 +742,7 @@ CONTAINS
 ! ----------------------------------------------------------------------
 ! SEA-ICE LAYERS ARE EQUAL THICKNESS AND SUM TO <SITHICK> METERS
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector
       DO I = ITS,ITE
          IF ( XICE(I) >= XICE_THRESHOLD ) THEN

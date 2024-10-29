@@ -698,7 +698,7 @@
  enddo
 !$acc end parallel
 
-!$acc parallel vector_length(2)
+!$acc parallel
 !$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite

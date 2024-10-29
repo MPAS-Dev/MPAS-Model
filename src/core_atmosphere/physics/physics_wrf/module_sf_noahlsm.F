@@ -1264,7 +1264,7 @@ CONTAINS
 !$acc             LAIMIN,LAIMAX,ALBEDOMIN,ALBEDOMAX,EMISSMIN,EMISSMAX,   &
 !$acc             Z0MIN,Z0MAX,SNEQVTMP)
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1300,7 +1300,7 @@ ENDDO
 ! SOIL-TYPE AND VEG-TYPE DEPENDENT PARAMETERS.
 ! ----------------------------------------------------------------------
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1319,7 +1319,7 @@ ENDDO
 !$acc end parallel
 
 !urban
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1398,7 +1398,7 @@ ENDDO
 !   SNOW THERMAL CONDUCTIVITY "SNCOND" (NOTE THAT CSNOW IS A FUNCTION
 !   SUBROUTINE)
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1425,7 +1425,7 @@ ENDDO
 ! IF IT'S PRCPING AND THE AIR TEMP IS WARMER THAN 0 C, BUT THE GRND
 ! TEMP IS COLDER THAN 0 C, FREEZING RAIN IS PRESUMED TO BE FALLING.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1450,7 +1450,7 @@ ENDDO
 ! NOTE THAT SINCE ALL PRECIP IS ADDED TO SNOWPACK, NO PRECIP INFILTRATES
 ! INTO THE SOIL SO THAT PRCP1 IS SET TO ZERO.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1485,7 +1485,7 @@ ENDDO
 ! ----------------------------------------------------------------------
 ! IF SNOW DEPTH=0, SET SNOW FRACTION=0, ALBEDO=SNOW FREE ALBEDO.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1548,7 +1548,7 @@ ENDDO
 ! OVERLYING GREEN CANOPY, ADAPTED FROM SECTION 2.1.2 OF
 ! PETERS-LIDARD ET AL. (1997, JGR, VOL 102(D4))
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1560,7 +1560,7 @@ ENDDO
 !$acc end parallel
 
 !urban
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1619,7 +1619,7 @@ ENDDO
 ! DETERMINE SURFACE ROUGHNESS OVER SNOWPACK USING SNOW CONDITION FROM
 ! THE PREVIOUS TIMESTEP.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1674,7 +1674,7 @@ ENDDO
 ! PENMAN EP SUBROUTINE THAT FOLLOWS
 ! ----------------------------------------------------------------------
 !         FDOWN(I) = SOLDN(I) * (1.0- ALBEDO(I)) + LWDN(I)
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1702,7 +1702,7 @@ ENDDO
         'ALBEDO',ALBEDO(I),'SMC',SMC(1:NSOIL,I),'STC',STC(1:NSOIL,I),'SH2O',SH2O(1:NSOIL,I)
          endif
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector 
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1817,7 +1817,7 @@ CALL NOPAC_gpu (ETP,ETA,PRCP,SMC,SMCMAX,SMCWLT,                  &
 !!!ENDDO
 !!!!$acc end parallel
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   SNEQVTMP(I) = SNEQV(I)
@@ -1842,7 +1842,7 @@ CALL SNOPAC_gpu (ETP,ETA,PRCP,PRCPF,SNOWNG,SMC,SMCMAX,SMCWLT,    &
                 ,QFX_PHY,FASDAS,HCPCT_FASDAS,                    &
                  its,ite,ETA_KINEMATIC,XLAND,ICE,SNEQVTMP) !fasdas
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -2388,7 +2388,7 @@ ENDDO
       REAL, PARAMETER     :: SLV = 2.501000E6
 
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(FF,GX,RR,DELTA,PART)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -2981,7 +2981,7 @@ ENDDO
 
       REAL, DIMENSION(its:ite), INTENT(INOUT) :: SFHEAD1RT,ETPND1
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(CMC2MS)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -3104,7 +3104,7 @@ ENDDO
 
       REAL, DIMENSION(its:ite), INTENT(INOUT) :: SFHEAD1RT,ETPND1
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(CMC2MS)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -3831,7 +3831,7 @@ ENDDO
 ! END FASDAS
 !
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(CSOIL_LOC,ITAVG,HCPCT,DDZ,DTSDZ,SSOIL,DENOM,&
 !$acc                          QTOT,SICE,TSURF,TBK,TAVG,TSNSR,DDZ2,DF1K,DF1N,&
 !$acc                          DTSDZ2,TBK1)
@@ -4112,7 +4112,7 @@ ENDDO
 ! END FASDAS
 !
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(CSOIL_LOC,ITAVG,HCPCT,DDZ,DTSDZ,SSOIL,DENOM,&
 !$acc                          QTOT,SICE,TSURF,TBK,TAVG,TSNSR,DDZ2,DF1K,DF1N,&
 !$acc                          DTSDZ2,TBK1)
@@ -4474,7 +4474,7 @@ ENDDO
       REAL, DIMENSION(1:NSOIL) :: CIIN
       REAL                 :: DT
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(RHSTSIN,CIIN)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -4570,7 +4570,7 @@ ENDDO
       REAL, DIMENSION(1:NSOIL) :: CIIN
       REAL                 :: DT
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(RHSTSIN,CIIN)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -5019,7 +5019,7 @@ ENDDO
 !$acc              ETA_KINEMATIC,XLAND,ICE,SNEQV) &
 !$acc      create(ET1,EC1,EDIR1,ETT1,ETP1,PRCP1,WETTY,ETA1,DF1,YY,ZZ1)
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -5098,7 +5098,7 @@ CALL EVAPO_gpu1 (ETA1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,                  &
 !
 ! FASDAS
 !
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(EALL_NOW,EFDIR,EFC,EFT)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -5182,7 +5182,7 @@ CALL SMFLX_gpu1 (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                      &
                   EDIR1,EC1,ET1,                                    &
                   DRIP,SFHEAD1RT,INFXS1RT,its,ite,XLAND,ICE,SNEQV,ETP)
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(EALL_NOW,EFDIR,EFC,EFT)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -5273,7 +5273,7 @@ CALL SMFLX_gpu2 (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                      &
 ! ----------------------------------------------------------------------
 ! BASED ON ETP AND E VALUES, DETERMINE BETA
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector 
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -5309,7 +5309,7 @@ ENDDO
 ! CALL SHFLX TO COMPUTE/UPDATE SOIL HEAT FLUX AND SOIL TEMPS.
 ! ----------------------------------------------------------------------
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -5322,7 +5322,7 @@ DO I=its,ite
 ENDDO
 !$acc end parallel
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(YYNUM)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -5375,7 +5375,7 @@ CALL SHFLX_gpu1 (SSOIL,STC,SMC,SMCMAX,NSOIL,T1,DT,YY,ZZ1,ZSOIL,       &
                  QUARTZ,CSOIL,VEGTYP,ISURBAN,SOILTYP,OPT_THCND        &
                 ,HCPCT_FASDAS,its,ite,XLAND,ICE,SNEQV)
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -6367,7 +6367,7 @@ CALL HRT_gpu1 (RHSTS,STC,SMC,SMCMAX,NSOIL,ZSOIL,YY,ZZ1,TBOT,     &
 !!!!$acc end parallel
 CALL HSTEP_gpu1 (STCF,STC,RHSTS,DT,NSOIL,AI,BI,CI,its,ite,XLAND,ICE,SNEQV)
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -6711,7 +6711,7 @@ ENDDO
 ! ----------------------------------------------------------------------
 ! EXECUTABLE CODE BEGINS HERE.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(DUMMY,RHSCT,TRHSCT,EXCESS,PCPDRP,SICE,FAC2, &
 !$acc                          FLIMIT,RHSTT,AI,BI,CI,SH2OFG,SH2OA,SH2OFG)
 DO I=its,ite
@@ -6871,7 +6871,7 @@ ENDDO
 ! ----------------------------------------------------------------------
 ! EXECUTABLE CODE BEGINS HERE.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(DUMMY,RHSCT,TRHSCT,EXCESS,PCPDRP,SICE,FAC2, &
 !$acc                          FLIMIT,RHSTT,AI,BI,CI,SH2OFG,SH2OA,SH2OFG)
 DO I=its,ite
@@ -7031,7 +7031,7 @@ ENDDO
 ! ----------------------------------------------------------------------
 ! EXECUTABLE CODE BEGINS HERE.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(DUMMY,RHSCT,TRHSCT,EXCESS,PCPDRP,SICE,FAC2, &
 !$acc                          FLIMIT,RHSTT,AI,BI,CI,SH2OFG,SH2OA,SH2OFG)
 DO I=its,ite
@@ -8056,7 +8056,7 @@ ENDDO
 !$acc      create(EDIR1,EC1,ET1,ETT1,ETNS1,ESNOW1,ESNOW2,PRCP1,ETP1,    &
 !$acc             ETANRG,SSOIL1,T11,YY,ZZ1)
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(ETP1N)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -8162,7 +8162,7 @@ CALL EVAPO_gpu2 (ETNS1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,           &
                   EDIR1,EC1,ET1,ETT1,SFCTMP,Q2,NROOT,RTDIS,   &
                   FXEXP,SFHEAD1RT,ETPND1,its,ite,XLAND,ICE,SNEQV,ETP,SNCOVR)
 ! ----------------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(DENOM,DSOIL,DTOT,   &
 !$acc                          ETP3, EX,   &
 !$acc                          SEH,   &
@@ -8419,7 +8419,7 @@ CALL SMFLX_gpu3 (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                      &
 ! SNOW TOP SURFACE.  T11 IS A DUMMY ARGUEMENT SO WE WILL NOT USE THE
 ! SKIN TEMP VALUE AS REVISED BY SHFLX.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -8465,7 +8465,7 @@ CALL SHFLX_gpu2 (SSOIL1,STC,SMC,SMCMAX,NSOIL,T11,DT,YY,ZZ1,ZSOIL,     &
 ! SNOW DEPTH AND DENSITY ADJUSTMENT BASED ON SNOW COMPACTION.  YY IS
 ! ASSUMED TO BE THE SOIL TEMPERTURE AT THE TOP OF THE SOIL COLUMN.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -8481,7 +8481,7 @@ DO I=its,ite
 ENDDO
 !$acc end parallel
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(SNCOND)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN

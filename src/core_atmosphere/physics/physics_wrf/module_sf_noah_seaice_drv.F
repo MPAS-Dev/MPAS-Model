@@ -664,7 +664,7 @@ contains
     NSOIL  = NUM_SOIL_LAYERS
     TBOT = 271.36
 
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector collapse(2)
     SEAICE_JLOOP1 : do J = JTS, JTE
        SEAICE_ILOOP1 : do I = ITS, ITE
@@ -683,7 +683,7 @@ contains
     ENDDO SEAICE_JLOOP1
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector collapse(2)
     SEAICE_JLOOP21 : do J = JTS, JTE
        SEAICE_ILOOP21 : do I = ITS, ITE
@@ -966,7 +966,7 @@ contains
                   &           SNOMLT, SNCOVR,                                  &    !O
                   &           RUNOFF1, Q1, RIBB)
 
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector collapse(2)
     SEAICE_JLOOP4 : do J = JTS, JTE
        SEAICE_ILOOP4 : do I = ITS, ITE

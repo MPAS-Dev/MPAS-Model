@@ -607,7 +607,7 @@ CONTAINS
 !$acc             T2V,RHO,RCH,T24,RR,ZSOIL,FRZGRA,SNOWNG)
 ! ----------------------------------------------------------------------
 
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN

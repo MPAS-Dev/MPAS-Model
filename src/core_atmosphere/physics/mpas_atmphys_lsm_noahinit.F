@@ -475,8 +475,8 @@
 !call mpas_log_write(' IINDEX =$i',intArgs=(/iindex/))
 !call mpas_log_write('')
 !do lc = 1, slcats
-!   call mpas_log_write('$i $r $r $r $r $r $r $r $r $r $r', intArgs=(/lc/), &
-!                realArgs=(/bb(lc),drysmc(lc),f11(lc),maxsmc(lc),refsmc(lc),satpsi(lc), &
+!   call mpas_log_write('$i $r $r $r $r $r $r $r $r $r $r $r', intArgs=(/lc/), &
+!                realArgs=(/bb(lc),drysmc(lc),hc(lc),f11(lc),maxsmc(lc),refsmc(lc),satpsi(lc), &
 !                satdk(lc),satdw(lc),wltsmc(lc),qtz(lc)/))
 !enddo
  call mpas_log_write('    end read SOILPARM.TBL')
