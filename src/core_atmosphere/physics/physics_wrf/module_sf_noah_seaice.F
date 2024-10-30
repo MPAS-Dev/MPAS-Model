@@ -9,7 +9,8 @@ use module_wrf_error
 #define FATAL_ERROR(M) call wrf_error_fatal( M )
 #endif
   use module_sf_noahlsm, only : RD, SIGMA, CPH2O, CPICE, LSUBF, EMISSI_S, &
-       &                        HSTEP, HSTEP_gpu
+       &                        HSTEP, HSTEP_gpu, HSTEP_gpu_seaice
+  use mpas_timer, only : mpas_timer_start, mpas_timer_stop
 
   PUBLIC  SFLX_SEAICE
   PUBLIC  SFLX_SEAICE_gpu
@@ -1012,47 +1013,71 @@ CONTAINS
                                ! the results.  So I'm hard-coding the PENMAN
                                ! value here, but perhaps this should go back
                                ! into PENMAN for now.
-!!!         ENDIF
-!!!      ENDDO
-!!!!$acc end parallel
+         ENDIF
+      ENDDO
+!$acc end parallel
 
 ! ----------------------------------------------------------------------
 ! CALL PENMAN SUBROUTINE TO CALCULATE POTENTIAL EVAPORATION (ETP), AND
 ! OTHER PARTIAL PRODUCTS AND SUMS FOR LATER CALCULATIONS.
 ! ----------------------------------------------------------------------
-!!!!$acc parallel vector_length(32)
-!!!!$acc loop gang vector 
-!!!      DO I = ITS,ITE
-!!!         IF ( XICE(I) >= XICE_THRESHOLD ) THEN
+!$acc parallel
+!$acc loop gang vector 
+      DO I = ITS,ITE
+         IF ( XICE(I) >= XICE_THRESHOLD ) THEN
             CALL PENMAN_gpu (SFCTMP(I),SFCPRS(I),CH(I),TH2(I),PRCP(I),FDOWN(I),T24(I),SSOIL(I),     &
                  Q2(I),Q2SAT(I),ETP(I),RCH(I),RR(I),SNOWNG(I),FRZGRA(I),                     &
                  DQSDT2(I),FLX2(I),EMISSI(I),T1(I))
-!!!         ENDIF
-!!!      ENDDO
-!!!!$acc end parallel
+         ENDIF
+      ENDDO
+!$acc end parallel
 
-!!!!$acc parallel vector_length(32)
-!!!!$acc loop gang vector
-!!!      DO I = ITS,ITE
-!!!         IF ( XICE(I) >= XICE_THRESHOLD ) THEN
+!NV!!$acc parallel vector_length(32)
+!NV!!$acc loop gang vector
+!NV!      DO I = ITS,ITE
+!NV!         IF ( XICE(I) >= XICE_THRESHOLD ) THEN
+!NV!            ESNOW(I) = 0.0
+!NV!            CALL SNOPAC_gpu (ETP(I),ETA(I),PRCP(I),SNOWNG(I),                    &
+!NV!                 NSOIL,DT,DF1(I),                                   &
+!NV!                 Q2(I),T1(I),SFCTMP(I),T24(I),TH2(I),FDOWN(I),SSOIL(I),STC(1:NSOIL,I),           &
+!NV!                 SFCPRS(I),RCH(I),RR(I),SNCOVR(I),SNEQV(I),SNDENS(I),              &
+!NV!                 SNOWH(I),ZSOIL(1:NSOIL,I),TBOT,                               &
+!NV!                 SNOMLT(I),DEW(I),FLX1(I),FLX2(I),FLX3(I),ESNOW(I),EMISSI(I),RIBB(I),    &
+!NV!                 SEAICE_ALBEDO_OPT,XICE,XICE_THRESHOLD,ITS,ITE)
+!NV!!     ETA_KINEMATIC(I) =  ESNOW(I)
+!NV!            ETA_KINEMATIC(I) =  ETP(I)
+!NV!         ENDIF
+!NV!      ENDDO
+!NV!!$acc end parallel
+
+!$acc parallel
+!$acc loop gang vector
+      DO I = ITS,ITE
+         IF ( XICE(I) >= XICE_THRESHOLD ) THEN
             ESNOW(I) = 0.0
-            CALL SNOPAC_gpu (ETP(I),ETA(I),PRCP(I),SNOWNG(I),                    &
-                 NSOIL,DT,DF1(I),                                   &
-                 Q2(I),T1(I),SFCTMP(I),T24(I),TH2(I),FDOWN(I),SSOIL(I),STC(1:NSOIL,I),           &
-                 SFCPRS(I),RCH(I),RR(I),SNCOVR(I),SNEQV(I),SNDENS(I),              &
-                 SNOWH(I),ZSOIL(1:NSOIL,I),TBOT,                               &
-                 SNOMLT(I),DEW(I),FLX1(I),FLX2(I),FLX3(I),ESNOW(I),EMISSI(I),RIBB(I),    &
-                 SEAICE_ALBEDO_OPT)
-!     ETA_KINEMATIC(I) =  ESNOW(I)
+         ENDIF
+      ENDDO
+!$acc end parallel
+            CALL SNOPAC_gpu1 (ETP,ETA,PRCP,SNOWNG,                    &
+                 NSOIL,DT,DF1,                                   &
+                 Q2,T1,SFCTMP,T24,TH2,FDOWN,SSOIL,STC,           &
+                 SFCPRS,RCH,RR,SNCOVR,SNEQV,SNDENS,              &
+                 SNOWH,ZSOIL,TBOT,                               &
+                 SNOMLT,DEW,FLX1,FLX2,FLX3,ESNOW,EMISSI,RIBB,    &
+                 SEAICE_ALBEDO_OPT,XICE,XICE_THRESHOLD,ITS,ITE)
+!$acc parallel
+!$acc loop gang vector
+      DO I = ITS,ITE
+         IF ( XICE(I) >= XICE_THRESHOLD ) THEN
             ETA_KINEMATIC(I) =  ETP(I)
-!!!         ENDIF
-!!!      ENDDO
-!!!!$acc end parallel
+         ENDIF
+      ENDDO
+!$acc end parallel
 
-!!!!$acc parallel vector_length(32)
-!!!!$acc loop gang vector
-!!!      DO I = ITS,ITE
-!!!         IF ( XICE(I) >= XICE_THRESHOLD ) THEN
+!$acc parallel
+!$acc loop gang vector
+      DO I = ITS,ITE
+         IF ( XICE(I) >= XICE_THRESHOLD ) THEN
             IF ( SEAICE_SNOWDEPTH_OPT == 0 ) THEN
 
           !
@@ -1655,6 +1680,64 @@ CONTAINS
 
 ! ----------------------------------------------------------------------
   END SUBROUTINE SHFLX_gpu
+
+!NV!       (STC(1:NSOIL,I),NSOIL,DT,YY(I),ZZ1(I),ZSOIL(1:NSOIL,I),TBOT,DF1(I))
+  SUBROUTINE SHFLX_gpu1 (STC,NSOIL,DT,YY,ZZ1,ZSOIL,TBOT,DF1,XICE,XICE_THRESHOLD,ITS,ITE)
+! ----------------------------------------------------------------------
+! UPDATE THE TEMPERATURE STATE OF THE SOIL COLUMN BASED ON THE THERMAL
+! DIFFUSION EQUATION.
+! ----------------------------------------------------------------------
+      IMPLICIT NONE
+
+      INTEGER,                  INTENT(IN)    :: NSOIL,its,ite
+      REAL,                     INTENT(IN)    :: DT,TBOT,XICE_THRESHOLD
+      REAL, DIMENSION(its:ite), INTENT(IN)    :: YY,ZZ1,DF1,XICE
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN)    :: ZSOIL
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT) :: STC
+      REAL, DIMENSION(1:NSOIL,its:ite)                :: AI, BI, CI, STCF,RHSTS
+      INTEGER                                 :: I,K
+      REAL, PARAMETER                         :: T0 = 273.15
+
+!$acc data present(STC,YY,ZZ1,DF1,ZSOIL) create(AI, BI, CI, STCF,RHSTS)
+
+!$acc parallel
+!$acc loop gang vector
+      DO I = ITS,ITE
+         IF ( XICE(I) >= XICE_THRESHOLD ) THEN
+! ----------------------------------------------------------------------
+! HRTICE ROUTINE CALCS THE RIGHT HAND SIDE OF THE SOIL TEMP DIF EQN
+! ----------------------------------------------------------------------
+
+      CALL HRTICE_gpu (RHSTS(1:NSOIL,I),STC(1:NSOIL,I),TBOT,NSOIL,ZSOIL(1:NSOIL,I),YY(I),ZZ1(I),DF1(I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I))
+         ENDIF
+      ENDDO
+!$acc end parallel
+
+!NV!!$acc parallel
+!NV!!$acc loop gang vector
+!NV!      DO I = ITS,ITE
+!NV!         IF ( XICE(I) >= XICE_THRESHOLD ) THEN
+!NV!      CALL HSTEP_gpu (STCF(1:NSOIL,I),STC(1:NSOIL,I),RHSTS(1:NSOIL,I),DT,NSOIL,AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I))
+!NV!         ENDIF
+!NV!      ENDDO
+!NV!!$acc end parallel
+      CALL HSTEP_gpu_seaice (STCF,STC,RHSTS,DT,NSOIL,AI,BI,CI,XICE,XICE_THRESHOLD,ITS,ITE)
+
+!$acc parallel
+!$acc loop gang vector
+      DO I = ITS,ITE
+         IF ( XICE(I) >= XICE_THRESHOLD ) THEN
+      DO K = 1,NSOIL
+         STC (K,I) = STCF (K,I)
+      END DO
+         ENDIF
+      ENDDO
+!$acc end parallel
+
+!$acc end data
+
+! ----------------------------------------------------------------------
+  END SUBROUTINE SHFLX_gpu1
 ! ----------------------------------------------------------------------
 
   SUBROUTINE SNOPAC (ETP,ETA,PRCP,SNOWNG,            &
@@ -2189,6 +2272,311 @@ CONTAINS
     END SELECT
 ! ----------------------------------------------------------------------
   END SUBROUTINE SNOPAC_gpu
+! ----------------------------------------------------------------------
+
+!NV!SNOPAC_gpu (ETP(I),ETA(I),PRCP(I),SNOWNG(I),                    &
+!NV!                 NSOIL,DT,DF1(I),                                   &
+!NV!                 Q2(I),T1(I),SFCTMP(I),T24(I),TH2(I),FDOWN(I),SSOIL(I),STC(1:NSOIL,I),           &
+!NV!                 SFCPRS(I),RCH(I),RR(I),SNCOVR(I),SNEQV(I),SNDENS(I),              &
+!NV!                 SNOWH(I),ZSOIL(1:NSOIL,I),TBOT,                               &
+!NV!                 SNOMLT(I),DEW(I),FLX1(I),FLX2(I),FLX3(I),ESNOW(I),EMISSI(I),RIBB(I),    &
+!NV!                 SEAICE_ALBEDO_OPT)
+  SUBROUTINE SNOPAC_gpu1 (ETP,ETA,PRCP,SNOWNG,            &
+       NSOIL,DT,DF1,                                 &
+       Q2,T1,SFCTMP,T24,TH2,FDOWN,SSOIL,STC,         &
+       SFCPRS,RCH,RR,SNCOVR,ESD,SNDENS,              &
+       SNOWH,ZSOIL,TBOT,                             &
+       SNOMLT,DEW,FLX1,FLX2,FLX3,ESNOW,EMISSI,       &
+       RIBB, SEAICE_ALBEDO_OPT,XICE,XICE_THRESHOLD,ITS,ITE)
+! ----------------------------------------------------------------------
+! SUBROUTINE SNOPAC
+! ----------------------------------------------------------------------
+! CALCULATE SOIL MOISTURE AND HEAT FLUX VALUES & UPDATE SOIL MOISTURE
+! CONTENT AND SOIL HEAT CONTENT VALUES FOR THE CASE WHEN A SNOW PACK IS
+! PRESENT.
+! ----------------------------------------------------------------------
+    IMPLICIT NONE
+
+    INTEGER, INTENT(IN)   :: NSOIL,ITS,ITE
+    INTEGER               :: K,I
+    LOGICAL, INTENT(IN), DIMENSION(its:ite)   :: SNOWNG
+    REAL, INTENT(IN)      :: DT,                                &
+         &                   TBOT,XICE_THRESHOLD
+    REAL, INTENT(IN), DIMENSION(its:ite) :: PRCP, DF1, Q2, SFCTMP, T24, &
+                             TH2,FDOWN,SFCPRS,RCH,RR,EMISSI,XICE
+    REAL, INTENT(INOUT), DIMENSION(its:ite)   :: ESD,FLX2,SNOWH,SNCOVR,                   &
+         &                   SNDENS, RIBB, ETP
+    REAL, INTENT(INOUT), DIMENSION(its:ite)   :: T1
+    REAL, INTENT(OUT), DIMENSION(its:ite)     :: DEW,ESNOW,                               &
+         &                   FLX1,FLX3,SNOMLT
+    REAL, INTENT(OUT), DIMENSION(its:ite) :: SSOIL
+    REAL, DIMENSION(1:NSOIL,its:ite),INTENT(IN)     :: ZSOIL
+    REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT) :: STC
+    REAL                  :: DENOM,DSOIL,DTOT,                    &
+         &                   ESNOW1, ESNOW2, ETA1,ETP1,ETP2,          &
+         &                   ETANRG, EX, SEH,                         &
+         &                   SNCOND,T12, T12A,                        &
+         &                   T12B, T14
+    REAL, DIMENSION(its:ite) :: YY,ZZ1
+    REAL, DIMENSION(its:ite) :: ETA
+    INTEGER, INTENT(IN)   :: SEAICE_ALBEDO_OPT
+    REAL, PARAMETER       :: ESDMIN = 1.E-6, LSUBC = 2.501000E+6,     &
+         LSUBS = 2.83E+6, SNOEXP = 2.0
+
+!$acc data present(SNOWNG,PRCP,DF1,Q2,SFCTMP,T24,TH2,FDOWN,SFCPRS,RCH,RR,EMISSI, &
+!$acc             XICE,ESD,FLX2,SNOWH,SNCOVR,SNDENS,RIBB,ETP,T1,DEW,ESNOW,FLX1, &
+!$acc             FLX3,SNOMLT,SSOIL,ZSOIL,STC,ETA) &
+!$acc      create(YY,ZZ1)
+
+!$acc parallel private(DENOM,DSOIL,DTOT,ESNOW1,ESNOW2)
+!$acc loop gang vector
+      DO I = ITS,ITE
+         IF ( XICE(I) >= XICE_THRESHOLD ) THEN
+! ----------------------------------------------------------------------
+! SNOWCOVER FRACTION = 1.0, AND SUBLIMATION IS AT THE POTENTIAL RATE.
+! ----------------------------------------------------------------------
+! INITIALIZE EVAP TERMS.
+! ----------------------------------------------------------------------
+! conversions:
+! ESNOW [KG M-2 S-1]
+! ESNOW1 [M S-1]
+! ESNOW2 [M]
+! ETP [KG M-2 S-1]
+! ETP1 [M S-1]
+! ETP2 [M]
+! ----------------------------------------------------------------------
+    DEW(I) = 0.
+    ESNOW(I) = 0.
+    ESNOW1 = 0.
+    ESNOW2 = 0.
+
+! ----------------------------------------------------------------------
+! CONVERT POTENTIAL EVAP (ETP) FROM KG M-2 S-1 TO ETP1 IN M S-1
+! ----------------------------------------------------------------------
+! ----------------------------------------------------------------------
+! IF ETP<0 (DOWNWARD) THEN DEWFALL (=FROSTFALL IN THIS CASE).
+! ----------------------------------------------------------------------
+    IF (ETP(I) <= 0.0) THEN
+       IF ( ( RIBB(I) >= 0.1 ) .AND. ( FDOWN(I) > 150.0 ) ) THEN
+          ETP(I)=(MIN(ETP(I)*(1.0-RIBB(I)),0.)*SNCOVR(I)/0.980 + ETP(I)*(0.980-SNCOVR(I)))/0.980
+       ENDIF
+       ETP1 = ETP(I) * 0.001
+       DEW(I) = -ETP1
+       ESNOW2 = ETP1*DT
+       ETANRG = ETP(I)*((1.-SNCOVR(I))*LSUBC + SNCOVR(I)*LSUBS)
+    ELSE
+       ETP1 = ETP(I) * 0.001
+       ESNOW(I)  = ETP(I)
+       ESNOW1 = ESNOW(I)*0.001
+       ESNOW2 = ESNOW1*DT
+       ETANRG = ESNOW(I)*LSUBS
+       ESNOW(I)  = ETP(I)*SNCOVR(I)
+       ESNOW1 = ESNOW(I)*0.001
+       ESNOW2 = ESNOW1*DT
+       ETANRG = ESNOW(I)*LSUBS
+    END IF
+
+! ----------------------------------------------------------------------
+! IF PRECIP IS FALLING, CALCULATE HEAT FLUX FROM SNOW SFC TO NEWLY
+! ACCUMULATING PRECIP.  NOTE THAT THIS REFLECTS THE FLUX APPROPRIATE FOR
+! THE NOT-YET-UPDATED SKIN TEMPERATURE (T1).  ASSUMES TEMPERATURE OF THE
+! SNOWFALL STRIKING THE GROUND IS =SFCTMP (LOWEST MODEL LEVEL AIR TEMP).
+! ----------------------------------------------------------------------
+    FLX1(I) = 0.0
+    IF (SNOWNG(I)) THEN
+       FLX1(I) = CPICE * PRCP(I) * (T1(I)- SFCTMP(I))
+    ELSE
+       IF (PRCP(I) >  0.0) FLX1(I) = CPH2O * PRCP(I) * (T1(I)- SFCTMP(I))
+! ----------------------------------------------------------------------
+! CALCULATE AN 'EFFECTIVE SNOW-GRND SFC TEMP' (T12) BASED ON HEAT FLUXES
+! BETWEEN THE SNOW PACK AND THE SOIL AND ON NET RADIATION.
+! INCLUDE FLX1 (PRECIP-SNOW SFC) AND FLX2 (FREEZING RAIN LATENT HEAT)
+! FLUXES.  FLX1 FROM ABOVE, FLX2 BROUGHT IN VIA COMMOM BLOCK RITE.
+! FLX2 REFLECTS FREEZING RAIN LATENT HEAT FLUX USING T1 CALCULATED IN
+! PENMAN.
+! ----------------------------------------------------------------------
+    END IF
+    DSOIL = - (0.5 * ZSOIL (1,I))
+    DTOT = SNOWH(I) + DSOIL
+    DENOM = 1.0+ DF1(I) / (DTOT * RR(I) * RCH(I))
+! surface emissivity weighted by snow cover fraction
+!      T12A = ( (FDOWN - FLX1 - FLX2 -                                   &
+!     &       ((SNCOVR*EMISSI_S)+EMISSI*(1.0-SNCOVR))*SIGMA *T24)/RCH    &
+!     &       + TH2 - SFCTMP - ETANRG/RCH ) / RR
+    T12A = ( (FDOWN(I) - FLX1(I) - FLX2(I) - EMISSI(I) * SIGMA * T24(I))/ RCH(I)                    &
+         + TH2(I) - SFCTMP(I) - ETANRG / RCH(I) ) / RR(I)
+
+    T12B = DF1(I) * STC (1,I) / (DTOT * RR(I) * RCH(I))
+
+! ----------------------------------------------------------------------
+! IF THE 'EFFECTIVE SNOW-GRND SFC TEMP' IS AT OR BELOW FREEZING, NO SNOW
+! MELT WILL OCCUR.  SET THE SKIN TEMP TO THIS EFFECTIVE TEMP.  REDUCE
+! (BY SUBLIMINATION ) OR INCREASE (BY FROST) THE DEPTH OF THE SNOWPACK,
+! DEPENDING ON SIGN OF ETP.
+! UPDATE SOIL HEAT FLUX (SSOIL) USING NEW SKIN TEMPERATURE (T1)
+! SINCE NO SNOWMELT, SET ACCUMULATED SNOWMELT TO ZERO, SET 'EFFECTIVE'
+! PRECIP FROM SNOWMELT TO ZERO, SET PHASE-CHANGE HEAT FLUX FROM SNOWMELT
+! TO ZERO.
+! ----------------------------------------------------------------------
+! SUB-FREEZING BLOCK
+! ----------------------------------------------------------------------
+    T12 = (SFCTMP(I) + T12A + T12B) / DENOM
+    IF (T12 <=  TFREEZ) THEN
+       T1(I) = T12
+       SSOIL(I) = DF1(I) * (T1(I)- STC (1,I)) / DTOT
+!        ESD = MAX (0.0, ESD- ETP2)
+       ESD(I) = MAX(0.0, ESD(I)-ESNOW2)
+       FLX3(I) = 0.0
+       EX = 0.0
+
+       SNOMLT(I) = 0.0
+! ----------------------------------------------------------------------
+! IF THE 'EFFECTIVE SNOW-GRND SFC TEMP' IS ABOVE FREEZING, SNOW MELT
+! WILL OCCUR.  CALL THE SNOW MELT RATE,EX AND AMT, SNOMLT.  REVISE THE
+! EFFECTIVE SNOW DEPTH.  REVISE THE SKIN TEMP BECAUSE IT WOULD HAVE CHGD
+! DUE TO THE LATENT HEAT RELEASED BY THE MELTING. CALC THE LATENT HEAT
+! RELEASED, FLX3.  ADJUSTMENT TO T1 TO ACCOUNT FOR SNOW PATCHES.
+! CALCULATE QSAT VALID AT FREEZING POINT.  NOTE THAT ESAT (SATURATION
+! VAPOR PRESSURE) VALUE OF 6.11E+2 USED HERE IS THAT VALID AT FRZZING
+! POINT.  NOTE THAT ETP FROM CALL PENMAN IN SFLX IS IGNORED HERE IN
+! FAVOR OF BULK ETP OVER 'OPEN WATER' AT FREEZING TEMP.
+! UPDATE SOIL HEAT FLUX (S) USING NEW SKIN TEMPERATURE (T1)
+! ----------------------------------------------------------------------
+! ABOVE FREEZING BLOCK
+! ----------------------------------------------------------------------
+    ELSE
+       T1(I) = TFREEZ
+       SSOIL(I) = DF1(I) * (T1(I)- STC (1,I)) / DTOT
+
+! ----------------------------------------------------------------------
+! IF POTENTIAL EVAP (SUBLIMATION) GREATER THAN DEPTH OF SNOWPACK.
+! SNOWPACK HAS SUBLIMATED AWAY, SET DEPTH TO ZERO.
+! ----------------------------------------------------------------------
+
+       IF (ESD(I)-ESNOW2 <= ESDMIN) THEN
+          ESD(I) = 0.0
+          EX = 0.0
+          SNOMLT(I) = 0.0
+          FLX3(I) = 0.0
+! ----------------------------------------------------------------------
+! SUBLIMATION LESS THAN DEPTH OF SNOWPACK
+! SNOWPACK (ESD) REDUCED BY ESNOW2 (DEPTH OF SUBLIMATED SNOW)
+! ----------------------------------------------------------------------
+       ELSE
+          ESD(I) = ESD(I)-ESNOW2
+          SEH = RCH(I) * (T1(I)- TH2(I))
+          T14 = ( T1(I) * T1(I) ) * ( T1(I) * T1(I) )
+          FLX3(I) = FDOWN(I) - FLX1(I)- FLX2(I)- EMISSI(I)*SIGMA * T14- SSOIL(I) - SEH - ETANRG
+          IF (FLX3(I) <= 0.0) FLX3(I) = 0.0
+! ----------------------------------------------------------------------
+! SNOWMELT REDUCTION DEPENDING ON SNOW COVER
+! ----------------------------------------------------------------------
+          EX = FLX3(I)*0.001/ LSUBF
+
+! ----------------------------------------------------------------------
+! ESDMIN REPRESENTS A SNOWPACK DEPTH THRESHOLD VALUE BELOW WHICH WE
+! CHOOSE NOT TO RETAIN ANY SNOWPACK, AND INSTEAD INCLUDE IT IN SNOWMELT.
+! ----------------------------------------------------------------------
+          SNOMLT(I) = EX * DT
+          IF (ESD(I)- SNOMLT(I) >=  ESDMIN) THEN
+             ESD(I) = ESD(I)- SNOMLT(I)
+          ELSE
+             !
+             ! SNOWMELT EXCEEDS SNOW DEPTH
+             !
+             EX = ESD(I) / DT
+             FLX3(I) = EX *1000.0* LSUBF
+             SNOMLT(I) = ESD(I)
+
+             ESD(I) = 0.0
+          ENDIF
+       ENDIF
+
+! ----------------------------------------------------------------------
+! END OF 'T12 .LE. TFREEZ' IF-BLOCK
+! ----------------------------------------------------------------------
+
+    ENDIF
+
+! ----------------------------------------------------------------------
+! FOR SEA-ICE, THE SNOWMELT WILL BE ADDED TO SUBSURFACE
+! RUNOFF/BASEFLOW LATER NEAR THE END OF SFLX (AFTER RETURN FROM CALL TO
+! SUBROUTINE SNOPAC)
+! ----------------------------------------------------------------------
+! ----------------------------------------------------------------------
+! SET THE EFFECTIVE POTNL EVAPOTRANSP (ETP1) TO ZERO SINCE THIS IS SNOW
+! CASE, SO SURFACE EVAP NOT CALCULATED FROM EDIR IN SMFLX (BELOW).
+! IF SEAICE (ICE==1) SKIP CALL TO SMFLX, SINCE NO SOIL MEDIUM FOR SEA-ICE
+! ----------------------------------------------------------------------
+! ----------------------------------------------------------------------
+! BEFORE CALL SHFLX IN THIS SNOWPACK CASE, SET ZZ1 AND YY ARGUMENTS TO
+! SPECIAL VALUES THAT ENSURE THAT GROUND HEAT FLUX CALCULATED IN SHFLX
+! MATCHES THAT ALREADY COMPUTED FOR BELOW THE SNOWPACK, THUS THE SFC
+! HEAT FLUX TO BE COMPUTED IN SHFLX WILL EFFECTIVELY BE THE FLUX AT THE
+! SNOW TOP SURFACE.
+! ----------------------------------------------------------------------
+
+    ZZ1(I) = 1.0
+    YY(I) = STC (1,I) -0.5* SSOIL(I) * ZSOIL (1,I)* ZZ1(I)/ DF1(I)
+         ENDIF
+      ENDDO
+!$acc end parallel
+
+!NV!!$acc parallel
+!NV!!$acc loop gang vector
+!NV!      DO I = ITS,ITE
+!NV!         IF ( XICE(I) >= XICE_THRESHOLD ) THEN
+!NV!! ----------------------------------------------------------------------
+!NV!! SHFLX WILL CALC/UPDATE THE ICE TEMPS.
+!NV!! ----------------------------------------------------------------------
+
+!NV!    CALL SHFLX_gpu (STC(1:NSOIL,I),NSOIL,DT,YY(I),ZZ1(I),ZSOIL(1:NSOIL,I),TBOT,DF1(I))
+!NV!         ENDIF
+!NV!      ENDDO
+!NV!!$acc end parallel
+
+CALL SHFLX_gpu1 (STC,NSOIL,DT,YY,ZZ1,ZSOIL,TBOT,DF1,XICE,XICE_THRESHOLD,ITS,ITE)
+
+
+!$acc parallel
+!$acc loop gang vector
+      DO I = ITS,ITE
+         IF ( XICE(I) >= XICE_THRESHOLD ) THEN
+! ----------------------------------------------------------------------
+! SNOW DEPTH AND DENSITY ADJUSTMENT BASED ON SNOW COMPACTION.  YY IS
+! ASSUMED TO BE THE SOIL TEMPERTURE AT THE TOP OF THE SOIL COLUMN.
+! ----------------------------------------------------------------------
+    SELECT CASE ( SEAICE_ALBEDO_OPT )
+
+    CASE DEFAULT
+
+       IF (ESD(I) .GE. 0.01) THEN
+          CALL SNOWPACK_gpu (ESD(I),DT,SNOWH(I),SNDENS(I),T1(I),YY(I))
+       ELSE
+          ESD(I) = 0.01
+          SNOWH(I) = 0.05
+!KWM???? SNDENS =
+!KWM???? SNCOND =
+          SNCOVR(I) = 1.0
+       ENDIF
+
+    CASE ( 1 ) ! Arctic sea-ice albedo from Mills (2011)
+
+       IF ( ESD(I) >= 0.0001 ) THEN
+          CALL SNOWPACK_gpu (ESD(I),DT,SNOWH(I),SNDENS(I),T1(I),YY(I))
+       ELSE
+          ESD(I)    = 0.0001
+          SNOWH(I)  = 0.0005
+          SNCOVR(I) = 0.005
+       ENDIF
+
+    END SELECT
+         ENDIF
+      ENDDO
+!$acc end parallel
+!$acc end data
+! ----------------------------------------------------------------------
+  END SUBROUTINE SNOPAC_gpu1
 ! ----------------------------------------------------------------------
 
       SUBROUTINE SNOWPACK (ESD,DTSEC,SNOWH,SNDENS,TSNOW,TSOIL)
