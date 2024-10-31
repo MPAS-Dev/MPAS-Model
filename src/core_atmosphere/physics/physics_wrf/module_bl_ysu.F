@@ -1505,10 +1505,10 @@ contains
 !
 !     compute tridiagonal matrix elements for momentum
 !
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector collapse(2)
-   do i = its,ite
      do k = kts,kte
+   do i = its,ite
        au(i,k) = 0.
        al(i,k) = 0.
        ad(i,k) = 0.
@@ -1520,10 +1520,10 @@ contains
 !
 ! paj: ctopo=1 if topo_wind=0 (default)
 !raquel---paj tke code (could be replaced with shin-hong tke in future
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector collapse(2) private(zk,rlamdz)
-   do i = its,ite
       do k= kts, kte-1
+   do i = its,ite
         shear_ysu(i,k)=xkzm(i,k)*((-hgamu(i)/hpbl(i)+(ux(i,k+1)-ux(i,k))/dza(i,k+1))*(ux(i,k+1)-ux(i,k))/dza(i,k+1) &
         + (-hgamv(i)/hpbl(i)+(vx(i,k+1)-vx(i,k))/dza(i,k+1))*(vx(i,k+1)-vx(i,k))/dza(i,k+1))
          buoy_ysu(i,k)=xkzh(i,k)*g*(1.0/thx(i,k))*(-hgamt(i)/hpbl(i)+(thx(i,k+1)-thx(i,k))/dza(i,k+1))

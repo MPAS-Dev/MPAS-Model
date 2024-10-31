@@ -2330,7 +2330,7 @@ CONTAINS
 !$acc             SMAV,ALB_RURAL,HCPCT_FASDAS,Q1,SNOMLT,SMCMAX,SMCREF,SMCDRY,SMCWLT, &
 !$acc             ETPND1,ET,NROOT,DUMMY)
 
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector
    DO I=its,ite
       HFX_PHY(I) = 0.0   ! initialize
@@ -2369,7 +2369,7 @@ CONTAINS
      JLOOP : DO J=jts,jte
 
       IF(ITIMESTEP.EQ.1)THEN
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector
         DO 50 I=its,ite
 !*** initialize soil conditions for IHOP 31 May case
@@ -2413,7 +2413,7 @@ CONTAINS
       ENDIF                                                               ! end of initialization over ocean
 
 !-----------------------------------------------------------------------
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector private(PSFC,SATFLG,APES,APELM,SFCTH2)
       ILOOP1 : DO I=its,ite
 
@@ -2489,7 +2489,7 @@ CONTAINS
 !$acc end parallel
 !***
 
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector 
       ILOOP2 : DO I=its,ite
         IF((XLAND(I,J)-1.5).GE.0.)THEN                                  ! begining of land/sea if block
@@ -2510,7 +2510,7 @@ CONTAINS
           DSOIL = 2
           IRIOPTION=IRI_SCHEME
 
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector
       ILOOP31 : DO I=its,ite
         IF((XLAND(I,J)-1.5).LT.0.)THEN
@@ -2551,7 +2551,7 @@ CONTAINS
       ENDDO ILOOP31
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector 
       ILOOP32 : DO I=its,ite
         IF((XLAND(I,J)-1.5).LT.0.)THEN
@@ -2645,7 +2645,7 @@ CONTAINS
 !
       IF( FASDAS == 1 ) THEN
 !!!$acc update device(SDA_HFX,RHO,SDA_QFX,QNORM)
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(DZQ)
         ILOOP41 : DO I=its,ite
           IF((XLAND(I,J)-1.5).LT.0.)THEN
@@ -2692,7 +2692,7 @@ CONTAINS
                 ,XSDA_QFX, HFX_PHY, QFX_PHY, XQNORM, FASDAS, HCPCT_FASDAS    &   ! fasdas
                  )
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
       ILOOP43 : DO I=its,ite
         IF((XLAND(I,J)-1.5).LT.0.)THEN
@@ -2705,7 +2705,7 @@ CONTAINS
       ENDDO ILOOP43
 !$acc end parallel
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
       ILOOP51 : DO I=its,ite
         IF((XLAND(I,J)-1.5).LT.0.)THEN
@@ -2732,7 +2732,7 @@ CONTAINS
 ! 
       IF( FASDAS == 1 ) THEN
 !!!$acc update device(SDA_HFX,RHO)
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(DZQ)
         ILOOP52 : DO I=its,ite
           IF((XLAND(I,J)-1.5).LT.0.)THEN
@@ -2750,7 +2750,6 @@ CONTAINS
 !
 !  END FASDAS
 !
-
             CALL SFLX_GLACIAL_gpu(ims,ime,its,ite,XLAND,ICE,         &
                  I,J,ISICE,FFROZP,DT,ZLVL,NSOIL,SLDPTH,           &    !C
             &    LWDN,SOLNET,SFCPRS,PRCP,SFCTMP,Q2K,              &    !F
@@ -2768,7 +2767,7 @@ CONTAINS
             &    RIBB)
 
 !!!$acc update device(RC2,XLAI2)
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector 
       ILOOP6 : DO I=its,ite
         IF((XLAND(I,J)-1.5).LT.0.)THEN
@@ -3349,6 +3348,7 @@ CONTAINS
 ! prevent possible array overwrite, Bill Bovermann, IBM, May 6, 2008
         IF ( SIZE(BB    ) < SLCATS .OR. &
              SIZE(DRYSMC) < SLCATS .OR. &
+             SIZE(HC    ) < SLCATS .OR. &
              SIZE(F11   ) < SLCATS .OR. &
              SIZE(MAXSMC) < SLCATS .OR. &
              SIZE(REFSMC) < SLCATS .OR. &
@@ -3361,7 +3361,7 @@ CONTAINS
         ENDIF
         IF(SLTYPE.EQ.MMINSL)THEN
           DO LC=1,SLCATS
-              READ (19,*) IINDEX,BB(LC),DRYSMC(LC),F11(LC),MAXSMC(LC),&
+              READ (19,*) IINDEX,BB(LC),DRYSMC(LC),HC(LC),F11(LC),MAXSMC(LC),&
                         REFSMC(LC),SATPSI(LC),SATDK(LC), SATDW(LC),   &
                         WLTSMC(LC), QTZ(LC)
           ENDDO
@@ -3379,6 +3379,7 @@ CONTAINS
       CALL wrf_dm_bcast_integer ( IINDEX  , 1 )
       CALL wrf_dm_bcast_real    ( BB      , NSLTYPE )
       CALL wrf_dm_bcast_real    ( DRYSMC  , NSLTYPE )
+      CALL wrf_dm_bcast_real    ( HC      , NSLTYPE )
       CALL wrf_dm_bcast_real    ( F11     , NSLTYPE )
       CALL wrf_dm_bcast_real    ( MAXSMC  , NSLTYPE )
       CALL wrf_dm_bcast_real    ( REFSMC  , NSLTYPE )

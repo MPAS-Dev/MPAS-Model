@@ -422,6 +422,7 @@
 !prevent possible array overwrite, Bill Bovermann, IBM, May 6, 2008:
     if(size(bb) < slcats .or. &
        size(drysmc) < slcats .or. &
+       size(hc    ) < slcats .or. &
        size(f11   ) < slcats .or. &
        size(maxsmc) < slcats .or. &
        size(refsmc) < slcats .or. &
@@ -434,7 +435,7 @@
     endif
     if(sltype.eq.mminsl) then
        do lc = 1, slcats
-          read(read_unit,*) iindex,bb(lc),drysmc(lc),f11(lc),maxsmc(lc),refsmc(lc),satpsi(lc), &
+          read(read_unit,*) iindex,bb(lc),drysmc(lc),hc(lc), f11(lc),maxsmc(lc),refsmc(lc),satpsi(lc), &
                       satdk(lc),satdw(lc),wltsmc(lc),qtz(lc)
        enddo
     endif
@@ -457,6 +458,7 @@
  DM_BCAST_INTEGER(iindex)
  DM_BCAST_REALS(bb)
  DM_BCAST_REALS(drysmc)
+ DM_BCAST_REALS(hc)
  DM_BCAST_REALS(f11)
  DM_BCAST_REALS(maxsmc)
  DM_BCAST_REALS(refsmc)
@@ -473,8 +475,8 @@
 !call mpas_log_write(' IINDEX =$i',intArgs=(/iindex/))
 !call mpas_log_write('')
 !do lc = 1, slcats
-!   call mpas_log_write('$i $r $r $r $r $r $r $r $r $r $r', intArgs=(/lc/), &
-!                realArgs=(/bb(lc),drysmc(lc),f11(lc),maxsmc(lc),refsmc(lc),satpsi(lc), &
+!   call mpas_log_write('$i $r $r $r $r $r $r $r $r $r $r $r', intArgs=(/lc/), &
+!                realArgs=(/bb(lc),drysmc(lc),hc(lc),f11(lc),maxsmc(lc),refsmc(lc),satpsi(lc), &
 !                satdk(lc),satdw(lc),wltsmc(lc),qtz(lc)/))
 !enddo
  call mpas_log_write('    end read SOILPARM.TBL')
@@ -558,7 +560,7 @@
 !$acc         Z0MINTBL,Z0MAXTBL,ZTOPVTBL,ZBOTVTBL,TOPT_DATA,CMCMAX_DATA,CFACTR_DATA,&
 !$acc         RSMAX_DATA,BARE,NATURAL,LOW_DENSITY_RESIDENTIAL,                      &
 !$acc         HIGH_DENSITY_RESIDENTIAL,HIGH_INTENSITY_INDUSTRIAL,SLTYPE,SLCATS,BB,  &
-!$acc         DRYSMC,F11,MAXSMC,REFSMC,SATPSI,SATDK,SATDW,WLTSMC,QTZ,SLPCATS,       &
+!$acc         DRYSMC,HC,F11,MAXSMC,REFSMC,SATPSI,SATDK,SATDW,WLTSMC,QTZ,SLPCATS,       &
 !$acc         SLOPE_DATA,SBETA_DATA,FXEXP_DATA,CSOIL_DATA,SALP_DATA,REFDK_DATA,     &
 !$acc         REFKDT_DATA,FRZK_DATA,ZBOT_DATA,CZIL_DATA,SMLOW_DATA,SMHIGH_DATA,LVCOEF_DATA)
 

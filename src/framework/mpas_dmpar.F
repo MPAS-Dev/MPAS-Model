@@ -294,6 +294,7 @@ include 'mpif.h'
          call MPI_Comm_dup(mpi_comm, dminfo % comm, mpi_ierr)
       else
          dminfo % initialized_mpi = .true.
+         !$acc init
 #ifdef MPAS_OPENMP
          desiredThreadLevel = MPI_THREAD_FUNNELED
          call MPI_Init_thread(desiredThreadLevel, threadLevel, mpi_ierr)
@@ -1418,7 +1419,7 @@ include 'mpif.h'
       integer, intent(in) :: noutlist !< Input: Number integers to receive
       integer, dimension(nprocs), intent(in) :: displs !< Input: Displacement in sending array
       integer, dimension(nprocs), intent(in) :: counts !< Input: Number of integers to distribute
-      integer, dimension(:), pointer :: inlist !< Input: List of integers to send
+      integer, dimension(:), intent(in) :: inlist !< Input: List of integers to send
       integer, dimension(noutlist), intent(inout) :: outlist !< Output: List of received integers
 
 #ifdef _MPI

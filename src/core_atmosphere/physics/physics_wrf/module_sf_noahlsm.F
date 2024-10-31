@@ -46,7 +46,7 @@ use module_wrf_error
         INTEGER :: SLCATS
         INTEGER, PARAMETER :: NSLTYPE=30
         CHARACTER(LEN=256) SLTYPE
-        REAL, DIMENSION (1:NSLTYPE) :: BB,DRYSMC,F11,                           &
+        REAL, DIMENSION (1:NSLTYPE) :: BB,DRYSMC,HC,F11,                           &
         MAXSMC, REFSMC,SATPSI,SATDK,SATDW, WLTSMC,QTZ
 
 ! LSM GENERAL PARAMETERS
@@ -67,7 +67,7 @@ use module_wrf_error
 !$acc         Z0MINTBL,Z0MAXTBL,ZTOPVTBL,ZBOTVTBL,TOPT_DATA,CMCMAX_DATA,CFACTR_DATA,&
 !$acc         RSMAX_DATA,BARE,NATURAL,LOW_DENSITY_RESIDENTIAL,                      &
 !$acc         HIGH_DENSITY_RESIDENTIAL,HIGH_INTENSITY_INDUSTRIAL,SLTYPE,SLCATS,BB,  &
-!$acc         DRYSMC,F11,MAXSMC,REFSMC,SATPSI,SATDK,SATDW,WLTSMC,QTZ,SLPCATS,       &
+!$acc         DRYSMC,HC,F11,MAXSMC,REFSMC,SATPSI,SATDK,SATDW,WLTSMC,QTZ,SLPCATS,       &
 !$acc         SLOPE_DATA,SBETA_DATA,FXEXP_DATA,CSOIL_DATA,SALP_DATA,REFDK_DATA,     &
 !$acc         REFKDT_DATA,FRZK_DATA,ZBOT_DATA,CZIL_DATA,SMLOW_DATA,SMHIGH_DATA,LVCOEF_DATA)
 
@@ -1264,7 +1264,7 @@ CONTAINS
 !$acc             LAIMIN,LAIMAX,ALBEDOMIN,ALBEDOMAX,EMISSMIN,EMISSMAX,   &
 !$acc             Z0MIN,Z0MAX,SNEQVTMP)
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1300,7 +1300,7 @@ ENDDO
 ! SOIL-TYPE AND VEG-TYPE DEPENDENT PARAMETERS.
 ! ----------------------------------------------------------------------
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1319,7 +1319,7 @@ ENDDO
 !$acc end parallel
 
 !urban
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1398,7 +1398,7 @@ ENDDO
 !   SNOW THERMAL CONDUCTIVITY "SNCOND" (NOTE THAT CSNOW IS A FUNCTION
 !   SUBROUTINE)
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1425,7 +1425,7 @@ ENDDO
 ! IF IT'S PRCPING AND THE AIR TEMP IS WARMER THAN 0 C, BUT THE GRND
 ! TEMP IS COLDER THAN 0 C, FREEZING RAIN IS PRESUMED TO BE FALLING.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1450,7 +1450,7 @@ ENDDO
 ! NOTE THAT SINCE ALL PRECIP IS ADDED TO SNOWPACK, NO PRECIP INFILTRATES
 ! INTO THE SOIL SO THAT PRCP1 IS SET TO ZERO.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1485,7 +1485,7 @@ ENDDO
 ! ----------------------------------------------------------------------
 ! IF SNOW DEPTH=0, SET SNOW FRACTION=0, ALBEDO=SNOW FREE ALBEDO.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1548,7 +1548,7 @@ ENDDO
 ! OVERLYING GREEN CANOPY, ADAPTED FROM SECTION 2.1.2 OF
 ! PETERS-LIDARD ET AL. (1997, JGR, VOL 102(D4))
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1560,7 +1560,7 @@ ENDDO
 !$acc end parallel
 
 !urban
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1619,7 +1619,7 @@ ENDDO
 ! DETERMINE SURFACE ROUGHNESS OVER SNOWPACK USING SNOW CONDITION FROM
 ! THE PREVIOUS TIMESTEP.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1674,7 +1674,7 @@ ENDDO
 ! PENMAN EP SUBROUTINE THAT FOLLOWS
 ! ----------------------------------------------------------------------
 !         FDOWN(I) = SOLDN(I) * (1.0- ALBEDO(I)) + LWDN(I)
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1702,7 +1702,7 @@ ENDDO
         'ALBEDO',ALBEDO(I),'SMC',SMC(1:NSOIL,I),'STC',STC(1:NSOIL,I),'SH2O',SH2O(1:NSOIL,I)
          endif
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector 
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -1817,7 +1817,7 @@ CALL NOPAC_gpu (ETP,ETA,PRCP,SMC,SMCMAX,SMCWLT,                  &
 !!!ENDDO
 !!!!$acc end parallel
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   SNEQVTMP(I) = SNEQV(I)
@@ -1842,7 +1842,7 @@ CALL SNOPAC_gpu (ETP,ETA,PRCP,PRCPF,SNOWNG,SMC,SMCMAX,SMCWLT,    &
                 ,QFX_PHY,FASDAS,HCPCT_FASDAS,                    &
                  its,ite,ETA_KINEMATIC,XLAND,ICE,SNEQVTMP) !fasdas
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -2388,7 +2388,7 @@ ENDDO
       REAL, PARAMETER     :: SLV = 2.501000E6
 
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(FF,GX,RR,DELTA,PART)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -2981,7 +2981,7 @@ ENDDO
 
       REAL, DIMENSION(its:ite), INTENT(INOUT) :: SFHEAD1RT,ETPND1
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(CMC2MS)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -3104,7 +3104,7 @@ ENDDO
 
       REAL, DIMENSION(its:ite), INTENT(INOUT) :: SFHEAD1RT,ETPND1
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(CMC2MS)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -3831,7 +3831,7 @@ ENDDO
 ! END FASDAS
 !
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(CSOIL_LOC,ITAVG,HCPCT,DDZ,DTSDZ,SSOIL,DENOM,&
 !$acc                          QTOT,SICE,TSURF,TBK,TAVG,TSNSR,DDZ2,DF1K,DF1N,&
 !$acc                          DTSDZ2,TBK1)
@@ -4112,7 +4112,7 @@ ENDDO
 ! END FASDAS
 !
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(CSOIL_LOC,ITAVG,HCPCT,DDZ,DTSDZ,SSOIL,DENOM,&
 !$acc                          QTOT,SICE,TSURF,TBK,TAVG,TSNSR,DDZ2,DF1K,DF1N,&
 !$acc                          DTSDZ2,TBK1)
@@ -4453,6 +4453,70 @@ ENDDO
   END SUBROUTINE HSTEP_gpu
 ! ----------------------------------------------------------------------
 
+!NV!               (STCF(1:NSOIL,I),STC(1:NSOIL,I),RHSTS(1:NSOIL,I),DT,NSOIL,AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I))
+      SUBROUTINE HSTEP_gpu_seaice (STCOUT,STCIN,RHSTS,DT,NSOIL,AI,BI,CI,XICE,XICE_THRESHOLD,ITS,ITE)
+! ----------------------------------------------------------------------
+! SUBROUTINE HSTEP
+! ----------------------------------------------------------------------
+! CALCULATE/UPDATE THE SOIL TEMPERATURE FIELD.
+! ----------------------------------------------------------------------
+      IMPLICIT NONE
+      INTEGER, INTENT(IN)  :: NSOIL, ITS, ITE
+      INTEGER              :: K,I
+
+      REAL, DIMENSION(its:ite), INTENT(IN)    :: XICE
+      REAL,                     INTENT(IN)    :: XICE_THRESHOLD
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN):: STCIN
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT):: STCOUT
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT):: RHSTS
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT):: AI,BI,CI
+      REAL, DIMENSION(1:NSOIL,its:ite) :: RHSTSIN
+      REAL, DIMENSION(1:NSOIL,its:ite) :: CIIN
+      REAL                 :: DT
+
+!$acc data present(STCOUT,STCIN,RHSTS,AI,BI,CI,XICE) create(RHSTSIN,CIIN)
+
+!$acc parallel
+!$acc loop gang vector
+      DO I = ITS,ITE
+         IF ( XICE(I) >= XICE_THRESHOLD ) THEN
+! ----------------------------------------------------------------------
+! CREATE FINITE DIFFERENCE VALUES FOR USE IN ROSR12 ROUTINE
+! ----------------------------------------------------------------------
+      DO K = 1,NSOIL
+         RHSTS (K,I) = RHSTS (K,I) * DT
+         AI (K,I) = AI (K,I) * DT
+         BI (K,I) = 1. + BI (K,I) * DT
+         CI (K,I) = CI (K,I) * DT
+      END DO
+! ----------------------------------------------------------------------
+! COPY VALUES FOR INPUT VARIABLES BEFORE CALL TO ROSR12
+! ----------------------------------------------------------------------
+      DO K = 1,NSOIL
+         RHSTSIN (K,I) = RHSTS (K,I)
+      END DO
+      DO K = 1,NSOIL
+         CIIN (K,I) = CI (K,I)
+      END DO
+! ----------------------------------------------------------------------
+! SOLVE THE TRI-DIAGONAL MATRIX EQUATION
+! ----------------------------------------------------------------------
+      CALL ROSR12_gpu (CI(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CIIN(1:NSOIL,I),RHSTSIN(1:NSOIL,I),RHSTS(1:NSOIL,I),NSOIL)
+! ----------------------------------------------------------------------
+! CALC/UPDATE THE SOIL TEMPS USING MATRIX SOLUTION
+! ----------------------------------------------------------------------
+      DO K = 1,NSOIL
+         STCOUT (K,I) = STCIN (K,I) + CI (K,I)
+      END DO
+         ENDIF
+      ENDDO
+!$acc end parallel
+
+!$acc end data
+! ----------------------------------------------------------------------
+  END SUBROUTINE HSTEP_gpu_seaice
+! ----------------------------------------------------------------------
+
 !!!                        (STCF(1:NSOIL,I),STC(1:NSOIL,I),RHSTS(1:NSOIL,I),DT,NSOIL,AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I))
       SUBROUTINE HSTEP_gpu1 (STCOUT,STCIN,RHSTS,DT,NSOIL,AI,BI,CI,its,ite,XLAND,ICE,SNEQV)
 ! ----------------------------------------------------------------------
@@ -4474,7 +4538,7 @@ ENDDO
       REAL, DIMENSION(1:NSOIL) :: CIIN
       REAL                 :: DT
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(RHSTSIN,CIIN)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -4570,7 +4634,7 @@ ENDDO
       REAL, DIMENSION(1:NSOIL) :: CIIN
       REAL                 :: DT
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(RHSTSIN,CIIN)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -5019,7 +5083,7 @@ ENDDO
 !$acc              ETA_KINEMATIC,XLAND,ICE,SNEQV) &
 !$acc      create(ET1,EC1,EDIR1,ETT1,ETP1,PRCP1,WETTY,ETA1,DF1,YY,ZZ1)
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -5098,7 +5162,7 @@ CALL EVAPO_gpu1 (ETA1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,                  &
 !
 ! FASDAS
 !
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(EALL_NOW,EFDIR,EFC,EFT)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -5182,7 +5246,7 @@ CALL SMFLX_gpu1 (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                      &
                   EDIR1,EC1,ET1,                                    &
                   DRIP,SFHEAD1RT,INFXS1RT,its,ite,XLAND,ICE,SNEQV,ETP)
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(EALL_NOW,EFDIR,EFC,EFT)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -5273,7 +5337,7 @@ CALL SMFLX_gpu2 (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                      &
 ! ----------------------------------------------------------------------
 ! BASED ON ETP AND E VALUES, DETERMINE BETA
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector 
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -5309,7 +5373,7 @@ ENDDO
 ! CALL SHFLX TO COMPUTE/UPDATE SOIL HEAT FLUX AND SOIL TEMPS.
 ! ----------------------------------------------------------------------
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -5322,7 +5386,7 @@ DO I=its,ite
 ENDDO
 !$acc end parallel
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(YYNUM)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -5375,7 +5439,7 @@ CALL SHFLX_gpu1 (SSOIL,STC,SMC,SMCMAX,NSOIL,T1,DT,YY,ZZ1,ZSOIL,       &
                  QUARTZ,CSOIL,VEGTYP,ISURBAN,SOILTYP,OPT_THCND        &
                 ,HCPCT_FASDAS,its,ite,XLAND,ICE,SNEQV)
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -6367,7 +6431,7 @@ CALL HRT_gpu1 (RHSTS,STC,SMC,SMCMAX,NSOIL,ZSOIL,YY,ZZ1,TBOT,     &
 !!!!$acc end parallel
 CALL HSTEP_gpu1 (STCF,STC,RHSTS,DT,NSOIL,AI,BI,CI,its,ite,XLAND,ICE,SNEQV)
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -6699,21 +6763,20 @@ ENDDO
       REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN)   :: ET
       REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN) :: ZSOIL
       REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT):: SMC,SH2O
-      REAL, DIMENSION(1:NSOIL)             :: AI, BI, CI, STCF,RHSTS, RHSTT, &
-                                              SICE, SH2OA, SH2OFG
-      REAL                  :: DUMMY, EXCESS,PCPDRP,RHSCT,TRHSCT
-      REAL, DIMENSION(its:ite) :: FRZFACT
-      REAL :: FAC2
-      REAL :: FLIMIT
+      REAL, DIMENSION(1:NSOIL)             :: STCF,RHSTS
+      REAL, DIMENSION(1:NSOIL,its:ite)     :: SICE, RHSTT, AI, BI, CI, SH2OFG, SH2OA
+      REAL                  :: EXCESS,TRHSCT
+      REAL, DIMENSION(its:ite) :: DUMMY,RHSCT,PCPDRP
+      REAL, DIMENSION(its:ite) :: FRZFACT,FAC2,FLIMIT
 
       REAL, DIMENSION(its:ite), INTENT(INOUT)                 :: SFHEAD1RT,INFXS1RT
 
+!$acc data create(DUMMY,RHSCT,PCPDRP,SICE,FAC2,RHSTT,FLIMIT,AI,BI,CI,SH2OFG,SH2OA)
 ! ----------------------------------------------------------------------
 ! EXECUTABLE CODE BEGINS HERE.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
-!$acc loop gang vector private(DUMMY,RHSCT,TRHSCT,EXCESS,PCPDRP,SICE,FAC2, &
-!$acc                          FLIMIT,RHSTT,AI,BI,CI,SH2OFG,SH2OA,SH2OFG)
+!$acc parallel
+!$acc loop gang vector private(TRHSCT,EXCESS)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
     IF (ICE(I) == 0) THEN
@@ -6722,16 +6785,16 @@ DO I=its,ite
 ! ----------------------------------------------------------------------
 ! COMPUTE THE RIGHT HAND SIDE OF THE CANOPY EQN TERM ( RHSCT )
 ! ----------------------------------------------------------------------
-      DUMMY = 0.
+      DUMMY(I) = 0.
 
 ! ----------------------------------------------------------------------
 ! CONVERT RHSCT (A RATE) TO TRHSCT (AN AMOUNT) AND ADD IT TO EXISTING
 ! CMC.  IF RESULTING AMT EXCEEDS MAX CAPACITY, IT BECOMES DRIP AND WILL
 ! FALL TO THE GRND.
 ! ----------------------------------------------------------------------
-      RHSCT = SHDFAC(I) * PRCP1(I)- EC(I)
+      RHSCT(I) = SHDFAC(I) * PRCP1(I)- EC(I)
       DRIP(I) = 0.
-      TRHSCT = DT * RHSCT
+      TRHSCT = DT * RHSCT(I)
       EXCESS = CMC(I) + TRHSCT
 
 ! ----------------------------------------------------------------------
@@ -6739,13 +6802,13 @@ DO I=its,ite
 ! SOIL
 ! ----------------------------------------------------------------------
       IF (EXCESS > CMCMAX(I)) DRIP(I) = EXCESS - CMCMAX(I)
-      PCPDRP = (1. - SHDFAC(I)) * PRCP1(I)+ DRIP(I) / DT
+      PCPDRP(I) = (1. - SHDFAC(I)) * PRCP1(I)+ DRIP(I) / DT
 
 ! ----------------------------------------------------------------------
 ! STORE ICE CONTENT AT EACH SOIL LAYER BEFORE CALLING SRT and SSTEP
 !
       DO K = 1,NSOIL
-         SICE (K) = SMC (K,I) - SH2O (K,I)
+         SICE (K,I) = SMC (K,I) - SH2O (K,I)
       END DO
 ! ----------------------------------------------------------------------
 ! CALL SUBROUTINES SRT AND SSTEP TO SOLVE THE SOIL MOISTURE
@@ -6770,11 +6833,11 @@ DO I=its,ite
 !  According to Dr. Ken Mitchell's suggestion, add the second contraint
 !  to remove numerical instability of runoff and soil moisture
 !  FLIMIT is a limit value for FAC2
-      FAC2=0.0
+      FAC2(I)=0.0
       DO K=1,NSOIL
-         FAC2=MAX(FAC2,SH2O(K,I)/SMCMAX(I))
+         FAC2(I)=MAX(FAC2(I),SH2O(K,I)/SMCMAX(I))
       ENDDO
-      CALL FAC2MIT_gpu(SMCMAX(I),FLIMIT)
+      CALL FAC2MIT_gpu(SMCMAX(I),FLIMIT(I))
 
 ! ----------------------------------------------------------------------
 ! FROZEN GROUND VERSION:
@@ -6785,37 +6848,77 @@ DO I=its,ite
 
 #ifdef WRF_HYDRO
 !DJG NDHMS/WRF-Hydro edit... Add previous ponded water to new precip drip...
-    PCPDRP = PCPDRP + SFHEAD1RT(I)/1000./DT   ! convert SFHEAD1RT to (m/s)
+    PCPDRP(I) = PCPDRP(I) + SFHEAD1RT(I)/1000./DT   ! convert SFHEAD1RT to (m/s)
 #endif
+        ENDIF
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
 
+![NV]!!$acc parallel vector_length(128)
+![NV]!!$acc loop gang vector
+![NV]!DO I=its,ite
+![NV]!  IF((XLAND(I)-1.5).LT.0.)THEN
+![NV]!    IF (ICE(I) == 0) THEN
+![NV]!      IF (SNEQV(I)  == 0.0) THEN
+![NV]!        IF (ETP(I) > 0.0) THEN
+![NV]!      IF ( ( (PCPDRP(I) * DT) > (0.0001*1000.0* (- ZSOIL (1,I))* SMCMAX(I)) )   &
+![NV]!           .OR. (FAC2(I) > FLIMIT(I)) ) THEN
+![NV]!         CALL SRT_gpu (RHSTT(1:NSOIL,I),EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP(I),ZSOIL(1:NSOIL,I),          &
+![NV]!                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+![NV]!                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),  &
+![NV]!                    SFHEAD1RT(I),INFXS1RT(I))
+![NV]!         CALL SSTEP_gpu (SH2OFG(1:NSOIL,I),SH2O(1:NSOIL,I),DUMMY(I),RHSTT(1:NSOIL,I),RHSCT(I),DT,NSOIL,SMCMAX(I),     &
+![NV]!                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),INFXS1RT(I))
+![NV]!         DO K = 1,NSOIL
+![NV]!            SH2OA (K,I) = (SH2O (K,I) + SH2OFG (K,I)) * 0.5
+![NV]!         END DO
+![NV]!         CALL SRT_gpu (RHSTT(1:NSOIL,I),EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2OA(1:NSOIL,I),NSOIL,PCPDRP(I),ZSOIL(1:NSOIL,I),         &
+![NV]!                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+![NV]!                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),  &
+![NV]!                    SFHEAD1RT(I),INFXS1RT(I))
+![NV]!         CALL SSTEP_gpu (SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),CMC(I),RHSTT(1:NSOIL,I),RHSCT(I),DT,NSOIL,SMCMAX(I),         &
+![NV]!                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),INFXS1RT(I))
+![NV]!
+![NV]!      ELSE
+![NV]!         CALL SRT_gpu (RHSTT(1:NSOIL,I),EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP(I),ZSOIL(1:NSOIL,I),          &
+![NV]!                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+ ![NV]!                   RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),  &
+![NV]!                   SFHEAD1RT(I),INFXS1RT(I))
+![NV]!         CALL SSTEP_gpu (SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),CMC(I),RHSTT(1:NSOIL,I),RHSCT(I),DT,NSOIL,SMCMAX(I),         &
+![NV]!                     CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),INFXS1RT(I))
+![NV]!!      RUNOF = RUNOFF
+![NV]!
+![NV]!      END IF
+![NV]!        ENDIF
+![NV]!      END IF
+![NV]!    ENDIF
+![NV]!  ENDIF
+![NV]!ENDDO
+![NV]!!$acc end parallel
 
-      IF ( ( (PCPDRP * DT) > (0.0001*1000.0* (- ZSOIL (1,I))* SMCMAX(I)) )   &
-           .OR. (FAC2 > FLIMIT) ) THEN
-         CALL SRT_gpu (RHSTT,EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP,ZSOIL(1:NSOIL,I),          &
-                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
-                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE,AI,BI,CI,  &
-                    SFHEAD1RT(I),INFXS1RT(I))
-         CALL SSTEP_gpu (SH2OFG,SH2O(1:NSOIL,I),DUMMY,RHSTT,RHSCT,DT,NSOIL,SMCMAX(I),     &
-                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE,AI,BI,CI,INFXS1RT(I))
+      CALL SRT_gpu1_1 (RHSTT,EDIR,ET,SH2O,SH2O,NSOIL,PCPDRP,ZSOIL,          &
+                 DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,                    &
+                 RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZFACT,SICE,AI,BI,CI,  &
+                 SFHEAD1RT,INFXS1RT,XLAND,ICE,SNEQV,ETP,FAC2,FLIMIT,its,ite)
+
+      CALL SSTEP_gpu1_1 (SH2OFG,SH2O,DUMMY,RHSTT,RHSCT,DT,NSOIL,SMCMAX,     &
+                        CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,AI,BI,CI,INFXS1RT,XLAND,ICE,SNEQV,ETP,FAC2,FLIMIT,PCPDRP,its,ite)
+
+!$acc parallel
+!$acc loop gang vector
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
+        IF (ETP(I) > 0.0) THEN
+      IF ( ( (PCPDRP(I) * DT) > (0.0001*1000.0* (- ZSOIL (1,I))* SMCMAX(I)) )   &
+           .OR. (FAC2(I) > FLIMIT(I)) ) THEN
          DO K = 1,NSOIL
-            SH2OA (K) = (SH2O (K,I) + SH2OFG (K)) * 0.5
+            SH2OA (K,I) = (SH2O (K,I) + SH2OFG (K,I)) * 0.5
          END DO
-         CALL SRT_gpu (RHSTT,EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2OA,NSOIL,PCPDRP,ZSOIL(1:NSOIL,I),         &
-                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
-                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE,AI,BI,CI,  &
-                    SFHEAD1RT(I),INFXS1RT(I))
-         CALL SSTEP_gpu (SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),CMC(I),RHSTT,RHSCT,DT,NSOIL,SMCMAX(I),         &
-                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE,AI,BI,CI,INFXS1RT(I))
-
-      ELSE
-         CALL SRT_gpu (RHSTT,EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP,ZSOIL(1:NSOIL,I),          &
-                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
-                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE,AI,BI,CI,  &
-                   SFHEAD1RT(I),INFXS1RT(I))
-         CALL SSTEP_gpu (SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),CMC(I),RHSTT,RHSCT,DT,NSOIL,SMCMAX(I),         &
-                     CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE,AI,BI,CI,INFXS1RT(I))
-!      RUNOF = RUNOFF
-
       END IF
         ENDIF
       END IF
@@ -6823,6 +6926,23 @@ DO I=its,ite
   ENDIF
 ENDDO
 !$acc end parallel
+
+      CALL SRT_gpu1_1 (RHSTT,EDIR,ET,SH2O,SH2OA,NSOIL,PCPDRP,ZSOIL,          &
+                 DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,                    &
+                 RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZFACT,SICE,AI,BI,CI,  &
+                 SFHEAD1RT,INFXS1RT,XLAND,ICE,SNEQV,ETP,FAC2,FLIMIT,its,ite)
+
+      CALL SSTEP_gpu1_1 (SH2O,SH2O,CMC,RHSTT,RHSCT,DT,NSOIL,SMCMAX,     &
+                        CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,AI,BI,CI,INFXS1RT,XLAND,ICE,SNEQV,ETP,FAC2,FLIMIT,PCPDRP,its,ite)
+
+      CALL SRT_gpu1_2 (RHSTT,EDIR,ET,SH2O,SH2O,NSOIL,PCPDRP,ZSOIL,          &
+                 DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,                    &
+                 RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZFACT,SICE,AI,BI,CI,  &
+                 SFHEAD1RT,INFXS1RT,XLAND,ICE,SNEQV,ETP,FAC2,FLIMIT,its,ite)
+
+      CALL SSTEP_gpu1_2 (SH2O,SH2O,CMC,RHSTT,RHSCT,DT,NSOIL,SMCMAX,     &
+                        CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,AI,BI,CI,INFXS1RT,XLAND,ICE,SNEQV,ETP,FAC2,FLIMIT,PCPDRP,its,ite)
+!$acc end data
 ! ----------------------------------------------------------------------
   END SUBROUTINE SMFLX_gpu1
 ! ----------------------------------------------------------------------
@@ -6871,7 +6991,7 @@ ENDDO
 ! ----------------------------------------------------------------------
 ! EXECUTABLE CODE BEGINS HERE.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(DUMMY,RHSCT,TRHSCT,EXCESS,PCPDRP,SICE,FAC2, &
 !$acc                          FLIMIT,RHSTT,AI,BI,CI,SH2OFG,SH2OA,SH2OFG)
 DO I=its,ite
@@ -7019,21 +7139,22 @@ ENDDO
       REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN)   :: ET
       REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN) :: ZSOIL
       REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT):: SMC,SH2O
-      REAL, DIMENSION(1:NSOIL)             :: AI, BI, CI, STCF,RHSTS, RHSTT, &
-                                              SICE, SH2OA, SH2OFG
-      REAL                  :: DUMMY, EXCESS,PCPDRP,RHSCT,TRHSCT
+      REAL, DIMENSION(1:NSOIL)             :: STCF,RHSTS
+      REAL, DIMENSION(1:NSOIL,its:ite)     :: SICE,RHSTT,AI,BI,CI,SH2OFG,SH2OA
+      REAL                  :: EXCESS,TRHSCT
+      REAL, DIMENSION(its:ite) :: DUMMY, RHSCT,PCPDRP
       REAL, DIMENSION(its:ite) :: FRZFACT
-      REAL :: FAC2
-      REAL :: FLIMIT
+      REAL, DIMENSION(its:ite) :: FAC2
+      REAL, DIMENSION(its:ite) :: FLIMIT
 
       REAL, DIMENSION(its:ite), INTENT(INOUT)                 :: SFHEAD1RT,INFXS1RT
 
+!$acc data create(SICE,RHSTT,AI,BI,CI,SH2OFG,SH2OA,DUMMY, RHSCT,PCPDRP,FRZFACT,FAC2,FLIMIT)
 ! ----------------------------------------------------------------------
 ! EXECUTABLE CODE BEGINS HERE.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
-!$acc loop gang vector private(DUMMY,RHSCT,TRHSCT,EXCESS,PCPDRP,SICE,FAC2, &
-!$acc                          FLIMIT,RHSTT,AI,BI,CI,SH2OFG,SH2OA,SH2OFG)
+!$acc parallel
+!$acc loop gang vector private(TRHSCT,EXCESS)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
     IF (ICE(I) == 0) THEN
@@ -7041,16 +7162,16 @@ DO I=its,ite
 ! ----------------------------------------------------------------------
 ! COMPUTE THE RIGHT HAND SIDE OF THE CANOPY EQN TERM ( RHSCT )
 ! ----------------------------------------------------------------------
-      DUMMY = 0.
+      DUMMY(I) = 0.
 
 ! ----------------------------------------------------------------------
 ! CONVERT RHSCT (A RATE) TO TRHSCT (AN AMOUNT) AND ADD IT TO EXISTING
 ! CMC.  IF RESULTING AMT EXCEEDS MAX CAPACITY, IT BECOMES DRIP AND WILL
 ! FALL TO THE GRND.
 ! ----------------------------------------------------------------------
-      RHSCT = SHDFAC(I) * PRCP1(I)- EC(I)
+      RHSCT(I) = SHDFAC(I) * PRCP1(I)- EC(I)
       DRIP(I) = 0.
-      TRHSCT = DT * RHSCT
+      TRHSCT = DT * RHSCT(I)
       EXCESS = CMC(I) + TRHSCT
 
 ! ----------------------------------------------------------------------
@@ -7058,13 +7179,13 @@ DO I=its,ite
 ! SOIL
 ! ----------------------------------------------------------------------
       IF (EXCESS > CMCMAX(I)) DRIP(I) = EXCESS - CMCMAX(I)
-      PCPDRP = (1. - SHDFAC(I)) * PRCP1(I)+ DRIP(I) / DT
+      PCPDRP(I) = (1. - SHDFAC(I)) * PRCP1(I)+ DRIP(I) / DT
 
 ! ----------------------------------------------------------------------
 ! STORE ICE CONTENT AT EACH SOIL LAYER BEFORE CALLING SRT and SSTEP
 !
       DO K = 1,NSOIL
-         SICE (K) = SMC (K,I) - SH2O (K,I)
+         SICE (K,I) = SMC (K,I) - SH2O (K,I)
       END DO
 ! ----------------------------------------------------------------------
 ! CALL SUBROUTINES SRT AND SSTEP TO SOLVE THE SOIL MOISTURE
@@ -7089,11 +7210,11 @@ DO I=its,ite
 !  According to Dr. Ken Mitchell's suggestion, add the second contraint
 !  to remove numerical instability of runoff and soil moisture
 !  FLIMIT is a limit value for FAC2
-      FAC2=0.0
+      FAC2(I)=0.0
       DO K=1,NSOIL
-         FAC2=MAX(FAC2,SH2O(K,I)/SMCMAX(I))
+         FAC2(I)=MAX(FAC2(I),SH2O(K,I)/SMCMAX(I))
       ENDDO
-      CALL FAC2MIT_gpu(SMCMAX(I),FLIMIT)
+      CALL FAC2MIT_gpu(SMCMAX(I),FLIMIT(I))
 
 ! ----------------------------------------------------------------------
 ! FROZEN GROUND VERSION:
@@ -7104,43 +7225,96 @@ DO I=its,ite
 
 #ifdef WRF_HYDRO
 !DJG NDHMS/WRF-Hydro edit... Add previous ponded water to new precip drip...
-    PCPDRP = PCPDRP + SFHEAD1RT(I)/1000./DT   ! convert SFHEAD1RT to (m/s)
+    PCPDRP(I) = PCPDRP(I) + SFHEAD1RT(I)/1000./DT   ! convert SFHEAD1RT to (m/s)
 #endif
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
 
+![NV]!!$acc parallel vector_length(128)
+![NV]!!$acc loop gang vector
+![NV]!DO I=its,ite
+![NV]!  IF((XLAND(I)-1.5).LT.0.)THEN
+![NV]!    IF (ICE(I) == 0) THEN
+![NV]!      IF (SNEQV(I)  /= 0.0) THEN
+![NV]!      IF ( ( (PCPDRP(I) * DT) > (0.0001*1000.0* (- ZSOIL (1,I))* SMCMAX(I)) )   &
+![NV]!           .OR. (FAC2(I) > FLIMIT(I)) ) THEN
+![NV]!         CALL SRT_gpu (RHSTT(1:NSOIL,I),EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP(I),ZSOIL(1:NSOIL,I),          &
+![NV]!                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+![NV]!                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),  &
+![NV]!                    SFHEAD1RT(I),INFXS1RT(I))
+![NV]!         CALL SSTEP_gpu (SH2OFG(1:NSOIL,I),SH2O(1:NSOIL,I),DUMMY(I),RHSTT(1:NSOIL,I),RHSCT(I),DT,NSOIL,SMCMAX(I),     &
+![NV]!                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),INFXS1RT(I))
+![NV]!         DO K = 1,NSOIL
+![NV]!            SH2OA (K,I) = (SH2O (K,I) + SH2OFG (K,I)) * 0.5
+![NV]!         END DO
+![NV]!         CALL SRT_gpu (RHSTT(1:NSOIL,I),EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2OA(1:NSOIL,I),NSOIL,PCPDRP(I),ZSOIL(1:NSOIL,I),         &
+![NV]!                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+![NV]!                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),  &
+![NV]!                    SFHEAD1RT(I),INFXS1RT(I))
+![NV]!         CALL SSTEP_gpu (SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),CMC(I),RHSTT(1:NSOIL,I),RHSCT(I),DT,NSOIL,SMCMAX(I),         &
+![NV]!                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),INFXS1RT(I))
 
-      IF ( ( (PCPDRP * DT) > (0.0001*1000.0* (- ZSOIL (1,I))* SMCMAX(I)) )   &
-           .OR. (FAC2 > FLIMIT) ) THEN
-         CALL SRT_gpu (RHSTT,EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP,ZSOIL(1:NSOIL,I),          &
-                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
-                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE,AI,BI,CI,  &
-                    SFHEAD1RT(I),INFXS1RT(I))
-         CALL SSTEP_gpu (SH2OFG,SH2O(1:NSOIL,I),DUMMY,RHSTT,RHSCT,DT,NSOIL,SMCMAX(I),     &
-                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE,AI,BI,CI,INFXS1RT(I))
+![NV]!      ELSE
+![NV]!         CALL SRT_gpu (RHSTT(1:NSOIL,I),EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP(I),ZSOIL(1:NSOIL,I),          &
+![NV]!                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+![NV]!                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),  &
+![NV]!                   SFHEAD1RT(I),INFXS1RT(I))
+![NV]!         CALL SSTEP_gpu (SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),CMC(I),RHSTT(1:NSOIL,I),RHSCT(I),DT,NSOIL,SMCMAX(I),         &
+![NV]!                     CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),INFXS1RT(I))
+![NV]!!      RUNOF = RUNOFF
+![NV]!
+![NV]!      END IF
+![NV]!      END IF
+![NV]!    ENDIF
+![NV]!  ENDIF
+![NV]!ENDDO
+
+      CALL SRT_gpu3_1 (RHSTT,EDIR,ET,SH2O,SH2O,NSOIL,PCPDRP,ZSOIL,          &
+                 DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,                    &
+                 RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZFACT,SICE,AI,BI,CI,  &
+                 SFHEAD1RT,INFXS1RT,XLAND,ICE,SNEQV,FAC2,FLIMIT,its,ite)
+
+      CALL SSTEP_gpu3_1 (SH2OFG,SH2O,DUMMY,RHSTT,RHSCT,DT,NSOIL,SMCMAX,     &
+                        CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,AI,BI,CI,INFXS1RT,XLAND,ICE,SNEQV,FAC2,FLIMIT,PCPDRP,its,ite)
+
+!$acc parallel
+!$acc loop gang vector
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  /= 0.0) THEN
+      IF ( ( (PCPDRP(I) * DT) > (0.0001*1000.0* (- ZSOIL (1,I))* SMCMAX(I)) )   &
+           .OR. (FAC2(I) > FLIMIT(I)) ) THEN
          DO K = 1,NSOIL
-            SH2OA (K) = (SH2O (K,I) + SH2OFG (K)) * 0.5
+            SH2OA (K,I) = (SH2O (K,I) + SH2OFG (K,I)) * 0.5
          END DO
-         CALL SRT_gpu (RHSTT,EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2OA,NSOIL,PCPDRP,ZSOIL(1:NSOIL,I),         &
-                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
-                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE,AI,BI,CI,  &
-                    SFHEAD1RT(I),INFXS1RT(I))
-         CALL SSTEP_gpu (SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),CMC(I),RHSTT,RHSCT,DT,NSOIL,SMCMAX(I),         &
-                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE,AI,BI,CI,INFXS1RT(I))
-
-      ELSE
-         CALL SRT_gpu (RHSTT,EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP,ZSOIL(1:NSOIL,I),          &
-                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
-                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE,AI,BI,CI,  &
-                   SFHEAD1RT(I),INFXS1RT(I))
-         CALL SSTEP_gpu (SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),CMC(I),RHSTT,RHSCT,DT,NSOIL,SMCMAX(I),         &
-                     CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE,AI,BI,CI,INFXS1RT(I))
-!      RUNOF = RUNOFF
-
       END IF
       END IF
     ENDIF
   ENDIF
 ENDDO
 !$acc end parallel
+
+      CALL SRT_gpu3_1 (RHSTT,EDIR,ET,SH2O,SH2OA,NSOIL,PCPDRP,ZSOIL,          &
+                 DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,                    &
+                 RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZFACT,SICE,AI,BI,CI,  &
+                 SFHEAD1RT,INFXS1RT,XLAND,ICE,SNEQV,FAC2,FLIMIT,its,ite)
+
+      CALL SSTEP_gpu3_1 (SH2O,SH2O,CMC,RHSTT,RHSCT,DT,NSOIL,SMCMAX,     &
+                        CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,AI,BI,CI,INFXS1RT,XLAND,ICE,SNEQV,FAC2,FLIMIT,PCPDRP,its,ite)
+
+      CALL SRT_gpu3_2 (RHSTT,EDIR,ET,SH2O,SH2O,NSOIL,PCPDRP,ZSOIL,          &
+                 DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,                    &
+                 RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZFACT,SICE,AI,BI,CI,  &
+                 SFHEAD1RT,INFXS1RT,XLAND,ICE,SNEQV,FAC2,FLIMIT,its,ite)
+
+      CALL SSTEP_gpu3_2 (SH2O,SH2O,CMC,RHSTT,RHSCT,DT,NSOIL,SMCMAX,     &
+                        CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,AI,BI,CI,INFXS1RT,XLAND,ICE,SNEQV,FAC2,FLIMIT,PCPDRP,its,ite)
+
+!$acc end data
 ! ----------------------------------------------------------------------
   END SUBROUTINE SMFLX_gpu3
 ! ----------------------------------------------------------------------
@@ -8056,7 +8230,7 @@ ENDDO
 !$acc      create(EDIR1,EC1,ET1,ETT1,ETNS1,ESNOW1,ESNOW2,PRCP1,ETP1,    &
 !$acc             ETANRG,SSOIL1,T11,YY,ZZ1)
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(ETP1N)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -8162,7 +8336,7 @@ CALL EVAPO_gpu2 (ETNS1,SMC,NSOIL,CMC,ETP1,DT,ZSOIL,           &
                   EDIR1,EC1,ET1,ETT1,SFCTMP,Q2,NROOT,RTDIS,   &
                   FXEXP,SFHEAD1RT,ETPND1,its,ite,XLAND,ICE,SNEQV,ETP,SNCOVR)
 ! ----------------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(DENOM,DSOIL,DTOT,   &
 !$acc                          ETP3, EX,   &
 !$acc                          SEH,   &
@@ -8419,7 +8593,7 @@ CALL SMFLX_gpu3 (SMC,NSOIL,CMC,DT,PRCP1,ZSOIL,                      &
 ! SNOW TOP SURFACE.  T11 IS A DUMMY ARGUEMENT SO WE WILL NOT USE THE
 ! SKIN TEMP VALUE AS REVISED BY SHFLX.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -8465,7 +8639,7 @@ CALL SHFLX_gpu2 (SSOIL1,STC,SMC,SMCMAX,NSOIL,T11,DT,YY,ZZ1,ZSOIL,     &
 ! SNOW DEPTH AND DENSITY ADJUSTMENT BASED ON SNOW COMPACTION.  YY IS
 ! ASSUMED TO BE THE SOIL TEMPERTURE AT THE TOP OF THE SOIL COLUMN.
 ! ----------------------------------------------------------------------
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -8481,7 +8655,7 @@ DO I=its,ite
 ENDDO
 !$acc end parallel
 
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector private(SNCOND)
 DO I=its,ite
   IF((XLAND(I)-1.5).LT.0.)THEN
@@ -9575,6 +9749,1278 @@ ENDDO
   END SUBROUTINE SRT_gpu
 ! ----------------------------------------------------------------------
 
+![NV]! SRT_gpu (RHSTT(1:NSOIL,I),EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP(I),ZSOIL(1:NSOIL,I),          &
+![NV]!                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+![NV]!                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),  &
+![NV]!                    SFHEAD1RT(I),INFXS1RT(I))
+      SUBROUTINE SRT_gpu1_1 (RHSTT,EDIR,ET,SH2O,SH2OA,NSOIL,PCPDRP,            &
+                       ZSOIL,DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,           &
+                     RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZX,SICE,AI,BI,CI,  &
+                     SFHEAD1RT,INFXS1RT,XLAND,ICE,SNEQV,ETP,FAC2,FLIMIT,its,ite)
+
+! ----------------------------------------------------------------------
+! SUBROUTINE SRT
+! ----------------------------------------------------------------------
+! CALCULATE THE RIGHT HAND SIDE OF THE TIME TENDENCY TERM OF THE SOIL
+! WATER DIFFUSION EQUATION.  ALSO TO COMPUTE ( PREPARE ) THE MATRIX
+! COEFFICIENTS FOR THE TRI-DIAGONAL MATRIX OF THE IMPLICIT TIME SCHEME.
+! ----------------------------------------------------------------------
+      IMPLICIT NONE
+      INTEGER, INTENT(IN)       :: NSOIL,its,ite
+      INTEGER                   :: IALP1, IOHINF, I, J, JJ,  K, KS
+
+!DJG NDHMS/WRF-Hydro edit... Variables used in OV routing infiltration calcs
+       REAL, DIMENSION(its:ite), INTENT(INOUT) :: SFHEAD1RT, INFXS1RT
+       REAL                    :: SFCWATR,CHCKSM
+      REAL, DIMENSION(its:ite), INTENT(IN) :: XLAND,SNEQV,ETP,FAC2,FLIMIT
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: ICE
+
+      REAL, INTENT(IN)          :: DT
+      REAL, DIMENSION(its:ite), INTENT(IN)   :: EDIR, PCPDRP, DWSAT, DKSAT, SMCMAX, &
+                                                BEXP, SMCWLT, SLOPE, KDT, FRZX
+      REAL, DIMENSION(its:ite), INTENT(OUT)  :: RUNOFF1, RUNOFF2
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN)   :: ET, SH2O, SH2OA, ZSOIL, SICE
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)  :: RHSTT
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)  :: AI, BI, CI
+      REAL, DIMENSION(1:NSOIL)  :: DMAX
+      REAL                      :: ACRT, DD, DDT, DDZ, DDZ2, DENOM,     &
+                                   DENOM2,DICE, DSMDZ, DSMDZ2, DT1,     &
+                                   FCR,INFMAX,MXSMC,MXSMC2,NUMER,PDDUM, &
+                                   PX, SICEMAX,SLOPX, SMCAV, SSTT,      &
+                                   SUM, VAL, WCND, WCND2, WDF, WDF2
+      INTEGER, PARAMETER        :: CVFRZ = 3
+
+!$acc parallel
+!$acc loop gang vector private(DMAX,ACRT, DD, DDT, DDZ, DDZ2, DENOM,DENOM2,DICE, DSMDZ, DSMDZ2, DT1, &
+!$acc                          FCR,INFMAX,MXSMC,MXSMC2,NUMER,PDDUM,PX, SICEMAX,SLOPX, SMCAV, SSTT, &
+!$acc                          SUM, VAL, WCND, WCND2, WDF, WDF2,IALP1, IOHINF,SFCWATR,CHCKSM)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
+        IF (ETP(I) > 0.0) THEN
+      IF ( ( (PCPDRP(I) * DT) > (0.0001*1000.0* (- ZSOIL (1,I))* SMCMAX(I)) )   &
+           .OR. (FAC2(I) > FLIMIT(I)) ) THEN
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! REFERENCE FROZEN GROUND PARAMETER, CVFRZ, IS A SHAPE PARAMETER OF
+! AREAL DISTRIBUTION FUNCTION OF SOIL ICE CONTENT WHICH EQUALS 1/CV.
+! CV IS A COEFFICIENT OF SPATIAL VARIATION OF SOIL ICE CONTENT.  BASED
+! ON FIELD DATA CV DEPENDS ON AREAL MEAN OF FROZEN DEPTH, AND IT CLOSE
+! TO CONSTANT = 0.6 IF AREAL MEAN FROZEN DEPTH IS ABOVE 20 CM.  THAT IS
+! WHY PARAMETER CVFRZ = 3 (INT{1/0.6*0.6}).
+! CURRENT LOGIC DOESN'T ALLOW CVFRZ BE BIGGER THAN 3
+! ----------------------------------------------------------------------
+
+! ----------------------------------------------------------------------
+! DETERMINE RAINFALL INFILTRATION RATE AND RUNOFF.  INCLUDE THE
+! INFILTRATION FORMULE FROM SCHAAKE AND KOREN MODEL.
+! MODIFIED BY Q DUAN
+! ----------------------------------------------------------------------
+! ----------------------------------------------------------------------
+! LET SICEMAX BE THE GREATEST, IF ANY, FROZEN WATER CONTENT WITHIN SOIL
+! LAYERS.
+! ----------------------------------------------------------------------
+      IOHINF = 1
+      SICEMAX = 0.0
+      DO KS = 1,NSOIL
+         IF (SICE (KS,I) >  SICEMAX) SICEMAX = SICE (KS,I)
+! ----------------------------------------------------------------------
+! DETERMINE RAINFALL INFILTRATION RATE AND RUNOFF
+! ----------------------------------------------------------------------
+      END DO
+
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG Use previously merged Precip and Sfchead for infil. cap. calc.
+      SFCWATR = PCPDRP(I)
+      PDDUM = SFCWATR
+!DJG original   PDDUM = PCPDRP
+      RUNOFF1(I) = 0.0
+      INFXS1RT(I) = 0.0
+#else
+      PDDUM = PCPDRP(I)
+      RUNOFF1(I) = 0.0
+#endif
+
+
+
+! ----------------------------------------------------------------------
+! MODIFIED BY Q. DUAN, 5/16/94
+! ----------------------------------------------------------------------
+!        IF (IOHINF == 1) THEN
+
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG IF (PCPDRP /=  0.0) THEN
+      IF (SFCWATR /=  0.0) THEN
+#else
+     IF (PCPDRP(I) /=  0.0) THEN
+#endif
+         DT1 = DT /86400.
+         SMCAV = SMCMAX(I) - SMCWLT(I)
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! ----------------------------------------------------------------------
+         DMAX (1)= - ZSOIL (1,I)* SMCAV
+
+         DICE = - ZSOIL (1,I) * SICE (1,I)
+         DMAX (1)= DMAX (1)* (1.0- (SH2OA (1,I) + SICE (1,I) - SMCWLT(I))/      &
+                    SMCAV)
+
+         DD = DMAX (1)
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! ----------------------------------------------------------------------
+         DO KS = 2,NSOIL
+
+            DICE = DICE+ ( ZSOIL (KS -1,I) - ZSOIL (KS,I) ) * SICE (KS,I)
+            DMAX (KS) = (ZSOIL (KS -1,I) - ZSOIL (KS,I))* SMCAV
+            DMAX (KS) = DMAX (KS)* (1.0- (SH2OA (KS,I) + SICE (KS,I)        &
+                        - SMCWLT(I))/ SMCAV)
+            DD = DD+ DMAX (KS)
+! ----------------------------------------------------------------------
+! VAL = (1.-EXP(-KDT*SQRT(DT1)))
+! IN BELOW, REMOVE THE SQRT IN ABOVE
+! ----------------------------------------------------------------------
+         END DO
+         VAL = (1. - EXP ( - KDT(I) * DT1))
+         DDT = DD * VAL
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG        PX = PCPDRP * DT
+         PX = SFCWATR * DT
+#else
+         PX = PCPDRP(I) * DT
+#endif
+         IF (PX <  0.0) PX = 0.0
+
+
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! REDUCTION OF INFILTRATION BASED ON FROZEN GROUND PARAMETERS
+! ----------------------------------------------------------------------
+         INFMAX = (PX * (DDT / (PX + DDT)))/ DT
+         FCR = 1.
+         IF (DICE >  1.E-2) THEN
+            ACRT = CVFRZ * FRZX(I) / DICE
+            SUM = 1.
+            IALP1 = CVFRZ - 1
+            DO J = 1,IALP1
+               K = 1
+               DO JJ = J +1,IALP1
+                  K = K * JJ
+               END DO
+               SUM = SUM + (ACRT ** ( CVFRZ - J)) / FLOAT (K)
+            END DO
+            FCR = 1. - EXP ( - ACRT) * SUM
+         END IF
+
+! ----------------------------------------------------------------------
+! CORRECTION OF INFILTRATION LIMITATION:
+! IF INFMAX .LE. HYDROLIC CONDUCTIVITY ASSIGN INFMAX THE VALUE OF
+! HYDROLIC CONDUCTIVITY
+! ----------------------------------------------------------------------
+!         MXSMC = MAX ( SH2OA(1), SH2OA(2) )
+         INFMAX = INFMAX * FCR
+
+         MXSMC = SH2OA (1,I)
+         CALL WDFCND_gpu (WDF,WCND,MXSMC,SMCMAX(I),BEXP(I),DKSAT(I),DWSAT(I),           &
+                         SICEMAX)
+         INFMAX = MAX (INFMAX,WCND)
+
+         INFMAX = MIN (INFMAX,PX/DT)
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG       IF (PCPDRP >  INFMAX) THEN
+         IF (SFCWATR > INFMAX) THEN
+!DJG          RUNOFF1 = PCPDRP - INFMAX
+          RUNOFF1(I) = SFCWATR - INFMAX
+#else
+         IF (PCPDRP(I) >  INFMAX) THEN
+            RUNOFF1(I) = PCPDRP(I) - INFMAX
+#endif
+          INFXS1RT(I) = RUNOFF1(I)*DT*1000.
+          PDDUM = INFMAX
+         END IF
+
+! ----------------------------------------------------------------------
+! TO AVOID SPURIOUS DRAINAGE BEHAVIOR, 'UPSTREAM DIFFERENCING' IN LINE
+! BELOW REPLACED WITH NEW APPROACH IN 2ND LINE:
+! 'MXSMC = MAX(SH2OA(1), SH2OA(2))'
+! ----------------------------------------------------------------------
+      END IF
+
+      MXSMC = SH2OA (1,I)
+      CALL WDFCND_gpu (WDF,WCND,MXSMC,SMCMAX(I),BEXP(I),DKSAT(I),DWSAT(I),              &
+                    SICEMAX)
+! ----------------------------------------------------------------------
+! CALC THE MATRIX COEFFICIENTS AI, BI, AND CI FOR THE TOP LAYER
+! ----------------------------------------------------------------------
+      DDZ = 1. / ( - .5 * ZSOIL (2,I) )
+      AI (1,I) = 0.0
+      BI (1,I) = WDF * DDZ / ( - ZSOIL (1,I) )
+
+! ----------------------------------------------------------------------
+! CALC RHSTT FOR THE TOP LAYER AFTER CALC'NG THE VERTICAL SOIL MOISTURE
+! GRADIENT BTWN THE TOP AND NEXT TO TOP LAYERS.
+! ----------------------------------------------------------------------
+      CI (1,I) = - BI (1,I)
+      DSMDZ = ( SH2O (1,I) - SH2O (2,I) ) / ( - .5 * ZSOIL (2,I) )
+      RHSTT (1,I) = (WDF * DSMDZ + WCND- PDDUM + EDIR(I) + ET (1,I))/ ZSOIL (1,I)
+
+! ----------------------------------------------------------------------
+! INITIALIZE DDZ2
+! ----------------------------------------------------------------------
+      SSTT = WDF * DSMDZ + WCND+ EDIR(I) + ET (1,I)
+
+! ----------------------------------------------------------------------
+! LOOP THRU THE REMAINING SOIL LAYERS, REPEATING THE ABV PROCESS
+! ----------------------------------------------------------------------
+      DDZ2 = 0.0
+      DO K = 2,NSOIL
+         DENOM2 = (ZSOIL (K -1,I) - ZSOIL (K,I))
+         IF (K /= NSOIL) THEN
+
+! ----------------------------------------------------------------------
+! AGAIN, TO AVOID SPURIOUS DRAINAGE BEHAVIOR, 'UPSTREAM DIFFERENCING' IN
+! LINE BELOW REPLACED WITH NEW APPROACH IN 2ND LINE:
+! 'MXSMC2 = MAX (SH2OA(K), SH2OA(K+1))'
+! ----------------------------------------------------------------------
+            SLOPX = 1.
+
+            MXSMC2 = SH2OA (K,I)
+            CALL WDFCND_gpu (WDF2,WCND2,MXSMC2,SMCMAX(I),BEXP(I),DKSAT(I),DWSAT(I),     &
+                          SICEMAX)
+! -----------------------------------------------------------------------
+! CALC SOME PARTIAL PRODUCTS FOR LATER USE IN CALC'NG RHSTT
+! ----------------------------------------------------------------------
+            DENOM = (ZSOIL (K -1,I) - ZSOIL (K +1,I))
+
+! ----------------------------------------------------------------------
+! CALC THE MATRIX COEF, CI, AFTER CALC'NG ITS PARTIAL PRODUCT
+! ----------------------------------------------------------------------
+            DSMDZ2 = (SH2O (K,I) - SH2O (K +1,I)) / (DENOM * 0.5)
+            DDZ2 = 2.0 / DENOM
+            CI (K,I) = - WDF2 * DDZ2 / DENOM2
+
+         ELSE
+! ----------------------------------------------------------------------
+! SLOPE OF BOTTOM LAYER IS INTRODUCED
+! ----------------------------------------------------------------------
+
+! ----------------------------------------------------------------------
+! RETRIEVE THE SOIL WATER DIFFUSIVITY AND HYDRAULIC CONDUCTIVITY FOR
+! THIS LAYER
+! ----------------------------------------------------------------------
+            SLOPX = SLOPE(I)
+          CALL WDFCND_gpu (WDF2,WCND2,SH2OA (NSOIL,I),SMCMAX(I),BEXP(I),DKSAT(I),DWSAT(I),     &
+                            SICEMAX)
+
+! ----------------------------------------------------------------------
+! CALC A PARTIAL PRODUCT FOR LATER USE IN CALC'NG RHSTT
+! ----------------------------------------------------------------------
+
+! ----------------------------------------------------------------------
+! SET MATRIX COEF CI TO ZERO
+! ----------------------------------------------------------------------
+            DSMDZ2 = 0.0
+            CI (K,I) = 0.0
+! ----------------------------------------------------------------------
+! CALC RHSTT FOR THIS LAYER AFTER CALC'NG ITS NUMERATOR
+! ----------------------------------------------------------------------
+         END IF
+         NUMER = (WDF2 * DSMDZ2) + SLOPX * WCND2- (WDF * DSMDZ)         &
+                 - WCND+ ET (K,I)
+
+! ----------------------------------------------------------------------
+! CALC MATRIX COEFS, AI, AND BI FOR THIS LAYER
+! ----------------------------------------------------------------------
+         RHSTT (K,I) = NUMER / ( - DENOM2)
+         AI (K,I) = - WDF * DDZ / DENOM2
+
+! ----------------------------------------------------------------------
+! RESET VALUES OF WDF, WCND, DSMDZ, AND DDZ FOR LOOP TO NEXT LYR
+! RUNOFF2:  SUB-SURFACE OR BASEFLOW RUNOFF
+! ----------------------------------------------------------------------
+         BI (K,I) = - ( AI (K,I) + CI (K,I) )
+         IF (K .eq. NSOIL) THEN
+            RUNOFF2(I) = SLOPX * WCND2
+         END IF
+         IF (K .ne. NSOIL) THEN
+            WDF = WDF2
+            WCND = WCND2
+            DSMDZ = DSMDZ2
+            DDZ = DDZ2
+         END IF
+      END DO
+! ----------------------------------------------------------------------
+      END IF
+        ENDIF
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+  END SUBROUTINE SRT_gpu1_1
+
+![NV]! SRT_gpu (RHSTT(1:NSOIL,I),EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP(I),ZSOIL(1:NSOIL,I),          &
+![NV]!                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+![NV]!                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),  &
+![NV]!                    SFHEAD1RT(I),INFXS1RT(I))
+      SUBROUTINE SRT_gpu1_2 (RHSTT,EDIR,ET,SH2O,SH2OA,NSOIL,PCPDRP,            &
+                       ZSOIL,DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,           &
+                     RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZX,SICE,AI,BI,CI,  &
+                     SFHEAD1RT,INFXS1RT,XLAND,ICE,SNEQV,ETP,FAC2,FLIMIT,its,ite)
+
+! ----------------------------------------------------------------------
+! SUBROUTINE SRT
+! ----------------------------------------------------------------------
+! CALCULATE THE RIGHT HAND SIDE OF THE TIME TENDENCY TERM OF THE SOIL
+! WATER DIFFUSION EQUATION.  ALSO TO COMPUTE ( PREPARE ) THE MATRIX
+! COEFFICIENTS FOR THE TRI-DIAGONAL MATRIX OF THE IMPLICIT TIME SCHEME.
+! ----------------------------------------------------------------------
+      IMPLICIT NONE
+      INTEGER, INTENT(IN)       :: NSOIL,its,ite
+      INTEGER                   :: IALP1, IOHINF, I, J, JJ,  K, KS
+
+!DJG NDHMS/WRF-Hydro edit... Variables used in OV routing infiltration calcs
+       REAL, DIMENSION(its:ite), INTENT(INOUT) :: SFHEAD1RT, INFXS1RT
+       REAL                    :: SFCWATR,CHCKSM
+      REAL, DIMENSION(its:ite), INTENT(IN) :: XLAND,SNEQV,ETP,FAC2,FLIMIT
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: ICE
+
+      REAL, INTENT(IN)          :: DT
+      REAL, DIMENSION(its:ite), INTENT(IN)   :: EDIR, PCPDRP, DWSAT, DKSAT, SMCMAX, &
+                                                BEXP, SMCWLT, SLOPE, KDT, FRZX
+      REAL, DIMENSION(its:ite), INTENT(OUT)  :: RUNOFF1, RUNOFF2
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN)   :: ET, SH2O, SH2OA, ZSOIL, SICE
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)  :: RHSTT
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)  :: AI, BI, CI
+      REAL, DIMENSION(1:NSOIL)  :: DMAX
+      REAL                      :: ACRT, DD, DDT, DDZ, DDZ2, DENOM,     &
+                                   DENOM2,DICE, DSMDZ, DSMDZ2, DT1,     &
+                                   FCR,INFMAX,MXSMC,MXSMC2,NUMER,PDDUM, &
+                                   PX, SICEMAX,SLOPX, SMCAV, SSTT,      &
+                                   SUM, VAL, WCND, WCND2, WDF, WDF2
+      INTEGER, PARAMETER        :: CVFRZ = 3
+
+!$acc parallel
+!$acc loop gang vector private(DMAX,ACRT, DD, DDT, DDZ, DDZ2, DENOM,DENOM2,DICE, DSMDZ, DSMDZ2, DT1, &
+!$acc                          FCR,INFMAX,MXSMC,MXSMC2,NUMER,PDDUM,PX, SICEMAX,SLOPX, SMCAV, SSTT, &
+!$acc                          SUM, VAL, WCND, WCND2, WDF, WDF2,IALP1, IOHINF,SFCWATR,CHCKSM)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
+        IF (ETP(I) > 0.0) THEN
+      IF ( ( (PCPDRP(I) * DT) <= (0.0001*1000.0* (- ZSOIL (1,I))* SMCMAX(I)) )   &
+           .AND. (FAC2(I) <= FLIMIT(I)) ) THEN
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! REFERENCE FROZEN GROUND PARAMETER, CVFRZ, IS A SHAPE PARAMETER OF
+! AREAL DISTRIBUTION FUNCTION OF SOIL ICE CONTENT WHICH EQUALS 1/CV.
+! CV IS A COEFFICIENT OF SPATIAL VARIATION OF SOIL ICE CONTENT.  BASED
+! ON FIELD DATA CV DEPENDS ON AREAL MEAN OF FROZEN DEPTH, AND IT CLOSE
+! TO CONSTANT = 0.6 IF AREAL MEAN FROZEN DEPTH IS ABOVE 20 CM.  THAT IS
+! WHY PARAMETER CVFRZ = 3 (INT{1/0.6*0.6}).
+! CURRENT LOGIC DOESN'T ALLOW CVFRZ BE BIGGER THAN 3
+! ----------------------------------------------------------------------
+
+! ----------------------------------------------------------------------
+! DETERMINE RAINFALL INFILTRATION RATE AND RUNOFF.  INCLUDE THE
+! INFILTRATION FORMULE FROM SCHAAKE AND KOREN MODEL.
+! MODIFIED BY Q DUAN
+! ----------------------------------------------------------------------
+! ----------------------------------------------------------------------
+! LET SICEMAX BE THE GREATEST, IF ANY, FROZEN WATER CONTENT WITHIN SOIL
+! LAYERS.
+! ----------------------------------------------------------------------
+      IOHINF = 1
+      SICEMAX = 0.0
+      DO KS = 1,NSOIL
+         IF (SICE (KS,I) >  SICEMAX) SICEMAX = SICE (KS,I)
+! ----------------------------------------------------------------------
+! DETERMINE RAINFALL INFILTRATION RATE AND RUNOFF
+! ----------------------------------------------------------------------
+      END DO
+
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG Use previously merged Precip and Sfchead for infil. cap. calc.
+      SFCWATR = PCPDRP(I)
+      PDDUM = SFCWATR
+!DJG original   PDDUM = PCPDRP
+      RUNOFF1(I) = 0.0
+      INFXS1RT(I) = 0.0
+#else
+      PDDUM = PCPDRP(I)
+      RUNOFF1(I) = 0.0
+#endif
+
+
+
+! ----------------------------------------------------------------------
+! MODIFIED BY Q. DUAN, 5/16/94
+! ----------------------------------------------------------------------
+!        IF (IOHINF == 1) THEN
+
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG IF (PCPDRP /=  0.0) THEN
+      IF (SFCWATR /=  0.0) THEN
+#else
+     IF (PCPDRP(I) /=  0.0) THEN
+#endif
+         DT1 = DT /86400.
+         SMCAV = SMCMAX(I) - SMCWLT(I)
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! ----------------------------------------------------------------------
+         DMAX (1)= - ZSOIL (1,I)* SMCAV
+
+         DICE = - ZSOIL (1,I) * SICE (1,I)
+         DMAX (1)= DMAX (1)* (1.0- (SH2OA (1,I) + SICE (1,I) - SMCWLT(I))/      &
+                    SMCAV)
+
+         DD = DMAX (1)
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! ----------------------------------------------------------------------
+         DO KS = 2,NSOIL
+
+            DICE = DICE+ ( ZSOIL (KS -1,I) - ZSOIL (KS,I) ) * SICE (KS,I)
+            DMAX (KS) = (ZSOIL (KS -1,I) - ZSOIL (KS,I))* SMCAV
+            DMAX (KS) = DMAX (KS)* (1.0- (SH2OA (KS,I) + SICE (KS,I)        &
+                        - SMCWLT(I))/ SMCAV)
+            DD = DD+ DMAX (KS)
+! ----------------------------------------------------------------------
+! VAL = (1.-EXP(-KDT*SQRT(DT1)))
+! IN BELOW, REMOVE THE SQRT IN ABOVE
+! ----------------------------------------------------------------------
+         END DO
+         VAL = (1. - EXP ( - KDT(I) * DT1))
+         DDT = DD * VAL
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG        PX = PCPDRP * DT
+         PX = SFCWATR * DT
+#else
+         PX = PCPDRP(I) * DT
+#endif
+         IF (PX <  0.0) PX = 0.0
+
+
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! REDUCTION OF INFILTRATION BASED ON FROZEN GROUND PARAMETERS
+! ----------------------------------------------------------------------
+         INFMAX = (PX * (DDT / (PX + DDT)))/ DT
+         FCR = 1.
+         IF (DICE >  1.E-2) THEN
+            ACRT = CVFRZ * FRZX(I) / DICE
+            SUM = 1.
+            IALP1 = CVFRZ - 1
+            DO J = 1,IALP1
+               K = 1
+               DO JJ = J +1,IALP1
+                  K = K * JJ
+               END DO
+               SUM = SUM + (ACRT ** ( CVFRZ - J)) / FLOAT (K)
+            END DO
+            FCR = 1. - EXP ( - ACRT) * SUM
+         END IF
+
+! ----------------------------------------------------------------------
+! CORRECTION OF INFILTRATION LIMITATION:
+! IF INFMAX .LE. HYDROLIC CONDUCTIVITY ASSIGN INFMAX THE VALUE OF
+! HYDROLIC CONDUCTIVITY
+! ----------------------------------------------------------------------
+!         MXSMC = MAX ( SH2OA(1), SH2OA(2) )
+         INFMAX = INFMAX * FCR
+
+         MXSMC = SH2OA (1,I)
+         CALL WDFCND_gpu (WDF,WCND,MXSMC,SMCMAX(I),BEXP(I),DKSAT(I),DWSAT(I),           &
+                         SICEMAX)
+         INFMAX = MAX (INFMAX,WCND)
+
+         INFMAX = MIN (INFMAX,PX/DT)
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG       IF (PCPDRP >  INFMAX) THEN
+         IF (SFCWATR > INFMAX) THEN
+!DJG          RUNOFF1 = PCPDRP - INFMAX
+          RUNOFF1(I) = SFCWATR - INFMAX
+#else
+         IF (PCPDRP(I) >  INFMAX) THEN
+            RUNOFF1(I) = PCPDRP(I) - INFMAX
+#endif
+          INFXS1RT(I) = RUNOFF1(I)*DT*1000.
+          PDDUM = INFMAX
+         END IF
+
+! ----------------------------------------------------------------------
+! TO AVOID SPURIOUS DRAINAGE BEHAVIOR, 'UPSTREAM DIFFERENCING' IN LINE
+! BELOW REPLACED WITH NEW APPROACH IN 2ND LINE:
+! 'MXSMC = MAX(SH2OA(1), SH2OA(2))'
+! ----------------------------------------------------------------------
+      END IF
+
+      MXSMC = SH2OA (1,I)
+      CALL WDFCND_gpu (WDF,WCND,MXSMC,SMCMAX(I),BEXP(I),DKSAT(I),DWSAT(I),              &
+                    SICEMAX)
+! ----------------------------------------------------------------------
+! CALC THE MATRIX COEFFICIENTS AI, BI, AND CI FOR THE TOP LAYER
+! ----------------------------------------------------------------------
+      DDZ = 1. / ( - .5 * ZSOIL (2,I) )
+      AI (1,I) = 0.0
+      BI (1,I) = WDF * DDZ / ( - ZSOIL (1,I) )
+
+! ----------------------------------------------------------------------
+! CALC RHSTT FOR THE TOP LAYER AFTER CALC'NG THE VERTICAL SOIL MOISTURE
+! GRADIENT BTWN THE TOP AND NEXT TO TOP LAYERS.
+! ----------------------------------------------------------------------
+      CI (1,I) = - BI (1,I)
+      DSMDZ = ( SH2O (1,I) - SH2O (2,I) ) / ( - .5 * ZSOIL (2,I) )
+      RHSTT (1,I) = (WDF * DSMDZ + WCND- PDDUM + EDIR(I) + ET (1,I))/ ZSOIL (1,I)
+
+! ----------------------------------------------------------------------
+! INITIALIZE DDZ2
+! ----------------------------------------------------------------------
+      SSTT = WDF * DSMDZ + WCND+ EDIR(I) + ET (1,I)
+
+! ----------------------------------------------------------------------
+! LOOP THRU THE REMAINING SOIL LAYERS, REPEATING THE ABV PROCESS
+! ----------------------------------------------------------------------
+      DDZ2 = 0.0
+      DO K = 2,NSOIL
+         DENOM2 = (ZSOIL (K -1,I) - ZSOIL (K,I))
+         IF (K /= NSOIL) THEN
+
+! ----------------------------------------------------------------------
+! AGAIN, TO AVOID SPURIOUS DRAINAGE BEHAVIOR, 'UPSTREAM DIFFERENCING' IN
+! LINE BELOW REPLACED WITH NEW APPROACH IN 2ND LINE:
+! 'MXSMC2 = MAX (SH2OA(K), SH2OA(K+1))'
+! ----------------------------------------------------------------------
+            SLOPX = 1.
+
+            MXSMC2 = SH2OA (K,I)
+            CALL WDFCND_gpu (WDF2,WCND2,MXSMC2,SMCMAX(I),BEXP(I),DKSAT(I),DWSAT(I),     &
+                          SICEMAX)
+! -----------------------------------------------------------------------
+! CALC SOME PARTIAL PRODUCTS FOR LATER USE IN CALC'NG RHSTT
+! ----------------------------------------------------------------------
+            DENOM = (ZSOIL (K -1,I) - ZSOIL (K +1,I))
+
+! ----------------------------------------------------------------------
+! CALC THE MATRIX COEF, CI, AFTER CALC'NG ITS PARTIAL PRODUCT
+! ----------------------------------------------------------------------
+            DSMDZ2 = (SH2O (K,I) - SH2O (K +1,I)) / (DENOM * 0.5)
+            DDZ2 = 2.0 / DENOM
+            CI (K,I) = - WDF2 * DDZ2 / DENOM2
+
+         ELSE
+! ----------------------------------------------------------------------
+! SLOPE OF BOTTOM LAYER IS INTRODUCED
+! ----------------------------------------------------------------------
+
+! ----------------------------------------------------------------------
+! RETRIEVE THE SOIL WATER DIFFUSIVITY AND HYDRAULIC CONDUCTIVITY FOR
+! THIS LAYER
+! ----------------------------------------------------------------------
+            SLOPX = SLOPE(I)
+          CALL WDFCND_gpu (WDF2,WCND2,SH2OA (NSOIL,I),SMCMAX(I),BEXP(I),DKSAT(I),DWSAT(I),     &
+                            SICEMAX)
+
+! ----------------------------------------------------------------------
+! CALC A PARTIAL PRODUCT FOR LATER USE IN CALC'NG RHSTT
+! ----------------------------------------------------------------------
+
+! ----------------------------------------------------------------------
+! SET MATRIX COEF CI TO ZERO
+! ----------------------------------------------------------------------
+            DSMDZ2 = 0.0
+            CI (K,I) = 0.0
+! ----------------------------------------------------------------------
+! CALC RHSTT FOR THIS LAYER AFTER CALC'NG ITS NUMERATOR
+! ----------------------------------------------------------------------
+         END IF
+         NUMER = (WDF2 * DSMDZ2) + SLOPX * WCND2- (WDF * DSMDZ)         &
+                 - WCND+ ET (K,I)
+
+! ----------------------------------------------------------------------
+! CALC MATRIX COEFS, AI, AND BI FOR THIS LAYER
+! ----------------------------------------------------------------------
+         RHSTT (K,I) = NUMER / ( - DENOM2)
+         AI (K,I) = - WDF * DDZ / DENOM2
+
+! ----------------------------------------------------------------------
+! RESET VALUES OF WDF, WCND, DSMDZ, AND DDZ FOR LOOP TO NEXT LYR
+! RUNOFF2:  SUB-SURFACE OR BASEFLOW RUNOFF
+! ----------------------------------------------------------------------
+         BI (K,I) = - ( AI (K,I) + CI (K,I) )
+         IF (K .eq. NSOIL) THEN
+            RUNOFF2(I) = SLOPX * WCND2
+         END IF
+         IF (K .ne. NSOIL) THEN
+            WDF = WDF2
+            WCND = WCND2
+            DSMDZ = DSMDZ2
+            DDZ = DDZ2
+         END IF
+      END DO
+! ----------------------------------------------------------------------
+      END IF
+        ENDIF
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+  END SUBROUTINE SRT_gpu1_2
+
+![NV]! SRT_gpu (RHSTT(1:NSOIL,I),EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP(I),ZSOIL(1:NSOIL,I),          &
+![NV]!                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+![NV]!                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),  &
+![NV]!                    SFHEAD1RT(I),INFXS1RT(I))
+      SUBROUTINE SRT_gpu3_1 (RHSTT,EDIR,ET,SH2O,SH2OA,NSOIL,PCPDRP,            &
+                       ZSOIL,DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,           &
+                     RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZX,SICE,AI,BI,CI,  &
+                     SFHEAD1RT,INFXS1RT,XLAND,ICE,SNEQV,FAC2,FLIMIT,its,ite)
+
+! ----------------------------------------------------------------------
+! SUBROUTINE SRT
+! ----------------------------------------------------------------------
+! CALCULATE THE RIGHT HAND SIDE OF THE TIME TENDENCY TERM OF THE SOIL
+! WATER DIFFUSION EQUATION.  ALSO TO COMPUTE ( PREPARE ) THE MATRIX
+! COEFFICIENTS FOR THE TRI-DIAGONAL MATRIX OF THE IMPLICIT TIME SCHEME.
+! ----------------------------------------------------------------------
+      IMPLICIT NONE
+      INTEGER, INTENT(IN)       :: NSOIL,its,ite
+      INTEGER                   :: IALP1, IOHINF, I, J, JJ,  K, KS
+
+!DJG NDHMS/WRF-Hydro edit... Variables used in OV routing infiltration calcs
+       REAL, DIMENSION(its:ite), INTENT(INOUT) :: SFHEAD1RT, INFXS1RT
+       REAL                    :: SFCWATR,CHCKSM
+      REAL, DIMENSION(its:ite), INTENT(IN) :: XLAND,SNEQV,FAC2,FLIMIT
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: ICE
+
+      REAL, INTENT(IN)          :: DT
+      REAL, DIMENSION(its:ite), INTENT(IN)   :: EDIR, PCPDRP, DWSAT, DKSAT, SMCMAX, &
+                                                BEXP, SMCWLT, SLOPE, KDT, FRZX
+      REAL, DIMENSION(its:ite), INTENT(OUT)  :: RUNOFF1, RUNOFF2
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN)   :: ET, SH2O, SH2OA, ZSOIL, SICE
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)  :: RHSTT
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)  :: AI, BI, CI
+      REAL, DIMENSION(1:NSOIL)  :: DMAX
+      REAL                      :: ACRT, DD, DDT, DDZ, DDZ2, DENOM,     &
+                                   DENOM2,DICE, DSMDZ, DSMDZ2, DT1,     &
+                                   FCR,INFMAX,MXSMC,MXSMC2,NUMER,PDDUM, &
+                                   PX, SICEMAX,SLOPX, SMCAV, SSTT,      &
+                                   SUM, VAL, WCND, WCND2, WDF, WDF2
+      INTEGER, PARAMETER        :: CVFRZ = 3
+
+!$acc parallel
+!$acc loop gang vector private(DMAX,ACRT, DD, DDT, DDZ, DDZ2, DENOM,DENOM2,DICE, DSMDZ, DSMDZ2, DT1, &
+!$acc                          FCR,INFMAX,MXSMC,MXSMC2,NUMER,PDDUM,PX, SICEMAX,SLOPX, SMCAV, SSTT, &
+!$acc                          SUM, VAL, WCND, WCND2, WDF, WDF2,IALP1, IOHINF,SFCWATR,CHCKSM)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  /= 0.0) THEN
+      IF ( ( (PCPDRP(I) * DT) > (0.0001*1000.0* (- ZSOIL (1,I))* SMCMAX(I)) )   &
+           .OR. (FAC2(I) > FLIMIT(I)) ) THEN
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! REFERENCE FROZEN GROUND PARAMETER, CVFRZ, IS A SHAPE PARAMETER OF
+! AREAL DISTRIBUTION FUNCTION OF SOIL ICE CONTENT WHICH EQUALS 1/CV.
+! CV IS A COEFFICIENT OF SPATIAL VARIATION OF SOIL ICE CONTENT.  BASED
+! ON FIELD DATA CV DEPENDS ON AREAL MEAN OF FROZEN DEPTH, AND IT CLOSE
+! TO CONSTANT = 0.6 IF AREAL MEAN FROZEN DEPTH IS ABOVE 20 CM.  THAT IS
+! WHY PARAMETER CVFRZ = 3 (INT{1/0.6*0.6}).
+! CURRENT LOGIC DOESN'T ALLOW CVFRZ BE BIGGER THAN 3
+! ----------------------------------------------------------------------
+
+! ----------------------------------------------------------------------
+! DETERMINE RAINFALL INFILTRATION RATE AND RUNOFF.  INCLUDE THE
+! INFILTRATION FORMULE FROM SCHAAKE AND KOREN MODEL.
+! MODIFIED BY Q DUAN
+! ----------------------------------------------------------------------
+! ----------------------------------------------------------------------
+! LET SICEMAX BE THE GREATEST, IF ANY, FROZEN WATER CONTENT WITHIN SOIL
+! LAYERS.
+! ----------------------------------------------------------------------
+      IOHINF = 1
+      SICEMAX = 0.0
+      DO KS = 1,NSOIL
+         IF (SICE (KS,I) >  SICEMAX) SICEMAX = SICE (KS,I)
+! ----------------------------------------------------------------------
+! DETERMINE RAINFALL INFILTRATION RATE AND RUNOFF
+! ----------------------------------------------------------------------
+      END DO
+
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG Use previously merged Precip and Sfchead for infil. cap. calc.
+      SFCWATR = PCPDRP(I)
+      PDDUM = SFCWATR
+!DJG original   PDDUM = PCPDRP
+      RUNOFF1(I) = 0.0
+      INFXS1RT(I) = 0.0
+#else
+      PDDUM = PCPDRP(I)
+      RUNOFF1(I) = 0.0
+#endif
+
+
+
+! ----------------------------------------------------------------------
+! MODIFIED BY Q. DUAN, 5/16/94
+! ----------------------------------------------------------------------
+!        IF (IOHINF == 1) THEN
+
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG IF (PCPDRP /=  0.0) THEN
+      IF (SFCWATR /=  0.0) THEN
+#else
+     IF (PCPDRP(I) /=  0.0) THEN
+#endif
+         DT1 = DT /86400.
+         SMCAV = SMCMAX(I) - SMCWLT(I)
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! ----------------------------------------------------------------------
+         DMAX (1)= - ZSOIL (1,I)* SMCAV
+
+         DICE = - ZSOIL (1,I) * SICE (1,I)
+         DMAX (1)= DMAX (1)* (1.0- (SH2OA (1,I) + SICE (1,I) - SMCWLT(I))/      &
+                    SMCAV)
+
+         DD = DMAX (1)
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! ----------------------------------------------------------------------
+         DO KS = 2,NSOIL
+
+            DICE = DICE+ ( ZSOIL (KS -1,I) - ZSOIL (KS,I) ) * SICE (KS,I)
+            DMAX (KS) = (ZSOIL (KS -1,I) - ZSOIL (KS,I))* SMCAV
+            DMAX (KS) = DMAX (KS)* (1.0- (SH2OA (KS,I) + SICE (KS,I)        &
+                        - SMCWLT(I))/ SMCAV)
+            DD = DD+ DMAX (KS)
+! ----------------------------------------------------------------------
+! VAL = (1.-EXP(-KDT*SQRT(DT1)))
+! IN BELOW, REMOVE THE SQRT IN ABOVE
+! ----------------------------------------------------------------------
+         END DO
+         VAL = (1. - EXP ( - KDT(I) * DT1))
+         DDT = DD * VAL
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG        PX = PCPDRP * DT
+         PX = SFCWATR * DT
+#else
+         PX = PCPDRP(I) * DT
+#endif
+         IF (PX <  0.0) PX = 0.0
+
+
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! REDUCTION OF INFILTRATION BASED ON FROZEN GROUND PARAMETERS
+! ----------------------------------------------------------------------
+         INFMAX = (PX * (DDT / (PX + DDT)))/ DT
+         FCR = 1.
+         IF (DICE >  1.E-2) THEN
+            ACRT = CVFRZ * FRZX(I) / DICE
+            SUM = 1.
+            IALP1 = CVFRZ - 1
+            DO J = 1,IALP1
+               K = 1
+               DO JJ = J +1,IALP1
+                  K = K * JJ
+               END DO
+               SUM = SUM + (ACRT ** ( CVFRZ - J)) / FLOAT (K)
+            END DO
+            FCR = 1. - EXP ( - ACRT) * SUM
+         END IF
+
+! ----------------------------------------------------------------------
+! CORRECTION OF INFILTRATION LIMITATION:
+! IF INFMAX .LE. HYDROLIC CONDUCTIVITY ASSIGN INFMAX THE VALUE OF
+! HYDROLIC CONDUCTIVITY
+! ----------------------------------------------------------------------
+!         MXSMC = MAX ( SH2OA(1), SH2OA(2) )
+         INFMAX = INFMAX * FCR
+
+         MXSMC = SH2OA (1,I)
+         CALL WDFCND_gpu (WDF,WCND,MXSMC,SMCMAX(I),BEXP(I),DKSAT(I),DWSAT(I),           &
+                         SICEMAX)
+         INFMAX = MAX (INFMAX,WCND)
+
+         INFMAX = MIN (INFMAX,PX/DT)
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG       IF (PCPDRP >  INFMAX) THEN
+         IF (SFCWATR > INFMAX) THEN
+!DJG          RUNOFF1 = PCPDRP - INFMAX
+          RUNOFF1(I) = SFCWATR - INFMAX
+#else
+         IF (PCPDRP(I) >  INFMAX) THEN
+            RUNOFF1(I) = PCPDRP(I) - INFMAX
+#endif
+          INFXS1RT(I) = RUNOFF1(I)*DT*1000.
+          PDDUM = INFMAX
+         END IF
+
+! ----------------------------------------------------------------------
+! TO AVOID SPURIOUS DRAINAGE BEHAVIOR, 'UPSTREAM DIFFERENCING' IN LINE
+! BELOW REPLACED WITH NEW APPROACH IN 2ND LINE:
+! 'MXSMC = MAX(SH2OA(1), SH2OA(2))'
+! ----------------------------------------------------------------------
+      END IF
+
+      MXSMC = SH2OA (1,I)
+      CALL WDFCND_gpu (WDF,WCND,MXSMC,SMCMAX(I),BEXP(I),DKSAT(I),DWSAT(I),              &
+                    SICEMAX)
+! ----------------------------------------------------------------------
+! CALC THE MATRIX COEFFICIENTS AI, BI, AND CI FOR THE TOP LAYER
+! ----------------------------------------------------------------------
+      DDZ = 1. / ( - .5 * ZSOIL (2,I) )
+      AI (1,I) = 0.0
+      BI (1,I) = WDF * DDZ / ( - ZSOIL (1,I) )
+
+! ----------------------------------------------------------------------
+! CALC RHSTT FOR THE TOP LAYER AFTER CALC'NG THE VERTICAL SOIL MOISTURE
+! GRADIENT BTWN THE TOP AND NEXT TO TOP LAYERS.
+! ----------------------------------------------------------------------
+      CI (1,I) = - BI (1,I)
+      DSMDZ = ( SH2O (1,I) - SH2O (2,I) ) / ( - .5 * ZSOIL (2,I) )
+      RHSTT (1,I) = (WDF * DSMDZ + WCND- PDDUM + EDIR(I) + ET (1,I))/ ZSOIL (1,I)
+
+! ----------------------------------------------------------------------
+! INITIALIZE DDZ2
+! ----------------------------------------------------------------------
+      SSTT = WDF * DSMDZ + WCND+ EDIR(I) + ET (1,I)
+
+! ----------------------------------------------------------------------
+! LOOP THRU THE REMAINING SOIL LAYERS, REPEATING THE ABV PROCESS
+! ----------------------------------------------------------------------
+      DDZ2 = 0.0
+      DO K = 2,NSOIL
+         DENOM2 = (ZSOIL (K -1,I) - ZSOIL (K,I))
+         IF (K /= NSOIL) THEN
+
+! ----------------------------------------------------------------------
+! AGAIN, TO AVOID SPURIOUS DRAINAGE BEHAVIOR, 'UPSTREAM DIFFERENCING' IN
+! LINE BELOW REPLACED WITH NEW APPROACH IN 2ND LINE:
+! 'MXSMC2 = MAX (SH2OA(K), SH2OA(K+1))'
+! ----------------------------------------------------------------------
+            SLOPX = 1.
+
+            MXSMC2 = SH2OA (K,I)
+            CALL WDFCND_gpu (WDF2,WCND2,MXSMC2,SMCMAX(I),BEXP(I),DKSAT(I),DWSAT(I),     &
+                          SICEMAX)
+! -----------------------------------------------------------------------
+! CALC SOME PARTIAL PRODUCTS FOR LATER USE IN CALC'NG RHSTT
+! ----------------------------------------------------------------------
+            DENOM = (ZSOIL (K -1,I) - ZSOIL (K +1,I))
+
+! ----------------------------------------------------------------------
+! CALC THE MATRIX COEF, CI, AFTER CALC'NG ITS PARTIAL PRODUCT
+! ----------------------------------------------------------------------
+            DSMDZ2 = (SH2O (K,I) - SH2O (K +1,I)) / (DENOM * 0.5)
+            DDZ2 = 2.0 / DENOM
+            CI (K,I) = - WDF2 * DDZ2 / DENOM2
+
+         ELSE
+! ----------------------------------------------------------------------
+! SLOPE OF BOTTOM LAYER IS INTRODUCED
+! ----------------------------------------------------------------------
+
+! ----------------------------------------------------------------------
+! RETRIEVE THE SOIL WATER DIFFUSIVITY AND HYDRAULIC CONDUCTIVITY FOR
+! THIS LAYER
+! ----------------------------------------------------------------------
+            SLOPX = SLOPE(I)
+          CALL WDFCND_gpu (WDF2,WCND2,SH2OA (NSOIL,I),SMCMAX(I),BEXP(I),DKSAT(I),DWSAT(I),     &
+                            SICEMAX)
+
+! ----------------------------------------------------------------------
+! CALC A PARTIAL PRODUCT FOR LATER USE IN CALC'NG RHSTT
+! ----------------------------------------------------------------------
+
+! ----------------------------------------------------------------------
+! SET MATRIX COEF CI TO ZERO
+! ----------------------------------------------------------------------
+            DSMDZ2 = 0.0
+            CI (K,I) = 0.0
+! ----------------------------------------------------------------------
+! CALC RHSTT FOR THIS LAYER AFTER CALC'NG ITS NUMERATOR
+! ----------------------------------------------------------------------
+         END IF
+         NUMER = (WDF2 * DSMDZ2) + SLOPX * WCND2- (WDF * DSMDZ)         &
+                 - WCND+ ET (K,I)
+
+! ----------------------------------------------------------------------
+! CALC MATRIX COEFS, AI, AND BI FOR THIS LAYER
+! ----------------------------------------------------------------------
+         RHSTT (K,I) = NUMER / ( - DENOM2)
+         AI (K,I) = - WDF * DDZ / DENOM2
+
+! ----------------------------------------------------------------------
+! RESET VALUES OF WDF, WCND, DSMDZ, AND DDZ FOR LOOP TO NEXT LYR
+! RUNOFF2:  SUB-SURFACE OR BASEFLOW RUNOFF
+! ----------------------------------------------------------------------
+         BI (K,I) = - ( AI (K,I) + CI (K,I) )
+         IF (K .eq. NSOIL) THEN
+            RUNOFF2(I) = SLOPX * WCND2
+         END IF
+         IF (K .ne. NSOIL) THEN
+            WDF = WDF2
+            WCND = WCND2
+            DSMDZ = DSMDZ2
+            DDZ = DDZ2
+         END IF
+      END DO
+! ----------------------------------------------------------------------
+      END IF
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+  END SUBROUTINE SRT_gpu3_1
+
+![NV]! SRT_gpu (RHSTT(1:NSOIL,I),EDIR(I),ET(1:NSOIL,I),SH2O(1:NSOIL,I),SH2O(1:NSOIL,I),NSOIL,PCPDRP(I),ZSOIL(1:NSOIL,I),          &
+![NV]!                    DWSAT(I),DKSAT(I),SMCMAX(I),BEXP(I),RUNOFF1(I),                    &
+![NV]!                    RUNOFF2(I),DT,SMCWLT(I),SLOPE(I),KDT(I),FRZFACT(I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),  &
+![NV]!                    SFHEAD1RT(I),INFXS1RT(I))
+      SUBROUTINE SRT_gpu3_2 (RHSTT,EDIR,ET,SH2O,SH2OA,NSOIL,PCPDRP,            &
+                       ZSOIL,DWSAT,DKSAT,SMCMAX,BEXP,RUNOFF1,           &
+                     RUNOFF2,DT,SMCWLT,SLOPE,KDT,FRZX,SICE,AI,BI,CI,  &
+                     SFHEAD1RT,INFXS1RT,XLAND,ICE,SNEQV,FAC2,FLIMIT,its,ite)
+
+! ----------------------------------------------------------------------
+! SUBROUTINE SRT
+! ----------------------------------------------------------------------
+! CALCULATE THE RIGHT HAND SIDE OF THE TIME TENDENCY TERM OF THE SOIL
+! WATER DIFFUSION EQUATION.  ALSO TO COMPUTE ( PREPARE ) THE MATRIX
+! COEFFICIENTS FOR THE TRI-DIAGONAL MATRIX OF THE IMPLICIT TIME SCHEME.
+! ----------------------------------------------------------------------
+      IMPLICIT NONE
+      INTEGER, INTENT(IN)       :: NSOIL,its,ite
+      INTEGER                   :: IALP1, IOHINF, I, J, JJ,  K, KS
+
+!DJG NDHMS/WRF-Hydro edit... Variables used in OV routing infiltration calcs
+       REAL, DIMENSION(its:ite), INTENT(INOUT) :: SFHEAD1RT, INFXS1RT
+       REAL                    :: SFCWATR,CHCKSM
+      REAL, DIMENSION(its:ite), INTENT(IN) :: XLAND,SNEQV,FAC2,FLIMIT
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: ICE
+
+      REAL, INTENT(IN)          :: DT
+      REAL, DIMENSION(its:ite), INTENT(IN)   :: EDIR, PCPDRP, DWSAT, DKSAT, SMCMAX, &
+                                                BEXP, SMCWLT, SLOPE, KDT, FRZX
+      REAL, DIMENSION(its:ite), INTENT(OUT)  :: RUNOFF1, RUNOFF2
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN)   :: ET, SH2O, SH2OA, ZSOIL, SICE
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)  :: RHSTT
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)  :: AI, BI, CI
+      REAL, DIMENSION(1:NSOIL)  :: DMAX
+      REAL                      :: ACRT, DD, DDT, DDZ, DDZ2, DENOM,     &
+                                   DENOM2,DICE, DSMDZ, DSMDZ2, DT1,     &
+                                   FCR,INFMAX,MXSMC,MXSMC2,NUMER,PDDUM, &
+                                   PX, SICEMAX,SLOPX, SMCAV, SSTT,      &
+                                   SUM, VAL, WCND, WCND2, WDF, WDF2
+      INTEGER, PARAMETER        :: CVFRZ = 3
+
+!$acc parallel
+!$acc loop gang vector private(DMAX,ACRT, DD, DDT, DDZ, DDZ2, DENOM,DENOM2,DICE, DSMDZ, DSMDZ2, DT1, &
+!$acc                          FCR,INFMAX,MXSMC,MXSMC2,NUMER,PDDUM,PX, SICEMAX,SLOPX, SMCAV, SSTT, &
+!$acc                          SUM, VAL, WCND, WCND2, WDF, WDF2,IALP1, IOHINF,SFCWATR,CHCKSM)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  /= 0.0) THEN
+      IF ( ( (PCPDRP(I) * DT) <= (0.0001*1000.0* (- ZSOIL (1,I))* SMCMAX(I)) )   &
+           .AND. (FAC2(I) <= FLIMIT(I)) ) THEN
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! REFERENCE FROZEN GROUND PARAMETER, CVFRZ, IS A SHAPE PARAMETER OF
+! AREAL DISTRIBUTION FUNCTION OF SOIL ICE CONTENT WHICH EQUALS 1/CV.
+! CV IS A COEFFICIENT OF SPATIAL VARIATION OF SOIL ICE CONTENT.  BASED
+! ON FIELD DATA CV DEPENDS ON AREAL MEAN OF FROZEN DEPTH, AND IT CLOSE
+! TO CONSTANT = 0.6 IF AREAL MEAN FROZEN DEPTH IS ABOVE 20 CM.  THAT IS
+! WHY PARAMETER CVFRZ = 3 (INT{1/0.6*0.6}).
+! CURRENT LOGIC DOESN'T ALLOW CVFRZ BE BIGGER THAN 3
+! ----------------------------------------------------------------------
+
+! ----------------------------------------------------------------------
+! DETERMINE RAINFALL INFILTRATION RATE AND RUNOFF.  INCLUDE THE
+! INFILTRATION FORMULE FROM SCHAAKE AND KOREN MODEL.
+! MODIFIED BY Q DUAN
+! ----------------------------------------------------------------------
+! ----------------------------------------------------------------------
+! LET SICEMAX BE THE GREATEST, IF ANY, FROZEN WATER CONTENT WITHIN SOIL
+! LAYERS.
+! ----------------------------------------------------------------------
+      IOHINF = 1
+      SICEMAX = 0.0
+      DO KS = 1,NSOIL
+         IF (SICE (KS,I) >  SICEMAX) SICEMAX = SICE (KS,I)
+! ----------------------------------------------------------------------
+! DETERMINE RAINFALL INFILTRATION RATE AND RUNOFF
+! ----------------------------------------------------------------------
+      END DO
+
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG Use previously merged Precip and Sfchead for infil. cap. calc.
+      SFCWATR = PCPDRP(I)
+      PDDUM = SFCWATR
+!DJG original   PDDUM = PCPDRP
+      RUNOFF1(I) = 0.0
+      INFXS1RT(I) = 0.0
+#else
+      PDDUM = PCPDRP(I)
+      RUNOFF1(I) = 0.0
+#endif
+
+
+
+! ----------------------------------------------------------------------
+! MODIFIED BY Q. DUAN, 5/16/94
+! ----------------------------------------------------------------------
+!        IF (IOHINF == 1) THEN
+
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG IF (PCPDRP /=  0.0) THEN
+      IF (SFCWATR /=  0.0) THEN
+#else
+     IF (PCPDRP(I) /=  0.0) THEN
+#endif
+         DT1 = DT /86400.
+         SMCAV = SMCMAX(I) - SMCWLT(I)
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! ----------------------------------------------------------------------
+         DMAX (1)= - ZSOIL (1,I)* SMCAV
+
+         DICE = - ZSOIL (1,I) * SICE (1,I)
+         DMAX (1)= DMAX (1)* (1.0- (SH2OA (1,I) + SICE (1,I) - SMCWLT(I))/      &
+                    SMCAV)
+
+         DD = DMAX (1)
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! ----------------------------------------------------------------------
+         DO KS = 2,NSOIL
+
+            DICE = DICE+ ( ZSOIL (KS -1,I) - ZSOIL (KS,I) ) * SICE (KS,I)
+            DMAX (KS) = (ZSOIL (KS -1,I) - ZSOIL (KS,I))* SMCAV
+            DMAX (KS) = DMAX (KS)* (1.0- (SH2OA (KS,I) + SICE (KS,I)        &
+                        - SMCWLT(I))/ SMCAV)
+            DD = DD+ DMAX (KS)
+! ----------------------------------------------------------------------
+! VAL = (1.-EXP(-KDT*SQRT(DT1)))
+! IN BELOW, REMOVE THE SQRT IN ABOVE
+! ----------------------------------------------------------------------
+         END DO
+         VAL = (1. - EXP ( - KDT(I) * DT1))
+         DDT = DD * VAL
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG        PX = PCPDRP * DT
+         PX = SFCWATR * DT
+#else
+         PX = PCPDRP(I) * DT
+#endif
+         IF (PX <  0.0) PX = 0.0
+
+
+
+! ----------------------------------------------------------------------
+! FROZEN GROUND VERSION:
+! REDUCTION OF INFILTRATION BASED ON FROZEN GROUND PARAMETERS
+! ----------------------------------------------------------------------
+         INFMAX = (PX * (DDT / (PX + DDT)))/ DT
+         FCR = 1.
+         IF (DICE >  1.E-2) THEN
+            ACRT = CVFRZ * FRZX(I) / DICE
+            SUM = 1.
+            IALP1 = CVFRZ - 1
+            DO J = 1,IALP1
+               K = 1
+               DO JJ = J +1,IALP1
+                  K = K * JJ
+               END DO
+               SUM = SUM + (ACRT ** ( CVFRZ - J)) / FLOAT (K)
+            END DO
+            FCR = 1. - EXP ( - ACRT) * SUM
+         END IF
+
+! ----------------------------------------------------------------------
+! CORRECTION OF INFILTRATION LIMITATION:
+! IF INFMAX .LE. HYDROLIC CONDUCTIVITY ASSIGN INFMAX THE VALUE OF
+! HYDROLIC CONDUCTIVITY
+! ----------------------------------------------------------------------
+!         MXSMC = MAX ( SH2OA(1), SH2OA(2) )
+         INFMAX = INFMAX * FCR
+
+         MXSMC = SH2OA (1,I)
+         CALL WDFCND_gpu (WDF,WCND,MXSMC,SMCMAX(I),BEXP(I),DKSAT(I),DWSAT(I),           &
+                         SICEMAX)
+         INFMAX = MAX (INFMAX,WCND)
+
+         INFMAX = MIN (INFMAX,PX/DT)
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG       IF (PCPDRP >  INFMAX) THEN
+         IF (SFCWATR > INFMAX) THEN
+!DJG          RUNOFF1 = PCPDRP - INFMAX
+          RUNOFF1(I) = SFCWATR - INFMAX
+#else
+         IF (PCPDRP(I) >  INFMAX) THEN
+            RUNOFF1(I) = PCPDRP(I) - INFMAX
+#endif
+          INFXS1RT(I) = RUNOFF1(I)*DT*1000.
+          PDDUM = INFMAX
+         END IF
+
+! ----------------------------------------------------------------------
+! TO AVOID SPURIOUS DRAINAGE BEHAVIOR, 'UPSTREAM DIFFERENCING' IN LINE
+! BELOW REPLACED WITH NEW APPROACH IN 2ND LINE:
+! 'MXSMC = MAX(SH2OA(1), SH2OA(2))'
+! ----------------------------------------------------------------------
+      END IF
+
+      MXSMC = SH2OA (1,I)
+      CALL WDFCND_gpu (WDF,WCND,MXSMC,SMCMAX(I),BEXP(I),DKSAT(I),DWSAT(I),              &
+                    SICEMAX)
+! ----------------------------------------------------------------------
+! CALC THE MATRIX COEFFICIENTS AI, BI, AND CI FOR THE TOP LAYER
+! ----------------------------------------------------------------------
+      DDZ = 1. / ( - .5 * ZSOIL (2,I) )
+      AI (1,I) = 0.0
+      BI (1,I) = WDF * DDZ / ( - ZSOIL (1,I) )
+
+! ----------------------------------------------------------------------
+! CALC RHSTT FOR THE TOP LAYER AFTER CALC'NG THE VERTICAL SOIL MOISTURE
+! GRADIENT BTWN THE TOP AND NEXT TO TOP LAYERS.
+! ----------------------------------------------------------------------
+      CI (1,I) = - BI (1,I)
+      DSMDZ = ( SH2O (1,I) - SH2O (2,I) ) / ( - .5 * ZSOIL (2,I) )
+      RHSTT (1,I) = (WDF * DSMDZ + WCND- PDDUM + EDIR(I) + ET (1,I))/ ZSOIL (1,I)
+
+! ----------------------------------------------------------------------
+! INITIALIZE DDZ2
+! ----------------------------------------------------------------------
+      SSTT = WDF * DSMDZ + WCND+ EDIR(I) + ET (1,I)
+
+! ----------------------------------------------------------------------
+! LOOP THRU THE REMAINING SOIL LAYERS, REPEATING THE ABV PROCESS
+! ----------------------------------------------------------------------
+      DDZ2 = 0.0
+      DO K = 2,NSOIL
+         DENOM2 = (ZSOIL (K -1,I) - ZSOIL (K,I))
+         IF (K /= NSOIL) THEN
+
+! ----------------------------------------------------------------------
+! AGAIN, TO AVOID SPURIOUS DRAINAGE BEHAVIOR, 'UPSTREAM DIFFERENCING' IN
+! LINE BELOW REPLACED WITH NEW APPROACH IN 2ND LINE:
+! 'MXSMC2 = MAX (SH2OA(K), SH2OA(K+1))'
+! ----------------------------------------------------------------------
+            SLOPX = 1.
+
+            MXSMC2 = SH2OA (K,I)
+            CALL WDFCND_gpu (WDF2,WCND2,MXSMC2,SMCMAX(I),BEXP(I),DKSAT(I),DWSAT(I),     &
+                          SICEMAX)
+! -----------------------------------------------------------------------
+! CALC SOME PARTIAL PRODUCTS FOR LATER USE IN CALC'NG RHSTT
+! ----------------------------------------------------------------------
+            DENOM = (ZSOIL (K -1,I) - ZSOIL (K +1,I))
+
+! ----------------------------------------------------------------------
+! CALC THE MATRIX COEF, CI, AFTER CALC'NG ITS PARTIAL PRODUCT
+! ----------------------------------------------------------------------
+            DSMDZ2 = (SH2O (K,I) - SH2O (K +1,I)) / (DENOM * 0.5)
+            DDZ2 = 2.0 / DENOM
+            CI (K,I) = - WDF2 * DDZ2 / DENOM2
+
+         ELSE
+! ----------------------------------------------------------------------
+! SLOPE OF BOTTOM LAYER IS INTRODUCED
+! ----------------------------------------------------------------------
+
+! ----------------------------------------------------------------------
+! RETRIEVE THE SOIL WATER DIFFUSIVITY AND HYDRAULIC CONDUCTIVITY FOR
+! THIS LAYER
+! ----------------------------------------------------------------------
+            SLOPX = SLOPE(I)
+          CALL WDFCND_gpu (WDF2,WCND2,SH2OA (NSOIL,I),SMCMAX(I),BEXP(I),DKSAT(I),DWSAT(I),     &
+                            SICEMAX)
+
+! ----------------------------------------------------------------------
+! CALC A PARTIAL PRODUCT FOR LATER USE IN CALC'NG RHSTT
+! ----------------------------------------------------------------------
+
+! ----------------------------------------------------------------------
+! SET MATRIX COEF CI TO ZERO
+! ----------------------------------------------------------------------
+            DSMDZ2 = 0.0
+            CI (K,I) = 0.0
+! ----------------------------------------------------------------------
+! CALC RHSTT FOR THIS LAYER AFTER CALC'NG ITS NUMERATOR
+! ----------------------------------------------------------------------
+         END IF
+         NUMER = (WDF2 * DSMDZ2) + SLOPX * WCND2- (WDF * DSMDZ)         &
+                 - WCND+ ET (K,I)
+
+! ----------------------------------------------------------------------
+! CALC MATRIX COEFS, AI, AND BI FOR THIS LAYER
+! ----------------------------------------------------------------------
+         RHSTT (K,I) = NUMER / ( - DENOM2)
+         AI (K,I) = - WDF * DDZ / DENOM2
+
+! ----------------------------------------------------------------------
+! RESET VALUES OF WDF, WCND, DSMDZ, AND DDZ FOR LOOP TO NEXT LYR
+! RUNOFF2:  SUB-SURFACE OR BASEFLOW RUNOFF
+! ----------------------------------------------------------------------
+         BI (K,I) = - ( AI (K,I) + CI (K,I) )
+         IF (K .eq. NSOIL) THEN
+            RUNOFF2(I) = SLOPX * WCND2
+         END IF
+         IF (K .ne. NSOIL) THEN
+            WDF = WDF2
+            WCND = WCND2
+            DSMDZ = DSMDZ2
+            DDZ = DDZ2
+         END IF
+      END DO
+! ----------------------------------------------------------------------
+      END IF
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+  END SUBROUTINE SRT_gpu3_2
+
       SUBROUTINE SSTEP (SH2OOUT,SH2OIN,CMC,RHSTT,RHSCT,DT,              &
                         NSOIL,SMCMAX,CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,     &
                         AI,BI,CI, INFXS1RT)
@@ -9835,6 +11281,607 @@ ENDDO
 ! ----------------------------------------------------------------------
   END SUBROUTINE SSTEP_gpu
 ! ----------------------------------------------------------------------
+
+![NV]!         CALL SSTEP_gpu (SH2OFG(1:NSOIL,I),SH2O(1:NSOIL,I),DUMMY(I),RHSTT(1:NSOIL,I),RHSCT(I),DT,NSOIL,SMCMAX(I),     &
+![NV]!                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),INFXS1RT(I))
+      SUBROUTINE SSTEP_gpu1_1 (SH2OOUT,SH2OIN,CMC,RHSTT,RHSCT,DT,              &
+                        NSOIL,SMCMAX,CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,     &
+                        AI,BI,CI, INFXS1RT,XLAND,ICE,SNEQV,ETP,FAC2,FLIMIT,PCPDRP,its,ite)
+
+! ----------------------------------------------------------------------
+! SUBROUTINE SSTEP
+! ----------------------------------------------------------------------
+! CALCULATE/UPDATE SOIL MOISTURE CONTENT VALUES AND CANOPY MOISTURE
+! CONTENT VALUES.
+! ----------------------------------------------------------------------
+      IMPLICIT NONE
+      INTEGER, INTENT(IN)       :: NSOIL, its,ite
+      INTEGER                   :: I, K, KK11
+
+!!DJG NDHMS/WRF-Hydro edit...
+      REAL, DIMENSION(its:ite), INTENT(INOUT)       :: INFXS1RT
+      REAL                      :: AVAIL
+
+      REAL, INTENT(IN)          :: DT
+      REAL, DIMENSION(its:ite), INTENT(IN) :: SMCMAX, CMCMAX,XLAND,SNEQV,ETP,FAC2,FLIMIT,PCPDRP
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: ICE
+      REAL, DIMENSION(its:ite), INTENT(OUT)         :: RUNOFF3
+      REAL, DIMENSION(its:ite), INTENT(INOUT)       :: CMC
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN)     :: SH2OIN, SICE, ZSOIL
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)    :: SH2OOUT
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT)  :: RHSTT, SMC
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT)  :: AI, BI, CI
+      REAL, DIMENSION(1:NSOIL)  :: RHSTTIN
+      REAL, DIMENSION(1:NSOIL)  :: CIIN
+      REAL                      :: DDZ, STOT, WPLUS
+      REAL, DIMENSION(its:ite)  :: RHSCT
+
+!$acc parallel
+!$acc loop gang vector private(KK11,I,K,AVAIL,RHSTTIN,CIIN,DDZ, STOT, WPLUS)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
+        IF (ETP(I) > 0.0) THEN
+      IF ( ( (PCPDRP(I) * DT) > (0.0001*1000.0* (- ZSOIL (1,I))* SMCMAX(I)) )   &
+           .OR. (FAC2(I) > FLIMIT(I)) ) THEN
+! ----------------------------------------------------------------------
+! CREATE 'AMOUNT' VALUES OF VARIABLES TO BE INPUT TO THE
+! TRI-DIAGONAL MATRIX ROUTINE.
+! ----------------------------------------------------------------------
+      DO K = 1,NSOIL
+         RHSTT (K,I) = RHSTT (K,I) * DT
+         AI (K,I) = AI (K,I) * DT
+         BI (K,I) = 1. + BI (K,I) * DT
+         CI (K,I) = CI (K,I) * DT
+      END DO
+! ----------------------------------------------------------------------
+! COPY VALUES FOR INPUT VARIABLES BEFORE CALL TO ROSR12
+! ----------------------------------------------------------------------
+      DO K = 1,NSOIL
+         RHSTTIN (K) = RHSTT (K,I)
+      END DO
+      DO K = 1,NSOIL
+         CIIN (K) = CI (K,I)
+      END DO
+! ----------------------------------------------------------------------
+! CALL ROSR12 TO SOLVE THE TRI-DIAGONAL MATRIX
+! ----------------------------------------------------------------------
+      CALL ROSR12_gpu (CI(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CIIN,RHSTTIN,RHSTT(1:NSOIL,I),NSOIL)
+! ----------------------------------------------------------------------
+! SUM THE PREVIOUS SMC VALUE AND THE MATRIX SOLUTION TO GET A
+! NEW VALUE.  MIN ALLOWABLE VALUE OF SMC WILL BE 0.02.
+! RUNOFF3: RUNOFF WITHIN SOIL LAYERS
+! ----------------------------------------------------------------------
+      WPLUS = 0.0
+      RUNOFF3(I) = 0.
+
+      DDZ = - ZSOIL (1,I)
+      DO K = 1,NSOIL
+         IF (K /= 1) DDZ = ZSOIL (K - 1,I) - ZSOIL (K,I)
+         SH2OOUT (K,I) = SH2OIN (K,I) + CI (K,I) + WPLUS / DDZ
+         STOT = SH2OOUT (K,I) + SICE (K,I)
+         IF (STOT > SMCMAX(I)) THEN
+            IF (K .eq. 1) THEN
+               DDZ = - ZSOIL (1,I)
+            ELSE
+               KK11 = K - 1
+               DDZ = - ZSOIL (K,I) + ZSOIL (KK11,I)
+            END IF
+            WPLUS = (STOT - SMCMAX(I)) * DDZ
+         ELSE
+            WPLUS = 0.
+         END IF
+         SMC (K,I) = MAX ( MIN (STOT,SMCMAX(I)),0.02 )
+         SH2OOUT (K,I) = MAX ( (SMC (K,I) - SICE (K,I)),0.0)
+      END DO
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG Modifications to redstribute WPLUS/RUNOFF3 (soil moisture closure error) to soil profile
+!DJG beginning at bottom layer (NSOIL)
+         IF (WPLUS > 0.) THEN
+           DO K=NSOIL,2,-1
+
+               IF (K .eq. 2) THEN     !Assign soil depths
+                 DDZ = -ZSOIL(1,I)
+               ELSE
+                 DDZ = ZSOIL(K-2,I)-ZSOIL(K-1,I)
+               END IF
+
+               AVAIL = (SMCMAX(I) - SMC(K-1,I)) * DDZ    !Det. Avail. Stor.
+
+!               print *, "ZZZZZ", K,DDZ,AVAIL,WPLUS,SMC(K),SMC(K-1),SMCMAX
+
+               IF (WPLUS <= AVAIL) THEN
+                 SMC(K-1,I) = SMC(K-1,I) + WPLUS/DDZ
+                 WPLUS = 0.
+               ELSE
+                 SMC(K-1,I) = SMCMAX(I)
+                 WPLUS = WPLUS - AVAIL
+                 IF (K-1 .eq. 1) THEN
+                   INFXS1RT(I) = INFXS1RT(I) + WPLUS*1000
+                   WPLUS = 0.
+                 END IF
+               END IF
+
+!             SMC (K) = MAX ( MIN (STOT,SMCMAX),0.02 )
+             SH2OOUT (K,I) = MAX ( (SMC (K,I) - SICE (K,I)),0.0)
+
+           END DO
+         END IF
+!DJG NDHMS/WRF-Hydro edit...End of modification
+#endif
+
+
+! ----------------------------------------------------------------------
+! UPDATE CANOPY WATER CONTENT/INTERCEPTION (CMC).  CONVERT RHSCT TO
+! AN 'AMOUNT' VALUE AND ADD TO PREVIOUS CMC VALUE TO GET NEW CMC.
+! ----------------------------------------------------------------------
+      RUNOFF3(I) = WPLUS
+      CMC(I) = CMC(I) + DT * RHSCT(I)
+      IF (CMC(I) < 1.E-20) CMC(I) = 0.0
+      CMC(I) = MIN (CMC(I),CMCMAX(I))
+
+! ----------------------------------------------------------------------
+      END IF
+        ENDIF
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+
+  END SUBROUTINE SSTEP_gpu1_1
+
+![NV]!         CALL SSTEP_gpu (SH2OFG(1:NSOIL,I),SH2O(1:NSOIL,I),DUMMY(I),RHSTT(1:NSOIL,I),RHSCT(I),DT,NSOIL,SMCMAX(I),     &
+![NV]!                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),INFXS1RT(I))
+      SUBROUTINE SSTEP_gpu1_2 (SH2OOUT,SH2OIN,CMC,RHSTT,RHSCT,DT,              &
+                        NSOIL,SMCMAX,CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,     &
+                        AI,BI,CI, INFXS1RT,XLAND,ICE,SNEQV,ETP,FAC2,FLIMIT,PCPDRP,its,ite)
+
+! ----------------------------------------------------------------------
+! SUBROUTINE SSTEP
+! ----------------------------------------------------------------------
+! CALCULATE/UPDATE SOIL MOISTURE CONTENT VALUES AND CANOPY MOISTURE
+! CONTENT VALUES.
+! ----------------------------------------------------------------------
+      IMPLICIT NONE
+      INTEGER, INTENT(IN)       :: NSOIL, its,ite
+      INTEGER                   :: I, K, KK11
+
+!!DJG NDHMS/WRF-Hydro edit...
+      REAL, DIMENSION(its:ite), INTENT(INOUT)       :: INFXS1RT
+      REAL                      :: AVAIL
+
+      REAL, INTENT(IN)          :: DT
+      REAL, DIMENSION(its:ite), INTENT(IN) :: SMCMAX, CMCMAX,XLAND,SNEQV,ETP,FAC2,FLIMIT,PCPDRP
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: ICE
+      REAL, DIMENSION(its:ite), INTENT(OUT)         :: RUNOFF3
+      REAL, DIMENSION(its:ite), INTENT(INOUT)       :: CMC
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN)     :: SH2OIN, SICE, ZSOIL
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)    :: SH2OOUT
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT)  :: RHSTT, SMC
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT)  :: AI, BI, CI
+      REAL, DIMENSION(1:NSOIL)  :: RHSTTIN
+      REAL, DIMENSION(1:NSOIL)  :: CIIN
+      REAL                      :: DDZ, STOT, WPLUS
+      REAL, DIMENSION(its:ite)  :: RHSCT
+
+!$acc parallel
+!$acc loop gang vector private(KK11,I,K,AVAIL,RHSTTIN,CIIN,DDZ, STOT, WPLUS)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  == 0.0) THEN
+        IF (ETP(I) > 0.0) THEN
+      IF ( ( (PCPDRP(I) * DT) <= (0.0001*1000.0* (- ZSOIL (1,I))* SMCMAX(I)) )   &
+           .AND. (FAC2(I) <= FLIMIT(I)) ) THEN
+! ----------------------------------------------------------------------
+! CREATE 'AMOUNT' VALUES OF VARIABLES TO BE INPUT TO THE
+! TRI-DIAGONAL MATRIX ROUTINE.
+! ----------------------------------------------------------------------
+      DO K = 1,NSOIL
+         RHSTT (K,I) = RHSTT (K,I) * DT
+         AI (K,I) = AI (K,I) * DT
+         BI (K,I) = 1. + BI (K,I) * DT
+         CI (K,I) = CI (K,I) * DT
+      END DO
+! ----------------------------------------------------------------------
+! COPY VALUES FOR INPUT VARIABLES BEFORE CALL TO ROSR12
+! ----------------------------------------------------------------------
+      DO K = 1,NSOIL
+         RHSTTIN (K) = RHSTT (K,I)
+      END DO
+      DO K = 1,NSOIL
+         CIIN (K) = CI (K,I)
+      END DO
+! ----------------------------------------------------------------------
+! CALL ROSR12 TO SOLVE THE TRI-DIAGONAL MATRIX
+! ----------------------------------------------------------------------
+      CALL ROSR12_gpu (CI(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CIIN,RHSTTIN,RHSTT(1:NSOIL,I),NSOIL)
+! ----------------------------------------------------------------------
+! SUM THE PREVIOUS SMC VALUE AND THE MATRIX SOLUTION TO GET A
+! NEW VALUE.  MIN ALLOWABLE VALUE OF SMC WILL BE 0.02.
+! RUNOFF3: RUNOFF WITHIN SOIL LAYERS
+! ----------------------------------------------------------------------
+      WPLUS = 0.0
+      RUNOFF3(I) = 0.
+
+      DDZ = - ZSOIL (1,I)
+      DO K = 1,NSOIL
+         IF (K /= 1) DDZ = ZSOIL (K - 1,I) - ZSOIL (K,I)
+         SH2OOUT (K,I) = SH2OIN (K,I) + CI (K,I) + WPLUS / DDZ
+         STOT = SH2OOUT (K,I) + SICE (K,I)
+         IF (STOT > SMCMAX(I)) THEN
+            IF (K .eq. 1) THEN
+               DDZ = - ZSOIL (1,I)
+            ELSE
+               KK11 = K - 1
+               DDZ = - ZSOIL (K,I) + ZSOIL (KK11,I)
+            END IF
+            WPLUS = (STOT - SMCMAX(I)) * DDZ
+         ELSE
+            WPLUS = 0.
+         END IF
+         SMC (K,I) = MAX ( MIN (STOT,SMCMAX(I)),0.02 )
+         SH2OOUT (K,I) = MAX ( (SMC (K,I) - SICE (K,I)),0.0)
+      END DO
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG Modifications to redstribute WPLUS/RUNOFF3 (soil moisture closure error) to soil profile
+!DJG beginning at bottom layer (NSOIL)
+         IF (WPLUS > 0.) THEN
+           DO K=NSOIL,2,-1
+
+               IF (K .eq. 2) THEN     !Assign soil depths
+                 DDZ = -ZSOIL(1,I)
+               ELSE
+                 DDZ = ZSOIL(K-2,I)-ZSOIL(K-1,I)
+               END IF
+
+               AVAIL = (SMCMAX(I) - SMC(K-1,I)) * DDZ    !Det. Avail. Stor.
+
+!               print *, "ZZZZZ", K,DDZ,AVAIL,WPLUS,SMC(K),SMC(K-1),SMCMAX
+
+               IF (WPLUS <= AVAIL) THEN
+                 SMC(K-1,I) = SMC(K-1,I) + WPLUS/DDZ
+                 WPLUS = 0.
+               ELSE
+                 SMC(K-1,I) = SMCMAX(I)
+                 WPLUS = WPLUS - AVAIL
+                 IF (K-1 .eq. 1) THEN
+                   INFXS1RT(I) = INFXS1RT(I) + WPLUS*1000
+                   WPLUS = 0.
+                 END IF
+               END IF
+
+!             SMC (K) = MAX ( MIN (STOT,SMCMAX),0.02 )
+             SH2OOUT (K,I) = MAX ( (SMC (K,I) - SICE (K,I)),0.0)
+
+           END DO
+         END IF
+!DJG NDHMS/WRF-Hydro edit...End of modification
+#endif
+
+
+! ----------------------------------------------------------------------
+! UPDATE CANOPY WATER CONTENT/INTERCEPTION (CMC).  CONVERT RHSCT TO
+! AN 'AMOUNT' VALUE AND ADD TO PREVIOUS CMC VALUE TO GET NEW CMC.
+! ----------------------------------------------------------------------
+      RUNOFF3(I) = WPLUS
+      CMC(I) = CMC(I) + DT * RHSCT(I)
+      IF (CMC(I) < 1.E-20) CMC(I) = 0.0
+      CMC(I) = MIN (CMC(I),CMCMAX(I))
+
+! ----------------------------------------------------------------------
+      END IF
+        ENDIF
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+
+  END SUBROUTINE SSTEP_gpu1_2
+
+![NV]!         CALL SSTEP_gpu (SH2OFG(1:NSOIL,I),SH2O(1:NSOIL,I),DUMMY(I),RHSTT(1:NSOIL,I),RHSCT(I),DT,NSOIL,SMCMAX(I),     &
+![NV]!                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),INFXS1RT(I))
+      SUBROUTINE SSTEP_gpu3_1 (SH2OOUT,SH2OIN,CMC,RHSTT,RHSCT,DT,              &
+                        NSOIL,SMCMAX,CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,     &
+                        AI,BI,CI, INFXS1RT,XLAND,ICE,SNEQV,FAC2,FLIMIT,PCPDRP,its,ite)
+
+! ----------------------------------------------------------------------
+! SUBROUTINE SSTEP
+! ----------------------------------------------------------------------
+! CALCULATE/UPDATE SOIL MOISTURE CONTENT VALUES AND CANOPY MOISTURE
+! CONTENT VALUES.
+! ----------------------------------------------------------------------
+      IMPLICIT NONE
+      INTEGER, INTENT(IN)       :: NSOIL, its,ite
+      INTEGER                   :: I, K, KK11
+
+!!DJG NDHMS/WRF-Hydro edit...
+      REAL, DIMENSION(its:ite), INTENT(INOUT)       :: INFXS1RT
+      REAL                      :: AVAIL
+
+      REAL, INTENT(IN)          :: DT
+      REAL, DIMENSION(its:ite), INTENT(IN) :: SMCMAX, CMCMAX,XLAND,SNEQV,FAC2,FLIMIT,PCPDRP
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: ICE
+      REAL, DIMENSION(its:ite), INTENT(OUT)         :: RUNOFF3
+      REAL, DIMENSION(its:ite), INTENT(INOUT)       :: CMC
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN)     :: SH2OIN, SICE, ZSOIL
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)    :: SH2OOUT
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT)  :: RHSTT, SMC
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT)  :: AI, BI, CI
+      REAL, DIMENSION(1:NSOIL)  :: RHSTTIN
+      REAL, DIMENSION(1:NSOIL)  :: CIIN
+      REAL                      :: DDZ, STOT, WPLUS
+      REAL, DIMENSION(its:ite)  :: RHSCT
+
+!$acc parallel vector_length(128)
+!$acc loop gang vector private(KK11,I,K,AVAIL,RHSTTIN,CIIN,DDZ, STOT, WPLUS)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  /= 0.0) THEN
+      IF ( ( (PCPDRP(I) * DT) > (0.0001*1000.0* (- ZSOIL (1,I))* SMCMAX(I)) )   &
+           .OR. (FAC2(I) > FLIMIT(I)) ) THEN
+! ----------------------------------------------------------------------
+! CREATE 'AMOUNT' VALUES OF VARIABLES TO BE INPUT TO THE
+! TRI-DIAGONAL MATRIX ROUTINE.
+! ----------------------------------------------------------------------
+      DO K = 1,NSOIL
+         RHSTT (K,I) = RHSTT (K,I) * DT
+         AI (K,I) = AI (K,I) * DT
+         BI (K,I) = 1. + BI (K,I) * DT
+         CI (K,I) = CI (K,I) * DT
+      END DO
+! ----------------------------------------------------------------------
+! COPY VALUES FOR INPUT VARIABLES BEFORE CALL TO ROSR12
+! ----------------------------------------------------------------------
+      DO K = 1,NSOIL
+         RHSTTIN (K) = RHSTT (K,I)
+      END DO
+      DO K = 1,NSOIL
+         CIIN (K) = CI (K,I)
+      END DO
+! ----------------------------------------------------------------------
+! CALL ROSR12 TO SOLVE THE TRI-DIAGONAL MATRIX
+! ----------------------------------------------------------------------
+      CALL ROSR12_gpu (CI(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CIIN,RHSTTIN,RHSTT(1:NSOIL,I),NSOIL)
+! ----------------------------------------------------------------------
+! SUM THE PREVIOUS SMC VALUE AND THE MATRIX SOLUTION TO GET A
+! NEW VALUE.  MIN ALLOWABLE VALUE OF SMC WILL BE 0.02.
+! RUNOFF3: RUNOFF WITHIN SOIL LAYERS
+! ----------------------------------------------------------------------
+      WPLUS = 0.0
+      RUNOFF3(I) = 0.
+
+      DDZ = - ZSOIL (1,I)
+      DO K = 1,NSOIL
+         IF (K /= 1) DDZ = ZSOIL (K - 1,I) - ZSOIL (K,I)
+         SH2OOUT (K,I) = SH2OIN (K,I) + CI (K,I) + WPLUS / DDZ
+         STOT = SH2OOUT (K,I) + SICE (K,I)
+         IF (STOT > SMCMAX(I)) THEN
+            IF (K .eq. 1) THEN
+               DDZ = - ZSOIL (1,I)
+            ELSE
+               KK11 = K - 1
+               DDZ = - ZSOIL (K,I) + ZSOIL (KK11,I)
+            END IF
+            WPLUS = (STOT - SMCMAX(I)) * DDZ
+         ELSE
+            WPLUS = 0.
+         END IF
+         SMC (K,I) = MAX ( MIN (STOT,SMCMAX(I)),0.02 )
+         SH2OOUT (K,I) = MAX ( (SMC (K,I) - SICE (K,I)),0.0)
+      END DO
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG Modifications to redstribute WPLUS/RUNOFF3 (soil moisture closure error) to soil profile
+!DJG beginning at bottom layer (NSOIL)
+         IF (WPLUS > 0.) THEN
+           DO K=NSOIL,2,-1
+
+               IF (K .eq. 2) THEN     !Assign soil depths
+                 DDZ = -ZSOIL(1,I)
+               ELSE
+                 DDZ = ZSOIL(K-2,I)-ZSOIL(K-1,I)
+               END IF
+
+               AVAIL = (SMCMAX(I) - SMC(K-1,I)) * DDZ    !Det. Avail. Stor.
+
+!               print *, "ZZZZZ", K,DDZ,AVAIL,WPLUS,SMC(K),SMC(K-1),SMCMAX
+
+               IF (WPLUS <= AVAIL) THEN
+                 SMC(K-1,I) = SMC(K-1,I) + WPLUS/DDZ
+                 WPLUS = 0.
+               ELSE
+                 SMC(K-1,I) = SMCMAX(I)
+                 WPLUS = WPLUS - AVAIL
+                 IF (K-1 .eq. 1) THEN
+                   INFXS1RT(I) = INFXS1RT(I) + WPLUS*1000
+                   WPLUS = 0.
+                 END IF
+               END IF
+
+!             SMC (K) = MAX ( MIN (STOT,SMCMAX),0.02 )
+             SH2OOUT (K,I) = MAX ( (SMC (K,I) - SICE (K,I)),0.0)
+
+           END DO
+         END IF
+!DJG NDHMS/WRF-Hydro edit...End of modification
+#endif
+
+
+! ----------------------------------------------------------------------
+! UPDATE CANOPY WATER CONTENT/INTERCEPTION (CMC).  CONVERT RHSCT TO
+! AN 'AMOUNT' VALUE AND ADD TO PREVIOUS CMC VALUE TO GET NEW CMC.
+! ----------------------------------------------------------------------
+      RUNOFF3(I) = WPLUS
+      CMC(I) = CMC(I) + DT * RHSCT(I)
+      IF (CMC(I) < 1.E-20) CMC(I) = 0.0
+      CMC(I) = MIN (CMC(I),CMCMAX(I))
+
+! ----------------------------------------------------------------------
+      END IF
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+
+  END SUBROUTINE SSTEP_gpu3_1
+
+![NV]!         CALL SSTEP_gpu (SH2OFG(1:NSOIL,I),SH2O(1:NSOIL,I),DUMMY(I),RHSTT(1:NSOIL,I),RHSCT(I),DT,NSOIL,SMCMAX(I),     &
+![NV]!                        CMCMAX(I),RUNOFF3(I),ZSOIL(1:NSOIL,I),SMC(1:NSOIL,I),SICE(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CI(1:NSOIL,I),INFXS1RT(I))
+      SUBROUTINE SSTEP_gpu3_2 (SH2OOUT,SH2OIN,CMC,RHSTT,RHSCT,DT,              &
+                        NSOIL,SMCMAX,CMCMAX,RUNOFF3,ZSOIL,SMC,SICE,     &
+                        AI,BI,CI, INFXS1RT,XLAND,ICE,SNEQV,FAC2,FLIMIT,PCPDRP,its,ite)
+
+! ----------------------------------------------------------------------
+! SUBROUTINE SSTEP
+! ----------------------------------------------------------------------
+! CALCULATE/UPDATE SOIL MOISTURE CONTENT VALUES AND CANOPY MOISTURE
+! CONTENT VALUES.
+! ----------------------------------------------------------------------
+      IMPLICIT NONE
+      INTEGER, INTENT(IN)       :: NSOIL, its,ite
+      INTEGER                   :: I, K, KK11
+
+!!DJG NDHMS/WRF-Hydro edit...
+      REAL, DIMENSION(its:ite), INTENT(INOUT)       :: INFXS1RT
+      REAL                      :: AVAIL
+
+      REAL, INTENT(IN)          :: DT
+      REAL, DIMENSION(its:ite), INTENT(IN) :: SMCMAX, CMCMAX,XLAND,SNEQV,FAC2,FLIMIT,PCPDRP
+      INTEGER, DIMENSION(its:ite), INTENT(IN) :: ICE
+      REAL, DIMENSION(its:ite), INTENT(OUT)         :: RUNOFF3
+      REAL, DIMENSION(its:ite), INTENT(INOUT)       :: CMC
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(IN)     :: SH2OIN, SICE, ZSOIL
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(OUT)    :: SH2OOUT
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT)  :: RHSTT, SMC
+      REAL, DIMENSION(1:NSOIL,its:ite), INTENT(INOUT)  :: AI, BI, CI
+      REAL, DIMENSION(1:NSOIL)  :: RHSTTIN
+      REAL, DIMENSION(1:NSOIL)  :: CIIN
+      REAL                      :: DDZ, STOT, WPLUS
+      REAL, DIMENSION(its:ite)  :: RHSCT
+
+!$acc parallel
+!$acc loop gang vector private(KK11,I,K,AVAIL,RHSTTIN,CIIN,DDZ, STOT, WPLUS)
+DO I=its,ite
+  IF((XLAND(I)-1.5).LT.0.)THEN
+    IF (ICE(I) == 0) THEN
+      IF (SNEQV(I)  /= 0.0) THEN
+      IF ( ( (PCPDRP(I) * DT) <= (0.0001*1000.0* (- ZSOIL (1,I))* SMCMAX(I)) )   &
+           .AND. (FAC2(I) <= FLIMIT(I)) ) THEN
+! ----------------------------------------------------------------------
+! CREATE 'AMOUNT' VALUES OF VARIABLES TO BE INPUT TO THE
+! TRI-DIAGONAL MATRIX ROUTINE.
+! ----------------------------------------------------------------------
+      DO K = 1,NSOIL
+         RHSTT (K,I) = RHSTT (K,I) * DT
+         AI (K,I) = AI (K,I) * DT
+         BI (K,I) = 1. + BI (K,I) * DT
+         CI (K,I) = CI (K,I) * DT
+      END DO
+! ----------------------------------------------------------------------
+! COPY VALUES FOR INPUT VARIABLES BEFORE CALL TO ROSR12
+! ----------------------------------------------------------------------
+      DO K = 1,NSOIL
+         RHSTTIN (K) = RHSTT (K,I)
+      END DO
+      DO K = 1,NSOIL
+         CIIN (K) = CI (K,I)
+      END DO
+! ----------------------------------------------------------------------
+! CALL ROSR12 TO SOLVE THE TRI-DIAGONAL MATRIX
+! ----------------------------------------------------------------------
+      CALL ROSR12_gpu (CI(1:NSOIL,I),AI(1:NSOIL,I),BI(1:NSOIL,I),CIIN,RHSTTIN,RHSTT(1:NSOIL,I),NSOIL)
+! ----------------------------------------------------------------------
+! SUM THE PREVIOUS SMC VALUE AND THE MATRIX SOLUTION TO GET A
+! NEW VALUE.  MIN ALLOWABLE VALUE OF SMC WILL BE 0.02.
+! RUNOFF3: RUNOFF WITHIN SOIL LAYERS
+! ----------------------------------------------------------------------
+      WPLUS = 0.0
+      RUNOFF3(I) = 0.
+
+      DDZ = - ZSOIL (1,I)
+      DO K = 1,NSOIL
+         IF (K /= 1) DDZ = ZSOIL (K - 1,I) - ZSOIL (K,I)
+         SH2OOUT (K,I) = SH2OIN (K,I) + CI (K,I) + WPLUS / DDZ
+         STOT = SH2OOUT (K,I) + SICE (K,I)
+         IF (STOT > SMCMAX(I)) THEN
+            IF (K .eq. 1) THEN
+               DDZ = - ZSOIL (1,I)
+            ELSE
+               KK11 = K - 1
+               DDZ = - ZSOIL (K,I) + ZSOIL (KK11,I)
+            END IF
+            WPLUS = (STOT - SMCMAX(I)) * DDZ
+         ELSE
+            WPLUS = 0.
+         END IF
+         SMC (K,I) = MAX ( MIN (STOT,SMCMAX(I)),0.02 )
+         SH2OOUT (K,I) = MAX ( (SMC (K,I) - SICE (K,I)),0.0)
+      END DO
+#ifdef WRF_HYDRO
+!DJG NDHMS/WRF-Hydro edit...
+!DJG Modifications to redstribute WPLUS/RUNOFF3 (soil moisture closure error) to soil profile
+!DJG beginning at bottom layer (NSOIL)
+         IF (WPLUS > 0.) THEN
+           DO K=NSOIL,2,-1
+
+               IF (K .eq. 2) THEN     !Assign soil depths
+                 DDZ = -ZSOIL(1,I)
+               ELSE
+                 DDZ = ZSOIL(K-2,I)-ZSOIL(K-1,I)
+               END IF
+
+               AVAIL = (SMCMAX(I) - SMC(K-1,I)) * DDZ    !Det. Avail. Stor.
+
+!               print *, "ZZZZZ", K,DDZ,AVAIL,WPLUS,SMC(K),SMC(K-1),SMCMAX
+
+               IF (WPLUS <= AVAIL) THEN
+                 SMC(K-1,I) = SMC(K-1,I) + WPLUS/DDZ
+                 WPLUS = 0.
+               ELSE
+                 SMC(K-1,I) = SMCMAX(I)
+                 WPLUS = WPLUS - AVAIL
+                 IF (K-1 .eq. 1) THEN
+                   INFXS1RT(I) = INFXS1RT(I) + WPLUS*1000
+                   WPLUS = 0.
+                 END IF
+               END IF
+
+!             SMC (K) = MAX ( MIN (STOT,SMCMAX),0.02 )
+             SH2OOUT (K,I) = MAX ( (SMC (K,I) - SICE (K,I)),0.0)
+
+           END DO
+         END IF
+!DJG NDHMS/WRF-Hydro edit...End of modification
+#endif
+
+
+! ----------------------------------------------------------------------
+! UPDATE CANOPY WATER CONTENT/INTERCEPTION (CMC).  CONVERT RHSCT TO
+! AN 'AMOUNT' VALUE AND ADD TO PREVIOUS CMC VALUE TO GET NEW CMC.
+! ----------------------------------------------------------------------
+      RUNOFF3(I) = WPLUS
+      CMC(I) = CMC(I) + DT * RHSCT(I)
+      IF (CMC(I) < 1.E-20) CMC(I) = 0.0
+      CMC(I) = MIN (CMC(I),CMCMAX(I))
+
+! ----------------------------------------------------------------------
+      END IF
+      END IF
+    ENDIF
+  ENDIF
+ENDDO
+!$acc end parallel
+
+  END SUBROUTINE SSTEP_gpu3_2
+
 
       SUBROUTINE TBND (TU,TB,ZSOIL,ZBOT,K,NSOIL,TBND1)
 

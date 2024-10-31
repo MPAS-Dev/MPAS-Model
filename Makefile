@@ -123,17 +123,17 @@ pgi:
 	"CC_SERIAL = pgcc" \
 	"CXX_SERIAL = pgc++" \
 	"FFLAGS_PROMOTION = -r8" \
-	"FFLAGS_OPT = -O4 -byteswapio -Mfree" \
+	"FFLAGS_OPT = -O4 -gopt -byteswapio -Mfree -Mnosave -Mrecursive -Mstack_arrays -DMPAS_NVTX_RANGES" \
 	"CFLAGS_OPT = -O3" \
 	"CXXFLAGS_OPT = -O3" \
-	"LDFLAGS_OPT = -O3" \
-	"FFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf -traceback" \
+	"LDFLAGS_OPT = -O3 -lnvhpcwrapnvtx" \
+	"FFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -byteswapio -Mfree -Ktrap=divz,fp,inv,ovf -traceback -Mnosave -Mrecursive -DMPAS_NVTX_RANGES" \
 	"CFLAGS_DEBUG = -O0 -g -traceback" \
 	"CXXFLAGS_DEBUG = -O0 -g -traceback" \
-	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf -traceback" \
+	"LDFLAGS_DEBUG = -O0 -g -Mbounds -Mchkptr -Ktrap=divz,fp,inv,ovf -traceback -lnvhpcwrapnvtx" \
 	"FFLAGS_OMP = -mp" \
 	"CFLAGS_OMP = -mp" \
-	"FFLAGS_ACC = -Mnofma -acc -ta=tesla:cc70,cc80 -Minfo=accel" \
+	"FFLAGS_ACC = -acc=gpu -Minfo=acc -gpu=lineinfo,ccnative,safecache -cuda" \
 	"CFLAGS_ACC =" \
 	"PICFLAG = -fpic" \
 	"BUILD_TARGET = $(@)" \
