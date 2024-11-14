@@ -23,16 +23,17 @@ module mpas_constants
    use mpas_kind_types
 
 #ifdef MPAS_CAM_DYCORE
-   use physconst, only : pii => pi
-   use physconst, only : gravity => gravit
-   use physconst, only : omega
-   use physconst, only : a => rearth
-   use physconst, only : cp => cpair
-   use physconst, only : rgas => rair
-   use physconst, only : rv => rh2o
-   real (kind=RKIND) :: rvord = huge(1.0_RKIND)                       ! Derived in mpas_constants_compute_derived
-   real (kind=RKIND) :: cv = huge(1.0_RKIND)                          ! Derived in mpas_constants_compute_derived
-   real (kind=RKIND) :: cvpm = huge(1.0_RKIND)                        ! Derived in mpas_constants_compute_derived
+   ! Set at run-time by `mpas_constants_compute_derived`.
+   real (kind=RKIND), protected :: pii     = huge(1.0_RKIND)
+   real (kind=RKIND), protected :: a       = huge(1.0_RKIND)
+   real (kind=RKIND), protected :: omega   = huge(1.0_RKIND)
+   real (kind=RKIND), protected :: gravity = huge(1.0_RKIND)
+   real (kind=RKIND), protected :: rgas    = huge(1.0_RKIND)
+   real (kind=RKIND), protected :: rv      = huge(1.0_RKIND)
+   real (kind=RKIND), protected :: cp      = huge(1.0_RKIND)
+   real (kind=RKIND), protected :: rvord   = huge(1.0_RKIND)
+   real (kind=RKIND), protected :: cv      = huge(1.0_RKIND)
+   real (kind=RKIND), protected :: cvpm    = huge(1.0_RKIND)
 #else
    real (kind=RKIND), parameter :: pii     = 3.141592653589793_RKIND  !< Constant: Pi
    real (kind=RKIND), parameter :: a       = 6371229.0_RKIND          !< Constant: Spherical Earth radius [m]
@@ -74,9 +75,27 @@ module mpas_constants
 !-----------------------------------------------------------------------
    subroutine mpas_constants_compute_derived()
 
+#ifdef MPAS_CAM_DYCORE
+       use physconst, only: external_pii => pi
+       use physconst, only: external_a => rearth
+       use physconst, only: external_omega => omega
+       use physconst, only: external_gravity => gravit
+       use physconst, only: external_rgas => rair
+       use physconst, only: external_rv => rh2o
+       use physconst, only: external_cp => cpair
+
        implicit none
 
-#ifdef MPAS_CAM_DYCORE
+       ! Convert external constants to the native precision of MPAS (i.e., `RKIND`).
+
+       pii = real(external_pii, RKIND)
+       a = real(external_a, RKIND)
+       omega = real(external_omega, RKIND)
+       gravity = real(external_gravity, RKIND)
+       rgas = real(external_rgas, RKIND)
+       rv = real(external_rv, RKIND)
+       cp = real(external_cp, RKIND)
+
        !
        ! In the case of CAM-MPAS, rgas may depend on a CAM namelist option,
        ! so physical constants that depend on rgas must be computed here after
