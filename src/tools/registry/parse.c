@@ -764,6 +764,9 @@ int parse_reg_xml(ezxml_t registry)/*{{{*/
 	// Generate code to read and write fields
 	err = generate_immutable_streams(registry);
 
+	// Generate logic to set packages with the 'active_when' attribute
+	err = generate_package_logic(registry);
+
 	return 0;
 }/*}}}*/
 
