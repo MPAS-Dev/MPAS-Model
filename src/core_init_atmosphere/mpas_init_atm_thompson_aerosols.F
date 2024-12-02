@@ -719,13 +719,12 @@
  end subroutine init_hinterp_gocart
  
 !=================================================================================================================
- subroutine init_atm_thompson_aerosols_lbc(timestamp,timestart,block,mesh,diag,state,lbc_state)
+ subroutine init_atm_thompson_aerosols_lbc(timestamp,timestart,block,mesh,diag,lbc_state)
 !=================================================================================================================
 
 !input arguments:
  character(len=StrKIND),intent(in):: timestart,timestamp
  type(mpas_pool_type),intent(in):: diag
- type(mpas_pool_type),intent(in):: state
 
 !inout arguments:
  type(block_type),intent(inout),target:: block
@@ -771,8 +770,8 @@
  call mpas_pool_get_dimension(mesh,'nVertLevels'  ,nVertLevels  )
  call mpas_pool_get_dimension(mesh,'nMonths'      ,nMonths      )
 
- call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
- call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
+ call mpas_pool_get_dimension(lbc_state,'index_lbc_nifa',index_nifa)
+ call mpas_pool_get_dimension(lbc_state,'index_lbc_nwfa',index_nwfa)
 
  call mpas_pool_get_array(diag,'pressure_base',pressure)
 
