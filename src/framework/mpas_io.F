@@ -5042,13 +5042,11 @@ module mpas_io
       type(MPAS_IO_Handle_type), intent(inout) :: handle
       integer :: pio_ierr
 
-      call mpas_log_write('Calling PIO_redef')
       pio_ierr = PIO_redef(handle % pio_file)
       if (pio_ierr /= PIO_noerr) then
          io_global_err = pio_ierr
          return
       end if
-      call mpas_log_write('Successfully called PIO_redef')
 
    end function handle_put_att_pio_redef
 
@@ -5057,13 +5055,11 @@ module mpas_io
       type(MPAS_IO_Handle_type), intent(inout) :: handle
       integer :: pio_ierr
 
-      call mpas_log_write('Calling PIO_enddef')
       pio_ierr = PIO_enddef(handle % pio_file)
       if (pio_ierr /= PIO_noerr) then
          io_global_err = pio_ierr
          return
       end if
-      call mpas_log_write('Successfully called PIO_enddef')
 
    end function handle_put_att_pio_enddef
 
@@ -5075,20 +5071,15 @@ module mpas_io
       class(*), intent(in) :: attValue
       integer, optional :: ierr
       integer :: pio_ierr
-      character(len=*), parameter :: log_message_prefix = 'Calling PIO_put_att for'
 
       select type(attValue)
          type is (integer)
-            call mpas_log_write(log_message_prefix//' integer attribute '//trim(attname))
             pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
          type is (real(kind=R4KIND))
             pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
-            call mpas_log_write(log_message_prefix//' real(kind=R4KIND) attribute '//trim(attname))
          type is (real(kind=R8KIND))
-            call mpas_log_write(log_message_prefix//' real(kind=R8KIND) attribute '//trim(attname))
             pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
          type is (character(len=*))
-            call mpas_log_write(log_message_prefix//' text attribute '//trim(attname))
             pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
       end select
 
@@ -5101,16 +5092,12 @@ module mpas_io
 
             select type(attValue)
                type is (integer)
-                  call mpas_log_write('Calling PIO_put_att for integer attribute '//trim(attname))
                   pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
                type is (real(kind=R4KIND))
-                  call mpas_log_write('Calling PIO_put_att for real(kind=R4KIND) attribute '//trim(attname))
                   pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
                type is (real(kind=R8KIND))
-                  call mpas_log_write('Calling PIO_put_att for real(kind=R8KIND) attribute '//trim(attname))
                   pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
                type is (character(len=*))
-                  call mpas_log_write('Calling PIO_put_att for text attribute '//trim(attname))
                   pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
             end select
 
@@ -5135,17 +5122,13 @@ module mpas_io
       class(*), dimension(:), intent(in) :: attValue
       integer, optional :: ierr
       integer :: pio_ierr
-      character(len=*), parameter :: log_message_prefix = 'Calling PIO_put_att for'
 
       select type(attValue)
          type is (integer)
-            call mpas_log_write(log_message_prefix//' integer 1D-array attribute '//trim(attname))
             pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
          type is (real(kind=R4KIND))
             pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
-            call mpas_log_write(log_message_prefix//' real(kind=R4KIND) 1D-array attribute '//trim(attname))
          type is (real(kind=R8KIND))
-            call mpas_log_write(log_message_prefix//' real(kind=R8KIND) 1D-array attribute '//trim(attname))
             pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
       end select
 
@@ -5157,13 +5140,10 @@ module mpas_io
             if (handle_put_att_pio_redef(handle) /= PIO_noerr) return
             select type(attValue)
                type is (integer)
-                  call mpas_log_write('Calling PIO_put_att for integer 1D-array attribute '//trim(attname))
                   pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
                type is (real(kind=R4KIND))
-                  call mpas_log_write('Calling PIO_put_att for real(kind=R4KIND) 1D-array attribute '//trim(attname))
                   pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
                type is (real(kind=R8KIND))
-                  call mpas_log_write('Calling PIO_put_att for real(kind=R8KIND) 1D-array attribute '//trim(attname))
                   pio_ierr = PIO_put_att(handle % pio_file, varid, attName, attValue)
             end select
 
