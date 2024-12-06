@@ -5862,6 +5862,7 @@ module mpas_io
          if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
          return
       end if
+#endif
 
 #ifdef MPAS_SMIOL_SUPPORT
       if (local_ierr /= SMIOL_SUCCESS) then
