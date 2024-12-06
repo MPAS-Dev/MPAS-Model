@@ -5037,6 +5037,8 @@ module mpas_io
 
    end subroutine MPAS_io_get_att_real1d
 
+#ifdef MPAS_PIO_SUPPORT
+
    function handle_put_att_pio_redef(handle) result (pio_ierr)
       implicit none
       type(MPAS_IO_Handle_type), intent(inout) :: handle
@@ -5158,7 +5160,7 @@ module mpas_io
          return
       end if
    end function put_att_1d_generic_pio
-
+#endif
 
 
    subroutine MPAS_io_get_att_text(handle, attName, attValue, fieldname, ierr)
