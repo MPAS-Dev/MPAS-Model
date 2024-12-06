@@ -5861,14 +5861,6 @@ module mpas_io
          return
       end if
 
-!      if (handle % preexisting_file) then
-!         pio_ierr = PIO_enddef(handle % pio_file)
-!         if (pio_ierr /= PIO_noerr) then
-!            io_global_err = pio_ierr
-!            return
-!         end if
-!      end if
-#endif
 #ifdef MPAS_SMIOL_SUPPORT
       if (local_ierr /= SMIOL_SUCCESS) then
          call mpas_log_write('SMIOLf_define_att failed with error $i', intArgs=[local_ierr], messageType=MPAS_LOG_ERR)
