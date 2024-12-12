@@ -136,7 +136,6 @@
                      units="-"
                      description="The number of months in a year"
                      possible_values="Positive integer values"/>
-
         </nml_record>
 
         <nml_record name="data_sources" in_defaults="true">
@@ -165,6 +164,11 @@
                      units="-"
                      description="The land use classification to use (case 7 only)"
                      possible_values="`USGS' or `MODIFIED_IGBP_MODIS_NOAH'"/>
+
+                <nml_option name="config_soilcat_data"          type="character"     default_value="STATSGO"
+                     units="-"
+		     description="The soil category classification to use"
+                     possible_values="`STATSGO' or `BNU'"/>
 
                 <nml_option name="config_topo_data"             type="character"     default_value="GMTED2010"
                      units="-"
