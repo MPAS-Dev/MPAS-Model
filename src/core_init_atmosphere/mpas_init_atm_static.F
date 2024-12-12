@@ -350,13 +350,14 @@
  surface_input_select0: select case(trim(config_landuse_data))
     case('USGS')
        write(mminlu,'(a)') 'USGS'
-    case('MODIFIED_IGBP_MODIS_NOAH')
+    case('MODIFIED_IGBP_MODIS_NOAH', 'MODIFIED_IGBP_MODIS_NOAH_15s')
        write(mminlu,'(a)') 'MODIFIED_IGBP_MODIS_NOAH'
     case default
          call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
          call mpas_log_write('Invalid land use dataset '''//trim(config_landuse_data) &
                                        //''' selected for config_landuse_data',                   messageType=MPAS_LOG_ERR)
          call mpas_log_write('   Possible options are: ''USGS'', ''MODIFIED_IGBP_MODIS_NOAH''',   messageType=MPAS_LOG_ERR)
+         call mpas_log_write('                         ''MODIFIED_IGBP_MODIS_NOAH_15s''',         messageType=MPAS_LOG_ERR)
          call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
          call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
  end select surface_input_select0
@@ -396,11 +397,15 @@
     case('MODIFIED_IGBP_MODIS_NOAH')
        call mpas_log_write('Using 20-class MODIS 30-arc-second land cover dataset')
        geog_sub_path = 'modis_landuse_20class_30s/'
+    case('MODIFIED_IGBP_MODIS_NOAH_15s')
+       call mpas_log_write('Using 20-class MODIS 15-arc-second land cover dataset')
+       geog_sub_path = 'modis_landuse_20class_15s/'
     case default
        call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
        call mpas_log_write('Invalid land use dataset '''//trim(config_landuse_data) &
                                      //''' selected for config_landuse_data',                   messageType=MPAS_LOG_ERR)
        call mpas_log_write('   Possible options are: ''USGS'', ''MODIFIED_IGBP_MODIS_NOAH''',   messageType=MPAS_LOG_ERR)
+       call mpas_log_write('                         ''MODIFIED_IGBP_MODIS_NOAH_15s''',         messageType=MPAS_LOG_ERR)
        call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
        call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
  end select surface_input_select1
