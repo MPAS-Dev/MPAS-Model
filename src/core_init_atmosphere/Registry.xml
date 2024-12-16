@@ -196,9 +196,14 @@
                      description="The supersampling factor to be used for MODIS maximum snow albedo and monthly albedo datasets (case 7 only)"
                      possible_values="Positive integer values"/>
 
+	        <nml_option name="config_lu_supersample_factor" type="integer"       default_value="1"
+                     units="-"
+                     description="The supersampling factor to be used for 30s or 15s MODIS land use (case 7 only)"
+                     possible_values="Positive integer values"/>
+
                 <nml_option name="config_30s_supersample_factor"    type="integer"       default_value="1"
                      units="-"
-                     description="The supersampling factor to be used for 30s terrain, MODIS land use, soil category, and MODIS FPAR monthly vegetation fraction (case 7 only)"
+                     description="The supersampling factor to be used for 30s terrain, soil category, and MODIS FPAR monthly vegetation fraction (case 7 only)"
                      possible_values="Positive integer values"/>
 
                 <nml_option name="config_use_spechumd"          type="logical"       default_value="false"

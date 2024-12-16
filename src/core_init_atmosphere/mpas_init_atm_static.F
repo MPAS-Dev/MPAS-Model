@@ -144,6 +144,7 @@
  type(c_ptr) :: rarray_ptr
 
  integer, pointer :: supersample_fac
+ integer, pointer :: supersample_fac_lu
  integer, pointer :: supersample_fac_30s
 
  real(kind=RKIND):: lat,lon,x,y
@@ -220,6 +221,7 @@
  call mpas_pool_get_config(configs, 'config_albedo_data', config_albedo_data)
  call mpas_pool_get_config(configs, 'config_maxsnowalbedo_data', config_maxsnowalbedo_data)
  call mpas_pool_get_config(configs, 'config_supersample_factor', supersample_fac)
+ call mpas_pool_get_config(configs, 'config_lu_supersample_factor', supersample_fac_lu)
  call mpas_pool_get_config(configs, 'config_30s_supersample_factor', supersample_fac_30s)
 
  write(geog_data_path, '(a)') config_geog_data_path
@@ -412,7 +414,7 @@
 
  call mpas_log_write('--- start interpolate LU_INDEX')
  call interp_landuse(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), isice_lu, iswater_lu, &
-                     supersample_fac=supersample_fac_30s)
+                     supersample_fac=supersample_fac_lu)
  call mpas_log_write('--- end interpolate LU_INDEX')
 
 !
