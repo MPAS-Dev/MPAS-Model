@@ -999,11 +999,8 @@ module atm_time_integration
    
 !$OMP PARALLEL DO
             do thread=1,nThreads
-               call atm_set_smlstep_pert_variables( tend, diag, mesh, block % configs, &
-                                          cellThreadStart(thread), cellThreadEnd(thread), &
-                                          edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                          edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+               call atm_set_smlstep_pert_variables( tend, mesh, &
+                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
             end do
 !$OMP END PARALLEL DO
             call mpas_timer_stop('small_step_prep')
@@ -2006,9 +2003,7 @@ module atm_time_integration
    end subroutine atm_compute_vert_imp_coefs_work
 
 
-   subroutine atm_set_smlstep_pert_variables( tend, diag, mesh, configs, &
-                                   cellStart, cellEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd)
+   subroutine atm_set_smlstep_pert_variables( tend, mesh, cellSolveStart, cellSolveEnd)
 
       ! following Klemp et al MWR 2007, we use preturbation variables
       ! in the acoustic-step integration.  This routine computes those 
@@ -2019,91 +2014,58 @@ module atm_time_integration
       implicit none
 
       type (mpas_pool_type), intent(inout) :: tend
-      type (mpas_pool_type), intent(inout) :: diag
       type (mpas_pool_type), intent(inout) :: mesh
-      type (mpas_pool_type), intent(in) :: configs
-      integer, intent(in) :: cellStart, cellEnd, edgeStart, edgeEnd
-      integer, intent(in) :: cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd
+      integer, intent(in) :: cellSolveStart, cellSolveEnd
 
-      integer, pointer :: nCells, nEdges, nCellsSolve
+      integer, pointer :: nCells, nEdges
+
       integer, dimension(:), pointer :: nEdgesOnCell
       integer, dimension(:,:), pointer :: cellsOnEdge, edgesOnCell
-      real (kind=RKIND), dimension(:), pointer :: fzm, fzp
-      real (kind=RKIND), dimension(:,:), pointer :: ruAvg, wwAvg
-      real (kind=RKIND), dimension(:,:,:), pointer :: zb, zb3, zb_cell, zb3_cell
-      real (kind=RKIND), dimension(:,:), pointer :: zz
-      real (kind=RKIND), dimension(:,:), pointer :: w_tend, u_tend
-      real (kind=RKIND), dimension(:,:), pointer :: rho_pp, rho_p_save, rho_p
-      real (kind=RKIND), dimension(:,:), pointer :: ru_p, ru, ru_save
-      real (kind=RKIND), dimension(:,:), pointer :: rtheta_pp, rtheta_p_save, rtheta_p, rtheta_pp_old
-      real (kind=RKIND), dimension(:,:), pointer :: rw_p, rw_save, rw
       real (kind=RKIND), dimension(:,:), pointer :: edgesOnCell_sign
-
       integer, dimension(:), pointer :: bdyMaskCell  ! regional_MPAS
 
+      real (kind=RKIND), dimension(:), pointer :: fzm, fzp
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb, zb3, zb_cell, zb3_cell
+      real (kind=RKIND), dimension(:,:), pointer :: zz
+
+      real (kind=RKIND), dimension(:,:), pointer :: w_tend, u_tend
+
       call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-      call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
       call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
 
+      call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
+      call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
+      call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
+      call mpas_pool_get_array(mesh, 'edgesOnCell_sign', edgesOnCell_sign)
 ! regional_MPAS: get specified zone cell mask
       call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)
 
-      call mpas_pool_get_array(mesh, 'zz', zz)
+      call mpas_pool_get_array(mesh, 'fzm', fzm)
+      call mpas_pool_get_array(mesh, 'fzp', fzp)
       call mpas_pool_get_array(mesh, 'zb', zb)
       call mpas_pool_get_array(mesh, 'zb3', zb3)
       call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
       call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
-      call mpas_pool_get_array(mesh, 'fzm', fzm)
-      call mpas_pool_get_array(mesh, 'fzp', fzp)
-      call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
-      call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
-      call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
-      call mpas_pool_get_array(mesh, 'edgesOnCell_sign', edgesOnCell_sign)
+      call mpas_pool_get_array(mesh, 'zz', zz)
 
       call mpas_pool_get_array(tend, 'w', w_tend)
       call mpas_pool_get_array(tend, 'u', u_tend)
 
-      call mpas_pool_get_array(diag, 'ruAvg', ruAvg)
-      call mpas_pool_get_array(diag, 'wwAvg', wwAvg)
-
-      call mpas_pool_get_array(diag, 'rho_pp', rho_pp)
-      call mpas_pool_get_array(diag, 'rho_p_save', rho_p_save)
-      call mpas_pool_get_array(diag, 'rho_p', rho_p)
-
-      call mpas_pool_get_array(diag, 'ru_p', ru_p)
-      call mpas_pool_get_array(diag, 'ru_save', ru_save)
-      call mpas_pool_get_array(diag, 'ru', ru)
-
-      call mpas_pool_get_array(diag, 'rtheta_pp', rtheta_pp)
-      call mpas_pool_get_array(diag, 'rtheta_p_save', rtheta_p_save)
-      call mpas_pool_get_array(diag, 'rtheta_p', rtheta_p)
-      call mpas_pool_get_array(diag, 'rtheta_pp_old', rtheta_pp_old)
-
-      call mpas_pool_get_array(diag, 'rw_p', rw_p)
-      call mpas_pool_get_array(diag, 'rw_save', rw_save)
-      call mpas_pool_get_array(diag, 'rw', rw)
-
-      call atm_set_smlstep_pert_variables_work(nCells, nEdges, nCellsSolve, &
-                                   nEdgesOnCell, cellsOnEdge, edgesOnCell, fzm, fzp, ruAvg, wwAvg, zb, zb3, zb_cell, zb3_cell, &
-                                   zz, w_tend, u_tend, rho_pp, rho_p_save, rho_p, ru_p, ru, ru_save, &
-                                   rtheta_pp, rtheta_p_save, rtheta_p, rtheta_pp_old, rw_p, rw_save, rw, &
-                                   bdyMaskCell, &  ! added for regional_MPAS
-                                   edgesOnCell_sign, &
-                                   cellStart, cellEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd)
+      call atm_set_smlstep_pert_variables_work(nCells, nEdges, &
+                                   nEdgesOnCell, cellsOnEdge, edgesOnCell, edgesOnCell_sign, bdyMaskCell, &
+                                   fzm, fzp, zb, zb3, zb_cell, zb3_cell, zz, &
+                                   w_tend, u_tend, &
+                                   cellSolveStart, cellSolveEnd)
 
 
    end subroutine atm_set_smlstep_pert_variables
 
 
-   subroutine atm_set_smlstep_pert_variables_work(nCells, nEdges, nCellsSolve, &
-                                   nEdgesOnCell, cellsOnEdge, edgesOnCell, fzm, fzp, ruAvg, wwAvg, zb, zb3, zb_cell, zb3_cell, &
-                                   zz, w_tend, u_tend, rho_pp, rho_p_save, rho_p, ru_p, ru, ru_save, &
-                                   rtheta_pp, rtheta_p_save, rtheta_p, rtheta_pp_old, rw_p, rw_save, rw, &
-                                   bdyMaskCell, &  ! added for regional_MPAS
-                                   edgesOnCell_sign, &
-                                   cellStart, cellEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd)
+   subroutine atm_set_smlstep_pert_variables_work(nCells, nEdges, &
+                                   nEdgesOnCell, cellsOnEdge, edgesOnCell, edgesOnCell_sign, bdyMaskCell, &
+                                   fzm, fzp, zb, zb3, zb_cell, zb3_cell, zz, &
+                                   w_tend, u_tend, &
+                                   cellSolveStart, cellSolveEnd)
 
       use mpas_atm_dimensions
 
@@ -2113,41 +2075,26 @@ module atm_time_integration
       !
       ! Dummy arguments
       !
-      integer, intent(in) :: nCells, nEdges, nCellsSolve
-
-      integer, intent(in) :: cellStart, cellEnd, edgeStart, edgeEnd
-      integer, intent(in) :: cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd
+      integer, intent(in) :: nCells, nEdges
+      integer, intent(in) :: cellSolveStart, cellSolveEnd
 
       integer, dimension(nCells+1) :: nEdgesOnCell
       integer, dimension(2,nEdges+1) :: cellsOnEdge
       integer, dimension(maxEdges,nCells+1) :: edgesOnCell
+      real (kind=RKIND), dimension(maxEdges,nCells+1) :: edgesOnCell_sign
+      integer, dimension(nCells+1), intent(in) :: bdyMaskCell  !  added for regional_MPAS
+
       real (kind=RKIND), dimension(nVertLevels) :: fzm
       real (kind=RKIND), dimension(nVertLevels) :: fzp
-      real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: ruAvg
-      real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: wwAvg
       real (kind=RKIND), dimension(nVertLevels+1,2,nEdges+1) :: zb
       real (kind=RKIND), dimension(nVertLevels+1,2,nEdges+1) :: zb3
       real (kind=RKIND), dimension(nVertLevels+1,maxEdges,nCells+1) :: zb_cell
       real (kind=RKIND), dimension(nVertLevels+1,maxEdges,nCells+1) :: zb3_cell
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: zz
+
       real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: w_tend
       real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: u_tend
-      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rho_pp
-      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rho_p_save
-      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rho_p
-      real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: ru_p
-      real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: ru
-      real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: ru_save
-      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rtheta_pp
-      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rtheta_p_save
-      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rtheta_p
-      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rtheta_pp_old
-      real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: rw_p
-      real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: rw_save
-      real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: rw
-      real (kind=RKIND), dimension(maxEdges,nCells+1) :: edgesOnCell_sign
 
-      integer, dimension(nCells+1), intent(in) :: bdyMaskCell  !  added for regional_MPAS
 
       !
       ! Local variables
@@ -2165,7 +2112,6 @@ module atm_time_integration
       ! here we need to compute the omega tendency in a manner consistent with our diagnosis of omega.
       ! this requires us to use the same flux divergence as is used in the theta eqn - see Klemp et al MWR 2003.
 
-!!      do iCell=cellStart,cellEnd
       !$acc parallel default(present)
       !$acc loop gang worker
       do iCell=cellSolveStart,cellSolveEnd
