@@ -6699,7 +6699,7 @@ call mpas_log_write('Done with soil consistency check')
             dzs(iSoil,iCell) =   0.0
          end do
       
-         !monthly climatological surface albedo and greeness fraction:
+         !monthly climatological surface albedo and greenness fraction:
          do iMonth = 1, nMonths
             albedo12m(iMonth,iCell) = 0.08
             greenfrac(iMonth,iCell) = 0.0
