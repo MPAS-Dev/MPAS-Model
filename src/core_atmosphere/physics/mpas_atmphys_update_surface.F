@@ -19,7 +19,9 @@
  private
  public:: physics_update_sst,         &
           physics_update_sstskin,     &
-          physics_update_surface,     &
+          physics_update_surface_alb, &
+          physics_update_surface_lai, &
+          physics_update_surface_gvf, &
           physics_update_deepsoiltemp
 
 
@@ -29,7 +31,9 @@
 !
 ! subroutines in mpas_atmphys_update_surface:
 ! -------------------------------------------
-! physics_update_surface     : update the surface albedo and greeness fraction.
+! physics_update_surface_alb : update the surface albedo.
+! physics_update_surface_lai : update the surface leaf area index.
+! physics_update_surface_gvf : update the surface greeness fraction.
 ! physics_update_sst         : update the sea-surface temperatures.
 ! physics_update_sstskin     : add a diurnal cycle to the sea-surface temperatures.
 ! physics_update_deepsoiltemp: update the deep soil temperatures.
@@ -51,27 +55,23 @@
 
 
 !=================================================================================================================
- subroutine physics_update_surface(current_date,config_sfc_albedo,mesh,sfc_input)
+ subroutine physics_update_surface_alb(current_date,mesh,sfc_input)
 !=================================================================================================================
 
 !input variables:
  type(mpas_pool_type),intent(in):: mesh
  character(len=*),intent(in):: current_date
- logical,intent(in):: config_sfc_albedo
 
 !inout variables:
  type(mpas_pool_type),intent(inout):: sfc_input
 
 !local pointers:
-!logical,pointer:: config_sfc_albedo
 
  integer,pointer:: nCellsSolve
  integer,dimension(:),pointer:: landmask
 
  real(kind=RKIND),dimension(:)  ,pointer:: sfc_albbck
  real(kind=RKIND),dimension(:,:),pointer:: albedo12m
- real(kind=RKIND),dimension(:)  ,pointer:: vegfra,shdmin,shdmax
- real(kind=RKIND),dimension(:,:),pointer:: greenfrac
  
 !local variables:
  integer:: iCell
@@ -84,23 +84,85 @@
  call mpas_pool_get_array(sfc_input,'albedo12m' , albedo12m )
  call mpas_pool_get_array(sfc_input,'sfc_albbck', sfc_albbck)
 
+!updates the surface background albedo for the current date as a function of the monthly-mean
+!surface background albedo valid on the 15th day of the month:
+ call monthly_interp_to_date(nCellsSolve,current_date,albedo12m,sfc_albbck)
+
+ do iCell = 1, nCellsSolve
+    sfc_albbck(iCell) = sfc_albbck(iCell) / 100.
+    if(landmask(iCell) .eq. 0) sfc_albbck(iCell) = 0.08
+ enddo
+
+ end subroutine physics_update_surface_alb
+
+!=================================================================================================================
+ subroutine physics_update_surface_lai(current_date,mesh,sfc_input,diag_physics)
+!=================================================================================================================
+
+!input variables:
+ type(mpas_pool_type),intent(in):: mesh
+ character(len=*),intent(in):: current_date
+
+!inout variables:
+ type(mpas_pool_type),intent(inout):: sfc_input
+ type(mpas_pool_type),intent(inout):: diag_physics
+
+!local pointers:
+
+ integer,pointer:: nCellsSolve
+
+ real(kind=RKIND),dimension(:,:),pointer:: lai12m
+ real(kind=RKIND),dimension(:)  ,pointer:: lai
+
+!local variables:
+ integer:: iCell
+
+!-----------------------------------------------------------------------------------------------------------------
+
+ call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
+
+ call mpas_pool_get_array(sfc_input,'lai12m'    , lai12m    )
+ call mpas_pool_get_array(diag_physics,'lai   '    , lai    )
+
+!updates the leaf area index for the current date as a function of the monthly-mean lai
+!valid on the 15th day of the month.
+ call monthly_interp_to_date(nCellsSolve,current_date,lai12m,lai)
+
+ do iCell = 1,nCellsSolve
+    lai(iCell) = lai(iCell) / 10.
+ enddo
+
+ end subroutine physics_update_surface_lai
+
+!=================================================================================================================
+ subroutine physics_update_surface_gvf(current_date,mesh,sfc_input)
+!=================================================================================================================
+
+!input variables:
+ type(mpas_pool_type),intent(in):: mesh
+ character(len=*),intent(in):: current_date
+
+!inout variables:
+ type(mpas_pool_type),intent(inout):: sfc_input
+
+!local pointers:
+
+ integer,pointer:: nCellsSolve
+
+ real(kind=RKIND),dimension(:)  ,pointer:: vegfra,shdmin,shdmax
+ real(kind=RKIND),dimension(:,:),pointer:: greenfrac
+ 
+!local variables:
+ integer:: iCell
+
+!-----------------------------------------------------------------------------------------------------------------
+
+ call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
+
  call mpas_pool_get_array(sfc_input,'greenfrac' , greenfrac )
  call mpas_pool_get_array(sfc_input,'vegfra'    , vegfra    )
  call mpas_pool_get_array(sfc_input,'shdmin'    , shdmin    )
  call mpas_pool_get_array(sfc_input,'shdmax'    , shdmax    )
-
-!updates the surface background albedo for the current date as a function of the monthly-mean
-!surface background albedo valid on the 15th day of the month, if config_sfc_albedo is true:
- if(config_sfc_albedo) then
-
-    call monthly_interp_to_date(nCellsSolve,current_date,albedo12m,sfc_albbck)
-
-    do iCell = 1, nCellsSolve
-       sfc_albbck(iCell) = sfc_albbck(iCell) / 100.
-       if(landmask(iCell) .eq. 0) sfc_albbck(iCell) = 0.08
-    enddo
-
- endif
 
 !updates the green-ness fraction for the current date as a function of the monthly-mean green-
 !ness valid on the 15th day of the month. get the min/max for each cell for the monthly green-
@@ -108,7 +170,7 @@
  call monthly_interp_to_date(nCellsSolve,current_date,greenfrac,vegfra)
  call monthly_min_max(nCellsSolve,greenfrac,shdmin,shdmax)
 
- end subroutine physics_update_surface
+ end subroutine physics_update_surface_gvf
 
 !=================================================================================================================
  subroutine physics_update_sst(dminfo,config_frac_seaice,mesh,sfc_input,diag_physics)
