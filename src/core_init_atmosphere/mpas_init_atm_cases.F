@@ -158,7 +158,7 @@ module init_atm_cases
             call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
 
             call mpas_log_write(' calling test case setup ')
-            call init_atm_case_mtn_wave(mesh, nCells, nVertLevels, state, diag, block_ptr % configs)
+            call init_atm_case_mtn_wave(domain % dminfo, mesh, nCells, nVertLevels, state, diag, block_ptr % configs)
             call decouple_variables(mesh, nCells, nVertLevels, state, diag)
             call mpas_log_write(' returned from test case setup ')
             block_ptr => block_ptr % next
@@ -1969,13 +1969,15 @@ module init_atm_cases
 !----------------------------------------------------------------------------------------------------------
 
 
-   subroutine init_atm_case_mtn_wave(mesh, nCells, nVertLevels, state, diag, configs)
+   subroutine init_atm_case_mtn_wave(dminfo, mesh, nCells, nVertLevels, state, diag, configs)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   ! Setup baroclinic wave test case from Jablonowski and Williamson 2008 (QJRMS)
+   ! Setup mountain wave test case from Schär et al. (2001): A New Terrain-Following Vertical
+   ! Coordinate Formulation for Atmospheric Prediction Models
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       implicit none
 
+      type (dm_info), intent(in) :: dminfo
       type (mpas_pool_type), intent(inout) :: mesh
       integer, intent(in) :: nCells
       integer, intent(in) :: nVertLevels
@@ -2159,7 +2161,8 @@ module init_atm_cases
       ! for hx computation
       xa = 5000. !SHP - should be changed based on grid distance 
       xla = 4000.
-      xc = maxval (xCell(:))/2. 
+      call mpas_dmpar_max_real(dminfo, maxval(xCell(:)), xc)
+      xc = xc * 0.5
 
       !     metrics for hybrid coordinate and vertical stretching
       str = 1.0
