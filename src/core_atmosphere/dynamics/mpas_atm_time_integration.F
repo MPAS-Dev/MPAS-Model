@@ -1722,6 +1722,10 @@ module atm_time_integration
       !$acc                   rho_zz_1, scalars_1)
       MPAS_ACC_TIMER_STOP('atm_rk_integration_setup [ACC_data_xfer]')
 
+      !$acc kernels
+      theta_m_2(:,cellEnd+1) = 0.0_RKIND
+      !$acc end kernels
+
       !$acc parallel
       !$acc loop gang worker
       do iEdge = edgeStart,edgeEnd
