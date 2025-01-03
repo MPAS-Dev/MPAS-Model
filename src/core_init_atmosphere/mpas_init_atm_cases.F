@@ -51,7 +51,6 @@ module init_atm_cases
       type (domain_type), intent(inout) :: domain
       type (MPAS_streamManager_type), intent(inout) :: stream_manager
 
-
       integer :: ierr
       type (block_type), pointer :: block_ptr
 
@@ -211,7 +210,15 @@ module init_atm_cases
             end if
 
             if (config_static_interp) then
-               call init_atm_static(mesh, block_ptr % dimensions, block_ptr % configs)
+               if ( on_unit_sphere(domain % dminfo, mesh) ) then
+                  call init_atm_static(mesh, block_ptr % dimensions, block_ptr % configs)
+               else
+                  call mpas_log_write('*************************************************************', messageType=MPAS_LOG_ERR)
+                  call mpas_log_write('Input grid does not describe a unit sphere, static processing', messageType=MPAS_LOG_ERR)
+                  call mpas_log_write('has likely already been applied. Repeating this step can     ', messageType=MPAS_LOG_ERR)
+                  call mpas_log_write('cause issues running the model and unrealistic results.      ', messageType=MPAS_LOG_ERR)
+                  call mpas_log_write('*************************************************************', messageType=MPAS_LOG_CRIT)
+               end if
             end if
 
             if (config_native_gwd_static) then
