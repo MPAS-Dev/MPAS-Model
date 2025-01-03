@@ -249,6 +249,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: latEdge
       real (kind=RKIND), dimension(:), pointer :: angleEdge
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel2
+      real (kind=RKIND), dimension(:), pointer :: meshScalingDel4
 #endif
 
 
@@ -419,6 +420,9 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'meshScalingDel2', meshScalingDel2)
       !$acc enter data copyin(meshScalingDel2)
+
+      call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
+      !$acc enter data copyin(meshScalingDel4)
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -504,6 +508,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: latEdge
       real (kind=RKIND), dimension(:), pointer :: angleEdge
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel2
+      real (kind=RKIND), dimension(:), pointer :: meshScalingDel4
 #endif
 
 
@@ -674,6 +679,9 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'meshScalingDel2', meshScalingDel2)
       !$acc exit data delete(meshScalingDel2)
+
+      call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
+      !$acc exit data delete(meshScalingDel4)
 #endif
 
    end subroutine mpas_atm_dynamics_finalize
@@ -5386,34 +5394,62 @@ module atm_time_integration
 
 !$OMP BARRIER
 
+            !!! MGD UNTESTED !!!
+
+            !$acc enter data create(delsq_vorticity, delsq_divergence)
+            !$acc enter data copyin(delsq_u, tend_u_euler, rho_edge)
+
+            !$acc parallel default(present)
+
+            !$acc loop gang worker
             do iVertex=vertexStart,vertexEnd
-               delsq_vorticity(1:nVertLevels,iVertex) = 0.0
+
+               !$acc loop vector
+               do k=1,nVertLevels
+                  delsq_vorticity(k,iVertex) = 0.0_RKIND
+               end do
+
+               !$acc loop seq
                do i=1,vertexDegree
                   iEdge = edgesOnVertex(i,iVertex)
                   edge_sign = invAreaTriangle(iVertex) * dcEdge(iEdge) * edgesOnVertex_sign(i,iVertex)
+
+                  !$acc loop vector
                   do k=1,nVertLevels
                      delsq_vorticity(k,iVertex) = delsq_vorticity(k,iVertex) + edge_sign * delsq_u(k,iEdge)
                   end do
                end do
             end do
 
+            !$acc loop gang worker
             do iCell=cellStart,cellEnd
-               delsq_divergence(1:nVertLevels,iCell) = 0.0
+
+               !$acc loop vector
+               do k=1,nVertLevels
+                  delsq_divergence(k,iCell) = 0.0_RKIND
+               end do
+
                r = invAreaCell(iCell)
+
+               !$acc loop seq
                do i=1,nEdgesOnCell(iCell)
                   iEdge = edgesOnCell(i,iCell)
                   edge_sign = r * dvEdge(iEdge) * edgesOnCell_sign(i,iCell)
+
+                  !$acc loop vector
                   do k=1,nVertLevels
                      delsq_divergence(k,iCell) = delsq_divergence(k,iCell) + edge_sign * delsq_u(k,iEdge)
                   end do
                end do
             end do
 
-
-
+            !$acc end parallel
          
 !$OMP BARRIER
 
+            !$acc parallel default(present)
+
+            !$acc loop gang worker
             do iEdge=edgeSolveStart,edgeSolveEnd
                cell1 = cellsOnEdge(1,iEdge)
                cell2 = cellsOnEdge(2,iEdge)
@@ -5425,6 +5461,7 @@ module atm_time_integration
                r_dv = u_mix_scale * min(invDvEdge(iEdge), 4*invDcEdge(iEdge))
 
 !DIR$ IVDEP
+               !$acc loop vector
                do k=1,nVertLevels
 
                   ! Compute diffusion, computed as \nabla divergence - k \times \nabla vorticity
@@ -5440,6 +5477,11 @@ module atm_time_integration
                   
                end do
             end do
+
+            !$acc end parallel
+
+            !$acc exit data copyout(tend_u_euler)
+            !$acc exit data delete(delsq_u, rho_edge, delsq_vorticity, delsq_divergence)
          
          end if ! 4th order mixing is active 
 
@@ -5448,13 +5490,20 @@ module atm_time_integration
       !
          if ( v_mom_eddy_visc2 > 0.0 ) then
 
+            !!! MGD UNTESTED !!!
+
             if (config_mix_full) then  ! mix full state
 
+               !$acc enter data copyin(tend_u_euler, rho_edge, u)
+
+               !$acc parallel default(present)
+               !$acc loop gang worker
                do iEdge=edgeSolveStart,edgeSolveEnd
 
                   cell1 = cellsOnEdge(1,iEdge)
                   cell2 = cellsOnEdge(2,iEdge)
 
+                  !$acc loop vector
                   do k=2,nVertLevels-1
 
                      z1 = 0.5*(zgrid(k-1,cell1)+zgrid(k-1,cell2))
@@ -5471,19 +5520,30 @@ module atm_time_integration
                                        -(u(k  ,iEdge)-u(k-1,iEdge))/(z0-zm) )/(0.5*(zp-zm))
                   end do
                end do
+               !$acc end parallel
+
+               !$acc exit data copyout(tend_u_euler)
+               !$acc exit data delete(rho_edge, u)
 
             else  ! idealized cases where we mix on the perturbation from the initial 1-D state
 
+
+               !$acc enter data copyin(tend_u_euler, u_init, v_init, rho_edge, u)
+
+               !$acc parallel default(present)
+               !$acc loop gang worker private(u_mix)
                do iEdge=edgeSolveStart,edgeSolveEnd
 
                   cell1 = cellsOnEdge(1,iEdge)
                   cell2 = cellsOnEdge(2,iEdge)
 
+                  !$acc loop vector
                   do k=1,nVertLevels
                      u_mix(k) = u(k,iEdge) - u_init(k) * cos( angleEdge(iEdge) ) &
                                            - v_init(k) * sin( angleEdge(iEdge) )
                   end do
 
+                  !$acc loop vector
                   do k=2,nVertLevels-1
 
                      z1 = 0.5*(zgrid(k-1,cell1)+zgrid(k-1,cell2))
@@ -5500,6 +5560,10 @@ module atm_time_integration
                                        -(u_mix(k  )-u_mix(k-1))/(z0-zm) )/(0.5*(zp-zm))
                   end do
                end do
+               !$acc end parallel
+
+               !$acc exit data copyout(tend_u_euler)
+               !$acc exit data delete(rho_edge, u, u_init, v_init)
 
             end if  ! mix perturbation state
 
