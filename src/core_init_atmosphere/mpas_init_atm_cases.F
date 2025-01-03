@@ -7140,4 +7140,63 @@ call mpas_log_write('Done with soil consistency check')
    end function read_text_array
 
 
+   !-----------------------------------------------------------------------
+   !  routine on_unit_sphere
+   !
+   !> \brief True if sphere surface area is close to unit sphere surface area (4*pii)
+   !> \author G. Dylan Dickerson
+   !> \date   03 Jan 2025
+   !> \details
+   !>
+   !>  This routine will use the global sum of cell areas to
+   !>  approximate the surface area of the sphere. If this surface area
+   !>  is within a factor of 4*pii, the mesh is likely still a unit
+   !>  sphere and this returns true.  Otherwise, returns false since
+   !>  the mesh is likely not a unit sphere.
+   !>
+   !---------------------------------------------------------------------------
+   function on_unit_sphere(dminfo, mesh) result(unit_sphere)
+
+      use mpas_pool_routines, only : mpas_pool_get_array, mpas_pool_get_dimension 
+      use mpas_dmpar, only : mpas_dmpar_sum_real
+      use mpas_constants, only : pii
+
+      implicit none
+
+      ! Input vars
+      type (dm_info), intent(in) :: dminfo
+      type (mpas_pool_type), intent(inout) :: mesh
+
+      ! Output vars
+      logical unit_sphere
+
+      ! Local vars
+      real (kind=RKIND) :: surfArea, g_surfArea
+      real (kind=RKIND) :: tol
+      integer :: iCell
+
+      real (kind=RKIND), dimension(:), pointer :: areaCell
+      integer, pointer :: nCellsSolve
+
+      unit_sphere = .false.
+
+      surfArea = 0.0_RKIND
+      g_surfArea = 0.0_RKIND
+      tol = 2.0_RKIND
+
+      call mpas_pool_get_array(mesh, 'areaCell', areaCell)
+      call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
+
+      ! sum over all owned cells, don't double-count halo cells
+      do iCell = 1, nCellsSolve
+         surfArea = surfArea + areaCell(iCell)
+      end do
+      call mpas_dmpar_sum_real(dminfo, surfArea, g_surfArea)
+
+      if ( (g_surfArea / 4*pii) < tol  ) then
+         unit_sphere = .true.
+      end if
+
+   end function on_unit_sphere
+
 end module init_atm_cases
