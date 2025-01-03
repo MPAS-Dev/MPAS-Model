@@ -245,6 +245,10 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: specZoneMaskCell
       real (kind=RKIND), dimension(:,:), pointer :: defc_a
       real (kind=RKIND), dimension(:,:), pointer :: defc_b
+      real (kind=RKIND), dimension(:,:), pointer :: zxu
+      real (kind=RKIND), dimension(:), pointer :: latEdge
+      real (kind=RKIND), dimension(:), pointer :: angleEdge
+      real (kind=RKIND), dimension(:), pointer :: meshScalingDel2
 #endif
 
 
@@ -403,6 +407,18 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'defc_b', defc_b)
       !$acc enter data copyin(defc_b)
+
+      call mpas_pool_get_array(mesh, 'zxu', zxu)
+      !$acc enter data copyin(zxu)
+
+      call mpas_pool_get_array(mesh, 'latEdge', latEdge)
+      !$acc enter data copyin(latEdge)
+
+      call mpas_pool_get_array(mesh, 'angleEdge', angleEdge)
+      !$acc enter data copyin(angleEdge)
+
+      call mpas_pool_get_array(mesh, 'meshScalingDel2', meshScalingDel2)
+      !$acc enter data copyin(meshScalingDel2)
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -484,6 +500,10 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: specZoneMaskCell
       real (kind=RKIND), dimension(:,:), pointer :: defc_a
       real (kind=RKIND), dimension(:,:), pointer :: defc_b
+      real (kind=RKIND), dimension(:,:), pointer :: zxu
+      real (kind=RKIND), dimension(:), pointer :: latEdge
+      real (kind=RKIND), dimension(:), pointer :: angleEdge
+      real (kind=RKIND), dimension(:), pointer :: meshScalingDel2
 #endif
 
 
@@ -642,6 +662,18 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'defc_b', defc_b)
       !$acc exit data delete(defc_b)
+
+      call mpas_pool_get_array(mesh, 'zxu', zxu)
+      !$acc exit data delete(zxu)
+
+      call mpas_pool_get_array(mesh, 'latEdge', latEdge)
+      !$acc exit data delete(latEdge)
+
+      call mpas_pool_get_array(mesh, 'angleEdge', angleEdge)
+      !$acc exit data delete(angleEdge)
+
+      call mpas_pool_get_array(mesh, 'meshScalingDel2', meshScalingDel2)
+      !$acc exit data delete(meshScalingDel2)
 #endif
 
    end subroutine mpas_atm_dynamics_finalize
@@ -5006,7 +5038,19 @@ module atm_time_integration
 
       if (rk_step == 1) then
 
-!         tend_u_euler(1:nVertLevels,edgeStart:edgeEnd) = 0.0
+         !$acc enter data create(tend_u_euler)
+
+         !$acc parallel
+         !$acc loop gang worker
+         do iEdge = edgeStart, edgeEnd
+            !$acc loop vector
+            do k = 1, nVertLevels
+               tend_u_euler(k,iEdge) = 0.0_RKIND
+            end do
+         end do
+         !$acc end parallel
+
+         !$acc exit data copyout(tend_u_euler)
 
          ! Smagorinsky eddy viscosity, based on horizontal deformation (in this case on model coordinate surfaces).
          ! The integration coefficients were precomputed and stored in defc_a and defc_b
@@ -5185,6 +5229,12 @@ module atm_time_integration
       ! Compute u (normal) velocity tendency for each edge (cell face)
       !
 
+      !$acc enter data copyin(cqu, pp, dpdz, u, w, rw, pv_edge, rho_edge, ke, h_divergence, rdzw)
+      !$acc enter data copyin(tend_u_euler)
+      !$acc enter data create(tend_u)
+
+      !$acc parallel default(present)
+      !$acc loop gang worker private(wduz, q)
       do iEdge=edgeSolveStart,edgeSolveEnd
 
          cell1 = cellsOnEdge(1,iEdge)
@@ -5194,6 +5244,7 @@ module atm_time_integration
 
          if(rk_step == 1) then
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
                tend_u_euler(k,iEdge) =  - cqu(k,iEdge)*( (pp(k,cell2)-pp(k,cell1))*invDcEdge(iEdge)/(.5*(zz(k,cell2)+zz(k,cell1))) &
                                               -0.5*zxu(k,iEdge)*(dpdz(k,cell1)+dpdz(k,cell2)) )
@@ -5207,6 +5258,7 @@ module atm_time_integration
 
          k = 2
          wduz(k) =  0.5*( rw(k,cell1)+rw(k,cell2))*(fzm(k)*u(k,iEdge)+fzp(k)*u(k-1,iEdge))
+         !$acc loop vector
          do k=3,nVertLevels-1
             wduz(k) = flux3( u(k-2,iEdge),u(k-1,iEdge),u(k,iEdge),u(k+1,iEdge),0.5*(rw(k,cell1)+rw(k,cell2)), 1.0_RKIND )
          end do
@@ -5216,15 +5268,23 @@ module atm_time_integration
          wduz(nVertLevels+1) = 0.
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
             tend_u(k,iEdge) = - rdzw(k)*(wduz(k+1)-wduz(k)) !  first use of tend_u
          end do
 
          ! Next, nonlinear Coriolis term (q) following Ringler et al JCP 2009
 
-         q(:) = 0.0
+         !$acc loop vector
+         do k=1,nVertLevels
+            q(k) = 0.0_RKIND
+         end do
+
+         !$acc loop seq
          do j = 1,nEdgesOnEdge(iEdge)
             eoe = edgesOnEdge(j,iEdge)
+
+            !$acc loop vector
             do k=1,nVertLevels
                workpv = 0.5 * (pv_edge(k,iEdge) + pv_edge(k,eoe))
 !  the original definition of pv_edge had a factor of 1/density.  We have removed that factor
@@ -5234,6 +5294,7 @@ module atm_time_integration
          end do
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
 
             ! horizontal ke gradient and vorticity terms in the vector invariant formulation
@@ -5242,6 +5303,9 @@ module atm_time_integration
                                                                  * invDcEdge(iEdge))                            &
                                              - u(k,iEdge)*0.5*(h_divergence(k,cell1)+h_divergence(k,cell2)) 
 #ifdef CURVATURE
+
+            !!! MGD UNTESTED !!!
+
             ! curvature terms for the sphere
             tend_u(k,iEdge) = tend_u(k,iEdge) &
                              - 2.*omega*cos(angleEdge(iEdge))*cos(latEdge(iEdge))  &
@@ -5252,7 +5316,10 @@ module atm_time_integration
          end do
 
       end do
+      !$acc end parallel
 
+      !$acc exit data delete(cqu, pp, dpdz, u, w, rw, pv_edge, rho_edge, ke, h_divergence, rdzw)
+      !$acc exit data copyout(tend_u_euler, tend_u)
 
       !
       !  horizontal mixing for u
@@ -5267,8 +5334,21 @@ module atm_time_integration
          ! del^4 horizontal filter.  We compute this as del^2 ( del^2 (u) ).
          ! First, storage to hold the result from the first del^2 computation.
 
-         delsq_u(1:nVertLevels,edgeStart:edgeEnd) = 0.0
+         !$acc enter data create(delsq_u)
+         !$acc enter data copyin(divergence, vorticity, kdiff, tend_u_euler, rho_edge)
 
+         !$acc parallel default(present)
+         !$acc loop gang worker
+         do iEdge = edgeStart, edgeEnd
+            !$acc loop vector
+            do k = 1, nVertLevels
+               delsq_u(k,iEdge) = 0.0_RKIND
+            end do
+         end do
+         !$acc end parallel
+
+         !$acc parallel default(present)
+         !$acc loop gang worker
          do iEdge=edgeStart,edgeEnd
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
@@ -5278,6 +5358,7 @@ module atm_time_integration
             r_dv = min(invDvEdge(iEdge), 4*invDcEdge(iEdge))
 
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
 
                ! Compute diffusion, computed as \nabla divergence - k \times \nabla vorticity
@@ -5295,6 +5376,11 @@ module atm_time_integration
 
             end do
          end do
+
+         !$acc end parallel
+
+         !$acc exit data copyout(delsq_u, tend_u_euler)
+         !$acc exit data delete(divergence, vorticity, kdiff, rho_edge)
 
          if (h_mom_eddy_visc4 > 0.0) then  ! 4th order mixing is active
 
