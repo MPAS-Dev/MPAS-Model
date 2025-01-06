@@ -5577,27 +5577,52 @@ module atm_time_integration
 
 !  Rayleigh damping on u
       if (config_rayleigh_damp_u) then
+
          rayleigh_coef_inverse = 1.0 / ( real(config_number_rayleigh_damp_u_levels) &
                                          * (config_rayleigh_damp_u_timescale_days*seconds_per_day) )
+
          do k=nVertLevels-config_number_rayleigh_damp_u_levels+1,nVertLevels
             rayleigh_damp_coef(k) = real(k - (nVertLevels-config_number_rayleigh_damp_u_levels))*rayleigh_coef_inverse
          end do
 
+         !!! MGD UNTESTED !!!
+
+         !$acc enter data copyin(tend_u, rho_edge, rayleigh_damp_coef, u)
+
+         !$acc parallel default(present)
+
+         !$acc loop gang worker
          do iEdge=edgeSolveStart,edgeSolveEnd
 !DIR$ IVDEP
+            !$acc loop vector
             do k=nVertlevels-config_number_rayleigh_damp_u_levels+1,nVertLevels
                tend_u(k,iEdge) = tend_u(k,iEdge) - rho_edge(k,iEdge)*u(k,iEdge)*rayleigh_damp_coef(k)
             end do
          end do
+
+         !$acc end parallel
+
+         !$acc exit data copyout(tend_u)
+         !$acc exit data delete(rho_edge, rayleigh_damp_coef, u)
+
       end if
 
+      !$acc enter data copyin(tend_u, tend_u_euler, tend_ru_physics)
+
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iEdge=edgeSolveStart,edgeSolveEnd
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
 !            tend_u(k,iEdge) = tend_u(k,iEdge) + tend_u_euler(k,iEdge)
             tend_u(k,iEdge) = tend_u(k,iEdge) + tend_u_euler(k,iEdge) + tend_ru_physics(k,iEdge)
          end do
       end do
+      !$acc end parallel
+
+      !$acc exit data copyout(tend_u)
+      !$acc exit data delete(tend_u_euler, tend_ru_physics)
 
 
 !----------- rhs for w
