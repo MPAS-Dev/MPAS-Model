@@ -5933,15 +5933,32 @@ module atm_time_integration
       !  horizontal advection for theta
       !
 
+      !$acc enter data create(tend_theta)
+      !$acc enter data copyin(ru, theta_m)
+
+      !$acc parallel default(present)
+      !$acc loop gang worker private(flux_arr)
       do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
-         tend_theta(1:nVertLevels,iCell) = 0.0
+
+         !$acc loop vector
+         do k=1,nVertLevels
+            tend_theta(k,iCell) = 0.0_RKIND
+         end do
+
+         !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
 
-            flux_arr(1:nVertLevels) = 0.0
+            !$acc loop vector
+            do k=1,nVertLevels
+               flux_arr(k) = 0.0_RKIND
+            end do
 
+            !$acc loop seq
             do j=1,nAdvCellsForEdge(iEdge)
                iAdvCell = advCellsForEdge(j,iEdge)
+
+               !$acc loop vector
                do k=1,nVertLevels
                   scalar_weight = adv_coefs(j,iEdge) + sign(1.0_RKIND,ru(k,iEdge))*adv_coefs_3rd(j,iEdge)
                   flux_arr(k) = flux_arr(k) + scalar_weight* theta_m(k,iAdvCell)
@@ -5949,28 +5966,46 @@ module atm_time_integration
             end do
 
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
                tend_theta(k,iCell) = tend_theta(k,iCell) - edgesOnCell_sign(i,iCell) * ru(k,iEdge) * flux_arr(k)
             end do
 
          end do
       end do
+      !$acc end parallel
+
+      !$acc exit data copyout(tend_theta)
+      !$acc exit data delete(ru, theta_m)
 
 !  addition to pick up perturbation flux for rtheta_pp equation
 
       if(rk_step > 1) then
+
+        !$acc enter data copyin(tend_theta, ru_save, ru, theta_m_save)
+
+        !$acc parallel default(present)
+        !$acc loop gang worker
         do iCell=cellSolveStart,cellSolveEnd
+
+          !$acc loop seq
           do i=1,nEdgesOnCell(iCell) 
             iEdge = edgesOnCell(i,iCell)
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
                flux = edgesOnCell_sign(i,iCell)*dvEdge(iEdge)*(ru_save(k,iEdge)-ru(k,iEdge))*0.5*(theta_m_save(k,cell2)+theta_m_save(k,cell1))
                tend_theta(k,iCell) = tend_theta(k,iCell)-flux  ! division by areaCell picked up down below
             end do
           end do
         end do
+        !$acc end parallel
+
+        !$acc exit data copyout(tend_theta)
+        !$acc exit data delete(ru_save, ru, theta_m_save)
+
       end if
 
       !
@@ -5980,11 +6015,26 @@ module atm_time_integration
 
       if (rk_step == 1) then
 
-         delsq_theta(1:nVertLevels,cellStart:cellEnd) = 0.0
+         !$acc enter data create(delsq_theta, tend_theta_euler)
+         !$acc enter data copyin(theta_m, rho_edge, kdiff)
 
+         !$acc parallel default(present)
+         !$acc loop gang worker
          do iCell=cellStart,cellEnd
-            tend_theta_euler(1:nVertLevels,iCell) = 0.0
+
+            !$acc loop vector
+            do k=1,nVertLevels
+               delsq_theta(k,iCell) = 0.0_RKIND
+            end do
+
+            !$acc loop vector
+            do k=1,nVertLevels
+               tend_theta_euler(k,iCell) = 0.0_RKIND
+            end do
+
             r_areaCell = invAreaCell(iCell)
+
+            !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
                edge_sign = r_areaCell*edgesOnCell_sign(i,iCell) * dvEdge(iEdge) * invDcEdge(iEdge)
@@ -5992,6 +6042,7 @@ module atm_time_integration
                cell1 = cellsOnEdge(1,iEdge)
                cell2 = cellsOnEdge(2,iEdge)
 !DIR$ IVDEP
+               !$acc loop vector
                do k=1,nVertLevels
 
 !  we are computing the Smagorinsky filter at more points than needed here so as to pick up the delsq_theta for 4th order filter below
@@ -6004,13 +6055,26 @@ module atm_time_integration
                end do
             end do
           end do
+          !$acc end parallel
+
+          !$acc exit data copyout(delsq_theta, tend_theta_euler)
+          !$acc exit data delete(theta_m, rho_edge, kdiff)
 
 !$OMP BARRIER
             
          if (h_theta_eddy_visc4 > 0.0) then  ! 4th order mixing is active
 
+            !!! MGD UNTESTED !!!
+
+            !$acc enter data copyin(tend_theta_euler, delsq_theta)
+
+            !$acc parallel default(present)
+            !$acc loop gang worker
             do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
+
                r_areaCell = h_theta_eddy_visc4 * prandtl_inv * invAreaCell(iCell)
+
+               !$acc loop seq
                do i=1,nEdgesOnCell(iCell)
 
                   iEdge = edgesOnCell(i,iCell)
@@ -6019,20 +6083,32 @@ module atm_time_integration
                   cell1 = cellsOnEdge(1,iEdge)
                   cell2 = cellsOnEdge(2,iEdge)
 
+                  !$acc loop vector
                   do k=1,nVertLevels
                      tend_theta_euler(k,iCell) = tend_theta_euler(k,iCell) - edge_sign*(delsq_theta(k,cell2) - delsq_theta(k,cell1))
                   end do
                end do
             end do
+            !$acc end parallel
+
+            !$acc exit data copyout(tend_theta_euler)
+            !$acc exit data delete(delsq_theta)
 
          end if ! 4th order mixing is active 
 
       end if ! theta mixing calculated first rk_step
 
+
       !
       !  vertical advection plus diabatic term
       !  Note: we are also dividing through by the cell area after the horizontal flux divergence
       !
+
+      !$acc enter data copyin(tend_theta, rw, rw_save, theta_m, theta_m_save, tend_rho, rho_zz, rt_diabatic_tend)
+      !$acc enter data create(rthdynten)
+
+      !$acc parallel default(present)
+      !$acc loop gang worker private(wdtz)
       do iCell = cellSolveStart,cellSolveEnd
 
          wdtz(1) = 0.0
@@ -6040,22 +6116,30 @@ module atm_time_integration
          k = 2
          wdtz(k) =  rw(k,icell)*(fzm(k)*theta_m(k,iCell)+fzp(k)*theta_m(k-1,iCell))  
          wdtz(k) =  wdtz(k)+(rw_save(k,icell)-rw(k,icell))*(fzm(k)*theta_m_save(k,iCell)+fzp(k)*theta_m_save(k-1,iCell))
+
+         !$acc loop vector
          do k=3,nVertLevels-1
             wdtz(k) = flux3( theta_m(k-2,iCell),theta_m(k-1,iCell),theta_m(k,iCell),theta_m(k+1,iCell), rw(k,iCell), coef_3rd_order )
             wdtz(k) =  wdtz(k) + (rw_save(k,icell)-rw(k,iCell))*(fzm(k)*theta_m_save(k,iCell)+fzp(k)*theta_m_save(k-1,iCell))  ! rtheta_pp redefinition
          end do
+
          k = nVertLevels
          wdtz(k) =  rw_save(k,icell)*(fzm(k)*theta_m(k,iCell)+fzp(k)*theta_m(k-1,iCell))  ! rtheta_pp redefinition
 
          wdtz(nVertLevels+1) = 0.0
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
             tend_theta(k,iCell) = tend_theta(k,iCell)*invAreaCell(iCell) -rdzw(k)*(wdtz(k+1)-wdtz(k))
             rthdynten(k,iCell)  = (tend_theta(k,iCell)-tend_rho(k,iCell)*theta_m(k,iCell))/rho_zz(k,iCell)
             tend_theta(k,iCell) = tend_theta(k,iCell) + rho_zz(k,iCell)*rt_diabatic_tend(k,iCell)
          end do
       end do
+      !$acc end parallel
+
+      !$acc exit data copyout(tend_theta, rthdynten)
+      !$acc exit data delete(rw, rw_save, theta_m, theta_m_save, tend_rho, rho_zz, rt_diabatic_tend)
 
       !
       !  vertical mixing for theta - 2nd order 
@@ -6067,7 +6151,15 @@ module atm_time_integration
 
             if (config_mix_full) then
 
+               !!! MGD UNTESTED !!!
+
+               !$acc enter data copyin(tend_theta_euler, rho_zz, theta_m)
+
+               !$acc parallel default(present)
+               !$acc loop gang worker
                do iCell = cellSolveStart,cellSolveEnd
+
+                  !$acc loop vector
                   do k=2,nVertLevels-1
                      z1 = zgrid(k-1,iCell)
                      z2 = zgrid(k  ,iCell)
@@ -6083,9 +6175,17 @@ module atm_time_integration
                                              -(theta_m(k  ,iCell)-theta_m(k-1,iCell))/(z0-zm) )/(0.5*(zp-zm))
                   end do
                end do
+               !$acc end parallel
 
-         else  ! idealized cases where we mix on the perturbation from the initial 1-D state
+               !$acc exit data copyout(tend_theta_euler)
+               !$acc exit data delete(rho_zz, theta_m)
 
+            else  ! idealized cases where we mix on the perturbation from the initial 1-D state
+
+               !$acc enter data copyin(tend_theta_euler, rho_zz, theta_m, t_init)
+
+               !$acc parallel default(present)
+               !$acc loop gang worker
                do iCell = cellSolveStart,cellSolveEnd
                   do k=2,nVertLevels-1
                      z1 = zgrid(k-1,iCell)
@@ -6102,6 +6202,10 @@ module atm_time_integration
                                              -((theta_m(k  ,iCell)-t_init(k,iCell))-(theta_m(k-1,iCell)-t_init(k-1,iCell)))/(z0-zm) )/(0.5*(zp-zm))
                   end do
                end do
+               !$acc end parallel
+
+               !$acc exit data copyout(tend_theta_euler)
+               !$acc exit data delete(rho_zz, theta_m, t_init)
 
             end if
 
@@ -6109,13 +6213,22 @@ module atm_time_integration
 
       end if ! compute vertical theta mixing on first rk_step
 
+      !$acc enter data copyin(tend_theta, tend_theta_euler, tend_rtheta_physics)
+
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
 !            tend_theta(k,iCell) = tend_theta(k,iCell) + tend_theta_euler(k,iCell)
             tend_theta(k,iCell) = tend_theta(k,iCell) + tend_theta_euler(k,iCell) + tend_rtheta_physics(k,iCell)
          end do
       end do
+      !$acc end parallel
+
+      !$acc exit data copyout(tend_theta)
+      !$acc exit data delete(tend_theta_euler, tend_rtheta_physics)
 
    end subroutine atm_compute_dyn_tend_work
 
