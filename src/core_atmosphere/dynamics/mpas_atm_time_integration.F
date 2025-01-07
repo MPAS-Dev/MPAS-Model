@@ -250,6 +250,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: angleEdge
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel2
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel4
+      real (kind=RKIND), dimension(:), pointer :: rdzu
+      real (kind=RKIND), dimension(:), pointer :: rdzw
 #endif
 
 
@@ -423,6 +425,12 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
       !$acc enter data copyin(meshScalingDel4)
+
+      call mpas_pool_get_array(mesh, 'rdzu', rdzu)
+      !$acc enter data copyin(rdzu)
+
+      call mpas_pool_get_array(mesh, 'rdzw', rdzw)
+      !$acc enter data copyin(rdzw)
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -509,6 +517,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: angleEdge
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel2
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel4
+      real (kind=RKIND), dimension(:), pointer :: rdzu
+      real (kind=RKIND), dimension(:), pointer :: rdzw
 #endif
 
 
@@ -682,6 +692,12 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
       !$acc exit data delete(meshScalingDel4)
+
+      call mpas_pool_get_array(mesh, 'rdzu', rdzu)
+      !$acc exit data delete(rdzu)
+
+      call mpas_pool_get_array(mesh, 'rdzw', rdzw)
+      !$acc exit data delete(rdzw)
 #endif
 
    end subroutine mpas_atm_dynamics_finalize
@@ -5632,22 +5648,41 @@ module atm_time_integration
       !  horizontal advection for w
       !
 
+      !$acc enter data create(tend_w)
+      !$acc enter data copyin(ru, w)
+
+      !$acc parallel default(present)
+      !$acc loop gang worker private(ru_edge_w, flux_arr)
       do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
-         tend_w(1:nVertLevels+1,iCell) = 0.0
+
+         !$acc loop vector
+         do k=1,nVertLevels+1
+            tend_w(k,iCell) = 0.0_RKIND
+         end do
+
+         !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
+
             iEdge = edgesOnCell(i,iCell)
             edge_sign = edgesOnCell_sign(i,iCell) * dvEdge(iEdge) * 0.5
 
+            !$acc loop vector
             do k=2,nVertLevels
                ru_edge_w(k) = fzm(k)*ru(k,iEdge) + fzp(k)*ru(k-1,iEdge)
             end do
 
-            flux_arr(1:nVertLevels) = 0.0
+            !$acc loop vector
+            do k=1,nVertLevels
+               flux_arr(k) = 0.0_RKIND
+            end do
 
             ! flux_arr stores the value of w at the cell edge used in the horizontal transport
 
+            !$acc loop seq
             do j=1,nAdvCellsForEdge(iEdge)
                iAdvCell = advCellsForEdge(j,iEdge)
+
+               !$acc loop vector
                do k=2,nVertLevels
                   scalar_weight = adv_coefs(j,iEdge) + sign(1.0_RKIND,ru_edge_w(k)) * adv_coefs_3rd(j,iEdge)
                   flux_arr(k) = flux_arr(k) + scalar_weight * w(k,iAdvCell)
@@ -5655,16 +5690,26 @@ module atm_time_integration
             end do
 
 !DIR$ IVDEP
+            !$acc loop vector
             do k=2,nVertLevels
                tend_w(k,iCell) = tend_w(k,iCell) - edgesOnCell_sign(i,iCell) * ru_edge_w(k)*flux_arr(k)
             end do
 
          end do
       end do
+      !$acc end parallel
 
 #ifdef CURVATURE
+
+      !!! MGD UNTESTED !!!
+
+      !$acc enter data copyin(rho_zz, ur_cell, vr_cell)
+
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd
 !DIR$ IVDEP
+         !$acc loop vector
          do k=2,nVertLevels
             tend_w(k,iCell) = tend_w(k,iCell) + (rho_zz(k,iCell)*fzm(k)+rho_zz(k-1,iCell)*fzp(k))*          &
                                       ( (fzm(k)*ur_cell(k,iCell)+fzp(k)*ur_cell(k-1,iCell))**2.             &
@@ -5675,8 +5720,13 @@ module atm_time_integration
 
          end do
       end do
+      !$acc end parallel
+
+      !$acc exit data delete(rho_zz, ur_cell, vr_cell)
 #endif
 
+      !$acc exit data copyout(tend_w)
+      !$acc exit data delete(ru, w)
 
       !
       !  horizontal mixing for w - we could combine this with advection directly (i.e. as a turbulent flux),
@@ -5692,12 +5742,26 @@ module atm_time_integration
          ! First, storage to hold the result from the first del^2 computation.
          !  we copied code from the theta mixing, hence the theta* names.
 
+         !$acc enter data create(delsq_w, tend_w_euler)
+         !$acc enter data copyin(rho_edge, w, kdiff)
 
-         delsq_w(1:nVertLevels,cellStart:cellEnd) = 0.0
-
+         !$acc parallel default(present)
+         !$acc loop gang worker
          do iCell=cellStart,cellEnd
-            tend_w_euler(1:nVertLevels+1,iCell) = 0.0
+
+            !$acc loop vector
+            do k=1,nVertLevels
+               delsq_w(k,iCell) = 0.0_RKIND
+            end do
+
+            !$acc loop vector
+            do k=1,nVertLevels+1
+               tend_w_euler(k,iCell) = 0.0_RKIND
+            end do
+
             r_areaCell = invAreaCell(iCell)
+
+            !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
 
@@ -5707,6 +5771,7 @@ module atm_time_integration
                cell2 = cellsOnEdge(2,iEdge)
 
 !DIR$ IVDEP
+              !$acc loop vector
               do k=2,nVertLevels
 
                   w_turb_flux =  edge_sign*(rho_edge(k,iEdge)+rho_edge(k-1,iEdge))*(w(k,cell2) - w(k,cell1))
@@ -5717,13 +5782,26 @@ module atm_time_integration
                end do
             end do
          end do
+         !$acc end parallel
+
+         !$acc exit data copyout(delsq_w, tend_w_euler)
+         !$acc exit data delete(rho_edge, w, kdiff)
 
 !$OMP BARRIER
 
          if (h_mom_eddy_visc4 > 0.0) then  ! 4th order mixing is active
 
+            !!! MGD UNTESTED !!!
+
+            !$acc enter data copyin(tend_w_euler, delsq_w)
+
+            !$acc parallel default(present)
+            !$acc loop gang worker
             do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
+
                r_areaCell = h_mom_eddy_visc4 * invAreaCell(iCell)
+
+               !$acc loop seq
                do i=1,nEdgesOnCell(iCell)
                   iEdge = edgesOnCell(i,iCell)
                   cell1 = cellsOnEdge(1,iEdge)
@@ -5731,12 +5809,17 @@ module atm_time_integration
 
                   edge_sign = meshScalingDel4(iEdge)*r_areaCell*dvEdge(iEdge)*edgesOnCell_sign(i,iCell) * invDcEdge(iEdge)
 
+                  !$acc loop vector
                   do k=2,nVertLevels
                      tend_w_euler(k,iCell) = tend_w_euler(k,iCell) - edge_sign * (delsq_w(k,cell2) - delsq_w(k,cell1))
                   end do
            
                end do
             end do
+            !$acc end parallel
+
+            !$acc exit data copyout(tend_w_euler)
+            !$acc exit data delete(delsq_w)
 
          end if ! 4th order mixing is active 
 
@@ -5753,15 +5836,22 @@ module atm_time_integration
       !  vertical advection, pressure gradient and buoyancy for w
       !
 
+      !$acc enter data copyin(tend_w, tend_w_euler, rw, w, cqw, pp, dpdz)
+
+      !$acc parallel default(present)
+      !$acc loop gang worker private(wdwz)
       do iCell=cellSolveStart,cellSolveEnd
 
          wdwz(1) = 0.0
 
          k = 2
          wdwz(k) =  0.25*(rw(k,icell)+rw(k-1,iCell))*(w(k,iCell)+w(k-1,iCell))
+
+         !$acc loop vector
          do k=3,nVertLevels-1
             wdwz(k) = flux3( w(k-2,iCell),w(k-1,iCell),w(k,iCell),w(k+1,iCell),0.5*(rw(k,iCell)+rw(k-1,iCell)), 1.0_RKIND )
          end do
+
          k = nVertLevels
          wdwz(k) =  0.25*(rw(k,icell)+rw(k-1,iCell))*(w(k,iCell)+w(k-1,iCell))
 
@@ -5770,12 +5860,14 @@ module atm_time_integration
       !  Note: next we are also dividing through by the cell area after the horizontal flux divergence
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k=2,nVertLevels
             tend_w(k,iCell) = tend_w(k,iCell) * invAreaCell(iCell) -rdzu(k)*(wdwz(k+1)-wdwz(k))
          end do
 
          if(rk_step == 1) then
 !DIR$ IVDEP
+            !$acc loop vector
             do k=2,nVertLevels
               tend_w_euler(k,iCell) = tend_w_euler(k,iCell) - cqw(k,iCell)*(   &
                                            rdzu(k)*(pp(k,iCell)-pp(k-1,iCell)) &
@@ -5784,19 +5876,34 @@ module atm_time_integration
           end if
 
       end do
+      !$acc end parallel
+
+      !$acc exit data copyout(tend_w, tend_w_euler)
+      !$acc exit data delete(rw, w, cqw, pp, dpdz)
 
       if (rk_step == 1) then
 
          if ( v_mom_eddy_visc2 > 0.0 ) then
 
+            !!! MGD UNTESTED !!!
+
+            !$acc enter data copyin(tend_w_euler, rho_zz, w)
+
+            !$acc parallel default(present)
+            !$acc loop gang worker
             do iCell=cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
+               !$acc loop vector
                do k=2,nVertLevels
                   tend_w_euler(k,iCell) = tend_w_euler(k,iCell) + v_mom_eddy_visc2*0.5*(rho_zz(k,iCell)+rho_zz(k-1,iCell))*(  &
                                            (w(k+1,iCell)-w(k  ,iCell))*rdzw(k)                              &
                                           -(w(k  ,iCell)-w(k-1,iCell))*rdzw(k-1) )*rdzu(k)
                end do
             end do
+            !$acc end parallel
+
+            !$acc exit data copyout(tend_w_euler)
+            !$acc exit data delete(rho_zz, w)
 
          end if
 
@@ -5804,12 +5911,21 @@ module atm_time_integration
 
       ! add in mixing terms for w
 
+      !$acc enter data copyin(tend_w, tend_w_euler)
+
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
+         !$acc loop vector
          do k=2,nVertLevels
             tend_w(k,iCell) = tend_w(k,iCell) + tend_w_euler(k,iCell)
          end do
       end do
+      !$acc end parallel
+
+      !$acc exit data copyout(tend_w)
+      !$acc exit data delete(tend_w_euler)
 
 !----------- rhs for theta
 
