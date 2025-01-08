@@ -7150,16 +7150,14 @@ call mpas_log_write('Done with soil consistency check')
    !-----------------------------------------------------------------------
    !  routine on_unit_sphere
    !
-   !> \brief True if sphere surface area is close to unit sphere surface area (4*pii)
+   !> \brief  If mesh describes a unit sphere, return true
    !> \author G. Dylan Dickerson
    !> \date   03 Jan 2025
    !> \details
    !>
-   !>  This routine will use the global sum of cell areas to
-   !>  approximate the surface area of the sphere. If this surface area
-   !>  is within a factor of 4*pii, the mesh is likely still a unit
-   !>  sphere and this returns true.  Otherwise, returns false since
-   !>  the mesh is likely not a unit sphere.
+   !>  This routine actually checks that the total mesh surface
+   !>  area is less than twice that of a unit sphere to account for
+   !>  potential numerical errors.
    !>
    !---------------------------------------------------------------------------
    function on_unit_sphere(dminfo, mesh) result(unit_sphere)
@@ -7174,12 +7172,12 @@ call mpas_log_write('Done with soil consistency check')
       type (dm_info), intent(in) :: dminfo
       type (mpas_pool_type), intent(inout) :: mesh
 
-      ! Output vars
+      ! Return value
       logical unit_sphere
 
       ! Local vars
       real (kind=RKIND) :: surfArea, g_surfArea
-      real (kind=RKIND) :: tol
+      real (kind=RKIND), parameter :: tol = 2.0_RKIND
       integer :: iCell
 
       real (kind=RKIND), dimension(:), pointer :: areaCell
@@ -7189,7 +7187,6 @@ call mpas_log_write('Done with soil consistency check')
 
       surfArea = 0.0_RKIND
       g_surfArea = 0.0_RKIND
-      tol = 2.0_RKIND
 
       call mpas_pool_get_array(mesh, 'areaCell', areaCell)
       call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
