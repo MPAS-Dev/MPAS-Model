@@ -51,6 +51,7 @@ module init_atm_cases
       type (domain_type), intent(inout) :: domain
       type (MPAS_streamManager_type), intent(inout) :: stream_manager
 
+
       integer :: ierr
       type (block_type), pointer :: block_ptr
 
