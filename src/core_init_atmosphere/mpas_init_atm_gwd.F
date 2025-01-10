@@ -322,6 +322,9 @@ module mpas_init_atm_gwd
          end if
       end do
 
+      if (associated(box)) deallocate(box)
+      if (associated(box_landuse)) deallocate(box_landuse)
+      if (associated(dxm)) deallocate(dxm)
       deallocate(hlanduse)
 
       iErr = free_tile_list(tilesHead)
