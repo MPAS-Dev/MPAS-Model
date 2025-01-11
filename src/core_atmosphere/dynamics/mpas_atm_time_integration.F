@@ -217,9 +217,9 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: invDcEdge
       integer, dimension(:,:), pointer :: edgesOnEdge
       integer, dimension(:,:), pointer :: edgesOnVertex
-      integer, dimension(:,:), pointer :: edgesOnVertex_sign
+      real (kind=RKIND), dimension(:,:), pointer :: edgesOnVertex_sign
       integer, dimension(:), pointer :: nEdgesOnEdge
-      integer, dimension(:,:), pointer :: weightsOnEdge
+      real (kind=RKIND), dimension(:,:), pointer :: weightsOnEdge
       integer, dimension(:,:), pointer :: cellsOnVertex
       integer, dimension(:,:), pointer :: verticesOnCell
       integer, dimension(:,:), pointer :: verticesOnEdge
@@ -409,9 +409,9 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: invDcEdge
       integer, dimension(:,:), pointer :: edgesOnEdge
       integer, dimension(:,:), pointer :: edgesOnVertex
-      integer, dimension(:,:), pointer :: edgesOnVertex_sign
+      real (kind=RKIND), dimension(:,:), pointer :: edgesOnVertex_sign
       integer, dimension(:), pointer :: nEdgesOnEdge
-      integer, dimension(:,:), pointer :: weightsOnEdge
+      real (kind=RKIND), dimension(:,:), pointer :: weightsOnEdge
       integer, dimension(:,:), pointer :: cellsOnVertex
       integer, dimension(:,:), pointer :: verticesOnCell
       integer, dimension(:,:), pointer :: verticesOnEdge
