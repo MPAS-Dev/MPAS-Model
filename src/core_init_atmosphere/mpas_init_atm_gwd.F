@@ -384,7 +384,7 @@ module mpas_init_atm_gwd
    !    the tile, and if search fails, adds the target tile to the linked list
    !    after reading in the data for the tile from disk 
    !-----------------------------------------------------------------------
-   function get_tile_from_box_point(tilesHead, box_x, box_y, path, sub_path) result(thisTile)
+   function get_tile_from_box_point(tilesHead, box_x, box_y, path, sub_path, last_tile) result(thisTile)
 
       implicit none
 
@@ -392,6 +392,7 @@ module mpas_init_atm_gwd
       integer, intent(in) :: box_x, box_y
       character(len=*), intent(in) :: path
       character(len=*), intent(in) :: sub_path
+      type(mpas_gwd_tile_type), pointer, intent(in) :: last_tile
 
       type(mpas_gwd_tile_type), pointer :: thisTile
 
@@ -408,8 +409,16 @@ module mpas_init_atm_gwd
       tile_start_x = floor( real(box_x - 1) / real(tile_x)) * tile_x + 1
       tile_start_y = floor( real(box_y - 1) / real(tile_y)) * tile_y + 1
       
+      ! First check if the last tile contains the requested pixel
+      if (associated(last_tile)) then
+         if (last_tile%tile_start_x==tile_start_x .and. last_tile%tile_start_y==tile_start_y) then
+            thisTile => last_tile
+            return
+         end if
+      end if
+
       thisTile => tilesHead
-      ! loop over tiles
+      ! Loop over all tiles in the list
       do while (associated(thisTile))
 
          if (thisTile%tile_start_x==tile_start_x .and. thisTile%tile_start_y==tile_start_y) then 
@@ -719,8 +728,12 @@ module mpas_init_atm_gwd
       real (kind=RKIND), intent(inout) :: box_mean                    ! Mean value of topography in box
       
       type(mpas_gwd_tile_type), pointer :: thisTile
+      type(mpas_gwd_tile_type), pointer :: lastTile
       integer :: i, j, ii, jj, ic, jc, ix, jx
       real (kind=RKIND) :: sg_lat
+
+      thisTile => null()
+      lastTile => null()
 
       if (associated(box)) deallocate(box)
       allocate(box(nx,ny))
@@ -768,7 +781,9 @@ module mpas_init_atm_gwd
       
          ! Obtain tile for given box pixel from the linked list of tiles (tilesHead),
          ! which would involve reading in the data from disk if said tile is not already in memory
-         thisTile => get_tile_from_box_point(tilesHead, ii, jj, path, sub_path)
+         thisTile => get_tile_from_box_point(tilesHead, ii, jj, path, sub_path, lastTile)
+         ! Save the current tile to possibly speed up the next lookup
+         lastTile => thisTile
          
          ix = (ii - thisTile%tile_start_x) + 1
          jx = (jj - thisTile%tile_start_y) + 1
