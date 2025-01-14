@@ -1726,7 +1726,7 @@ module atm_time_integration
       theta_m_2(:,cellEnd+1) = 0.0_RKIND
       !$acc end kernels
 
-      !$acc parallel
+      !$acc parallel default(present)
       !$acc loop gang worker
       do iEdge = edgeStart,edgeEnd
          !$acc loop vector
