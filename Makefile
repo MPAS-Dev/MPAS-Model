@@ -1266,7 +1266,7 @@ ifeq "$(OPENACC)" "true"
 endif # OPENACC eq true
 
 
-pio_test: openmp_test openacc_test
+pio_test: openmp_test openacc_test pnetcdf_test
 	@#
 	@# PIO_VERS will be set to:
 	@#  0 if no working PIO library was detected (and .piotest.log will contain error messages)
@@ -1374,11 +1374,52 @@ mpi_f08_test:
 	$(if $(findstring 1,$(MPAS_MPI_F08)), $(eval MPI_F08_MESSAGE = "Using the mpi_f08 module."), )
 	$(if $(findstring 1,$(MPAS_MPI_F08)), $(info mpi_f08 module detected.))
 
+
+pnetcdf_test:
+	@#
+	@# Create test C programs that look for PNetCDF header file and some symbols in it
+	@#
+ifneq "$(PNETCDF)" ""
+	@echo "Checking for a working PnetCDF library..."
+	@printf "#include \"pnetcdf.h\"\n\
+			&#include \"mpi.h\"\n\
+			&int main(){\n\
+			&    int err, ncid;\n\
+			&    err = ncmpi_create(MPI_COMM_WORLD, \"foo.nc\", NC_NOCLOBBER, MPI_INFO_NULL, &ncid);\n\
+			&    return 0;\n\
+			&}\n" | sed 's/&/ /' > pnetcdf.c
+	@( $(CC) pnetcdf.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) -L$(PNETCDF)/$(PNETCDFLIBLOC) -lpnetcdf  -o pnetcdf.out > pnetcdf.log 2>&1; \
+	   if [ $$? -eq 0 ] ; then \
+	       echo "$(CC) can compile test PnetCDF C program."; \
+	   else \
+	       echo "*********************************************************"; \
+	       echo "ERROR: Test PnetCDF C program could not be compiled by $(CC)."; \
+	       echo "Please ensure you have a working PnetCDF library installed."; \
+	       echo ""; \
+	       echo "The following compilation command failed with errors:" ; \
+	       echo "$(CC) pnetcdf.c $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) -L$(PNETCDF)/$(PNETCDFLIBLOC) -lpnetcdf -o pnetcdf.out"; \
+	       echo ""; \
+	       echo "Test program pnetcdf.c and output pnetcdf.log have been left"; \
+	       echo "in the top-level MPAS directory for further debugging"; \
+	       echo "*********************************************************"; \
+	       rm -f pnetcdf.out; exit 1; \
+	   fi )
+
+	@rm -f pnetcdf.c pnetcdf.out pnetcdf.log
+else
+	@echo "*********************************************************"; \
+	 echo "ERROR: The PNETCDF environment variable isn't set."; \
+	 echo "Please set this variable to where PnetCDF is installed."; \
+	 echo "*********************************************************"; \
+	 exit 1
+endif
+
+
 ifneq "$(PIO)" ""
-MAIN_DEPS = rebuild_check openmp_test openacc_test pio_test mpi_f08_test
+MAIN_DEPS = rebuild_check openmp_test openacc_test pnetcdf_test pio_test mpi_f08_test
 override CPPFLAGS += "-DMPAS_PIO_SUPPORT"
 else
-MAIN_DEPS = rebuild_check openmp_test openacc_test mpi_f08_test
+MAIN_DEPS = rebuild_check openmp_test openacc_test pnetcdf_test mpi_f08_test
 IO_MESSAGE = "Using the SMIOL library."
 override CPPFLAGS += "-DMPAS_SMIOL_SUPPORT"
 endif
