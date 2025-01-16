@@ -6787,7 +6787,11 @@ module atm_time_integration
 
             laplacian_filter_coef = dt_rk*(real(bdyMaskCell(iCell)) - 1.)/real(nRelaxZone)/(10.*dt*meshScalingRegionalCell(iCell))
             rayleigh_damping_coef = laplacian_filter_coef/5.0
-            scalars_tmp(1:num_scalars,1:nVertLevels,iCell) = scalars_new(1:num_scalars,1:nVertLevels,iCell)
+            do k=1,nVertLevels
+               do iScalar=1,num_scalars
+                  scalars_tmp(iScalar,k,iCell) = scalars_new(iScalar,k,iCell)
+               end do
+            end do
 
             !  first, we compute the 2nd-order laplacian filter
             !
@@ -6818,7 +6822,7 @@ module atm_time_integration
             end do
 
          else  if ( bdyMaskCell(iCell) > nRelaxZone) then ! specified zone
-            
+
             !  update the specified-zone values
             !
 !DIR$ IVDEP
@@ -6831,7 +6835,7 @@ module atm_time_integration
          end if
 
       end do  ! updates now in temp storage
-            
+
 !$OMP BARRIER
 
       do iCell = cellSolveStart, cellSolveEnd ! threaded over cells
