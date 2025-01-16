@@ -6789,8 +6789,12 @@ module atm_time_integration
       integer :: iCell, iEdge, iScalar, i, k, cell1, cell2
 
       !---
+      MPAS_ACC_TIMER_START('atm_bdy_adjust_scalars [ACC_data_xfer]')
+      !$acc enter data create(scalars_tmp) &
+      !$acc            copyin(scalars_driving, scalars_new)
+      MPAS_ACC_TIMER_STOP('atm_bdy_adjust_scalars [ACC_data_xfer]')
 
-      !$acc parallel
+      !$acc parallel default(present)
       !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd ! threaded over cells
 
@@ -6855,7 +6859,7 @@ module atm_time_integration
 
 !$OMP BARRIER
 
-      !$acc parallel
+      !$acc parallel default(present)
       !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd ! threaded over cells
          if (bdyMaskCell(iCell) > 1) then ! update values
@@ -6869,6 +6873,11 @@ module atm_time_integration
          end if
       end do
       !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_bdy_adjust_scalars [ACC_data_xfer]')
+      !$acc exit data delete(scalars_tmp, scalars_driving) &
+      !$acc           copyout(scalars_new)
+      MPAS_ACC_TIMER_STOP('atm_bdy_adjust_scalars [ACC_data_xfer]')
 
    end subroutine atm_bdy_adjust_scalars_work
 
