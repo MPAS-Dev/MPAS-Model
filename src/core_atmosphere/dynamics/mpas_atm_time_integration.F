@@ -1795,52 +1795,79 @@ module atm_time_integration
       integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
 
       integer :: iEdge, iCell, k, cell1, cell2, iq
-      integer, pointer :: nCells, nEdges, nVertLevels, nCellsSolve
+      integer, pointer :: nCells_ptr, nEdges_ptr, nVertLevels_ptr, nCellsSolve_ptr
+      integer :: nCells, nEdges, nVertLevels, nCellsSolve
       real (kind=RKIND) :: qtotal
       integer, dimension(:,:), pointer :: cellsOnEdge
-      integer, pointer :: moist_start, moist_end
+      integer, pointer :: moist_start_ptr, moist_end_ptr
+      integer :: moist_start, moist_end
       real (kind=RKIND), dimension(:,:,:), pointer :: scalars
       real (kind=RKIND), dimension(:,:), pointer :: cqw
       real (kind=RKIND), dimension(:,:), pointer :: cqu
 
-      call mpas_pool_get_dimension(dims, 'nCells', nCells)
-      call mpas_pool_get_dimension(dims, 'nEdges', nEdges)
-      call mpas_pool_get_dimension(dims, 'nVertLevels', nVertLevels)
-      call mpas_pool_get_dimension(dims, 'nCellsSolve', nCellsSolve)
-      call mpas_pool_get_dimension(state, 'moist_start', moist_start)
-      call mpas_pool_get_dimension(state, 'moist_end', moist_end)
+      call mpas_pool_get_dimension(dims, 'nCells', nCells_ptr)
+      call mpas_pool_get_dimension(dims, 'nEdges', nEdges_ptr)
+      call mpas_pool_get_dimension(dims, 'nVertLevels', nVertLevels_ptr)
+      call mpas_pool_get_dimension(dims, 'nCellsSolve', nCellsSolve_ptr)
+      call mpas_pool_get_dimension(state, 'moist_start', moist_start_ptr)
+      call mpas_pool_get_dimension(state, 'moist_end', moist_end_ptr)
 
       call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
       call mpas_pool_get_array(state, 'scalars', scalars, 2)
       call mpas_pool_get_array(diag, 'cqw', cqw)
       call mpas_pool_get_array(diag, 'cqu', cqu)
 
+      nCells = nCells_ptr
+      nEdges = nEdges_ptr
+      nVertLevels = nVertLevels_ptr
+      nCellsSolve = nCellsSolve_ptr
+      moist_start = moist_start_ptr
+      moist_end = moist_end_ptr
+
+      MPAS_ACC_TIMER_START('atm_compute_moist_coefficients [ACC_data_xfer]')
+      !$acc enter data create(qtot, cqw, cqu) & 
+      !$acc            copyin(scalars)
+      MPAS_ACC_TIMER_STOP('atm_compute_moist_coefficients [ACC_data_xfer]')
+
+      !$acc parallel default(present)
+      !$acc loop gang worker
 !      do iCell = cellSolveStart,cellSolveEnd
       do iCell = cellStart,cellEnd
-         qtot(1:nVertLevels,iCell) = 0.0
+         !$acc loop vector
          do k = 1,nVertLevels
+            qtot(k,iCell) = 0.0
+            !$acc loop seq
             do iq = moist_start, moist_end
                qtot(k,iCell) = qtot(k,iCell) + scalars(iq, k, iCell)
             end do
          end do
       end do    
+      !$acc end parallel
 
 !      do iCell = cellSolveStart,cellSolveEnd
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellStart,cellEnd
+        !$acc loop vector
          do k = 2, nVertLevels
             qtotal = 0.5*(qtot(k,iCell)+qtot(k-1,iCell))
             cqw(k,iCell) = 1.0 / (1.0 + qtotal)
          end do
       end do
+      !$acc end parallel
 
 !  would need to compute qtot for all cells and an openmp barrier to use qtot below.
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iEdge = edgeStart,edgeEnd
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
          if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve) then
-            do k = 1, nVertLevels
+            !$acc loop vector
+            do k = 1, nVertLevels         
                qtotal = 0.0
+               !$acc loop seq
                do iq = moist_start, moist_end
                   qtotal = qtotal + 0.5 * ( scalars(iq, k, cell1) + scalars(iq, k, cell2) )
                end do
@@ -1848,6 +1875,12 @@ module atm_time_integration
             end do
          end if
       end do
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_compute_moist_coefficients [ACC_data_xfer]')
+      !$acc exit data copyout(cqw, cqu, qtot) &
+      !$acc           delete(scalars)
+      MPAS_ACC_TIMER_STOP('atm_compute_moist_coefficients [ACC_data_xfer]')
 
    end subroutine atm_compute_moist_coefficients
 
