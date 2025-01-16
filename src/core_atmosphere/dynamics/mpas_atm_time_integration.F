@@ -229,6 +229,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: fEdge
       real (kind=RKIND), dimension(:), pointer :: fVertex
       real (kind=RKIND), dimension(:,:), pointer :: zz
+      real (kind=RKIND), dimension(:), pointer :: rdzw
+      real (kind=RKIND), dimension(:), pointer :: rdzu
       real (kind=RKIND), dimension(:,:,:), pointer :: zb_cell
       real (kind=RKIND), dimension(:,:,:), pointer :: zb3_cell
       real (kind=RKIND), dimension(:), pointer :: fzm
@@ -344,6 +346,12 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'zz', zz)
       !$acc enter data copyin(zz)
 
+      call mpas_pool_get_array(mesh, 'rdzw', rdzw)
+      !$acc enter data copyin(rdzw)
+
+      call mpas_pool_get_array(mesh, 'rdzu', rdzu)
+      !$acc enter data copyin(rdzu)
+
       call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
       !$acc enter data copyin(zb_cell)
 
@@ -421,6 +429,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: fEdge
       real (kind=RKIND), dimension(:), pointer :: fVertex
       real (kind=RKIND), dimension(:,:), pointer :: zz
+      real (kind=RKIND), dimension(:), pointer :: rdzw
+      real (kind=RKIND), dimension(:), pointer :: rdzu
       real (kind=RKIND), dimension(:,:,:), pointer :: zb_cell
       real (kind=RKIND), dimension(:,:,:), pointer :: zb3_cell
       real (kind=RKIND), dimension(:), pointer :: fzm
@@ -535,6 +545,12 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'zz', zz)
       !$acc exit data delete(zz)
+
+      call mpas_pool_get_array(mesh, 'rdzw', rdzw)
+      !$acc exit data delete(rdzw)
+
+      call mpas_pool_get_array(mesh, 'rdzu', rdzu)
+      !$acc exit data delete(rdzu)
 
       call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
       !$acc exit data delete(zb_cell)
@@ -2012,25 +2028,37 @@ module atm_time_integration
       real (kind=RKIND) :: dtseps, c2, qtotal, rcv
       real (kind=RKIND), dimension( nVertLevels ) :: b_tri, c_tri
 
+      MPAS_ACC_TIMER_START('atm_compute_vert_imp_coefs_work [ACC_data_xfer]')
+      !$acc enter data copyin(cqw, p, t, qtot, rb, rtb, rt, pb)
+      !$acc enter data create(cofrz, cofwr, cofwz, coftz, cofwt, a_tri, b_tri, &
+      !$acc                   c_tri, alpha_tri, gamma_tri)
+      MPAS_ACC_TIMER_STOP('atm_compute_vert_imp_coefs_work [ACC_data_xfer]')
 
       !  set coefficients
       dtseps = .5*dts*(1.+epssm)
       rcv = rgas/(cp-rgas)
       c2 = cp*rcv
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
 ! MGD bad to have all threads setting this variable?
       do k=1,nVertLevels
          cofrz(k) = dtseps*rdzw(k)
       end do
+      !$acc end parallel
 
+      !$acc parallel default(present)
+      !$acc loop gang worker private(b_tri,c_tri)
       do iCell = cellSolveStart,cellSolveEnd  !  we only need to do cells we are solving for, not halo cells
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k=2,nVertLevels
             cofwr(k,iCell) =.5*dtseps*gravity*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))
          end do
          coftz(1,iCell) = 0.0
 !DIR$ IVDEP
+         !$acc loop vector
          do k=2,nVertLevels
             cofwz(k,iCell) = dtseps*c2*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))  &
                  *rdzu(k)*cqw(k,iCell)*(fzm(k)*p (k,iCell)+fzp(k)*p (k-1,iCell))
@@ -2038,6 +2066,7 @@ module atm_time_integration
          end do
          coftz(nVertLevels+1,iCell) = 0.0
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
 
 !            qtotal = 0.
@@ -2058,6 +2087,7 @@ module atm_time_integration
          alpha_tri(1,iCell) = 0.  ! note, this value is never used
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k=2,nVertLevels
             a_tri(k,iCell) = -cofwz(k  ,iCell)* coftz(k-1,iCell)*rdzw(k-1)*zz(k-1,iCell)   &
                          +cofwr(k  ,iCell)* cofrz(k-1  )                       &
@@ -2073,12 +2103,20 @@ module atm_time_integration
                          +cofwt(k  ,iCell)* coftz(k+1,iCell)*rdzw(k  )
          end do
 !MGD VECTOR DEPENDENCE
+         !$acc loop seq
          do k=2,nVertLevels
             alpha_tri(k,iCell) = 1./(b_tri(k)-a_tri(k,iCell)*gamma_tri(k-1,iCell))
             gamma_tri(k,iCell) = c_tri(k)*alpha_tri(k,iCell)
          end do
 
       end do ! loop over cells
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_compute_vert_imp_coefs_work [ACC_data_xfer]')
+      !$acc exit data copyout(cofrz, cofwr, cofwz, coftz, cofwt, a_tri, b_tri, &
+      !$acc                   c_tri, alpha_tri, gamma_tri)
+      !$acc exit data delete(cqw, p, t, qtot, rb, rtb, rt, pb)
+      MPAS_ACC_TIMER_STOP('atm_compute_vert_imp_coefs_work [ACC_data_xfer]')
 
    end subroutine atm_compute_vert_imp_coefs_work
 
