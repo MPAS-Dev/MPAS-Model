@@ -233,6 +233,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:,:), pointer :: zb3_cell
       real (kind=RKIND), dimension(:), pointer :: fzm
       real (kind=RKIND), dimension(:), pointer :: fzp
+      real (kind=RKIND), dimension(:), pointer :: meshScalingRegionalCell
 #endif
 
 
@@ -356,6 +357,9 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'fzp', fzp)
       !$acc enter data copyin(fzp)
 
+      call mpas_pool_get_array(mesh, 'meshScalingRegionalCell', meshScalingRegionalCell)
+      !$acc enter data copyin(meshScalingRegionalCell)
+
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -425,6 +429,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:,:), pointer :: zb3_cell
       real (kind=RKIND), dimension(:), pointer :: fzm
       real (kind=RKIND), dimension(:), pointer :: fzp
+      real (kind=RKIND), dimension(:), pointer :: meshScalingRegionalCell
 #endif
 
 
@@ -547,6 +552,10 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'fzp', fzp)
       !$acc exit data delete(fzp)
+
+      call mpas_pool_get_array(mesh, 'meshScalingRegionalCell', meshScalingRegionalCell)
+      !$acc exit data delete(meshScalingRegionalCell)
+
 #endif
 
    end subroutine mpas_atm_dynamics_finalize
