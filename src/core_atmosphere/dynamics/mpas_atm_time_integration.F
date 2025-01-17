@@ -212,6 +212,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: invAreaCell
       integer, dimension(:), pointer :: bdyMaskCell
       integer, dimension(:), pointer :: bdyMaskEdge
+      real (kind=RKIND), dimension(:), pointer :: specZoneMaskEdge
       real (kind=RKIND), dimension(:), pointer :: invDvEdge
       real (kind=RKIND), dimension(:), pointer :: dcEdge
       real (kind=RKIND), dimension(:), pointer :: invDcEdge
@@ -294,6 +295,9 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
       !$acc enter data copyin(bdyMaskEdge)
+
+      call mpas_pool_get_array(mesh, 'specZoneMaskEdge', specZoneMaskEdge)
+      !$acc enter data copyin(specZoneMaskEdge)
 
       call mpas_pool_get_array(mesh, 'invDvEdge', invDvEdge)
       !$acc enter data copyin(invDvEdge)
@@ -412,6 +416,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: invAreaCell
       integer, dimension(:), pointer :: bdyMaskCell
       integer, dimension(:), pointer :: bdyMaskEdge
+      real (kind=RKIND), dimension(:), pointer :: specZoneMaskEdge
       real (kind=RKIND), dimension(:), pointer :: invDvEdge
       real (kind=RKIND), dimension(:), pointer :: dcEdge
       real (kind=RKIND), dimension(:), pointer :: invDcEdge
@@ -494,6 +499,9 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
       !$acc exit data delete(bdyMaskEdge)
+
+      call mpas_pool_get_array(mesh, 'specZoneMaskEdge', specZoneMaskEdge)
+      !$acc exit data delete(specZoneMaskEdge)
 
       call mpas_pool_get_array(mesh, 'invDvEdge', invDvEdge)
       !$acc exit data delete(invDvEdge)
@@ -2696,8 +2704,10 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: specZoneMaskEdge
 
       integer, dimension(:,:), pointer :: cellsOnEdge
-      integer, pointer :: nCellsSolve
-      integer, pointer :: nVertLevels
+      integer, pointer :: nCellsSolve_ptr
+      integer, pointer :: nVertLevels_ptr
+      integer :: nCellsSolve
+      integer :: nVertLevels
 
       real (kind=RKIND) :: divCell1, divCell2, rdts, coef_divdamp
       integer :: cell1, cell2, iEdge, k
@@ -2710,8 +2720,8 @@ module atm_time_integration
       call mpas_pool_get_array(diag, 'rtheta_pp_old', rtheta_pp_old)
       call mpas_pool_get_array(diag, 'ru_p', ru_p)
 
-      call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
-      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+      call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve_ptr)
+      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels_ptr)
 
       call mpas_pool_get_config(configs, 'config_smdiv', smdiv) 
       call mpas_pool_get_config(configs, 'config_len_disp', config_len_disp)
@@ -2719,6 +2729,15 @@ module atm_time_integration
       rdts = 1.0_RKIND / dts
       coef_divdamp = 2.0_RKIND * smdiv * config_len_disp * rdts
 
+      nCellsSolve = nCellsSolve_ptr
+      nVertLevels = nVertLevels_ptr
+
+      MPAS_ACC_TIMER_START('atm_divergence_damping_3d [ACC_data_xfer]')
+      !$acc enter data copyin(ru_p, rtheta_pp, rtheta_pp_old, theta_m)
+      MPAS_ACC_TIMER_STOP('atm_divergence_damping_3d [ACC_data_xfer]')
+
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
 
          cell1 = cellsOnEdge(1,iEdge)
@@ -2728,6 +2747,7 @@ module atm_time_integration
          if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
 
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
 
 !!  unscaled 3d divergence damping
@@ -2745,6 +2765,13 @@ module atm_time_integration
             end do
          end if ! edges for block-owned cells
       end do ! end loop over edges
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_divergence_damping_3d [ACC_data_xfer]')
+      !$acc exit data copyout(ru_p) &
+      !$acc           delete(rtheta_pp, rtheta_pp_old, theta_m)
+      MPAS_ACC_TIMER_STOP('atm_divergence_damping_3d [ACC_data_xfer]')
+      
 
    end subroutine atm_divergence_damping_3d
 
