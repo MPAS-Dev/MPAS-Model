@@ -6580,6 +6580,12 @@ module atm_time_integration
       !$acc                   w_2, ruAvg, wwAvg, ruAvg_split, wwAvg_split, rho_zz_old_split)
       MPAS_ACC_TIMER_STOP('atm_rk_dynamics_substep_finish [ACC_data_xfer]')
 
+      ! Interim fix for the atm_compute_dyn_tend_work subroutine accessing uninitialized values
+      ! in garbage cells of theta_m
+      !$acc kernels
+      theta_m_1(:,cellEnd+1) = 0.0_RKIND
+      !$acc end kernels
+
       inv_dynamics_split = 1.0_RKIND / real(dynamics_split)
 
       if (dynamics_substep < dynamics_split) then
