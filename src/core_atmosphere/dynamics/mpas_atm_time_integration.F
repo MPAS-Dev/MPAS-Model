@@ -250,8 +250,6 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: angleEdge
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel2
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel4
-      real (kind=RKIND), dimension(:), pointer :: rdzu
-      real (kind=RKIND), dimension(:), pointer :: rdzw
 #endif
 
 
@@ -425,12 +423,6 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
       !$acc enter data copyin(meshScalingDel4)
-
-      call mpas_pool_get_array(mesh, 'rdzu', rdzu)
-      !$acc enter data copyin(rdzu)
-
-      call mpas_pool_get_array(mesh, 'rdzw', rdzw)
-      !$acc enter data copyin(rdzw)
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -517,8 +509,6 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: angleEdge
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel2
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel4
-      real (kind=RKIND), dimension(:), pointer :: rdzu
-      real (kind=RKIND), dimension(:), pointer :: rdzw
 #endif
 
 
@@ -692,12 +682,6 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
       !$acc exit data delete(meshScalingDel4)
-
-      call mpas_pool_get_array(mesh, 'rdzu', rdzu)
-      !$acc exit data delete(rdzu)
-
-      call mpas_pool_get_array(mesh, 'rdzw', rdzw)
-      !$acc exit data delete(rdzw)
 #endif
 
    end subroutine mpas_atm_dynamics_finalize
