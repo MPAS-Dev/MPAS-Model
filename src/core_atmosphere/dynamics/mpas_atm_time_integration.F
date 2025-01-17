@@ -6573,7 +6573,7 @@ module atm_time_integration
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_1, 1)
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_2, 2)
 
-
+      
       MPAS_ACC_TIMER_START('atm_rk_dynamics_substep_finish [ACC_data_xfer]')
       !$acc enter data create(ru_save, u_1, rtheta_p_save, theta_m_1, rho_p_save, rw_save, &
       !$acc                   w_1, rho_zz_1) &
@@ -6583,9 +6583,9 @@ module atm_time_integration
 
       inv_dynamics_split = 1.0_RKIND / real(dynamics_split)
       
-      !$acc parallel
-      if (dynamics_substep < dynamics_split) then
 
+      if (dynamics_substep < dynamics_split) then
+         !$acc parallel
          !$acc loop gang worker
          do iEdge = edgeStart,edgeEnd
             !$acc loop vector
@@ -6615,11 +6615,12 @@ module atm_time_integration
                w_1(k,iCell) = w_2(k,iCell)
             end do
          end do
+         !$acc end parallel
       end if
 
 
-      !!$acc parallel
       if (dynamics_substep == 1) then
+         !$acc parallel
          !$acc loop gang worker
          do iEdge = edgeStart,edgeEnd
             !$acc loop vector
@@ -6634,7 +6635,9 @@ module atm_time_integration
                wwAvg_split(k,iCell) = wwAvg(k,iCell)
             end do
          end do
+         !$acc end parallel
       else
+         !$acc parallel
          !$acc loop gang worker
          do iEdge = edgeStart,edgeEnd
             !$acc loop vector
@@ -6649,9 +6652,11 @@ module atm_time_integration
                wwAvg_split(k,iCell) = wwAvg(k,iCell) + wwAvg_split(k,iCell)
             end do
          end do
+         !$acc end parallel
       end if
 
       if (dynamics_substep == dynamics_split) then
+         !$acc parallel
          !$acc loop gang worker
          do iEdge = edgeStart,edgeEnd
             !$acc loop vector
@@ -6673,10 +6678,8 @@ module atm_time_integration
             rho_zz_1(k,iCell) = rho_zz_old_split(k,iCell)
          end do
          end do
+         !$acc end parallel
       end if
-      !$acc end parallel
-
-      !!$acc exit data copyout(rho_zz_1, ruAvg, wwAvg, ruAvg_split, wwAvg_split)
 
       MPAS_ACC_TIMER_START('atm_rk_dynamics_substep_finish [ACC_data_xfer]')
       !$acc exit data copyout(ru_save, u_1, rtheta_p_save, rho_p_save, rw_save, &
