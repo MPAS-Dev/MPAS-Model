@@ -5056,6 +5056,7 @@ module atm_time_integration
       MPAS_ACC_TIMER_START('atm_compute_dyn_tend_work [ACC_data_xfer]')
       if (rk_step == 1) then
          !$acc enter data create(tend_u_euler)
+         !$acc enter data create(kdiff)
       else
          !$acc enter data copyin(tend_u_euler)
       end if
@@ -5085,7 +5086,6 @@ module atm_time_integration
 
          if(config_horiz_mixing == "2d_smagorinsky") then
 
-            !$acc enter data create(kdiff)
             !$acc enter data copyin(u, v)
 
             !$acc parallel default(present)
@@ -5118,7 +5118,6 @@ module atm_time_integration
             end do
             !$acc end parallel
 
-            !$acc exit data copyout(kdiff)
             !$acc exit data delete(u, v)
 
             h_mom_eddy_visc4   = config_visc4_2dsmag * config_len_disp**3
@@ -5127,8 +5126,6 @@ module atm_time_integration
          else if(config_horiz_mixing == "2d_fixed") then
 
             !!! MGD UNTESTED !!!
-
-            !$acc enter data create(kdiff)
 
             !$acc parallel default(present)
             !$acc loop gang worker
@@ -5140,8 +5137,6 @@ module atm_time_integration
             end do
             !$acc end parallel
 
-            !$acc exit data copyout(kdiff)
-
             h_mom_eddy_visc4 = config_h_mom_eddy_visc4
             h_theta_eddy_visc4 = config_h_theta_eddy_visc4
 
@@ -5150,8 +5145,6 @@ module atm_time_integration
          if (config_mpas_cam_coef > 0.0) then
 
             !!! MGD UNTESTED !!!
-
-            !$acc enter data copyin(kdiff)
 
             !$acc parallel default(present)
             !$acc loop gang worker
@@ -5168,8 +5161,6 @@ module atm_time_integration
                end do
             end do
             !$acc end parallel
-
-            !$acc exit data copyout(kdiff)
 
          end if
             
@@ -5362,7 +5353,7 @@ module atm_time_integration
          ! First, storage to hold the result from the first del^2 computation.
 
          !$acc enter data create(delsq_u)
-         !$acc enter data copyin(divergence, vorticity, kdiff, rho_edge)
+         !$acc enter data copyin(divergence, vorticity, rho_edge)
 
          !$acc parallel default(present)
          !$acc loop gang worker
@@ -5407,7 +5398,7 @@ module atm_time_integration
          !$acc end parallel
 
          !$acc exit data copyout(delsq_u)
-         !$acc exit data delete(divergence, vorticity, kdiff, rho_edge)
+         !$acc exit data delete(divergence, vorticity, rho_edge)
 
          if (h_mom_eddy_visc4 > 0.0) then  ! 4th order mixing is active
 
@@ -5743,7 +5734,7 @@ module atm_time_integration
          !  we copied code from the theta mixing, hence the theta* names.
 
          !$acc enter data create(delsq_w, tend_w_euler)
-         !$acc enter data copyin(rho_edge, w, kdiff)
+         !$acc enter data copyin(rho_edge, w)
 
          !$acc parallel default(present)
          !$acc loop gang worker
@@ -5785,7 +5776,7 @@ module atm_time_integration
          !$acc end parallel
 
          !$acc exit data copyout(delsq_w, tend_w_euler)
-         !$acc exit data delete(rho_edge, w, kdiff)
+         !$acc exit data delete(rho_edge, w)
 
 !$OMP BARRIER
 
@@ -6016,7 +6007,7 @@ module atm_time_integration
       if (rk_step == 1) then
 
          !$acc enter data create(delsq_theta, tend_theta_euler)
-         !$acc enter data copyin(theta_m, rho_edge, kdiff)
+         !$acc enter data copyin(theta_m, rho_edge)
 
          !$acc parallel default(present)
          !$acc loop gang worker
@@ -6058,7 +6049,7 @@ module atm_time_integration
           !$acc end parallel
 
           !$acc exit data copyout(delsq_theta, tend_theta_euler)
-          !$acc exit data delete(theta_m, rho_edge, kdiff)
+          !$acc exit data delete(theta_m, rho_edge)
 
 !$OMP BARRIER
             
@@ -6232,6 +6223,7 @@ module atm_time_integration
 
       MPAS_ACC_TIMER_START('atm_compute_dyn_tend_work [ACC_data_xfer]')
       !$acc exit data copyout(tend_u_euler)
+      !$acc exit data delete(kdiff)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
    end subroutine atm_compute_dyn_tend_work
