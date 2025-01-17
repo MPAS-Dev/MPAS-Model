@@ -5053,6 +5053,14 @@ module atm_time_integration
                 flux4(q_im2, q_im1, q_i, q_ip1, ua) +           &
                 coef3*abs(ua)*((q_ip1 - q_im2)-3.*(q_i-q_im1))/12.0
 
+      MPAS_ACC_TIMER_START('atm_compute_dyn_tend_work [ACC_data_xfer]')
+      if (rk_step == 1) then
+         !$acc enter data create(tend_u_euler)
+      else
+         !$acc enter data copyin(tend_u_euler)
+      end if
+      MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
+
       prandtl_inv = 1.0_RKIND / prandtl
       invDt = 1.0_RKIND / dt
       inv_r_earth = 1.0_RKIND / r_earth
@@ -5061,8 +5069,6 @@ module atm_time_integration
        v_theta_eddy_visc2 = config_v_theta_eddy_visc2
 
       if (rk_step == 1) then
-
-         !$acc enter data create(tend_u_euler)
 
          !$acc parallel
          !$acc loop gang worker
@@ -5073,8 +5079,6 @@ module atm_time_integration
             end do
          end do
          !$acc end parallel
-
-         !$acc exit data copyout(tend_u_euler)
 
          ! Smagorinsky eddy viscosity, based on horizontal deformation (in this case on model coordinate surfaces).
          ! The integration coefficients were precomputed and stored in defc_a and defc_b
@@ -5254,7 +5258,6 @@ module atm_time_integration
       !
 
       !$acc enter data copyin(cqu, pp, dpdz, u, w, rw, pv_edge, rho_edge, ke, h_divergence, rdzw)
-      !$acc enter data copyin(tend_u_euler)
       !$acc enter data create(tend_u)
 
       !$acc parallel default(present)
@@ -5343,7 +5346,7 @@ module atm_time_integration
       !$acc end parallel
 
       !$acc exit data delete(cqu, pp, dpdz, u, w, rw, pv_edge, rho_edge, ke, h_divergence, rdzw)
-      !$acc exit data copyout(tend_u_euler, tend_u)
+      !$acc exit data copyout(tend_u)
 
       !
       !  horizontal mixing for u
@@ -5359,7 +5362,7 @@ module atm_time_integration
          ! First, storage to hold the result from the first del^2 computation.
 
          !$acc enter data create(delsq_u)
-         !$acc enter data copyin(divergence, vorticity, kdiff, tend_u_euler, rho_edge)
+         !$acc enter data copyin(divergence, vorticity, kdiff, rho_edge)
 
          !$acc parallel default(present)
          !$acc loop gang worker
@@ -5403,7 +5406,7 @@ module atm_time_integration
 
          !$acc end parallel
 
-         !$acc exit data copyout(delsq_u, tend_u_euler)
+         !$acc exit data copyout(delsq_u)
          !$acc exit data delete(divergence, vorticity, kdiff, rho_edge)
 
          if (h_mom_eddy_visc4 > 0.0) then  ! 4th order mixing is active
@@ -5413,7 +5416,7 @@ module atm_time_integration
             !!! MGD UNTESTED !!!
 
             !$acc enter data create(delsq_vorticity, delsq_divergence)
-            !$acc enter data copyin(delsq_u, tend_u_euler, rho_edge)
+            !$acc enter data copyin(delsq_u, rho_edge)
 
             !$acc parallel default(present)
 
@@ -5496,7 +5499,6 @@ module atm_time_integration
 
             !$acc end parallel
 
-            !$acc exit data copyout(tend_u_euler)
             !$acc exit data delete(delsq_u, rho_edge, delsq_vorticity, delsq_divergence)
          
          end if ! 4th order mixing is active 
@@ -5510,7 +5512,7 @@ module atm_time_integration
 
             if (config_mix_full) then  ! mix full state
 
-               !$acc enter data copyin(tend_u_euler, rho_edge, u)
+               !$acc enter data copyin(rho_edge, u)
 
                !$acc parallel default(present)
                !$acc loop gang worker
@@ -5538,13 +5540,12 @@ module atm_time_integration
                end do
                !$acc end parallel
 
-               !$acc exit data copyout(tend_u_euler)
                !$acc exit data delete(rho_edge, u)
 
             else  ! idealized cases where we mix on the perturbation from the initial 1-D state
 
 
-               !$acc enter data copyin(tend_u_euler, u_init, v_init, rho_edge, u)
+               !$acc enter data copyin(u_init, v_init, rho_edge, u)
 
                !$acc parallel default(present)
                !$acc loop gang worker private(u_mix)
@@ -5578,7 +5579,6 @@ module atm_time_integration
                end do
                !$acc end parallel
 
-               !$acc exit data copyout(tend_u_euler)
                !$acc exit data delete(rho_edge, u, u_init, v_init)
 
             end if  ! mix perturbation state
@@ -5623,7 +5623,7 @@ module atm_time_integration
 
       end if
 
-      !$acc enter data copyin(tend_u, tend_u_euler, tend_ru_physics)
+      !$acc enter data copyin(tend_u, tend_ru_physics)
 
       !$acc parallel default(present)
       !$acc loop gang worker
@@ -5638,7 +5638,7 @@ module atm_time_integration
       !$acc end parallel
 
       !$acc exit data copyout(tend_u)
-      !$acc exit data delete(tend_u_euler, tend_ru_physics)
+      !$acc exit data delete(tend_ru_physics)
 
 
 !----------- rhs for w
@@ -6229,6 +6229,10 @@ module atm_time_integration
 
       !$acc exit data copyout(tend_theta)
       !$acc exit data delete(tend_theta_euler, tend_rtheta_physics)
+
+      MPAS_ACC_TIMER_START('atm_compute_dyn_tend_work [ACC_data_xfer]')
+      !$acc exit data copyout(tend_u_euler)
+      MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
    end subroutine atm_compute_dyn_tend_work
 
