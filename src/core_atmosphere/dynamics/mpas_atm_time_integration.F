@@ -5057,9 +5057,15 @@ module atm_time_integration
       if (rk_step == 1) then
          !$acc enter data create(tend_u_euler)
          !$acc enter data create(kdiff)
+
+         if (config_horiz_mixing == '2d_smagorinsky') then
+            !$acc enter data copyin(u, v)
+         end if
       else
          !$acc enter data copyin(tend_u_euler)
       end if
+      !$acc enter data create(h_divergence)
+      !$acc enter data copyin(ru)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
       prandtl_inv = 1.0_RKIND / prandtl
@@ -5085,8 +5091,6 @@ module atm_time_integration
          ! The integration coefficients were precomputed and stored in defc_a and defc_b
 
          if(config_horiz_mixing == "2d_smagorinsky") then
-
-            !$acc enter data copyin(u, v)
 
             !$acc parallel default(present)
             !$acc loop gang worker private(d_diag, d_off_diag)
@@ -5117,8 +5121,6 @@ module atm_time_integration
                end do
             end do
             !$acc end parallel
-
-            !$acc exit data delete(u, v)
 
             h_mom_eddy_visc4   = config_visc4_2dsmag * config_len_disp**3
             h_theta_eddy_visc4 = h_mom_eddy_visc4
@@ -5171,9 +5173,6 @@ module atm_time_integration
 
       ! accumulate horizontal mass-flux
 
-      !$acc enter data create(h_divergence)
-      !$acc enter data copyin(ru)
-
       !$acc parallel default(present)
       !$acc loop gang worker
       do iCell=cellStart,cellEnd
@@ -5209,9 +5208,6 @@ module atm_time_integration
       end do
       !$acc end parallel
 
-      !$acc exit data copyout(h_divergence)
-      !$acc exit data delete(ru)
-
       !
       ! dp / dz and tend_rho
       !
@@ -5221,7 +5217,7 @@ module atm_time_integration
 
         rgas_cprcv = rgas*cp/cv
 
-        !$acc enter data copyin(h_divergence, tend_rho_physics, rdzw, rw, rb, qtot, rr_save)
+        !$acc enter data copyin(tend_rho_physics, rdzw, rw, rb, qtot, rr_save)
         !$acc enter data create(tend_rho, dpdz)
 
         !$acc parallel default(present)
@@ -5237,7 +5233,7 @@ module atm_time_integration
         end do
         !$acc end parallel
 
-        !$acc exit data delete(h_divergence, tend_rho_physics, rdzw, rw, rb, qtot, rr_save)
+        !$acc exit data delete(tend_rho_physics, rdzw, rw, rb, qtot, rr_save)
         !$acc exit data copyout(tend_rho, dpdz)
 
       end if
@@ -5248,7 +5244,7 @@ module atm_time_integration
       ! Compute u (normal) velocity tendency for each edge (cell face)
       !
 
-      !$acc enter data copyin(cqu, pp, dpdz, u, w, rw, pv_edge, rho_edge, ke, h_divergence, rdzw)
+      !$acc enter data copyin(cqu, pp, dpdz, u, w, rw, pv_edge, rho_edge, ke, rdzw)
       !$acc enter data create(tend_u)
 
       !$acc parallel default(present)
@@ -5336,7 +5332,7 @@ module atm_time_integration
       end do
       !$acc end parallel
 
-      !$acc exit data delete(cqu, pp, dpdz, u, w, rw, pv_edge, rho_edge, ke, h_divergence, rdzw)
+      !$acc exit data delete(cqu, pp, dpdz, u, w, rw, pv_edge, rho_edge, ke, rdzw)
       !$acc exit data copyout(tend_u)
 
       !
@@ -5640,7 +5636,7 @@ module atm_time_integration
       !
 
       !$acc enter data create(tend_w)
-      !$acc enter data copyin(ru, w)
+      !$acc enter data copyin(w)
 
       !$acc parallel default(present)
       !$acc loop gang worker private(ru_edge_w, flux_arr)
@@ -5717,7 +5713,7 @@ module atm_time_integration
 #endif
 
       !$acc exit data copyout(tend_w)
-      !$acc exit data delete(ru, w)
+      !$acc exit data delete(w)
 
       !
       !  horizontal mixing for w - we could combine this with advection directly (i.e. as a turbulent flux),
@@ -5925,7 +5921,7 @@ module atm_time_integration
       !
 
       !$acc enter data create(tend_theta)
-      !$acc enter data copyin(ru, theta_m)
+      !$acc enter data copyin(theta_m)
 
       !$acc parallel default(present)
       !$acc loop gang worker private(flux_arr)
@@ -5967,13 +5963,13 @@ module atm_time_integration
       !$acc end parallel
 
       !$acc exit data copyout(tend_theta)
-      !$acc exit data delete(ru, theta_m)
+      !$acc exit data delete(theta_m)
 
 !  addition to pick up perturbation flux for rtheta_pp equation
 
       if(rk_step > 1) then
 
-        !$acc enter data copyin(tend_theta, ru_save, ru, theta_m_save)
+        !$acc enter data copyin(tend_theta, ru_save, theta_m_save)
 
         !$acc parallel default(present)
         !$acc loop gang worker
@@ -5995,7 +5991,7 @@ module atm_time_integration
         !$acc end parallel
 
         !$acc exit data copyout(tend_theta)
-        !$acc exit data delete(ru_save, ru, theta_m_save)
+        !$acc exit data delete(ru_save, theta_m_save)
 
       end if
 
@@ -6224,6 +6220,13 @@ module atm_time_integration
       MPAS_ACC_TIMER_START('atm_compute_dyn_tend_work [ACC_data_xfer]')
       !$acc exit data copyout(tend_u_euler)
       !$acc exit data delete(kdiff)
+      if (rk_step == 1) then
+         if (config_horiz_mixing == '2d_smagorinsky') then
+            !$acc exit data delete(u, v)
+         end if
+      end if
+      !$acc exit data copyout(h_divergence)
+      !$acc exit data delete(ru)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
    end subroutine atm_compute_dyn_tend_work
