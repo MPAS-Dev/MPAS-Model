@@ -243,6 +243,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: zxu
       real (kind=RKIND), dimension(:,:), pointer :: dss
       real (kind=RKIND), dimension(:), pointer :: specZoneMaskCell
+      real (kind=RKIND), dimension(:), pointer :: meshScalingRegionalCell
+      real (kind=RKIND), dimension(:), pointer :: meshScalingRegionalEdge
 #endif
 
 
@@ -395,6 +397,13 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'specZoneMaskCell', specZoneMaskCell)
       !$acc enter data copyin(specZoneMaskCell)
+
+      call mpas_pool_get_array(mesh, 'meshScalingRegionalCell', meshScalingRegionalCell)
+      !$acc enter data copyin(meshScalingRegionalCell)
+
+      call mpas_pool_get_array(mesh, 'meshScalingRegionalEdge', meshScalingRegionalEdge)
+      !$acc enter data copyin(meshScalingRegionalEdge)
+
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -474,6 +483,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: zxu
       real (kind=RKIND), dimension(:,:), pointer :: dss
       real (kind=RKIND), dimension(:), pointer :: specZoneMaskCell
+      real (kind=RKIND), dimension(:), pointer :: meshScalingRegionalCell
+      real (kind=RKIND), dimension(:), pointer :: meshScalingRegionalEdge
 #endif
 
 
@@ -626,6 +637,13 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'specZoneMaskCell', specZoneMaskCell)
       !$acc exit data delete(specZoneMaskCell)
+      
+      call mpas_pool_get_array(mesh, 'meshScalingRegionalCell', meshScalingRegionalCell)
+      !$acc exit data delete(meshScalingRegionalCell)
+
+      call mpas_pool_get_array(mesh, 'meshScalingRegionalEdge', meshScalingRegionalEdge)
+      !$acc exit data delete(meshScalingRegionalEdge)
+
 #endif
 
    end subroutine mpas_atm_dynamics_finalize
@@ -1119,6 +1137,7 @@ module atm_time_integration
                rt_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rtheta_m', time_dyn_step )
                rho_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rho_zz', time_dyn_step )
 
+               call mpas_timer_start('atm_bdy_adjust_dynamics_relaxzone_tend')
 !$OMP PARALLEL DO
                do thread=1,nThreads
                   call atm_bdy_adjust_dynamics_relaxzone_tend( block % configs, tend, state, diag, mesh, nVertLevels, dt,  &
@@ -1129,6 +1148,7 @@ module atm_time_integration
                                                                edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread) )
                end do
 !$OMP END PARALLEL DO
+               call mpas_timer_stop('atm_bdy_adjust_dynamics_relaxzone_tend')
 
                deallocate(ru_driving_values)
                deallocate(rt_driving_values)
@@ -6769,11 +6789,13 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: edgesOnCell_sign, edgesOnVertex_sign
       integer, dimension(:), pointer :: bdyMaskCell, bdyMaskEdge, nEdgesOnCell
       integer, dimension(:,:), pointer :: cellsOnEdge, verticesOnEdge, edgesOnCell, edgesOnVertex
-      integer, pointer :: vertexDegree
+      integer, pointer :: vertexDegree_ptr
+      integer :: vertexDegree
       
 
       real (kind=RKIND) :: edge_sign, laplacian_filter_coef, rayleigh_damping_coef, r_dc, r_dv, invArea
-      real (kind=RKIND), pointer :: divdamp_coef
+      real (kind=RKIND), pointer :: divdamp_coef_ptr
+      real (kind=RKIND) :: divdamp_coef
       real (kind=RKIND), dimension(nVertLevels) :: divergence1, divergence2, vorticity1, vorticity2      
       integer :: iCell, iEdge, i, k, cell1, cell2, iEdge_vort, iEdge_div
       integer :: vertex1, vertex2, iVertex
@@ -6794,7 +6816,7 @@ module atm_time_integration
       call mpas_pool_get_array(state, 'theta_m', theta_m, 2)
       call mpas_pool_get_array(state, 'rho_zz', rho_zz, 2)
 
-      call mpas_pool_get_dimension(mesh, 'vertexDegree', vertexDegree)
+      call mpas_pool_get_dimension(mesh, 'vertexDegree', vertexDegree_ptr)
       call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
       call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
       call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
@@ -6809,37 +6831,55 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'nEdgesOnCell',nEdgesOnCell)
       call mpas_pool_get_array(mesh, 'verticesOnEdge', verticesOnEdge)
 
-      call mpas_pool_get_config(config, 'config_relax_zone_divdamp_coef', divdamp_coef)
+      call mpas_pool_get_config(config, 'config_relax_zone_divdamp_coef', divdamp_coef_ptr)
+
+      divdamp_coef = divdamp_coef_ptr
+      vertexDegree = vertexDegree_ptr
+
+      MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
+      !$acc enter data copyin(tend_rho, tend_rt, rho_zz, theta_m, rho_driving_values, &
+      !$acc                   rt_driving_values, tend_ru, ru, ru_driving_values)
+      !$acc enter data create(divergence1, divergence2, vorticity1, vorticity2)
+      MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
       
       !  First, Rayleigh damping terms for ru, rtheta_m and rho_zz
-
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd
          if( (bdyMaskCell(iCell) > 1) .and. (bdyMaskCell(iCell) <= nRelaxZone) ) then
             rayleigh_damping_coef = (real(bdyMaskCell(iCell)) - 1.)/real(nRelaxZone)/(50.*dt*meshScalingRegionalCell(iCell))
+            !$acc loop vector
             do k=1, nVertLevels
                tend_rho(k,iCell) = tend_rho(k,iCell) - rayleigh_damping_coef * (rho_zz(k,iCell) - rho_driving_values(k,iCell))
                tend_rt(k,iCell)  = tend_rt(k,iCell)  - rayleigh_damping_coef * (rho_zz(k,iCell)*theta_m(k,iCell) - rt_driving_values(k,iCell))
             end do
          end if
       end do
+      !$acc end parallel
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iEdge = edgeStart, edgeEnd
          if( (bdyMaskEdge(iEdge) > 1) .and. (bdyMaskEdge(iEdge) <= nRelaxZone) ) then
             rayleigh_damping_coef = (real(bdyMaskEdge(iEdge)) - 1.)/real(nRelaxZone)/(50.*dt*meshScalingRegionalEdge(iEdge))
+            !$acc loop vector
             do k=1, nVertLevels
                tend_ru(k,iEdge) = tend_ru(k,iEdge) - rayleigh_damping_coef * (ru(k,iEdge) - ru_driving_values(k,iEdge))
             end do
          end if
       end do
-      
-      !  Second, the horizontal filter for rtheta_m and rho_zz
+      !$acc end parallel
 
+      !  Second, the horizontal filter for rtheta_m and rho_zz
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd ! threaded over cells
 
          if ( (bdyMaskCell(iCell) > 1) .and. (bdyMaskCell(iCell) <= nRelaxZone) ) then ! relaxation zone
 
             laplacian_filter_coef = (real(bdyMaskCell(iCell)) - 1.)/real(nRelaxZone)/(10.*dt*meshScalingRegionalCell(iCell))
             !
+            !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
                !  edge_sign = r_areaCell*edgesOnCell_sign(i,iCell) * dvEdge(iEdge) * invDcEdge(iEdge) * laplacian_filter_coef
@@ -6848,6 +6888,7 @@ module atm_time_integration
                cell1 = cellsOnEdge(1,iEdge)
                cell2 = cellsOnEdge(2,iEdge)
 !DIR$ IVDEP
+               !$acc loop vector
                do k=1,nVertLevels
                   tend_rt(k,iCell)  = tend_rt(k,iCell)  + edge_sign*(   (rho_zz(k,cell2)*theta_m(k,cell2)-rt_driving_values(k,cell2)) &
                                                                     - (rho_zz(k,cell1)*theta_m(k,cell1)-rt_driving_values(k,cell1)) )
@@ -6859,14 +6900,18 @@ module atm_time_integration
          end if
 
       end do
+      !$acc end parallel
 
       !  Third (and last), the horizontal filter for ru
-
+      !$acc parallel default(present)
+      !$acc loop gang worker private(cell1, cell2, vertex1, vertex2, r_dc, r_dv, & 
+      !$acc    iCell, iVertex, invArea, iEdge_div, iEdge_vort, edge_sign, &
+      !$acc    laplacian_filter_coef, divergence1, divergence2, vorticity1, vorticity2)
       do iEdge = edgeStart, edgeEnd
 
          if ( (bdyMaskEdge(iEdge) > 1) .and. (bdyMaskEdge(iEdge) <= nRelaxZone) ) then ! relaxation zone
 
-            laplacian_filter_coef = dcEdge(iEdge)**2 * (real(bdyMaskEdge(iEdge)) - 1.)/   &
+            laplacian_filter_coef = dcEdge(iEdge)*dcEdge(iEdge)* (real(bdyMaskEdge(iEdge)) - 1.)/   &
                                                 real(nRelaxZone)/(10.*dt*meshScalingRegionalEdge(iEdge))
 
             cell1 = cellsOnEdge(1,iEdge)
@@ -6878,10 +6923,19 @@ module atm_time_integration
 
             iCell = cell1
             invArea = invAreaCell(iCell)
-            divergence1(1:nVertLevels) = 0.
+            !$acc loop vector
+            do k=1,nVertLevels
+               divergence1(k) = 0.
+               divergence2(k) = 0.
+               vorticity1(k) = 0.
+               vorticity2(k) = 0.
+            end do
+            
+            !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge_div = edgesOnCell(i,iCell)
                edge_sign = invArea * dvEdge(iEdge_div) * edgesOnCell_sign(i,iCell)
+               !$acc loop vector
                do k=1,nVertLevels
                   divergence1(k) = divergence1(k) + edge_sign * (ru(k,iEdge_div) - ru_driving_values(k,iEdge_div))
                end do
@@ -6889,30 +6943,33 @@ module atm_time_integration
 
             iCell = cell2
             invArea = invAreaCell(iCell)
-            divergence2(1:nVertLevels) = 0.
+            !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge_div = edgesOnCell(i,iCell)
                edge_sign = invArea * dvEdge(iEdge_div) * edgesOnCell_sign(i,iCell)
+               !$acc loop vector
                do k=1,nVertLevels
                   divergence2(k) = divergence2(k) + edge_sign * (ru(k,iEdge_div) - ru_driving_values(k,iEdge_div))
                end do
             end do
             
             iVertex = vertex1
-            vorticity1(1:nVertLevels) = 0.
+            !$acc loop seq
             do i=1,vertexDegree
                iEdge_vort = edgesOnVertex(i,iVertex)
                edge_sign = invAreaTriangle(iVertex) * dcEdge(iEdge_vort) * edgesOnVertex_sign(i,iVertex)
+               !$acc loop vector
                do k=1,nVertLevels
                   vorticity1(k) = vorticity1(k) + edge_sign * (ru(k,iEdge_vort) - ru_driving_values(k,iEdge_vort))
                end do
             end do
 
             iVertex = vertex2
-            vorticity2(1:nVertLevels) = 0.
+            !$acc loop seq
             do i=1,vertexDegree
                iEdge_vort = edgesOnVertex(i,iVertex)
                edge_sign = invAreaTriangle(iVertex) * dcEdge(iEdge_vort) * edgesOnVertex_sign(i,iVertex)
+               !$acc loop vector
                do k=1,nVertLevels
                   vorticity2(k) = vorticity2(k) + edge_sign * (ru(k,iEdge_vort) - ru_driving_values(k,iEdge_vort))
                end do
@@ -6920,6 +6977,7 @@ module atm_time_integration
 
             ! Compute diffusion, computed as \nabla divergence - k \times \nabla vorticity
             !
+            !$acc loop vector
              do k=1,nVertLevels
                 tend_ru(k,iEdge) = tend_ru(k,iEdge) + laplacian_filter_coef &
                                                       * (divdamp_coef * (divergence2(k) - divergence1(k)) * r_dc  &
@@ -6929,6 +6987,13 @@ module atm_time_integration
           end if  !  end test for relaxation-zone edge
 
        end do  !  end of loop over edges
+       !$acc end parallel
+
+       MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
+      !$acc exit data copyout(tend_rho, tend_rt, tend_ru)
+      !$acc exit data delete(rho_zz, theta_m, ru, rho_driving_values, rt_driving_values, &
+      !$acc            ru_driving_values, divergence1, divergence2, vorticity1, vorticity2)
+      MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
        
    end subroutine atm_bdy_adjust_dynamics_relaxzone_tend
       
