@@ -5068,7 +5068,7 @@ module atm_time_integration
          !$acc enter data copyin(tend_rho)
       end if
       !$acc enter data create(h_divergence)
-      !$acc enter data copyin(ru)
+      !$acc enter data copyin(ru, rw)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
       prandtl_inv = 1.0_RKIND / prandtl
@@ -5220,7 +5220,7 @@ module atm_time_integration
 
         rgas_cprcv = rgas*cp/cv
 
-        !$acc enter data copyin(rdzw, rw, rb, qtot, rr_save)
+        !$acc enter data copyin(rdzw, rb, qtot, rr_save)
         !$acc enter data create(dpdz)
 
         !$acc parallel default(present)
@@ -5236,7 +5236,7 @@ module atm_time_integration
         end do
         !$acc end parallel
 
-        !$acc exit data delete(rdzw, rw, rb, qtot, rr_save)
+        !$acc exit data delete(rdzw, rb, qtot, rr_save)
         !$acc exit data copyout(dpdz)
 
       end if
@@ -5247,7 +5247,7 @@ module atm_time_integration
       ! Compute u (normal) velocity tendency for each edge (cell face)
       !
 
-      !$acc enter data copyin(cqu, pp, dpdz, u, w, rw, pv_edge, rho_edge, ke, rdzw)
+      !$acc enter data copyin(cqu, pp, dpdz, u, w, pv_edge, rho_edge, ke, rdzw)
       !$acc enter data create(tend_u)
 
       !$acc parallel default(present)
@@ -5335,7 +5335,7 @@ module atm_time_integration
       end do
       !$acc end parallel
 
-      !$acc exit data delete(cqu, pp, dpdz, u, w, rw, pv_edge, rho_edge, ke, rdzw)
+      !$acc exit data delete(cqu, pp, dpdz, u, w, pv_edge, rho_edge, ke, rdzw)
       !$acc exit data copyout(tend_u)
 
       !
@@ -5826,7 +5826,7 @@ module atm_time_integration
       !  vertical advection, pressure gradient and buoyancy for w
       !
 
-      !$acc enter data copyin(tend_w, tend_w_euler, rw, w, cqw, pp, dpdz)
+      !$acc enter data copyin(tend_w, tend_w_euler, w, cqw, pp, dpdz)
 
       !$acc parallel default(present)
       !$acc loop gang worker private(wdwz)
@@ -5869,7 +5869,7 @@ module atm_time_integration
       !$acc end parallel
 
       !$acc exit data copyout(tend_w, tend_w_euler)
-      !$acc exit data delete(rw, w, cqw, pp, dpdz)
+      !$acc exit data delete(w, cqw, pp, dpdz)
 
       if (rk_step == 1) then
 
@@ -6094,7 +6094,7 @@ module atm_time_integration
       !  Note: we are also dividing through by the cell area after the horizontal flux divergence
       !
 
-      !$acc enter data copyin(tend_theta, rw, rw_save, theta_m, theta_m_save, rho_zz, rt_diabatic_tend)
+      !$acc enter data copyin(tend_theta, rw_save, theta_m, theta_m_save, rho_zz, rt_diabatic_tend)
       !$acc enter data create(rthdynten)
 
       !$acc parallel default(present)
@@ -6129,7 +6129,7 @@ module atm_time_integration
       !$acc end parallel
 
       !$acc exit data copyout(tend_theta, rthdynten)
-      !$acc exit data delete(rw, rw_save, theta_m, theta_m_save, rho_zz, rt_diabatic_tend)
+      !$acc exit data delete(rw_save, theta_m, theta_m_save, rho_zz, rt_diabatic_tend)
 
       !
       !  vertical mixing for theta - 2nd order 
@@ -6233,7 +6233,7 @@ module atm_time_integration
          !$acc exit data delete(tend_rho)
       end if
       !$acc exit data copyout(h_divergence)
-      !$acc exit data delete(ru)
+      !$acc exit data delete(ru, rw)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
    end subroutine atm_compute_dyn_tend_work
