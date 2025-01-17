@@ -6573,7 +6573,6 @@ module atm_time_integration
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_1, 1)
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_2, 2)
 
-      
       MPAS_ACC_TIMER_START('atm_rk_dynamics_substep_finish [ACC_data_xfer]')
       !$acc enter data create(ru_save, u_1, rtheta_p_save, theta_m_1, rho_p_save, rw_save, &
       !$acc                   w_1, rho_zz_1) &
@@ -6581,9 +6580,12 @@ module atm_time_integration
       !$acc                   w_2, ruAvg, wwAvg, ruAvg_split, wwAvg_split, rho_zz_old_split)
       MPAS_ACC_TIMER_STOP('atm_rk_dynamics_substep_finish [ACC_data_xfer]')
 
+      !$acc kernels
+      theta_m_1(:,cellEnd+1) = 0.0_RKIND
+      !$acc end kernels
+
       inv_dynamics_split = 1.0_RKIND / real(dynamics_split)
       
-
       if (dynamics_substep < dynamics_split) then
          !$acc parallel
          !$acc loop gang worker
