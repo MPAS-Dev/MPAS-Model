@@ -5057,12 +5057,15 @@ module atm_time_integration
       if (rk_step == 1) then
          !$acc enter data create(tend_u_euler)
          !$acc enter data create(kdiff)
+         !$acc enter data copyin(tend_rho_physics)
+         !$acc enter data create(tend_rho)
 
          if (config_horiz_mixing == '2d_smagorinsky') then
             !$acc enter data copyin(u, v)
          end if
       else
          !$acc enter data copyin(tend_u_euler)
+         !$acc enter data copyin(tend_rho)
       end if
       !$acc enter data create(h_divergence)
       !$acc enter data copyin(ru)
@@ -5217,8 +5220,8 @@ module atm_time_integration
 
         rgas_cprcv = rgas*cp/cv
 
-        !$acc enter data copyin(tend_rho_physics, rdzw, rw, rb, qtot, rr_save)
-        !$acc enter data create(tend_rho, dpdz)
+        !$acc enter data copyin(rdzw, rw, rb, qtot, rr_save)
+        !$acc enter data create(dpdz)
 
         !$acc parallel default(present)
         !$acc loop gang worker
@@ -5233,8 +5236,8 @@ module atm_time_integration
         end do
         !$acc end parallel
 
-        !$acc exit data delete(tend_rho_physics, rdzw, rw, rb, qtot, rr_save)
-        !$acc exit data copyout(tend_rho, dpdz)
+        !$acc exit data delete(rdzw, rw, rb, qtot, rr_save)
+        !$acc exit data copyout(dpdz)
 
       end if
 
@@ -6091,7 +6094,7 @@ module atm_time_integration
       !  Note: we are also dividing through by the cell area after the horizontal flux divergence
       !
 
-      !$acc enter data copyin(tend_theta, rw, rw_save, theta_m, theta_m_save, tend_rho, rho_zz, rt_diabatic_tend)
+      !$acc enter data copyin(tend_theta, rw, rw_save, theta_m, theta_m_save, rho_zz, rt_diabatic_tend)
       !$acc enter data create(rthdynten)
 
       !$acc parallel default(present)
@@ -6126,7 +6129,7 @@ module atm_time_integration
       !$acc end parallel
 
       !$acc exit data copyout(tend_theta, rthdynten)
-      !$acc exit data delete(rw, rw_save, theta_m, theta_m_save, tend_rho, rho_zz, rt_diabatic_tend)
+      !$acc exit data delete(rw, rw_save, theta_m, theta_m_save, rho_zz, rt_diabatic_tend)
 
       !
       !  vertical mixing for theta - 2nd order 
@@ -6221,9 +6224,13 @@ module atm_time_integration
       !$acc exit data copyout(tend_u_euler)
       !$acc exit data delete(kdiff)
       if (rk_step == 1) then
+         !$acc exit data copyout(tend_rho)
+         !$acc exit data delete(tend_rho_physics)
          if (config_horiz_mixing == '2d_smagorinsky') then
             !$acc exit data delete(u, v)
          end if
+      else
+         !$acc exit data delete(tend_rho)
       end if
       !$acc exit data copyout(h_divergence)
       !$acc exit data delete(ru)
