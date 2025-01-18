@@ -3,224 +3,252 @@
 <!-- ******************************* -->
 
 <dims>
-        <dim name="nIsoLevelsT"         definition="5"
-             description="Number of isobaric levels to which temperature will be vertically interpolated"/>
-
-        <dim name="nIsoLevelsZ"         definition="13"
-             description="Number of isobaric levels to which height will be vertically interpolated"/>
+        <!-- Number of levels to which variables are interpolated  -->
+        <!-- Additional dimensions can be added if different numbers are desired for various fields -->
+        <dim name="nIsoLevels"          definition="28"
+             description="Number of isobaric levels to which variables will be vertically interpolated"/>
 </dims>
 
 
 <var_struct name="diag" time_levs="1">
 
+        <!-- Specific levels to which variables are interpolated  -->
+        <!-- Levels are specified in mpas_isobaric_diagnostics.F -->
+        <var name="iso_levels" type="real" dimensions="nIsoLevels" units="Pa"
+             description="Levels for vertical interpolation to isobaric surfaces"
+             packages="isobaric;pv_isobaric"/> 
+
+        <!-- Isobaric variables -->        
+        <var name="temperature_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K"
+             description="Temperature vertically interpolated to isobaric levels"
+             packages="isobaric"/>
+
+        <var name="theta_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K"
+             description="Potential temperature vertically interpolated to isobaric levels"
+             packages="isobaric"/>
+
+        <var name="dewpoint_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K"
+             description="Dewpoint temperature vertically interpolated to isobaric levels"
+             packages="isobaric"/> 
+
+        <var name="relhum_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="percent"
+             description="Relative humidity vertically interpolated to isobaric levels"
+             packages="isobaric"/> 
+
+        <var name="qvapor_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="kg kg^{-1}"
+             description="Water vapor mixing ratio vertically interpolated to isobaric levels"
+             packages="isobaric"/> 
+
+        <var name="uzonal_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="m s^{-1}"
+             description="Reconstructed zonal wind at cell centers vertically interpolated to isobaric levels"
+             packages="isobaric"/> 
+
+        <var name="umeridional_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="m s^{-1}"
+             description="Reconstructed meridional wind at cell centers vertically interpolated to isobaric levels"  
+             packages="isobaric"/> 
+
+        <var name="height_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="m"
+             description="Geometric height interpolated to isobaric levels"
+             packages="isobaric"/> 
+
+        <var name="geoheight_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="m"
+             description="Geopotential height interpolated to isobaric levels"
+             packages="isobaric"/> 
+
+        <var name="w_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="m s^{-1}"
+             description="Vertical velocity vertically interpolated to isobaric levels"
+             packages="isobaric"/> 
+
+        <var name="vorticity_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="s^{-1}"
+             description="Vertical vorticity at cell centers vertically interpolated to isobaric levels"
+             packages="isobaric"/>    
+    
+        <!-- PV variables on isobaric levels - only activated if config_pv_isobaric = .true. --> 
+        <var name="ertel_pv_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU"
+             description="Ertel's potential vorticity vertically interpolated to isobaric levels"
+             packages="isobaric;pv_isobaric"/>
+    
+        <var name="depv_dt_lw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from longwave radiation vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_sw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from shortwave radiation vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_bl_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from PBL vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_cu_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from cumulus scheme vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_mp_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from microphysics vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_mix_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from explicit numerical mixing vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_fric_mix_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Frictional PV tendency from explicit horizontal mixing vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="depv_dt_fric_bl_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Frictional PV tendency from PBL scheme vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="depv_dt_fric_cu_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Frictional PV tendency from cumulus scheme vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>    
+
+        <var name="depv_dt_dyn_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="PV tendency from dynamics vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_diab_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Sum of calculated PV tendencies from diabatic processes vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_fric_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Sum of calculated PV tendencies from frictional processes vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="depv_dt_mp_evap_cw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from microphysics - net condensation/evaporation of cloud water - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+
+        <var name="depv_dt_mp_evap_rw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from microphysics - evaporation of rain water - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+
+        <var name="depv_dt_mp_depo_ice_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from microphysics - net deposition/sublimation of all ice hydrometeors - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+
+        <var name="depv_dt_mp_melt_ice_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from microphysics - melting of all ice hydrometeors - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+
+        <var name="depv_dt_mp_frez_ice_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from microphysics - freezing of all ice hydrometeors - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+
+        <var name="depv_dt_mp_allproc_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Diabatic PV tendency from summed microphysics processes vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+    
+        <!-- Potential temperature tendencies --> 
+        <var name="dtheta_dt_mp_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
+             description="Potential temperature heating rate from microphysics vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/> 
+
+        <var name="dtheta_dt_dyn_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
+             description="Potential temperature tendency from dynamics vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="dtheta_dt_cu_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
+             description="Potential temperature tendency from cumulus scheme vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+    
+        <!-- Accumulated PV tendencies -->
+        <var name="acc_depv_dt_lw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from longwave radiation vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_sw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from shortwave radiation vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="acc_depv_dt_bl_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from PBL vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_cu_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from cumulus scheme vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+         <var name="acc_depv_dt_mp_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="acc_depv_dt_mix_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from explicit horizontal mixing vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_fric_bl_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated frictional PV tendency from PBL scheme vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_fric_cu_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated frictional PV tendency from cumulus scheme vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_fric_mix_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated frictional PV tendency from explicit mixing vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_diab_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated sum of calculated PV tendencies from diabatic processes vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_fric_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated sum of calculated PV tendencies from frictional processes vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_dyn_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated PV tendency from dynamics vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_depv_dt_mp_evap_cw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics - net condensation/evaporation of cloud water - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+    
+        <var name="acc_depv_dt_mp_evap_rw_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics - evaporation of rain water - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+    
+        <var name="acc_depv_dt_mp_depo_ice_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics - net deposition/sublimation of all ice hydrometeors - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+    
+        <var name="acc_depv_dt_mp_melt_ice_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics - melting of all ice hydrometeors - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+    
+        <var name="acc_depv_dt_mp_frez_ice_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from microphysics - freezing of all ice hydrometeors - vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+    
+        <var name="acc_depv_dt_mp_allproc_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="PVU s^{-1}"
+             description="Accumulated diabatic PV tendency from summed microphysics processes vertically interpolated to isobaric levels"
+             packages="pv_isobaric;pv_microphysics"/>
+
+
+        <!-- Accumulated potential temperature tendencies --> 
+        <var name="acc_dtheta_dt_mp_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
+             description="Accumulated potential temperature heating rate from microphysics vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+    
+        <var name="acc_dtheta_dt_dyn_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
+             description="Accumulated potential temperature tendency from dynamics vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+        <var name="acc_dtheta_dt_cu_isobaric" type="real" dimensions="nIsoLevels nCells Time" units="K s^{-1}"
+             description="Accumulated potential temperature tendency from cumulus scheme vertically interpolated to isobaric levels"
+             packages="pv_isobaric"/>
+
+
+        <!-- Other variables -->
         <var name="mslp" type="real" dimensions="nCells Time" units="Pa"
-             description="Mean sea-level pressure"/>
-
-        <var name="temperature_50hPa" type="real" dimensions="nCells Time" units="K"
-             description="Temperature vertically interpolated to 50 hPa"/>
-
-        <var name="temperature_100hPa" type="real" dimensions="nCells Time" units="K"
-             description="Temperature vertically interpolated to 100 hPa"/>
-
-        <var name="temperature_200hPa" type="real" dimensions="nCells Time" units="K"
-             description="Temperature vertically interpolated to 200 hPa"/>
-
-        <var name="temperature_250hPa" type="real" dimensions="nCells Time" units="K"
-             description="Temperature vertically interpolated to 250 hPa"/>
-
-        <var name="temperature_500hPa" type="real" dimensions="nCells Time" units="K"
-             description="Temperature vertically interpolated to 500 hPa"/>
-
-        <var name="temperature_700hPa" type="real" dimensions="nCells Time" units="K"
-             description="Temperature vertically interpolated to 700 hPa"/>
-
-        <var name="temperature_850hPa" type="real" dimensions="nCells Time" units="K"
-             description="Temperature vertically interpolated to 850 hPa"/>
-
-        <var name="temperature_925hPa" type="real" dimensions="nCells Time" units="K"
-             description="Temperature vertically interpolated to 925 hPa"/>
-
-        <var name="relhum_50hPa" type="real" dimensions="nCells Time" units="percent"
-             description="Relative humidity vertically interpolated to 50 hPa"/>
-
-        <var name="relhum_100hPa" type="real" dimensions="nCells Time" units="percent"
-             description="Relative humidity vertically interpolated to 100 hPa"/>
-
-        <var name="relhum_200hPa" type="real" dimensions="nCells Time" units="percent"
-             description="Relative humidity vertically interpolated to 200 hPa"/>
-
-        <var name="relhum_250hPa" type="real" dimensions="nCells Time" units="percent"
-             description="Relative humidity vertically interpolated to 250 hPa"/>
-
-        <var name="relhum_500hPa" type="real" dimensions="nCells Time" units="percent"
-             description="Relative humidity vertically interpolated to 500 hPa"/>
-
-        <var name="relhum_700hPa" type="real" dimensions="nCells Time" units="percent"
-             description="Relative humidity vertically interpolated to 700 hPa"/>
-
-        <var name="relhum_850hPa" type="real" dimensions="nCells Time" units="percent"
-             description="Relative humidity vertically interpolated to 850 hPa"/>
-
-        <var name="relhum_925hPa" type="real" dimensions="nCells Time" units="percent"
-             description="Relative humidity vertically interpolated to 925 hPa"/>
-
-        <var name="dewpoint_50hPa" type="real" dimensions="nCells Time" units="K"
-             description="Dewpoint temperature vertically interpolated to 50 hPa"/>
-
-        <var name="dewpoint_100hPa" type="real" dimensions="nCells Time" units="K"
-             description="Dewpoint temperature vertically interpolated to 100 hPa"/>
-
-        <var name="dewpoint_200hPa" type="real" dimensions="nCells Time" units="K"
-             description="Dewpoint temperature vertically interpolated to 200 hPa"/>
-
-        <var name="dewpoint_250hPa" type="real" dimensions="nCells Time" units="K"
-             description="Dewpoint temperature vertically interpolated to 250 hPa"/>
-
-        <var name="dewpoint_500hPa" type="real" dimensions="nCells Time" units="K"
-             description="Dewpoint temperature vertically interpolated to 500 hPa"/>
-
-        <var name="dewpoint_700hPa" type="real" dimensions="nCells Time" units="K"
-             description="Dewpoint temperature vertically interpolated to 700 hPa"/>
-
-        <var name="dewpoint_850hPa" type="real" dimensions="nCells Time" units="K"
-             description="Dewpoint temperature vertically interpolated to 850 hPa"/>
-
-        <var name="dewpoint_925hPa" type="real" dimensions="nCells Time" units="K"
-             description="Dewpoint temperature vertically interpolated to 925 hPa"/>
-
-        <var name="height_50hPa" type="real" dimensions="nCells Time" units="m"
-             description="Geometric height interpolated to 50 hPa"/>
-
-        <var name="height_100hPa" type="real" dimensions="nCells Time" units="m"
-             description="Geometric height interpolated to 100 hPa"/>
-
-        <var name="height_200hPa" type="real" dimensions="nCells Time" units="m"
-             description="Geometric height interpolated to 200 hPa"/>
-
-        <var name="height_250hPa" type="real" dimensions="nCells Time" units="m"
-             description="Geometric height interpolated to 250 hPa"/>
-
-        <var name="height_500hPa" type="real" dimensions="nCells Time" units="m"
-             description="Geometric height interpolated to 500 hPa"/>
-
-        <var name="height_700hPa" type="real" dimensions="nCells Time" units="m"
-             description="Geometric height interpolated to 700 hPa"/>
-
-        <var name="height_850hPa" type="real" dimensions="nCells Time" units="m"
-             description="Geometric height interpolated to 850 hPa"/>
-
-        <var name="height_925hPa" type="real" dimensions="nCells Time" units="m"
-             description="Geometric height interpolated to 925 hPa"/>
-
-        <var name="uzonal_50hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Reconstructed zonal wind at cell centers, vertically interpolated to 50 hPa"/>
-
-        <var name="uzonal_100hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Reconstructed zonal wind at cell centers, vertically interpolated to 100 hPa"/>
-
-        <var name="uzonal_200hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Reconstructed zonal wind at cell centers, vertically interpolated to 200 hPa"/>
-
-        <var name="uzonal_250hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Reconstructed zonal wind at cell centers, vertically interpolated to 250 hPa"/>
-
-        <var name="uzonal_500hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Reconstructed zonal wind at cell centers, vertically interpolated to 500 hPa"/>
-
-        <var name="uzonal_700hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Reconstructed zonal wind at cell centers, vertically interpolated to 700 hPa"/>
-
-        <var name="uzonal_850hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Reconstructed zonal wind at cell centers, vertically interpolated to 850 hPa"/>
-
-        <var name="uzonal_925hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Reconstructed zonal wind at cell centers, vertically interpolated to 925 hPa"/>
-
-        <var name="umeridional_50hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Reconstructed meridional wind at cell centers, vertically interpolated to 50 hPa"/>
-
-        <var name="umeridional_100hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Reconstructed meridional wind at cell centers, vertically interpolated to 100 hPa"/>
-
-        <var name="umeridional_200hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Reconstructed meridional wind at cell centers, vertically interpolated to 200 hPa"/>
-
-        <var name="umeridional_250hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Reconstructed meridional wind at cell centers, vertically interpolated to 250 hPa"/>
-
-        <var name="umeridional_500hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Reconstructed meridional wind at cell centers, vertically interpolated to 500 hPa"/>
-
-        <var name="umeridional_700hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Reconstructed meridional wind at cell centers, vertically interpolated to 700 hPa"/>
-
-        <var name="umeridional_850hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Reconstructed meridional wind at cell centers, vertically interpolated to 850 hPa"/>
-
-        <var name="umeridional_925hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Reconstructed meridional wind at cell centers, vertically interpolated to 925 hPa"/>
-
-        <var name="w_50hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Vertical velocity vertically interpolated to 50 hPa"/>
-
-        <var name="w_100hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Vertical velocity vertically interpolated to 100 hPa"/>
-
-        <var name="w_200hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Vertical velocity vertically interpolated to 200 hPa"/>
-
-        <var name="w_250hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Vertical velocity vertically interpolated to 250 hPa"/>
-
-        <var name="w_500hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Vertical velocity vertically interpolated to 500 hPa"/>
-
-        <var name="w_700hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Vertical velocity vertically interpolated to 700 hPa"/>
-
-        <var name="w_850hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Vertical velocity vertically interpolated to 850 hPa"/>
-
-        <var name="w_925hPa" type="real" dimensions="nCells Time" units="m s^{-1}"
-             description="Vertical velocity vertically interpolated to 925 hPa"/>
-
-        <var name="vorticity_50hPa" type="real" dimensions="nVertices Time" units="s^{-1}"
-             description="Relative vorticity vertically interpolated to 50 hPa"/>
-
-        <var name="vorticity_100hPa" type="real" dimensions="nVertices Time" units="s^{-1}"
-             description="Relative vorticity vertically interpolated to 100 hPa"/>
-
-        <var name="vorticity_200hPa" type="real" dimensions="nVertices Time" units="s^{-1}"
-             description="Relative vorticity vertically interpolated to 200 hPa"/>
-
-        <var name="vorticity_250hPa" type="real" dimensions="nVertices Time" units="s^{-1}"
-             description="Relative vorticity vertically interpolated to 250 hPa"/>
-
-        <var name="vorticity_500hPa" type="real" dimensions="nVertices Time" units="s^{-1}"
-             description="Relative vorticity vertically interpolated to 500 hPa"/>
-
-        <var name="vorticity_700hPa" type="real" dimensions="nVertices Time" units="s^{-1}"
-             description="Relative vorticity vertically interpolated to 700 hPa"/>
-
-        <var name="vorticity_850hPa" type="real" dimensions="nVertices Time" units="s^{-1}"
-             description="Relative vorticity vertically interpolated to 850 hPa"/>
-
-        <var name="vorticity_925hPa" type="real" dimensions="nVertices Time" units="s^{-1}"
-             description="Relative vorticity vertically interpolated to 925 hPa"/>
-
-        <var name="t_isobaric"       type="real" dimensions="nIsoLevelsT nCells Time" units="K"
-             description="Temperature interpolated to isobaric surfaces defined in t_iso_levels"/>
-
-        <var name="z_isobaric"       type="real" dimensions="nIsoLevelsZ nCells Time" units="m"
-             description="Height interpolated to isobaric surfaces defined in z_iso_levels"/>
-
-        <var name="meanT_500_300"    type="real" dimensions="nCells Time" units="K"
-             description="Mean temperature in the 300 hPa - 500 hPa layer"/>
-
-        <var name="t_iso_levels" type="real" dimensions="nIsoLevelsT" units="Pa"
-             description="Levels for vertical interpolation of temperature to isobaric surfaces"/>
-
-        <var name="z_iso_levels" type="real" dimensions="nIsoLevelsZ" units="Pa"
-             description="Levels for vertical interpolation of height to isobaric surfaces"/>
+             description="Mean sea-level pressure"
+             packages="isobaric"/>
+
+        <var name="meanT_500_300" type="real" dimensions="nCells Time" units="K"
+             description="Mean temperature in the 500-300 hPa layer"
+             packages="isobaric"/>
 
 </var_struct>
