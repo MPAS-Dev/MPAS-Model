@@ -27,7 +27,9 @@ module mpas_framework
    use mpas_io_units
    use mpas_block_decomp
 
+#ifdef MPAS_OPENACC
    private :: report_acc_devices
+#endif
 
 
    contains
