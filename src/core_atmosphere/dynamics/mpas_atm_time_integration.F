@@ -6913,6 +6913,12 @@ module atm_time_integration
 
       !---
 
+      MPAS_ACC_TIMER_START('atm_bdy_set_scalars_work [ACC_data_xfer]')
+      !$acc enter data copyin(scalars_new, scalars_driving)
+      MPAS_ACC_TIMER_STOP('atm_bdy_set_scalars_work [ACC_data_xfer]')
+
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd ! threaded over cells
 
          if ( bdyMaskCell(iCell) > nRelaxZone) then ! specified zone
@@ -6920,6 +6926,7 @@ module atm_time_integration
             !  update the specified-zone values
             !
 !DIR$ IVDEP
+           !$acc loop vector collapse(2)
             do k=1,nVertLevels
                do iScalar = 1, num_scalars
                   scalars_new(iScalar,k,iCell) = scalars_driving(iScalar,k,iCell)
@@ -6929,6 +6936,12 @@ module atm_time_integration
          end if
 
       end do  ! updates now in temp storage
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_bdy_set_scalars_work [ACC_data_xfer]')
+      !$acc exit data copyout(scalars_new)
+      !$acc exit data delete(scalars_driving)
+      MPAS_ACC_TIMER_STOP('atm_bdy_set_scalars_work [ACC_data_xfer]')
             
    end subroutine atm_bdy_set_scalars_work
 
