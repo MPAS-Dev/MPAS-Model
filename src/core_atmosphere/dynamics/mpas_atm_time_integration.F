@@ -233,6 +233,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:,:), pointer :: zb3_cell
       real (kind=RKIND), dimension(:), pointer :: fzm
       real (kind=RKIND), dimension(:), pointer :: fzp
+      integer, dimension(:), pointer :: nearestRelaxationCell
 #endif
 
 
@@ -356,6 +357,9 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'fzp', fzp)
       !$acc enter data copyin(fzp)
 
+      call mpas_pool_get_array(mesh, 'nearestRelaxationCell', nearestRelaxationCell)
+      !$acc enter data copyin(nearestRelaxationCell)
+
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -425,6 +429,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:,:), pointer :: zb3_cell
       real (kind=RKIND), dimension(:), pointer :: fzm
       real (kind=RKIND), dimension(:), pointer :: fzp
+      integer, dimension(:), pointer :: nearestRelaxationCell
 #endif
 
 
@@ -547,6 +552,9 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'fzp', fzp)
       !$acc exit data delete(fzp)
+
+      call mpas_pool_get_array(mesh, 'nearestRelaxationCell', nearestRelaxationCell)
+      !$acc exit data delete(nearestRelaxationCell)
 #endif
 
    end subroutine mpas_atm_dynamics_finalize
@@ -6421,14 +6429,27 @@ module atm_time_integration
 
       integer :: iCell, k
 
+      MPAS_ACC_TIMER_START('atm_zero_gradient_w_bdy_work [ACC_data_xfer]')
+      !$acc enter data copyin(w)
+      MPAS_ACC_TIMER_STOP('atm_zero_gradient_w_bdy_work [ACC_data_xfer]')
+
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell=cellSolveStart,cellSolveEnd
          if (bdyMaskCell(iCell) > nRelaxZone) then
 !DIR$ IVDEP
+            !$acc loop vector
             do k = 2, nVertLevels
               w(k,iCell) = w(k,nearestRelaxationCell(iCell))
             end do
          end if  
       end do
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_zero_gradient_w_bdy_work [ACC_data_xfer]')
+      !$acc exit data copyout(w)
+      MPAS_ACC_TIMER_STOP('atm_zero_gradient_w_bdy_work [ACC_data_xfer]')
+
 
    end subroutine atm_zero_gradient_w_bdy_work
 
