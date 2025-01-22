@@ -6620,7 +6620,6 @@ module atm_time_integration
          !$acc end parallel
       end if
 
-
       if (dynamics_substep == 1) then
          !$acc parallel
          !$acc loop gang worker
@@ -6675,10 +6674,10 @@ module atm_time_integration
          end do
          !$acc loop gang worker
          do iCell = cellStart,cellEnd
-         !$acc loop vector
-         do k = 1,nVertLevels           
-            rho_zz_1(k,iCell) = rho_zz_old_split(k,iCell)
-         end do
+            !$acc loop vector
+            do k = 1,nVertLevels           
+               rho_zz_1(k,iCell) = rho_zz_old_split(k,iCell)
+            end do
          end do
          !$acc end parallel
       end if
