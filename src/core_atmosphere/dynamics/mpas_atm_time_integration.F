@@ -6904,14 +6904,12 @@ module atm_time_integration
 
       !  Third (and last), the horizontal filter for ru
       !$acc parallel default(present)
-      !$acc loop gang worker private(cell1, cell2, vertex1, vertex2, r_dc, r_dv, & 
-      !$acc    iCell, iVertex, invArea, iEdge_div, iEdge_vort, edge_sign, &
-      !$acc    laplacian_filter_coef, divergence1, divergence2, vorticity1, vorticity2)
+      !$acc loop gang worker private(divergence1, divergence2, vorticity1, vorticity2)
       do iEdge = edgeStart, edgeEnd
 
          if ( (bdyMaskEdge(iEdge) > 1) .and. (bdyMaskEdge(iEdge) <= nRelaxZone) ) then ! relaxation zone
 
-            laplacian_filter_coef = dcEdge(iEdge)*dcEdge(iEdge)* (real(bdyMaskEdge(iEdge)) - 1.)/   &
+            laplacian_filter_coef = dcEdge(iEdge)**2 * (real(bdyMaskEdge(iEdge)) - 1.)/   &
                                                 real(nRelaxZone)/(10.*dt*meshScalingRegionalEdge(iEdge))
 
             cell1 = cellsOnEdge(1,iEdge)
