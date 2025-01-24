@@ -126,6 +126,7 @@
  character(len=StrKIND), pointer :: config_vegfrac_data
  character(len=StrKIND), pointer :: config_albedo_data
  character(len=StrKIND), pointer :: config_maxsnowalbedo_data
+ logical, pointer :: config_noahmp_static
  character(len=StrKIND+1) :: geog_data_path      ! same as config_geog_data_path, but guaranteed to have a trailing slash
  character(len=StrKIND+1) :: geog_sub_path       ! subdirectory names in config_geog_data_path, with trailing slash
 
@@ -219,6 +220,7 @@
  call mpas_pool_get_config(configs, 'config_maxsnowalbedo_data', config_maxsnowalbedo_data)
  call mpas_pool_get_config(configs, 'config_supersample_factor', supersample_fac)
  call mpas_pool_get_config(configs, 'config_30s_supersample_factor', supersample_fac_30s)
+ call mpas_pool_get_config(configs, 'config_noahmp_static', config_noahmp_static)
 
  write(geog_data_path, '(a)') config_geog_data_path
  i = len_trim(geog_data_path)
@@ -1171,55 +1173,59 @@
 
  call mpas_log_write('--- end interpolate ALBEDO12M')
 
-!
-! Interpolate SOILCOMP
-!
- geog_sub_path = 'soilgrids/soilcomp/'
- call mpas_log_write('--- start interpolate SOILCOMP')
- call interp_soilcomp(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
-                     supersample_fac=supersample_fac_30s)
- call mpas_log_write('--- end interpolate SOILCOMP')
+ if (config_noahmp_static) then
 
-!
-! Interpolate SOILCL1
-!
- geog_sub_path = 'soilgrids/texture_layer1/'
+    !
+    ! Interpolate SOILCOMP
+    !
+    geog_sub_path = 'soilgrids/soilcomp/'
 
- call mpas_log_write('--- start interpolate SOILCL1')
- call interp_soil_texture('soilcl1', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
-                          supersample_fac=supersample_fac_30s)
- call mpas_log_write('--- end interpolate SOILCL1')
+    call mpas_log_write('--- start interpolate SOILCOMP')
+    call interp_soilcomp(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                         supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate SOILCOMP')
 
-!
-! Interpolate SOILCL2
-!
- geog_sub_path = 'soilgrids/texture_layer2/'
+    !
+    ! Interpolate SOILCL1
+    !
+    geog_sub_path = 'soilgrids/texture_layer1/'
 
- call mpas_log_write('--- start interpolate SOILCL2')
- call interp_soil_texture('soilcl2', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
-                          supersample_fac=supersample_fac_30s)
- call mpas_log_write('--- end interpolate SOILCL2')
+    call mpas_log_write('--- start interpolate SOILCL1')
+    call interp_soil_texture('soilcl1', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate SOILCL1')
 
-!
-! Interpolate SOILCL3
-!
- geog_sub_path = 'soilgrids/texture_layer3/'
+    !
+    ! Interpolate SOILCL2
+    !
+    geog_sub_path = 'soilgrids/texture_layer2/'
 
- call mpas_log_write('--- start interpolate SOILCL3')
- call interp_soil_texture('soilcl3', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
-                          supersample_fac=supersample_fac_30s)
- call mpas_log_write('--- end interpolate SOILCL3')
+    call mpas_log_write('--- start interpolate SOILCL2')
+    call interp_soil_texture('soilcl2', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate SOILCL2')
 
-!
-! Interpolate SOILCL4
-!
- geog_sub_path = 'soilgrids/texture_layer4/'
+    !
+    ! Interpolate SOILCL3
+    !
+    geog_sub_path = 'soilgrids/texture_layer3/'
 
- call mpas_log_write('--- start interpolate SOILCL4')
- call interp_soil_texture('soilcl4', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
-                          supersample_fac=supersample_fac_30s)
- call mpas_log_write('--- end interpolate SOILCL4')
+    call mpas_log_write('--- start interpolate SOILCL3')
+    call interp_soil_texture('soilcl3', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate SOILCL3')
 
+    !
+    ! Interpolate SOILCL4
+    !
+    geog_sub_path = 'soilgrids/texture_layer4/'
+
+    call mpas_log_write('--- start interpolate SOILCL4')
+    call interp_soil_texture('soilcl4', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate SOILCL4')
+
+ end if
 
 !
 ! Deallocate and free the KD Tree
