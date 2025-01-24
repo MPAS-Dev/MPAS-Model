@@ -196,6 +196,11 @@
                      description="The supersampling factor to be used for 30s terrain, MODIS land use, soil category, and MODIS FPAR monthly vegetation fraction (case 7 only)"
                      possible_values="Positive integer values"/>
 
+                <nml_option name="config_noahmp_static" type="logical" default_value="true" in_defaults="false"
+                     units="-"
+                     description="Whether to process, read, and write static fields only required by Noah-MP"
+                     possible_values="true or false"/>
+
                 <nml_option name="config_use_spechumd"          type="logical"       default_value="false"
                      units="-"
                      description="Whether to use specific-humidity as the first-guess moisture variable. If this option is False, relative humidity will be used."
@@ -360,6 +365,7 @@
                 <package name="met_stage_out" description="Active only if meteorological fields are being interpolated"/>
                 <package name="first_guess_field" description="3-d atmospheric or land-surface fields on first-guess levels"/>
                 <package name="mp_thompson_aers_in" description="initialization of GOCART-based Thompson water- and ice-friendly aerosols"/>
+                <package name="noahmp" description="Whether to process, read, and write static fields only required by Noah-MP"/>
         </packages>
 
 
@@ -857,19 +863,24 @@
 
                 <!-- SOIL COMPOSITION fields needed for the NOAH-MP land surface scheme -->
                 <var name="soilcomp" type="real" dimensions="nSoilComps nCells" units="percent"
-                     description="soil composition needed as input in the NOAH-MP land surface model"/>
+                     description="soil composition needed as input in the NOAH-MP land surface model"
+                     packages="noahmp"/>
 
                 <var name="soilcl1" type="real" dimensions="nCells" units="unitless"
-                     description="soil texture class level 1 needed as input for the NOAH-MP land surface model"/>
+                     description="soil texture class level 1 needed as input for the NOAH-MP land surface model"
+                     packages="noahmp"/>
 
                 <var name="soilcl2" type="real" dimensions="nCells" units="unitless"
-                     description="soil texture class level 2 needed as input for the NOAH-MP land surface model"/>
+                     description="soil texture class level 2 needed as input for the NOAH-MP land surface model"
+                     packages="noahmp"/>
 
                 <var name="soilcl3" type="real" dimensions="nCells" units="unitless"
-                     description="soil texture class level 3 needed as input for the NOAH-MP land surface model"/>
+                     description="soil texture class level 3 needed as input for the NOAH-MP land surface model"
+                     packages="noahmp"/>
 
                 <var name="soilcl4" type="real" dimensions="nCells" units="unitless"
-                     description="soil texture class level 4 needed as input for the NOAH-MP land surface model"/>
+                     description="soil texture class level 4 needed as input for the NOAH-MP land surface model"
+                     packages="noahmp"/>
 
                 <!-- GWDO fields -->
                 <var name="var2d" type="real" dimensions="nCells" units="m"

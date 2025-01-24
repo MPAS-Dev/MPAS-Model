@@ -9,9 +9,11 @@
 
 module init_atm_read_met
 
+   use iso_fortran_env, only: real32
+
    integer, parameter :: MAX_FILENAME_LEN = 1024
 
-   real (kind=4), parameter :: EARTH_RADIUS_M = 6370000.   ! same as MM5 system
+   real (kind=real32), parameter :: EARTH_RADIUS_M = 6370000.   ! same as MM5 system
 
    ! Projection codes for proj_info structure:
    INTEGER, PRIVATE, PARAMETER  :: PROJ_LATLON = 0
@@ -24,10 +26,10 @@ module init_atm_read_met
    ! Derived types
    type met_data
       integer                       :: version, nx, ny, iproj
-      real (kind=4)                 :: xfcst, xlvl, startlat, startlon, starti, startj, &
+      real (kind=real32)                 :: xfcst, xlvl, startlat, startlon, starti, startj, &
                                        deltalat, deltalon, dx, dy, xlonc, &
                                        truelat1, truelat2, earth_radius
-      real (kind=4), pointer, dimension(:,:) :: slab
+      real (kind=real32), pointer, dimension(:,:) :: slab
       logical                       :: is_wind_grid_rel
       character (len=9)             :: field
       character (len=24)            :: hdate

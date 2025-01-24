@@ -228,6 +228,9 @@ int SMIOL_inquire(void)
  * blocking write interface, while a nonzero value enables the use of the
  * non-blocking, buffered interface for writing.
  *
+ * When a file is opened with a mode of SMIOL_FILE_CREATE, the fformat argument
+ * is used to set the file format. Otherwise fformat is ignored.
+ *
  * Upon successful completion, SMIOL_SUCCESS is returned, and the file handle
  * argument will point to a valid file handle and the current frame for the
  * file will be set to zero. Otherwise, the file handle is NULL and an error
@@ -235,7 +238,7 @@ int SMIOL_inquire(void)
  *
  ********************************************************************************/
 int SMIOL_open_file(struct SMIOL_context *context, const char *filename,
-                    int mode, struct SMIOL_file **file, size_t bufsize)
+                    int mode, struct SMIOL_file **file, size_t bufsize, int fformat)
 {
 	int io_group;
 	MPI_Comm io_file_comm;
@@ -318,8 +321,24 @@ int SMIOL_open_file(struct SMIOL_context *context, const char *filename,
 	if (mode & SMIOL_FILE_CREATE) {
 #ifdef SMIOL_PNETCDF
 		if ((*file)->io_task) {
+			/*
+			 * Convert fformat to a PNetCDF file creation mode
+			 */
+			int filecmode;
+			if (fformat == SMIOL_FORMAT_CDF2) {
+				filecmode = NC_64BIT_OFFSET;
+			} else if (fformat == SMIOL_FORMAT_CDF5) {
+				filecmode = NC_64BIT_DATA;
+			} else {
+				free((*file));
+				(*file) = NULL;
+				MPI_Comm_free(&io_file_comm);
+				MPI_Comm_free(&io_group_comm);
+				return SMIOL_INVALID_FORMAT;
+			}
+
 			ierr = ncmpi_create(io_file_comm, filename,
-			                    (NC_64BIT_DATA | NC_CLOBBER),
+			                    (filecmode | NC_CLOBBER),
 			                    MPI_INFO_NULL,
 			                    &((*file)->ncidp));
 		}
@@ -1983,6 +2002,8 @@ const char *SMIOL_error_string(int errno)
 		return "argument is of the wrong type";
 	case SMIOL_INSUFFICIENT_ARG:
 		return "argument is of insufficient size";
+	case SMIOL_INVALID_FORMAT:
+		return "invalid format for file creation";
 	default:
 		return "Unknown error";
 	}
