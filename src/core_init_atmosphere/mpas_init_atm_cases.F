@@ -45,6 +45,7 @@ module init_atm_cases
 
       use mpas_stream_manager
       use mpas_init_atm_gwd, only : compute_gwd_fields
+      use mpas_init_atm_gwd_gsl, only : calc_gsl_oro_data
 
       implicit none
 
@@ -65,6 +66,7 @@ module init_atm_cases
       integer, pointer :: config_init_case
       logical, pointer :: config_static_interp
       logical, pointer :: config_native_gwd_static
+      logical, pointer :: config_native_gwd_gsl_static
       logical, pointer :: config_met_interp
       logical, pointer :: config_blend_bdy_terrain
       character (len=StrKIND), pointer :: config_start_time
@@ -174,6 +176,7 @@ module init_atm_cases
 
             call mpas_pool_get_config(block_ptr % configs, 'config_static_interp', config_static_interp)
             call mpas_pool_get_config(block_ptr % configs, 'config_native_gwd_static', config_native_gwd_static)
+            call mpas_pool_get_config(block_ptr % configs, 'config_native_gwd_gsl_static', config_native_gwd_gsl_static)
             call mpas_pool_get_config(block_ptr % configs, 'config_met_interp', config_met_interp)
             call mpas_pool_get_config(block_ptr % configs, 'config_blend_bdy_terrain', config_blend_bdy_terrain)
 
@@ -222,6 +225,19 @@ module init_atm_cases
                if (ierr /= 0) then
                   call mpas_log_write('****************************************************************', messageType=MPAS_LOG_ERR)
                   call mpas_log_write('Error while trying to compute sub-grid-scale orography',           messageType=MPAS_LOG_ERR)
+                  call mpas_log_write('statistics for use with the GWDO scheme.',                         messageType=MPAS_LOG_ERR)
+                  call mpas_log_write('****************************************************************', messageType=MPAS_LOG_CRIT)
+               end if
+            end if
+
+            if (config_native_gwd_gsl_static) then
+               call mpas_log_write(' ')
+               call mpas_log_write('Computing GWDO static fields for UGWP orog drag on the native MPAS mesh')
+               call mpas_log_write(' ')
+               call calc_gsl_oro_data(domain,ierr)
+               if (ierr /= 0) then
+                  call mpas_log_write('****************************************************************', messageType=MPAS_LOG_ERR)
+                  call mpas_log_write('Error while trying to compute sub-grid-scale GSL orography',       messageType=MPAS_LOG_ERR)
                   call mpas_log_write('statistics for use with the GWDO scheme.',                         messageType=MPAS_LOG_ERR)
                   call mpas_log_write('****************************************************************', messageType=MPAS_LOG_CRIT)
                end if
