@@ -363,7 +363,7 @@ module mpas_atm_boundaries
         real (kind=RKIND), dimension(vertDim,horizDim+1) :: return_state
 
         type (mpas_pool_type), pointer :: lbc
-        integer, pointer :: idx
+        integer, pointer :: idx_ptr
         real (kind=RKIND), dimension(:,:), pointer :: tend
         real (kind=RKIND), dimension(:,:), pointer :: state
         real (kind=RKIND), dimension(:,:,:), pointer :: tend_scalars
@@ -374,6 +374,7 @@ module mpas_atm_boundaries
         real (kind=RKIND) :: dt
         integer :: err_level
         integer :: ierr
+        integer :: i,j,idx
 
 
         currTime = mpas_get_clock_time(clock, MPAS_NOW, ierr)
@@ -410,13 +411,29 @@ module mpas_atm_boundaries
         ! query the field as a scalar constituent
         !
         if (associated(tend) .and. associated(state)) then
-            return_state(:,:) = state(:,:) - dt * tend(:,:)
+            !$acc parallel
+            !$acc loop gang vector collapse(2)
+            do i=1, horizDim+1
+                do j=1, vertDim
+                    return_state(j,i) = state(j,i) - dt * tend(j,i)
+                end do
+            end do
+            !$acc end parallel
         else
             call mpas_pool_get_array(lbc, 'lbc_scalars', tend_scalars, 1)
             call mpas_pool_get_array(lbc, 'lbc_scalars', state_scalars, 2)
-            call mpas_pool_get_dimension(lbc, 'index_'//trim(field), idx)
+            call mpas_pool_get_dimension(lbc, 'index_'//trim(field), idx_ptr)
 
-            return_state(:,:) = state_scalars(idx,:,:) - dt * tend_scalars(idx,:,:)
+            idx=idx_ptr ! Avoid non-array pointer for OpenACC
+
+            !$acc parallel
+            !$acc loop gang vector collapse(2)
+            do i=1, horizDim+1
+                do j=1, vertDim
+                    return_state(j,i) = state_scalars(idx,j,i) - dt * tend_scalars(idx,j,i)
+                end do
+            end do
+            !$acc end parallel
         end if
 
     end function mpas_atm_get_bdy_state_2d
@@ -476,6 +493,7 @@ module mpas_atm_boundaries
         real (kind=RKIND) :: dt
         integer :: err_level
         integer :: ierr
+        integer :: i,j,k
 
 
         currTime = mpas_get_clock_time(clock, MPAS_NOW, ierr)
@@ -496,7 +514,16 @@ module mpas_atm_boundaries
         call mpas_pool_get_array(lbc, 'lbc_'//trim(field), tend, 1)
         call mpas_pool_get_array(lbc, 'lbc_'//trim(field), state, 2)
 
-        return_state(:,:,:) = state(:,:,:) - dt * tend(:,:,:)
+        !$acc parallel
+        !$acc loop gang vector collapse(3)
+        do i=1, horizDim+1
+            do j=1, vertDim
+                do k=1, innerDim
+                    return_state(k,j,i) = state(k,j,i) - dt * tend(k,j,i)
+                end do
+            end do
+        end do
+        !$acc end parallel
 
     end function mpas_atm_get_bdy_state_3d
 
