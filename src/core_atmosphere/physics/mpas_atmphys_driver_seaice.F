@@ -217,6 +217,7 @@
        qgh_p(i,j)       = qgh(i)
        snoalb_p(i,j)    = snoalb(i)
        br_p(i,j)        = br(i)
+       cpm_p(i,j)       = cpm(i)
        chs_p(i,j)       = chs(i)
        swdown_p(i,j)    = gsw(i)/(1._RKIND-sfc_albedo(i))
 
@@ -252,7 +253,7 @@
        noahres_p(i,j)   = noahres(i)
 
        !modify the surface albedo and surface emissivity, and surface temperatures over sea-ice points:
-       if(xice(i).ge.xice_threshold .and. xice(i).le.1._RKIND) then
+       if(xice(i).ge.xice_threshold .and. xice(i).lt.1._RKIND) then
           sfc_albedo_p(i,j) = (sfc_albedo(i) - 0.08_RKIND*(1._RKIND-xice(i))) / xice(i)
           sfc_emiss_p(i,j)  = (sfc_emiss(i) - 0.98_RKIND*(1._RKIND-xice(i))) / xice(i)
        else
@@ -315,9 +316,13 @@
 
 !local variables and arrays:
  integer:: i,j,n
+!local pointers:
+ logical,pointer:: config_frac_seaice
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('--- enter subroutine seaice_to_MPAS:')
+
+ call mpas_pool_get_config(configs,'config_frac_seaice',config_frac_seaice)
 
  call mpas_pool_get_array(diag_physics,'acsnom'    ,acsnom    )
  call mpas_pool_get_array(diag_physics,'acsnow'    ,acsnow    )
@@ -351,11 +356,11 @@
  call mpas_pool_get_array(sfc_input,'xice'    ,xice    )
 
 !--- weigh local variables needed in the calculation of t2m, th2m, and q2 over seaice points:
+if(config_frac_seaice) then
  do j = jts,jte
     do i = its,ite
-       if(xice_p(i,j).ge.xice_threshold .and. xice_p(i,j).le.1._RKIND) then
-          cpm(i) = xice_p(i,j)*cpm(i) + (1._RKIND-xice_p(i,j))*cpm_sea(i,j)
-
+       if(xice_p(i,j).ge.xice_threshold .and. xice_p(i,j).lt.1._RKIND) then
+          cpm_p(i,j)  = xice_p(i,j)*cpm_p(i,j)  + (1._RKIND-xice_p(i,j))*cpm_sea(i,j)
           chs_p(i,j)  = xice_p(i,j)*chs_p(i,j)  + (1._RKIND-xice_p(i,j))*chs_sea(i,j)
           chs2_p(i,j) = xice_p(i,j)*chs2_p(i,j) + (1._RKIND-xice_p(i,j))*chs2_sea(i,j)
           cqs2_p(i,j) = xice_p(i,j)*cqs2_p(i,j) + (1._RKIND-xice_p(i,j))*cqs2_sea(i,j)
@@ -370,6 +375,7 @@
        endif
     enddo
  enddo
+endif
 
  call sfcdiags( &
              hfx   = hfx_p  , qfx     = qfx_p   , tsk  = tsk_p , qsfc = qsfc_p , chs = chs_p , &
@@ -409,6 +415,7 @@
        chs(i)  = chs_p(i,j)
        chs2(i) = chs2_p(i,j)
        cqs2(i) = cqs2_p(i,j)
+       cpm(i)  = cpm_p(i,j)
        qsfc(i) = qsfc_p(i,j)
        qgh(i)  = qgh_p(i,j)
        hfx(i)  = hfx_p(i,j)
