@@ -211,7 +211,8 @@
 
 !gravity wave drag over orography scheme:
  if(.not. (config_gwdo_scheme .eq. 'off' .or. &
-           config_gwdo_scheme .eq. 'bl_ysu_gwdo')) then
+           config_gwdo_scheme .eq. 'bl_ysu_gwdo' .or. &
+           config_gwdo_scheme .eq. 'bl_ugwp_gwdo')) then
 
     write(mpas_err_message,'(A,A20)') 'illegal value for gwdo_scheme: ', &
           trim(config_gwdo_scheme)
