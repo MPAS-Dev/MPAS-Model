@@ -425,7 +425,7 @@ module mpas_atm_boundaries
             !$acc            copyin(tend, state)
             MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
 
-            !$acc parallel
+            !$acc parallel default(present)
             !$acc loop gang vector collapse(2)
             do i=1, horizDim+1
                 do j=1, vertDim
@@ -450,7 +450,7 @@ module mpas_atm_boundaries
             !$acc            copyin(tend_scalars, state_scalars)
             MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
 
-            !$acc parallel
+            !$acc parallel default(present)
             !$acc loop gang vector collapse(2)
             do i=1, horizDim+1
                 do j=1, vertDim
@@ -548,7 +548,7 @@ module mpas_atm_boundaries
         !$acc            copyin(tend, state)
         MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_3d [ACC_data_xfer]')
 
-        !$acc parallel
+        !$acc parallel default(present)
         !$acc loop gang vector collapse(3)
         do i=1, horizDim+1
             do j=1, vertDim
