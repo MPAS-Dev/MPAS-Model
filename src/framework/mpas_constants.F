@@ -20,7 +20,7 @@
 
 module mpas_constants
 
-   use mpas_kind_types
+   use mpas_kind_types, only: RKIND
 
    implicit none
 
