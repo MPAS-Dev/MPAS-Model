@@ -12,7 +12,7 @@
 !> \brief   MPAS Constant Module
 !> \author  Michael Duda
 !> \date    03/27/13
-!> \details 
+!> \details
 !> This module provides various constants that can be used in different parts of MPAS.
 !> They may or may not be a physical quantity.
 !
@@ -55,6 +55,7 @@ module mpas_constants
    real (kind=RKIND), parameter :: p0 = 1.0e5_RKIND                   !< Constant: 100000 Pa
    real (kind=RKIND), parameter :: prandtl = 1.0_RKIND                !< Constant: Prandtl number
 
+
    contains
 
 
@@ -65,7 +66,7 @@ module mpas_constants
 !> \brief   Computes derived constants
 !> \author  Michael Duda
 !> \date    8 May 2020
-!> \details 
+!> \details
 !>  This routine provides a place where physical constants provided by
 !>  the mpas_constants module may be computed at runtime. For example,
 !>  if some constants depend on namelist options or other runtime
