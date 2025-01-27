@@ -24,6 +24,9 @@ module mpas_constants
 
    implicit none
 
+   public
+   private :: RKIND
+
 #ifdef MPAS_CAM_DYCORE
    ! Set at run-time by `mpas_constants_compute_derived`.
    real (kind=RKIND), protected :: pii     = huge(1.0_RKIND)
