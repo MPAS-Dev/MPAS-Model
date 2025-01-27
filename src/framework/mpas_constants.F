@@ -22,6 +22,8 @@ module mpas_constants
 
    use mpas_kind_types
 
+   implicit none
+
 #ifdef MPAS_CAM_DYCORE
    ! Set at run-time by `mpas_constants_compute_derived`.
    real (kind=RKIND), protected :: pii     = huge(1.0_RKIND)
@@ -83,8 +85,6 @@ module mpas_constants
        use physconst, only: external_rgas => rair
        use physconst, only: external_rv => rh2o
        use physconst, only: external_cp => cpair
-
-       implicit none
 
        ! Convert external constants to the native precision of MPAS (i.e., `RKIND`).
 
