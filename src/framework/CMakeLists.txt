@@ -41,15 +41,15 @@ set_MPAS_DEBUG_flag(framework)
 set(FRAMEWORK_COMPILE_DEFINITIONS
     mpas=1
     MPAS_NATIVE_TIMERS)
-if (MPAS_USE_SMIOL)
-    list(APPEND FRAMEWORK_COMPILE_DEFINITIONS MPAS_SMIOL_SUPPORT)
-    set(IO_LIBS
-        ${PROJECT_NAME}::external::smiolf)
-else()
+if (MPAS_USE_PIO)
     list(APPEND FRAMEWORK_COMPILE_DEFINITIONS USE_PIO2 MPAS_PIO_SUPPORT)
     set(IO_LIBS
         PIO::PIO_Fortran
         PIO::PIO_C)
+else()
+    list(APPEND FRAMEWORK_COMPILE_DEFINITIONS MPAS_SMIOL_SUPPORT)
+    set(IO_LIBS
+        ${PROJECT_NAME}::external::smiolf)
 endif()
 target_compile_definitions(framework PRIVATE ${FRAMEWORK_COMPILE_DEFINITIONS})
 
