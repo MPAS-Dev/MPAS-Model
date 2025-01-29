@@ -744,7 +744,7 @@
              rqvblten_p(i,k,j)  = rqvblten(k,i)
              rqvdynten_p(i,k,j) = rqvdynten(k,i)
              rucuten_p(i,k,j)   = rucuten(k,i)
-             rvcuten_p(i,k,j)   = rvcuten(k,k)
+             rvcuten_p(i,k,j)   = rvcuten(k,i)
           enddo
        enddo
        enddo
@@ -941,7 +941,7 @@
              qc_cu(k,i)    = qccu_p(i,k,j)
              qi_cu(k,i)    = qicu_p(i,k,j)
              rucuten(k,i)  = rucuten_p(i,k,j)
-             rvcuten(k,k)  = rvcuten_p(i,k,j)
+             rvcuten(k,i)  = rvcuten_p(i,k,j)
           enddo
        enddo
        enddo
