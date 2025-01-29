@@ -15,6 +15,10 @@
 #include "fortprintf.h"
 #include "utility.h"
 
+#ifdef MPAS_CAM_DYCORE
+#include <ctype.h>
+#endif
+
 void process_core_macro(const char *macro, const char *val, va_list ap);
 void process_domain_macro(const char *macro, const char *val, va_list ap);
 
@@ -696,8 +700,12 @@ int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 	ezxml_t nmlrecs_xml, nmlopt_xml;
 
 	const char *const_core;
-	const char *nmlrecname, *nmlrecindef, *nmlrecinsub;
-	const char *nmloptname, *nmlopttype, *nmloptval, *nmloptunits, *nmloptdesc, *nmloptposvals, *nmloptindef;
+	const char *original_nmlrecname, *nmlrecindef, *nmlrecinsub;
+	const char *original_nmloptname, *nmlopttype, *nmloptval, *nmloptunits, *nmloptdesc, *nmloptposvals, *nmloptindef;
+
+	// Fortran variable names have a length limit of 63 characters. + 1 for the terminating null character.
+	char nmlrecname[64];
+	char nmloptname[64];
 
 	char pool_name[1024];
 	char core_string[1024];
@@ -743,7 +751,9 @@ int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 
 	// Parse Namelist Records
 	for (nmlrecs_xml = ezxml_child(registry, "nml_record"); nmlrecs_xml; nmlrecs_xml = nmlrecs_xml->next){
-		nmlrecname = ezxml_attr(nmlrecs_xml, "name");
+		original_nmlrecname = ezxml_attr(nmlrecs_xml, "name");
+		mangle_name(nmlrecname, sizeof(nmlrecname), original_nmlrecname);
+
 		nmlrecindef = ezxml_attr(nmlrecs_xml, "in_defaults");
 		nmlrecinsub = ezxml_attr(nmlrecs_xml, "in_subpool");
 
@@ -777,7 +787,9 @@ int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 
 		// Define variable definitions prior to reading the namelist in.
 		for (nmlopt_xml = ezxml_child(nmlrecs_xml, "nml_option"); nmlopt_xml; nmlopt_xml = nmlopt_xml->next){
-			nmloptname = ezxml_attr(nmlopt_xml, "name");
+			original_nmloptname = ezxml_attr(nmlopt_xml, "name");
+			mangle_name(nmloptname, sizeof(nmloptname), original_nmloptname);
+
 			nmlopttype = ezxml_attr(nmlopt_xml, "type");
 			nmloptval = ezxml_attr(nmlopt_xml, "default_value");
 			nmloptunits = ezxml_attr(nmlopt_xml, "units");
@@ -809,7 +821,9 @@ int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 		// Define the namelist block, to read the namelist record in.
 		fortprintf(fd, "      namelist /%s/ &\n", nmlrecname);
 		for (nmlopt_xml = ezxml_child(nmlrecs_xml, "nml_option"); nmlopt_xml; nmlopt_xml = nmlopt_xml->next){
-			nmloptname = ezxml_attr(nmlopt_xml, "name");
+			original_nmloptname = ezxml_attr(nmlopt_xml, "name");
+			mangle_name(nmloptname, sizeof(nmloptname), original_nmloptname);
+
 			if(nmlopt_xml->next){
 				fortprintf(fd, "         %s, &\n", nmloptname);
 			} else {
@@ -840,7 +854,9 @@ int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 		// Define broadcast calls for namelist values.
 		fortprintf(fd, "      if (ierr <= 0) then\n");
 		for (nmlopt_xml = ezxml_child(nmlrecs_xml, "nml_option"); nmlopt_xml; nmlopt_xml = nmlopt_xml->next){
-			nmloptname = ezxml_attr(nmlopt_xml, "name");
+			original_nmloptname = ezxml_attr(nmlopt_xml, "name");
+			mangle_name(nmloptname, sizeof(nmloptname), original_nmloptname);
+
 			nmlopttype = ezxml_attr(nmlopt_xml, "type");
 
 			if(strncmp(nmlopttype, "real", 1024) == 0){
@@ -858,7 +874,9 @@ int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 		fortprintf(fd, "            call mpas_log_write('    The following values will be used for variables in this record:')\n");
 		fortprintf(fd, "            call mpas_log_write(' ')\n");
 		for (nmlopt_xml = ezxml_child(nmlrecs_xml, "nml_option"); nmlopt_xml; nmlopt_xml = nmlopt_xml->next){
-			nmloptname = ezxml_attr(nmlopt_xml, "name");
+			original_nmloptname = ezxml_attr(nmlopt_xml, "name");
+			mangle_name(nmloptname, sizeof(nmloptname), original_nmloptname);
+
 			nmlopttype = ezxml_attr(nmlopt_xml, "type");
 
 			if (strncmp(nmlopttype, "character", 1024) == 0) {
@@ -885,10 +903,12 @@ int parse_namelist_records_from_registry(ezxml_t registry)/*{{{*/
 		fortprintf(fd, "\n");
 
 		for (nmlopt_xml = ezxml_child(nmlrecs_xml, "nml_option"); nmlopt_xml; nmlopt_xml = nmlopt_xml->next){
-			nmloptname = ezxml_attr(nmlopt_xml, "name");
+			original_nmloptname = ezxml_attr(nmlopt_xml, "name");
+			mangle_name(nmloptname, sizeof(nmloptname), original_nmloptname);
 
-			fortprintf(fd, "      call mpas_pool_add_config(%s, '%s', %s)\n", pool_name, nmloptname, nmloptname);
-			fortprintf(fcg, "      call mpas_pool_get_config(configPool, '%s', %s)\n", nmloptname, nmloptname);
+			// Always keep namelist options to their original names in MPAS pools for compatibility reasons.
+			fortprintf(fd, "      call mpas_pool_add_config(%s, '%s', %s)\n", pool_name, original_nmloptname, nmloptname);
+			fortprintf(fcg, "      call mpas_pool_get_config(configPool, '%s', %s)\n", original_nmloptname, nmloptname);
 		}
 		fortprintf(fd, "\n");
 		fortprintf(fcg, "\n");
@@ -2532,3 +2552,54 @@ int parse_structs_from_registry(ezxml_t registry)/*{{{*/
 
 	return 0;
 }/*}}}*/
+
+
+/**
+ * mangle_name
+ *
+ * Perform name mangling for MPAS namelist groups and options, as appropriate, depending on the containing
+ * host model.
+ *
+ * When MPAS is used as a dynamical core in a host model (e.g., CAM/CAM-SIMA), it needs to share
+ * the namelist file with other model components. As a result, MPAS namelist groups and options may not
+ * be easily recognizable at first sight. With the `MPAS_CAM_DYCORE` macro being defined, this function
+ * adds a unique identifier to each MPAS namelist group and option name by performing the following
+ * transformations:
+ *
+ * 1. Leading "config_" is removed recursively from the name. Case-insensitive.
+ * 2. Leading "mpas_" is removed recursively from the name. Case-insensitive.
+ * 3. Prepend "mpas_" to the name.
+ *
+ * By doing so, it is now easier to distinguish MPAS namelist groups and options from host model ones.
+ * The possibility of name collisions with host model ones is also resolved once and for all.
+ *
+ * For stand-alone MPAS, where the `MPAS_CAM_DYCORE` macro is not defined, this function just returns
+ * the name as is.
+ */
+void mangle_name(char *new_name, const size_t new_name_size, const char *old_name)
+{
+    if (!new_name || !old_name || new_name_size == 0) return;
+
+#ifdef MPAS_CAM_DYCORE
+    const char *const new_prefix = "mpas_";
+    const char *const old_prefix = "config_";
+
+    // Remove all leading whitespaces by moving pointer forward.
+    while (*old_name != '\0' && isspace((unsigned char) *old_name)) old_name++;
+
+    // Remove all leading "config_" by moving pointer forward.
+    while (strncasecmp(old_name, old_prefix, strlen(old_prefix)) == 0) old_name += strlen(old_prefix);
+
+    // Remove all leading "mpas_" by moving pointer forward.
+    while (strncasecmp(old_name, new_prefix, strlen(new_prefix)) == 0) old_name += strlen(new_prefix);
+
+    *new_name = '\0';
+    snprintf(new_name, new_name_size, "%s%s", new_prefix, old_name);
+
+    // Remove all trailing whitespaces by zeroing (nulling) out.
+    new_name += strlen(new_name) - 1;
+    while (*new_name != '\0' && isspace((unsigned char) *new_name)) *new_name-- = '\0';
+#else
+    snprintf(new_name, new_name_size, "%s", old_name);
+#endif
+}
