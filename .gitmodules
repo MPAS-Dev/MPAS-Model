@@ -1,0 +1,3 @@
+[submodule ".ci/hpc-workflows"]
+	path = .ci/hpc-workflows
+	url = https://github.com/islas/hpc-workflows/
