@@ -236,6 +236,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:,:), pointer :: zb3_cell
       real (kind=RKIND), dimension(:), pointer :: fzm
       real (kind=RKIND), dimension(:), pointer :: fzp
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb3
 #endif
 
 
@@ -368,6 +370,12 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'fzp', fzp)
       !$acc enter data copyin(fzp)
 
+      call mpas_pool_get_array(mesh, 'zb', zb)
+      !$acc enter data copyin(zb)
+
+      call mpas_pool_get_array(mesh, 'zb3', zb3)
+      !$acc enter data copyin(zb3)
+
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -440,6 +448,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:,:), pointer :: zb3_cell
       real (kind=RKIND), dimension(:), pointer :: fzm
       real (kind=RKIND), dimension(:), pointer :: fzp
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb3
 #endif
 
 
@@ -571,6 +581,13 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'fzp', fzp)
       !$acc exit data delete(fzp)
+
+      call mpas_pool_get_array(mesh, 'zb', zb)
+      !$acc exit data delete(zb)
+
+      call mpas_pool_get_array(mesh, 'zb3', zb3)
+      !$acc exit data delete(zb3)
+
 #endif
 
    end subroutine mpas_atm_dynamics_finalize
@@ -2780,7 +2797,7 @@ module atm_time_integration
                                        cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
                                        cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
 
-      ! reconstitute state variables from acoustic-step perturbation variables 
+      ! reconstitute state variables from acoustic-step perturbation variables
       ! after the acoustic steps.  The perturbation variables were originally set in
       ! subroutine atm_set_smlstep_pert_variables prior to their acoustic-steps update.
       ! we are also computing a few other state-derived variables here.
@@ -2910,7 +2927,7 @@ module atm_time_integration
       real (kind=RKIND), intent(in) :: dt
 
       integer, dimension(nCells+1), intent(in) :: bdyMaskCell
-      
+
       real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: wwAvg
       real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: rw_save
       real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: w
@@ -2961,45 +2978,70 @@ module atm_time_integration
       integer :: i, iCell, iEdge, k, cell1, cell2
       real (kind=RKIND) :: invNs, rcv, p0, flux
 
+      MPAS_ACC_TIMER_START('atm_recover_large_step_variables [ACC_data_xfer]')
+      !$acc enter data copyin(rho_p_save,rho_pp,rho_base,rw_save,rw_p, &
+      !$acc                   rtheta_p_save,rtheta_pp,rtheta_base, &
+      !$acc                   ru_save,ru_p,wwAvg,ruAvg) &
+      !$acc            create(rho_zz,rho_p,rw,w,rtheta_p,theta_m, &
+      !$acc                   ru,u)
+      if (rk_step == 3) then
+         !$acc enter data copyin(rt_diabatic_tend,exner_base) &
+         !$acc            create(exner,pressure_p)
+      end if
+      MPAS_ACC_TIMER_STOP('atm_recover_large_step_variables [ACC_data_xfer]')
 
       rcv = rgas/(cp-rgas)
       p0 = 1.0e+05  ! this should come from somewhere else...
 
-      ! Avoid FP errors caused by a potential division by zero below by 
+      ! Avoid FP errors caused by a potential division by zero below by
       ! initializing the "garbage cell" of rho_zz to a non-zero value
+      !$acc parallel default(present)
+      !$acc loop gang vector
       do k=1,nVertLevels
          rho_zz(k,nCells+1) = 1.0
       end do
+      !$acc end parallel
 
       ! compute new density everywhere so we can compute u from ru.
       ! we will also need it to compute theta_m below
 
       invNs = 1 / real(ns,RKIND)
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell=cellStart,cellEnd
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k = 1, nVertLevels
             rho_p(k,iCell) = rho_p_save(k,iCell) + rho_pp(k,iCell)
 
             rho_zz(k,iCell) = rho_p(k,iCell) + rho_base(k,iCell)
          end do
 
+         rw(1,iCell) = 0.0
          w(1,iCell) = 0.0
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k = 2, nVertLevels
             wwAvg(k,iCell) = rw_save(k,iCell) + (wwAvg(k,iCell) * invNs)
             rw(k,iCell) = rw_save(k,iCell) + rw_p(k,iCell)
 
           ! pick up part of diagnosed w from omega - divide by density later
             w(k,iCell) = rw(k,iCell)/(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))
-                                      
+
          end do
 
+         rw(nVertLevels+1,iCell) = 0.0
          w(nVertLevels+1,iCell) = 0.0
+      end do
+      !$acc end parallel
 
-         if (rk_step == 3) then
+      if (rk_step == 3) then
+         !$acc parallel default(present)
+         !$acc loop collapse(2)
+         do iCell=cellStart,cellEnd
 !DIR$ IVDEP
             do k = 1, nVertLevels
                rtheta_p(k,iCell) = rtheta_p_save(k,iCell) + rtheta_pp(k,iCell) &
@@ -3010,37 +3052,48 @@ module atm_time_integration
                pressure_p(k,iCell) = zz(k,iCell) * rgas * (exner(k,iCell)*rtheta_p(k,iCell)+rtheta_base(k,iCell)  &
                                                           * (exner(k,iCell)-exner_base(k,iCell)))
             end do
-         else
+         end do
+         !$acc end parallel
+      else
+         !$acc parallel default(present)
+         !$acc loop collapse(2)
+         do iCell=cellStart,cellEnd
 !DIR$ IVDEP
             do k = 1, nVertLevels
                rtheta_p(k,iCell) = rtheta_p_save(k,iCell) + rtheta_pp(k,iCell)
                theta_m(k,iCell) = (rtheta_p(k,iCell) + rtheta_base(k,iCell))/rho_zz(k,iCell)
             end do
-         end if
+         end do
+         !$acc end parallel
+      end if
 
-      end do
-
-      ! recover time-averaged ruAvg on all edges of owned cells (for upcoming scalar transport).  
-      ! we solved for these in the acoustic-step loop.  
+      ! recover time-averaged ruAvg on all edges of owned cells (for upcoming scalar transport).
+      ! we solved for these in the acoustic-step loop.
       ! we will compute ru and u here also, given we are here, even though we only need them on nEdgesSolve
 
 !$OMP BARRIER
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iEdge=edgeStart,edgeEnd
 
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k = 1, nVertLevels
             ruAvg(k,iEdge) = ru_save(k,iEdge) + (ruAvg(k,iEdge) * invNs)
             ru(k,iEdge) = ru_save(k,iEdge) + ru_p(k,iEdge)
             u(k,iEdge) = 2.*ru(k,iEdge)/(rho_zz(k,cell1)+rho_zz(k,cell2))
          end do
       end do
+      !$acc end parallel
 
 !$OMP BARRIER
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell=cellStart,cellEnd
 
          !  finish recovering w from (rho*omega)_p.  as when we formed (rho*omega)_p from u and w, we need
@@ -3049,33 +3102,49 @@ module atm_time_integration
 
          if (bdyMaskCell(iCell) <= nRelaxZone) then  ! addition for regional_MPAS, no spec zone update
 
-         do i=1,nEdgesOnCell(iCell)
-            iEdge=edgesOnCell(i,iCell)
+            !$acc loop seq
+            do i=1,nEdgesOnCell(iCell)
+               iEdge=edgesOnCell(i,iCell)
 
-            flux = (cf1*ru(1,iEdge) + cf2*ru(2,iEdge) + cf3*ru(3,iEdge))
-            w(1,iCell) = w(1,iCell) + edgesOnCell_sign(i,iCell) * &
-                                   (zb_cell(1,i,iCell) + sign(1.0_RKIND,flux)*zb3_cell(1,i,iCell))*flux
+               flux = (cf1*ru(1,iEdge) + cf2*ru(2,iEdge) + cf3*ru(3,iEdge))
+               w(1,iCell) = w(1,iCell) + edgesOnCell_sign(i,iCell) * &
+                                      (zb_cell(1,i,iCell) + sign(1.0_RKIND,flux)*zb3_cell(1,i,iCell))*flux
 
 !DIR$ IVDEP
-            do k = 2, nVertLevels
-               flux = (fzm(k)*ru(k,iEdge)+fzp(k)*ru(k-1,iEdge))
-               w(k,iCell) = w(k,iCell) + edgesOnCell_sign(i,iCell) * &
-                                    (zb_cell(k,i,iCell)+sign(1.0_RKIND,flux)*zb3_cell(k,i,iCell))*flux
+               !$acc loop vector
+               do k = 2, nVertLevels
+                  flux = (fzm(k)*ru(k,iEdge)+fzp(k)*ru(k-1,iEdge))
+                  w(k,iCell) = w(k,iCell) + edgesOnCell_sign(i,iCell) * &
+                                       (zb_cell(k,i,iCell)+sign(1.0_RKIND,flux)*zb3_cell(k,i,iCell))*flux
+               end do
+
             end do
 
-         end do
-
-         w(1,iCell) = w(1,iCell)/(cf1*rho_zz(1,iCell)+cf2*rho_zz(2,iCell)+cf3*rho_zz(3,iCell))
+            w(1,iCell) = w(1,iCell)/(cf1*rho_zz(1,iCell)+cf2*rho_zz(2,iCell)+cf3*rho_zz(3,iCell))
 
 
-         !DIR$ IVDEP
-         do k = 2, nVertLevels
-           w(k,iCell) = w(k,iCell)/(fzm(k)*rho_zz(k,iCell)+fzp(k)*rho_zz(k-1,iCell))
-         end do
+            !DIR$ IVDEP
+            !$acc loop vector
+            do k = 2, nVertLevels
+              w(k,iCell) = w(k,iCell)/(fzm(k)*rho_zz(k,iCell)+fzp(k)*rho_zz(k-1,iCell))
+            end do
 
          end if ! addition for regional_MPAS, no spec zone update
 
       end do
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_recover_large_step_variables [ACC_data_xfer]')
+      !$acc exit data delete(rho_p_save,rho_pp,rho_base,rw_save,rw_p, &
+      !$acc                   rtheta_p_save,rtheta_pp,rtheta_base, &
+      !$acc                   ru_save,ru_p) &
+      !$acc            copyout(rho_zz,rho_p,rw,w,rtheta_p,theta_m, &
+      !$acc                   ru,u,wwAvg,ruAvg)
+      if (rk_step == 3) then
+         !$acc exit data delete(rt_diabatic_tend,exner_base) &
+         !$acc            copyout(exner,pressure_p)
+      end if
+      MPAS_ACC_TIMER_STOP('atm_recover_large_step_variables [ACC_data_xfer]')
 
    end subroutine atm_recover_large_step_variables_work
 
