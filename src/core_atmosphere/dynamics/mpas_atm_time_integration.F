@@ -6833,6 +6833,8 @@ module atm_time_integration
 
       call mpas_pool_get_config(config, 'config_relax_zone_divdamp_coef', divdamp_coef_ptr)
 
+     ! De-referencing scalar integer pointers so that acc parallel regions correctly
+     ! copy these scalar integers onto the device
       divdamp_coef = divdamp_coef_ptr
       vertexDegree = vertexDegree_ptr
 
