@@ -6587,7 +6587,7 @@ module atm_time_integration
       inv_dynamics_split = 1.0_RKIND / real(dynamics_split)
       
       if (dynamics_substep < dynamics_split) then
-         !$acc parallel
+         !$acc parallel default(present)
          !$acc loop gang worker
          do iEdge = edgeStart,edgeEnd
             !$acc loop vector
@@ -6621,7 +6621,7 @@ module atm_time_integration
       end if
 
       if (dynamics_substep == 1) then
-         !$acc parallel
+         !$acc parallel default(present)
          !$acc loop gang worker
          do iEdge = edgeStart,edgeEnd
             !$acc loop vector
@@ -6638,7 +6638,7 @@ module atm_time_integration
          end do
          !$acc end parallel
       else
-         !$acc parallel
+         !$acc parallel default(present)
          !$acc loop gang worker
          do iEdge = edgeStart,edgeEnd
             !$acc loop vector
@@ -6657,7 +6657,7 @@ module atm_time_integration
       end if
 
       if (dynamics_substep == dynamics_split) then
-         !$acc parallel
+         !$acc parallel default(present)
          !$acc loop gang worker
          do iEdge = edgeStart,edgeEnd
             !$acc loop vector
