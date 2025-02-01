@@ -247,7 +247,7 @@ clean:
 	( cd physics_noahmp/drivers/mpas; $(MAKE) clean )
 	( cd physics_noahmp/src; $(MAKE) clean )
 	( cd physics_noahmp/utility; $(MAKE) clean )
-	( cd UGWP; $(MAKE) clean )
+	( if [ -d UGWP ]; then cd UGWP; $(MAKE) clean; fi )
 	@# Certain systems with intel compilers generate *.i files
 	@# This removes them during the clean process
 	$(RM) *.i
