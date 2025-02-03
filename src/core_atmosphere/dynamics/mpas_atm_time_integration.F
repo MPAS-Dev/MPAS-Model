@@ -6802,7 +6802,6 @@ module atm_time_integration
 
             laplacian_filter_coef = dt_rk*(real(bdyMaskCell(iCell)) - 1.)/real(nRelaxZone)/(10.*dt*meshScalingRegionalCell(iCell))
             rayleigh_damping_coef = laplacian_filter_coef/5.0
-
             !$acc loop collapse(2)
             do k=1,nVertLevels
                do iScalar=1,num_scalars
