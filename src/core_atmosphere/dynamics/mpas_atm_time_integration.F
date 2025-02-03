@@ -6821,7 +6821,7 @@ module atm_time_integration
                cell1 = cellsOnEdge(1,iEdge)
                cell2 = cellsOnEdge(2,iEdge)
 !DIR$ IVDEP
-               !$acc loop collapse(2)
+               !$acc loop vector collapse(2)
                do k=1,nVertLevels
                   do iScalar = 1, num_scalars
                      filter_flux = edge_sign*(   (scalars_new(iScalar,k,cell2)-scalars_driving(iScalar,k,cell2)) &
