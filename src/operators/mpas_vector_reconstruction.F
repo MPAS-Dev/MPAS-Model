@@ -24,6 +24,16 @@ module mpas_vector_reconstruction
   use mpas_rbf_interpolation
   use mpas_vector_operations
 
+#ifdef MPAS_OPENACC
+  ! For use in regions ported with OpenACC to track in-function transfers
+  use mpas_timer, only : mpas_timer_start, mpas_timer_stop
+#define MPAS_ACC_TIMER_START(X) call mpas_timer_start(X)
+#define MPAS_ACC_TIMER_STOP(X) call mpas_timer_stop(X)
+#else
+#define MPAS_ACC_TIMER_START(X)
+#define MPAS_ACC_TIMER_STOP(X)
+#endif
+
   implicit none
 
   public :: mpas_init_reconstruct, mpas_reconstruct
@@ -207,10 +217,11 @@ module mpas_vector_reconstruction
 
     !   temporary arrays needed in the compute procedure
     logical :: includeHalosLocal
-    integer, pointer :: nCells
+    integer, pointer :: nCells_ptr, nVertLevels_ptr
+    integer :: nCells, nVertLevels
     integer, dimension(:,:), pointer :: edgesOnCell
     integer, dimension(:), pointer :: nEdgesOnCell
-    integer :: iCell,iEdge, i
+    integer :: iCell,iEdge, i, k
     real(kind=RKIND), dimension(:), pointer :: latCell, lonCell
 
     real (kind=RKIND), dimension(:,:,:), pointer :: coeffs_reconstruct
@@ -233,10 +244,14 @@ module mpas_vector_reconstruction
     call mpas_pool_get_array(meshPool, 'edgesOnCell', edgesOnCell)
 
     if ( includeHalosLocal ) then
-       call mpas_pool_get_dimension(meshPool, 'nCells', nCells)
+       call mpas_pool_get_dimension(meshPool, 'nCells', nCells_ptr)
     else
-       call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCells)
+       call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCells_ptr)
     end if
+    call mpas_pool_get_dimension(meshPool, 'nVertLevels', nVertLevels_ptr)
+    ! Dereference scalar (single-value) pointers to ensure OpenACC copies the value pointed to implicitly
+    nCells = nCells_ptr
+    nVertLevels = nVertLevels_ptr
 
     call mpas_pool_get_array(meshPool, 'latCell', latCell)
     call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
@@ -247,20 +262,24 @@ module mpas_vector_reconstruction
     !$omp do schedule(runtime)
     do iCell = 1, nCells
       ! initialize the reconstructed vectors
-      uReconstructX(:,iCell) = 0.0
-      uReconstructY(:,iCell) = 0.0
-      uReconstructZ(:,iCell) = 0.0
+      do k = 1, nVertLevels
+        uReconstructX(k,iCell) = 0.0
+        uReconstructY(k,iCell) = 0.0
+        uReconstructZ(k,iCell) = 0.0
+      end do
 
       ! a more efficient reconstruction where rbf_values*matrix_reconstruct
       ! has been precomputed in coeffs_reconstruct
-      do i=1,nEdgesOnCell(iCell)
+      do i = 1, nEdgesOnCell(iCell)
         iEdge = edgesOnCell(i,iCell)
-        uReconstructX(:,iCell) = uReconstructX(:,iCell) &
-          + coeffs_reconstruct(1,i,iCell) * u(:,iEdge)
-        uReconstructY(:,iCell) = uReconstructY(:,iCell) &
-          + coeffs_reconstruct(2,i,iCell) * u(:,iEdge)
-        uReconstructZ(:,iCell) = uReconstructZ(:,iCell) &
-          + coeffs_reconstruct(3,i,iCell) * u(:,iEdge)
+        do k = 1, nVertLevels
+          uReconstructX(k,iCell) = uReconstructX(k,iCell) &
+            + coeffs_reconstruct(1,i,iCell) * u(k,iEdge)
+          uReconstructY(k,iCell) = uReconstructY(k,iCell) &
+            + coeffs_reconstruct(2,i,iCell) * u(k,iEdge)
+          uReconstructZ(k,iCell) = uReconstructZ(k,iCell) &
+            + coeffs_reconstruct(3,i,iCell) * u(k,iEdge)
+        end do
 
       enddo
     enddo   ! iCell
@@ -275,18 +294,22 @@ module mpas_vector_reconstruction
         slat = sin(latCell(iCell))
         clon = cos(lonCell(iCell))
         slon = sin(lonCell(iCell))
-        uReconstructZonal(:,iCell) = -uReconstructX(:,iCell)*slon + &
-                                      uReconstructY(:,iCell)*clon
-        uReconstructMeridional(:,iCell) = -(uReconstructX(:,iCell)*clon       &
-                                          + uReconstructY(:,iCell)*slon)*slat &
-                                          + uReconstructZ(:,iCell)*clat
+        do k = 1, nVertLevels
+          uReconstructZonal(k,iCell) = -uReconstructX(k,iCell)*slon + &
+                                        uReconstructY(k,iCell)*clon
+          uReconstructMeridional(k,iCell) = -(uReconstructX(k,iCell)*clon       &
+                                            + uReconstructY(k,iCell)*slon)*slat &
+                                            + uReconstructZ(k,iCell)*clat
+        end do
       end do
       !$omp end do
     else
       !$omp do schedule(runtime)
       do iCell = 1, nCells
-        uReconstructZonal     (:,iCell) = uReconstructX(:,iCell)
-        uReconstructMeridional(:,iCell) = uReconstructY(:,iCell)
+        do k = 1, nVertLevels
+          uReconstructZonal     (k,iCell) = uReconstructX(k,iCell)
+          uReconstructMeridional(k,iCell) = uReconstructY(k,iCell)
+        end do
       end do
       !$omp end do
     end if
