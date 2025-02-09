@@ -2791,7 +2791,6 @@ module init_atm_cases
       real (kind=RKIND), dimension(:,:), pointer :: rho
       real (kind=RKIND), dimension(:,:), pointer :: relhum
       real (kind=RKIND), dimension(:,:), pointer :: spechum
-      real (kind=RKIND), dimension(:,:), pointer :: ozone
       real (kind=RKIND), dimension(:,:), pointer :: ru
       real (kind=RKIND), dimension(:,:), pointer :: rw
       real (kind=RKIND), dimension(:), pointer :: precipw
@@ -2802,8 +2801,6 @@ module init_atm_cases
       real (kind=RKIND), dimension(:,:), pointer :: uReconstructMeridional
 
       real (kind=RKIND), dimension(:), pointer :: psfc
-      real (kind=RKIND), dimension(:), pointer :: hgttrop
-      real (kind=RKIND), dimension(:), pointer :: ptrop
       real (kind=RKIND), dimension(:), pointer :: skintemp
       real (kind=RKIND), dimension(:), pointer :: snow
       real (kind=RKIND), dimension(:), pointer :: snowc
@@ -2813,7 +2810,6 @@ module init_atm_cases
       real (kind=RKIND), dimension(:,:), pointer :: t_fg
       real (kind=RKIND), dimension(:,:), pointer :: rh_fg
       real (kind=RKIND), dimension(:,:), pointer :: sh_fg
-      real (kind=RKIND), dimension(:,:), pointer :: o3_fg
       real (kind=RKIND), dimension(:,:), pointer :: gfs_z
       real (kind=RKIND), dimension(:,:), pointer :: p_fg
       real (kind=RKIND), dimension(:,:), pointer :: st_fg
@@ -2950,7 +2946,6 @@ module init_atm_cases
       call mpas_pool_get_array(diag, 'surface_pressure', surface_pressure)
       call mpas_pool_get_array(diag, 'relhum', relhum)
       call mpas_pool_get_array(diag, 'spechum', spechum)
-      call mpas_pool_get_array(diag, 'ozone', ozone)
       call mpas_pool_get_array(diag, 'ru', ru)
       call mpas_pool_get_array(diag, 'rw', rw)
 
@@ -2987,8 +2982,6 @@ module init_atm_cases
       call mpas_pool_get_array(fg, 'st_fg', st_fg)
       call mpas_pool_get_array(fg, 'sm_fg', sm_fg)
       call mpas_pool_get_array(fg, 'psfc', psfc)
-      call mpas_pool_get_array(fg, 'ptrop', ptrop)
-      call mpas_pool_get_array(fg, 'hgttrop', hgttrop)
       call mpas_pool_get_array(fg, 'skintemp', skintemp)
       call mpas_pool_get_array(fg, 'snow', snow)
       call mpas_pool_get_array(fg, 'snowc', snowc)
@@ -2998,7 +2991,6 @@ module init_atm_cases
       call mpas_pool_get_array(fg, 't', t_fg)
       call mpas_pool_get_array(fg, 'rh', rh_fg)
       call mpas_pool_get_array(fg, 'sh', sh_fg)
-      call mpas_pool_get_array(fg, 'o3', o3_fg)
       call mpas_pool_get_array(fg, 'gfs_z', gfs_z)
       call mpas_pool_get_array(fg, 'p', p_fg)
 
@@ -3675,12 +3667,9 @@ module init_atm_cases
              trim(field % field) == 'TT' .or. &
              trim(field % field) == 'RH' .or. &
              trim(field % field) == 'SPECHUMD' .or. &
-             trim(field % field) == 'O3' .or. &
              trim(field % field) == 'GHT' .or. &
              trim(field % field) == 'PMSL' .or. &
              trim(field % field) == 'PSFC' .or. &
-             trim(field % field) == 'PTROP' .or. &
-             trim(field % field) == 'HGTTROP' .or. &
              trim(field % field) == 'SOILHGT' .or. &
              trim(field % field) == 'SM000010' .or. &
              trim(field % field) == 'SM010040' .or. &
@@ -3728,8 +3717,6 @@ module init_atm_cases
                 trim(field % field) == 'ST028100' .or. &
                 trim(field % field) == 'ST100255' .or. &
                 trim(field % field) == 'ST100289' .or. &
-                trim(field % field) == 'PTROP' .or. &
-                trim(field % field) == 'HGTTROP' .or. &
                 trim(field % field) == 'SNOW' .or. &
                 trim(field % field) == 'SEAICE' .or. &
                 trim(field % field) == 'SKINTEMP') then
@@ -3858,13 +3845,6 @@ module init_atm_cases
                lonPoints => lonCell
                call mpas_pool_get_array(fg, 'sh', destField2d)
                ndims = 2
-            else if (trim(field % field) == 'O3') then
-               call mpas_log_write('Interpolating O3 at $i $r', intArgs=(/k/), realArgs=(/vert_level(k)/))
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'o3', destField2d)
-               ndims = 2
             else if (trim(field % field) == 'GHT') then
                call mpas_log_write('Interpolating GHT at $i $r', intArgs=(/k/), realArgs=(/vert_level(k)/))
                nInterpPoints = nCells
@@ -3899,20 +3879,6 @@ module init_atm_cases
                latPoints => latCell
                lonPoints => lonCell
                call mpas_pool_get_array(fg, 'psfc', destField1d)
-               ndims = 1
-            else if (trim(field % field) == 'PTROP') then
-               call mpas_log_write('Interpolating PTROP')
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'ptrop', destField1d)
-               ndims = 1
-            else if (trim(field % field) == 'HGTTROP') then
-               call mpas_log_write('Interpolating HGTTROP')
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'hgttrop', destField1d)
                ndims = 1
             else if (trim(field % field) == 'SOILHGT') then
                call mpas_log_write('Interpolating SOILHGT')
@@ -4877,22 +4843,6 @@ call mpas_log_write('Done with soil consistency check')
             target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
             spechum(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
                                         sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=0)
-         end do
-
-
-         ! O3
-         sorted_arr(:,:) = -999.0
-         ozone(:,iCell) = 0._RKIND
-         do k = 1, nfglevels_actual
-            sorted_arr(1,k) = z_fg(k,iCell)
-            if (vert_level(k) == 200100.0) sorted_arr(1,k) = 99999.0
-            sorted_arr(2,k) = o3_fg(k,iCell)
-         end do
-         call mpas_quicksort(nfglevels_actual, sorted_arr)
-         do k = nVertLevels, 1, -1
-            target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
-            ozone(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
-                                      sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=0)
          end do
 
 

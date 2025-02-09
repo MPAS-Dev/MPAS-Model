@@ -712,10 +712,6 @@
                         <var name="rho" packages="met_stage_out"/>
                         <var name="theta" packages="met_stage_out"/>
                         <var name="relhum" packages="met_stage_out"/>
-                        <var name="ozone" packages="met_stage_out"/>
-                        <var name="spechum" packages="met_stage_out"/>
-                        <var name="uReconstructZonal" packages="met_stage_out"/>
-                        <var name="uReconstructMeridional" packages="met_stage_out"/>
                         <var name="rho_base" packages="met_stage_out"/>
                         <var name="theta_base" packages="met_stage_out"/>
                         <var name="surface_pressure" packages="met_stage_out"/>
@@ -726,8 +722,6 @@
                         <var name="q2" packages="met_stage_out"/>
                         <var name="rh2" packages="met_stage_out"/>
                         <var name="t2m" packages="met_stage_out"/>
-                        <var name="ptrop" packages="met_stage_out"/>
-                        <var name="hgttrop" packages="met_stage_out"/>
 		</stream>
 
 		<stream name="surface" 
@@ -1252,10 +1246,6 @@
                      description="First guess specific humidity"
                      packages="first_guess_field"/>
 
-                <var name="o3_fg" name_in_code="o3" type="real" dimensions="nFGLevels nCells Time" units="kg kg^{-1}"
-                     description="First guess ozone"
-                     packages="first_guess_field"/>
-
                 <var name="soilz_fg" name_in_code="soilz" type="real" dimensions="nCells Time" units="m"
                      description="First guess soil height"
                      packages="first_guess_field"/>
@@ -1369,14 +1359,6 @@
                      description="land-ocean mask (1=land including sea-ice ; 2=ocean)"
                      packages="met_stage_out"/>
 
-                <var name="ptrop" type="real" dimensions="nCells Time" units="Pa"
-                     description="tropopause pressure"
-                     packages="met_stage_out"/>
-
-                <var name="hgttrop" type="real" dimensions="nCells Time" units="m AMSL"
-                     description="tropopause height"
-                     packages="met_stage_out"/>
-
                 <!-- diagnostic fields that we get from first-guess data, and which we want to have at model initial output time -->
                 <var name="u10" type="real" dimensions="nCells Time" units="m s^{-1}"
                      description="10-meter zonal wind"
@@ -1423,10 +1405,6 @@
 
                 <var name="spechum" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
                      description="Specific humidity"
-                     packages="met_stage_out"/>
-
-                <var name="ozone" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
-                     description="Ozone mass mixing ratio"
                      packages="met_stage_out"/>
 
                 <!-- reconstructed horizontal velocity vectors at cell centers -->
