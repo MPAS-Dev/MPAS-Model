@@ -69,9 +69,8 @@
                                         7 = real-data initial conditions from, e.g., GFS, \newline
                                         8 = surface field (SST, sea-ice) update file for use with real-data simulations, \newline
                                         9 = lateral boundary conditions update file for use with real-data simulations, \newline
-                                       10 = P-X soil nudging update file for use with real-data simulations, \newline
                                        13 = CAM-MPAS 3-d grid with specified topography and zeta levels"
-                     possible_values="1 -- 10, or 13"/>
+                     possible_values="1 -- 9"/>
 
                 <nml_option name="config_calendar_type" type="character" default_value="gregorian" in_defaults="false"
                      units="-"
@@ -80,12 +79,12 @@
 
                 <nml_option name="config_start_time"            type="character"     default_value="2010-10-23_00:00:00"
                      units="-"
-                     description="Time to begin processing first-guess data (cases 7, 8, 9, and 10 only)"
+                     description="Time to begin processing first-guess data (cases 7, 8, and 9 only)"
                      possible_values="`YYYY-MM-DD_hh:mm:ss'"/>
 
                 <nml_option name="config_stop_time"             type="character"     default_value="2010-10-23_00:00:00"
                      units="-"
-                     description="Time to end processing first-guess data (cases 8, 9, and 10 only)"
+                     description="Time to end processing first-guess data (cases 8 and 9 only)"
                      possible_values="`YYYY-MM-DD_hh:mm:ss'"/>
 
                 <nml_option name="config_theta_adv_order" type="integer" default_value="3"
@@ -163,17 +162,12 @@
 
                 <nml_option name="config_sfc_prefix"            type="character"     default_value="SST"
                      units="-"
-                     description="Filename prefix of ungrib intermediate file to use for SST and sea-ice (cases 7, 8, and 10 only)"
-                     possible_values="Any alpha-numeric string"/>
-
-                <nml_option name="config_sfc_prefix_hires"      type="character"     default_value="NONE"
-                     units="-"
-                     description="Filename prefix of ungrib intermediate file to use for high resolution SST and sea-ice (case 10 only)"
+                     description="Filename prefix of ungrib intermediate file to use for SST and sea-ice (cases 7 and 8 only)"
                      possible_values="Any alpha-numeric string"/>
 
                 <nml_option name="config_fg_interval"           type="integer"       default_value="86400"
                      units="-"
-                     description="Interval between intermediate files (cases 8, 9, and 10 only)"
+                     description="Interval between intermediate files (cases 8 and 9 only)"
                      possible_values="[DDD_]hh:mm:ss"/>
 
                 <nml_option name="config_landuse_data"          type="character"     default_value="MODIFIED_IGBP_MODIS_NOAH"
@@ -460,7 +454,6 @@
         <packages>
                 <package name="initial_conds" description="Used by test cases that produce initial conditions."/>
                 <package name="sfc_update" description="Used by test cases that produce surface updates."/>
-                <package name="soilndg_update" description="Used by test cases that produce soil nudging analysis fields."/>
                 <package name="lbcs" description="Active when lateral boundary conditions are interpolated and written."/>
                 <package name="gwd_stage_in" description="Active only if GWD static fields are be generated and other static fields are not being generated"/>
                 <package name="gwd_stage_out" description="Active only if GWD static fields are be generated and other static fields are not being generated"/>
@@ -749,20 +742,6 @@
 			<var name="Time"/>
 			<var name="sst"/>
 			<var name="xice"/>
-		</stream>
-
-		<stream name="soilndg" 
-                        type="output" 
-                        filename_template="x1.40962.soilndg_update.nc"
-                        output_interval="10800" 
-                        filename_interval="none"
-                        packages="soilndg_update"
-                        immutable="true">
-
-			<var name="xtime" />
-			<var name="t2anl" />
-			<var name="rh2anl"/>
-			<var name="snoanl"/>
 		</stream>
 
 		<stream name="lbc"
@@ -1388,18 +1367,6 @@
 
                 <var name="xland" type="real" dimensions="nCells Time" units="unitless"
                      description="land-ocean mask (1=land including sea-ice ; 2=ocean)"
-                     packages="met_stage_out"/>
-
-                <var name="t2anl" type="real" dimensions="nCells Time" units="K"
-                     description="2-meter temperature analysis (interpolated to model time step during run)"
-                     packages="met_stage_out"/>
-
-                <var name="rh2anl" type="real" dimensions="nCells Time" units="percent"
-                     description="2-meter relative humidity analysis (interpolated to model time step during run)"
-                     packages="met_stage_out"/>
-
-                <var name="snoanl" type="real" dimensions="nCells Time" units="kg m^{-2}"
-                     description="snow water equivalent analysis (interpolated to model time step during run)"
                      packages="met_stage_out"/>
 
                 <var name="ptrop" type="real" dimensions="nCells Time" units="Pa"

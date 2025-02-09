@@ -351,20 +351,6 @@ module init_atm_cases
          !
          call mpas_stream_mgr_reset_alarms(stream_manager, streamID='lbc', direction=MPAS_STREAM_OUTPUT, ierr=ierr)
 
-      else if (config_init_case == 10 ) then
-
-         call mpas_log_write('real-data P-X soil nudging update file case ')
-         block_ptr => domain % blocklist
-         do while (associated(block_ptr))
-            call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
-            call mpas_pool_get_subpool(block_ptr % structs, 'fg', fg)
-            call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
-
-            ! Defined in mpas_init_atm_surface.F
-            call init_atm_case_soilndg(domain, domain % dminfo, stream_manager, mesh, fg, state, block_ptr % dimensions, block_ptr % configs)
-            block_ptr => block_ptr % next
-         end do
-
       else if (config_init_case == 13 ) then
 
          call mpas_log_write(' CAM-MPAS grid ')
@@ -396,9 +382,9 @@ module init_atm_cases
 
       else
 
-         call mpas_log_write(' ************************************************************', messageType=MPAS_LOG_ERR)
-         call mpas_log_write(' Only test cases 1 through 10 and 13 are currently supported.', messageType=MPAS_LOG_ERR)
-         call mpas_log_write(' ************************************************************', messageType=MPAS_LOG_CRIT)
+         call mpas_log_write(' ***********************************************************', messageType=MPAS_LOG_ERR)
+         call mpas_log_write(' Only test cases 1 through 9 and 13 are currently supported.', messageType=MPAS_LOG_ERR)
+         call mpas_log_write(' ***********************************************************', messageType=MPAS_LOG_CRIT)
 
       end if
 
@@ -480,7 +466,7 @@ module init_atm_cases
 
       real (kind=RKIND) :: r_earth, etavs, ztemp, zd, zt, dz, str
 
-      real (kind=RKIND) :: es, xnutr, znut, ptemp 
+      real (kind=RKIND) :: es, xnutr, znut, ptemp
 
       real (kind=RKIND), dimension(nVertLevels + 1 ) :: sh, zw, ah
       real (kind=RKIND), dimension(nVertLevels ) :: zu, dzw, rdzwp, rdzwm
@@ -2028,7 +2014,7 @@ module init_atm_cases
       real (kind=RKIND) :: um, vm,rcp, rcv
       real (kind=RKIND) :: temp, pres, a_scale
 
-      real (kind=RKIND) :: xi, xa, xc, xla, zinv, xn2, xn2m, xn2l, z_edge, z_edge3 
+      real (kind=RKIND) :: xi, xa, xc, xla, zinv, xn2, xn2m, xn2l, z_edge, z_edge3
 
       integer, dimension(nCells, 2) :: next_cell
       logical, parameter :: terrain_smooth = .false.
@@ -2838,7 +2824,7 @@ module init_atm_cases
       logical :: too_many_fg_levs
       integer :: level_value
 
-      ! For outputting surface fields q2, rh2, and t2m from first-guess data
+      ! For outputting surface fields u10, v10, q2, rh2, and t2m from first-guess data
       real (kind=RKIND), dimension(:), pointer :: q2
       real (kind=RKIND), dimension(:), pointer :: rh2
       real (kind=RKIND), dimension(:), pointer :: t2m
