@@ -258,10 +258,23 @@ module mpas_vector_reconstruction
 
     call mpas_pool_get_config(meshPool, 'on_a_sphere', on_a_sphere)
 
+    MPAS_ACC_TIMER_START('mpas_reconstruct_2d [ACC_data_xfer]')
+    ! Only use sections needed, nCells may be all cells or only non-halo cells
+    !$acc enter data copyin(coeffs_reconstruct(:,:,1:nCells),nEdgesOnCell(1:nCells), &
+    !$acc                   edgesOnCell(:,1:nCells),latCell(1:nCells),lonCell(1:nCells))
+    !$acc enter data copyin(u(:,:))
+    !$acc enter data create(uReconstructX(:,1:nCells),uReconstructY(:,1:nCells), &
+    !$acc                   uReconstructZ(:,1:nCells),uReconstructZonal(:,1:nCells), &
+    !$acc                   uReconstructMeridional(:,1:nCells))
+    MPAS_ACC_TIMER_STOP('mpas_reconstruct_2d [ACC_data_xfer]')
+
     ! loop over cell centers
     !$omp do schedule(runtime)
+    !$acc parallel default(present)
+    !$acc loop gang
     do iCell = 1, nCells
       ! initialize the reconstructed vectors
+      !$acc loop vector
       do k = 1, nVertLevels
         uReconstructX(k,iCell) = 0.0
         uReconstructY(k,iCell) = 0.0
@@ -270,8 +283,10 @@ module mpas_vector_reconstruction
 
       ! a more efficient reconstruction where rbf_values*matrix_reconstruct
       ! has been precomputed in coeffs_reconstruct
+      !$acc loop seq
       do i = 1, nEdgesOnCell(iCell)
         iEdge = edgesOnCell(i,iCell)
+        !$acc loop vector
         do k = 1, nVertLevels
           uReconstructX(k,iCell) = uReconstructX(k,iCell) &
             + coeffs_reconstruct(1,i,iCell) * u(k,iEdge)
@@ -283,17 +298,21 @@ module mpas_vector_reconstruction
 
       enddo
     enddo   ! iCell
+    !$acc end parallel
     !$omp end do
 
     call mpas_threading_barrier()
 
     if (on_a_sphere) then
       !$omp do schedule(runtime)
+      !$acc parallel default(present)
+      !$acc loop gang
       do iCell = 1, nCells
         clat = cos(latCell(iCell))
         slat = sin(latCell(iCell))
         clon = cos(lonCell(iCell))
         slon = sin(lonCell(iCell))
+        !$acc loop vector
         do k = 1, nVertLevels
           uReconstructZonal(k,iCell) = -uReconstructX(k,iCell)*slon + &
                                         uReconstructY(k,iCell)*clon
@@ -302,17 +321,30 @@ module mpas_vector_reconstruction
                                             + uReconstructZ(k,iCell)*clat
         end do
       end do
+      !$acc end parallel
       !$omp end do
     else
       !$omp do schedule(runtime)
+      !$acc parallel default(present)
+      !$acc loop gang vector collapse(2)
       do iCell = 1, nCells
         do k = 1, nVertLevels
           uReconstructZonal     (k,iCell) = uReconstructX(k,iCell)
           uReconstructMeridional(k,iCell) = uReconstructY(k,iCell)
         end do
       end do
+      !$acc end parallel
       !$omp end do
     end if
+
+    MPAS_ACC_TIMER_START('mpas_reconstruct_2d [ACC_data_xfer]')
+    !$acc exit data delete(coeffs_reconstruct(:,:,1:nCells),nEdgesOnCell(1:nCells), &
+    !$acc                   edgesOnCell(:,1:nCells),latCell(1:nCells),lonCell(1:nCells))
+    !$acc exit data delete(u(:,:))
+    !$acc exit data copyout(uReconstructX(:,1:nCells),uReconstructY(:,1:nCells), &
+    !$acc                   uReconstructZ(:,1:nCells), uReconstructZonal(:,1:nCells), &
+    !$acc                   uReconstructMeridional(:,1:nCells))
+    MPAS_ACC_TIMER_STOP('mpas_reconstruct_2d [ACC_data_xfer]')
 
   end subroutine mpas_reconstruct_2d!}}}
 
