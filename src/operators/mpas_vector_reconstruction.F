@@ -24,6 +24,16 @@ module mpas_vector_reconstruction
   use mpas_rbf_interpolation
   use mpas_vector_operations
 
+  ! For use in OpenACC ported code to track in-function transfers
+  use mpas_timer, only : mpas_timer_start, mpas_timer_stop
+#ifdef MPAS_OPENACC
+#define MPAS_ACC_TIMER_START(X) call mpas_timer_start(X)
+#define MPAS_ACC_TIMER_STOP(X) call mpas_timer_stop(X)
+#else
+#define MPAS_ACC_TIMER_START(X)
+#define MPAS_ACC_TIMER_STOP(X)
+#endif
+
   implicit none
 
   public :: mpas_init_reconstruct, mpas_reconstruct
@@ -248,12 +258,19 @@ module mpas_vector_reconstruction
 
     call mpas_pool_get_config(meshPool, 'on_a_sphere', on_a_sphere)
 
+    MPAS_ACC_TIMER_START('mpas_reconstruct_2d [ACC_data_xfer]')
     ! Only use sections needed, nCells may be all cells or only non-halo cells
     !$acc enter data copyin(coeffs_reconstruct(:,:,1:nCells),nEdgesOnCell(1:nCells), &
     !$acc                   edgesOnCell(:,1:nCells),latCell(1:nCells),lonCell(1:nCells))
+    !$acc enter data copyin(u(:,:))
+    !$acc enter data create(uReconstructX(:,1:nCells),uReconstructY(:,1:nCells), &
+    !$acc                   uReconstructZ(:,1:nCells),uReconstructZonal(:,1:nCells), &
+    !$acc                   uReconstructMeridional(:,1:nCells))
+    MPAS_ACC_TIMER_STOP('mpas_reconstruct_2d [ACC_data_xfer]')
+
     ! loop over cell centers
     !$omp do schedule(runtime)
-    !$acc parallel
+    !$acc parallel default(present)
     !$acc loop gang
     do iCell = 1, nCells
       ! initialize the reconstructed vectors
@@ -288,7 +305,7 @@ module mpas_vector_reconstruction
 
     if (on_a_sphere) then
       !$omp do schedule(runtime)
-      !$acc parallel
+      !$acc parallel default(present)
       !$acc loop gang
       do iCell = 1, nCells
         clat = cos(latCell(iCell))
@@ -308,7 +325,7 @@ module mpas_vector_reconstruction
       !$omp end do
     else
       !$omp do schedule(runtime)
-      !$acc parallel
+      !$acc parallel default(present)
       !$acc loop gang vector collapse(2)
       do iCell = 1, nCells
         do k=1,nVertLevels
@@ -320,8 +337,15 @@ module mpas_vector_reconstruction
       !$omp end do
     end if
 
+    MPAS_ACC_TIMER_START('mpas_reconstruct_2d [ACC_data_xfer]')
     !$acc exit data delete(coeffs_reconstruct(:,:,1:nCells),nEdgesOnCell(1:nCells), &
     !$acc                   edgesOnCell(:,1:nCells),latCell(1:nCells),lonCell(1:nCells))
+    !$acc exit data delete(u(:,:))
+    !$acc exit data copyout(uReconstructX(:,1:nCells),uReconstructY(:,1:nCells), &
+    !$acc                   uReconstructZ(:,1:nCells), uReconstructZonal(:,1:nCells), &
+    !$acc                   uReconstructMeridional(:,1:nCells))
+    MPAS_ACC_TIMER_STOP('mpas_reconstruct_2d [ACC_data_xfer]')
+
   end subroutine mpas_reconstruct_2d!}}}
 
 
