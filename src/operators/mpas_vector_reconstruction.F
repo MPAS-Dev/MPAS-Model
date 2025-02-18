@@ -248,6 +248,9 @@ module mpas_vector_reconstruction
 
     call mpas_pool_get_config(meshPool, 'on_a_sphere', on_a_sphere)
 
+    ! Only use sections needed, nCells may be all cells or only non-halo cells
+    !$acc enter data copyin(coeffs_reconstruct(:,:,1:nCells),nEdgesOnCell(1:nCells), &
+    !$acc                   edgesOnCell(:,1:nCells),latCell(1:nCells),lonCell(1:nCells))
     ! loop over cell centers
     !$omp do schedule(runtime)
     !$acc parallel
@@ -317,6 +320,8 @@ module mpas_vector_reconstruction
       !$omp end do
     end if
 
+    !$acc exit data delete(coeffs_reconstruct(:,:,1:nCells),nEdgesOnCell(1:nCells), &
+    !$acc                   edgesOnCell(:,1:nCells),latCell(1:nCells),lonCell(1:nCells))
   end subroutine mpas_reconstruct_2d!}}}
 
 
