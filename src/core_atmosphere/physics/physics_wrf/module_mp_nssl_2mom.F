@@ -1423,7 +1423,7 @@ MODULE module_mp_nssl_2mom
 
     IF ( ihlcnh <= 0 ) THEN
       IF ( ipconc == 5 ) THEN
-       ihlcnh = 3
+       ihlcnh = 1
       ELSEIF ( ipconc >= 6 ) THEN
        ihlcnh = 3
       ENDIF
@@ -10186,7 +10186,7 @@ END SUBROUTINE nssl_2mom_driver
           ENDIF
         ELSE
           IF ( lccn > 1 ) THEN
-            ccna(mgs) = cwnccn(mgs) - ccnc(mgs) ! diagnose activated ccn as background value - remaining unactivated ccn
+            ccna(mgs) = 0.0 ! WRF driver interface already has ccw subtracted from ccnc
           ELSE
             ccna(mgs) = cx(mgs,lc) ! approximation of number of activated ccn
           ENDIF
