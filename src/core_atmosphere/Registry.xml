@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<registry model="mpas" core="atmosphere" core_abbrev="atm" version="8.2.1">
+<registry model="mpas" core="atmosphere" core_abbrev="atm" version="8.2.3">
 
 <!-- **************************************************************************************** -->
 <!-- ************************************** Dimensions ************************************** -->
@@ -1887,6 +1887,15 @@
                 <var name="surface_pressure" type="real" dimensions="nCells Time" units="Pa"
                      description="Diagnosed surface pressure"/>
 
+                <!-- observation-related variables interfacing to Non-Variational SAtellite-based Cloud Analysis (SACA)  -->
+                <var name="cldmask" type="real" dimensions="nCells Time" units="unitless"
+                     description="cloud mask (1=cloudy ; 0=clear)"
+                     packages="jedi_da"/>
+
+                <var name="brtemp" type="real" dimensions="nCells Time" units="K"
+                     description="brightness temperature to calculate cloud top height; usually from geostationary IR window channel"
+                     packages="jedi_da"/>
+
         </var_struct>
 
         <var_struct name="tend" time_levs="1">
@@ -3598,10 +3607,10 @@
                 <var name="landmask" type="integer"  dimensions="nCells" units="unitless"
                      description="land-ocean mask (1=land ; 0=ocean)"/>
 
-                <var name="shdmin" type="real" dimensions="nCells" units="unitless"
+                <var name="shdmin" type="real" dimensions="nCells" units="percent"
                      description="minimum fractional coverage of annual green vegetation fraction"/>
 
-                <var name="shdmax" type="real" dimensions="nCells" units="unitless"
+                <var name="shdmax" type="real" dimensions="nCells" units="percent"
                      description="maximum fractional coverage of annual green vegetation fraction"/>
 
                 <var name="snoalb" type="real"  dimensions="nCells" units="unitless"
@@ -3610,11 +3619,11 @@
                 <var name="ter" type="real" dimensions="nCells" units="m"
                      description="terrain height"/>
 
-                <var name="albedo12m" type="real" dimensions="nMonths nCells" units="unitless"
+                <var name="albedo12m" type="real" dimensions="nMonths nCells" units="percent"
                      description="monthly-mean climatological surface albedo"/>
 
-                <var name="greenfrac" type="real" dimensions="nMonths nCells" units="unitless"
-                     description="monthly-mean climatological greeness fraction"/>
+                <var name="greenfrac" type="real" dimensions="nMonths nCells" units="percent"
+                     description="monthly-mean climatological greenness fraction"/>
 
                 <var name="dzs" type="real" dimensions="nSoilLevels nCells Time" units="m"
                      description="soil layer thickness"/>
@@ -3640,7 +3649,7 @@
                 <var name="tmn" type="real" dimensions="nCells Time" units="K"
                      description="deep soil temperature"/>
 
-                <var name="vegfra" type="real" dimensions="nCells Time" units="unitless"
+                <var name="vegfra" type="real" dimensions="nCells Time" units="percent"
                      description="vegetation fraction"/>
 
                 <var name="seaice" type="real" dimensions="nCells Time" units="unitless"
