@@ -146,9 +146,9 @@ module mp_nssl
                 nssl_alphar=nssl_alphar,                                                    &
                 nssl_alphah=nssl_alphah,                                                    &
                 nssl_alphahl=nssl_alphahl,                                                  &
-                nssl_density_on=.true.,       &
-                nssl_hail_on= nssl_hail_on,                                        &
-                nssl_ccn_on = nssl_ccn_on,                                         &
+                nssl_density_on=.true.,                                                     &
+                nssl_hail_on= nssl_hail_on,                                                 &
+                nssl_ccn_on = nssl_ccn_on,                                                  &
                 nssl_cccn=nssl_cccn, ccn_is_ccna=nssl_ccn_is_ccna,                          &
                 errflg=errflg,myrank=mpirank,mpiroot=mpiroot)
 
