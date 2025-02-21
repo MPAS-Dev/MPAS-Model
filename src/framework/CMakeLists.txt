@@ -34,6 +34,7 @@ set(MPAS_FRAMEWORK_SOURCES
         random_id.c
         regex_matching.c
         xml_stream_parser.c
+        string.cpp
         stream_inquiry.c)
 
 add_library(framework ${MPAS_FRAMEWORK_SOURCES})
