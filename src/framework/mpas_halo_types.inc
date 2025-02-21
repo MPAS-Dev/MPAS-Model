@@ -31,6 +31,7 @@
         integer, dimension(:,:,:), CONTIGUOUS pointer :: recvListDst => null()  ! (maxNRecvList,nHalos,nRecvEndpts)
         integer, dimension(:), CONTIGUOUS pointer :: unpackOffsets => null()    ! (nRecvEndpts)
 
+        real (kind=RKIND), dimension(:), pointer :: r1arr => null()      ! Pointer to field array, only used internally
         real (kind=RKIND), dimension(:,:), pointer :: r2arr => null()    ! Pointer to field array, only used internally
         real (kind=RKIND), dimension(:,:,:), pointer :: r3arr => null()  ! Pointer to field array, only used internally
     end type mpas_halo_field

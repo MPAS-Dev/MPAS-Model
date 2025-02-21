@@ -21,12 +21,14 @@ option(MPAS_DOUBLE_PRECISION "Use double precision 64-bit Floating point." TRUE)
 option(MPAS_PROFILE "Enable GPTL profiling" OFF)
 option(MPAS_OPENMP "Enable OpenMP" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+option(MPAS_USE_PIO "Build with PIO I/O library" OFF)
 
 message(STATUS "[OPTION] MPAS_CORES: ${MPAS_CORES}")
 message(STATUS "[OPTION] MPAS_DOUBLE_PRECISION: ${MPAS_DOUBLE_PRECISION}")
 message(STATUS "[OPTION] MPAS_PROFILE: ${MPAS_PROFILE}")
 message(STATUS "[OPTION] MPAS_OPENMP: ${MPAS_OPENMP}")
 message(STATUS "[OPTION] BUILD_SHARED_LIBS: ${BUILD_SHARED_LIBS}")
+message(STATUS "[OPTION] MPAS_USE_PIO: ${MPAS_USE_PIO}")
 
 # Build product output locations
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -59,7 +61,9 @@ find_package(OpenMP COMPONENTS Fortran)
 find_package(MPI REQUIRED COMPONENTS Fortran)
 find_package(NetCDF REQUIRED COMPONENTS Fortran C)
 find_package(PnetCDF REQUIRED COMPONENTS Fortran)
-find_package(PIO REQUIRED COMPONENTS Fortran C)
+if(MPAS_USE_PIO)
+    find_package(PIO REQUIRED COMPONENTS Fortran C)
+endif()
 if(MPAS_PROFILE)
     find_package(GPTL REQUIRED)
 endif()
@@ -88,6 +92,9 @@ set(MPAS_SUBDRIVER_SRC  ${CMAKE_CURRENT_SOURCE_DIR}/src/driver/mpas_subdriver.F)
 
 ## Create targets
 add_subdirectory(src/external/ezxml) # Target: MPAS::external::ezxml
+if(NOT MPAS_USE_PIO)
+    add_subdirectory(src/external/SMIOL) # Target: MPAS::external::smiol
+endif()
 if(ESMF_FOUND)
   message(STATUS "Configure MPAS for external ESMF")
   add_definitions(-DMPAS_EXTERNAL_ESMF_LIB -DMPAS_NO_ESMF_INIT)

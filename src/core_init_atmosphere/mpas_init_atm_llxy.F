@@ -140,6 +140,7 @@ MODULE init_atm_llxy
    USE MPAS_DERIVED_TYPES, ONLY : MPAS_LOG_ERR, MPAS_LOG_CRIT
    USE MPAS_KIND_TYPES
    USE MPAS_LOG, ONLY : MPAS_LOG_WRITE
+   USE ISO_FORTRAN_ENV, ONLY: REAL64
 
    INTEGER, PARAMETER :: HH=4, VV=5
 
@@ -171,8 +172,6 @@ MODULE init_atm_llxy
    INTEGER, PUBLIC, PARAMETER  :: PROJ_ALBERS_NAD83 = 105
    INTEGER, PUBLIC, PARAMETER  :: PROJ_ROTLL = 203
 
-   ! Define some private constants
-   INTEGER, PRIVATE, PARAMETER :: HIGH = 8
  
    TYPE proj_info
  
@@ -1679,10 +1678,10 @@ MODULE init_atm_llxy
       
       ! Local variables
       INTEGER :: ii,imt,jj,jmt,ncol,nrow
-      REAL(KIND=HIGH) :: dphd,dlmd !Grid increments, degrees
-      REAL(KIND=HIGH) :: glatd  !Geographic latitude, positive north
-      REAL(KIND=HIGH) :: glond  !Geographic longitude, positive west
-      REAL(KIND=HIGH) :: col,d1,d2,d2r,dlm,dlm1,dlm2,dph,glat,glon,    &
+      REAL(KIND=REAL64) :: dphd,dlmd !Grid increments, degrees
+      REAL(KIND=REAL64) :: glatd  !Geographic latitude, positive north
+      REAL(KIND=REAL64) :: glond  !Geographic longitude, positive west
+      REAL(KIND=REAL64) :: col,d1,d2,d2r,dlm,dlm1,dlm2,dph,glat,glon,    &
                          pi,r2d,row,tlat,tlat1,tlat2,              &
                          tlon,tlon1,tlon2,tph0,tlm0,x,y,z
 
@@ -1852,7 +1851,7 @@ MODULE init_atm_llxy
       INTEGER :: midcol,midrow
       REAL (KIND=RKIND) :: i_work, j_work
       REAL (KIND=RKIND) :: dphd,dlmd !Grid increments, degrees
-      REAL(KIND=HIGH) :: arg1,arg2,d2r,fctr,glatr,glatd,glond,pi, &
+      REAL(KIND=REAL64) :: arg1,arg2,d2r,fctr,glatr,glatd,glond,pi, &
               r2d,tlatd,tlond,tlatr,tlonr,tlm0,tph0
       REAL (KIND=RKIND) :: col
 
@@ -1959,14 +1958,14 @@ MODULE init_atm_llxy
       IMPLICIT NONE
    
       INTEGER                            :: nlat , i
-      REAL (KIND=HIGH) , PARAMETER       :: pi = 3.141592653589793
-      REAL (KIND=HIGH) , DIMENSION(nlat) :: cosc , gwt , sinc , colat , wos2 , lat
+      REAL (KIND=REAL64) , PARAMETER       :: pi = 3.141592653589793
+      REAL (KIND=REAL64) , DIMENSION(nlat) :: cosc , gwt , sinc , colat , wos2 , lat
       REAL (KIND=RKIND)             , DIMENSION(nlat) :: lat_sp
    
       CALL lggaus(nlat, cosc, gwt, sinc, colat, wos2)
    
       DO i = 1, nlat
-         lat(i) = ACOS(sinc(i)) * 180._HIGH / pi
+         lat(i) = ACOS(sinc(i)) * 180._REAL64 / pi
          IF (i.gt.nlat/2) lat(i) = -lat(i)
       END DO
    
@@ -1993,15 +1992,15 @@ MODULE init_atm_llxy
       !     COLAT  - the colatitudes in radians
       !     WOS2   - Gaussian weight over sin**2(colatitude)
  
-      REAL (KIND=HIGH) , DIMENSION(nlat) :: cosc , gwt , sinc , colat  , wos2 
-      REAL (KIND=HIGH) , PARAMETER       :: pi = 3.141592653589793
+      REAL (KIND=REAL64) , DIMENSION(nlat) :: cosc , gwt , sinc , colat  , wos2 
+      REAL (KIND=REAL64) , PARAMETER       :: pi = 3.141592653589793
  
       !  Convergence criterion for iteration of cos latitude
  
       REAL (KIND=RKIND) , PARAMETER :: xlim  = 1.0E-14
  
       INTEGER :: nzero, i, j
-      REAL (KIND=HIGH) :: fi, fi1, a, b, g, gm, gp, gt, delta, c, d
+      REAL (KIND=REAL64) :: fi, fi1, a, b, g, gm, gp, gt, delta, c, d
  
       !  The number of zeros between pole and equator
  
@@ -2108,14 +2107,14 @@ MODULE init_atm_llxy
       !     f      - the value of the Legendre polynomial of degree N at
       !              latitude ASIN(cosc)
  
-      REAL (KIND=HIGH) :: s1, c4, a, b, fk, f, cosc, colat, c1, fn, ang
+      REAL (KIND=REAL64) :: s1, c4, a, b, fk, f, cosc, colat, c1, fn, ang
       INTEGER :: n, k
  
       !  Determine the colatitude
  
       colat = ACOS(cosc)
  
-      c1 = SQRT(2.0_HIGH)
+      c1 = SQRT(2.0_REAL64)
       DO k=1,n
          c1 = c1 * SQRT( 1.0 - 1.0/(4*k*k) )
       END DO

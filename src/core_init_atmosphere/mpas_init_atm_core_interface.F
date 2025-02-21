@@ -120,6 +120,7 @@ module init_atm_core_interface
       logical, pointer :: first_guess_field
       logical, pointer :: mp_thompson_aers_in
       integer, pointer :: config_init_case
+      logical, pointer :: noahmp, config_noahmp_static
 
 
       ierr = 0
@@ -271,6 +272,32 @@ module init_atm_core_interface
       first_guess_field = .false.
       if ((config_init_case == 7 .and. config_met_interp) .or. config_init_case == 9) then
          first_guess_field = .true.
+      end if
+
+      !
+      ! Noah-MP
+      !
+      nullify(config_noahmp_static)
+      call mpas_pool_get_config(configs, 'config_noahmp_static', config_noahmp_static)
+
+      nullify(noahmp)
+      call mpas_pool_get_package(packages, 'noahmpActive', noahmp)
+
+      if (associated(config_noahmp_static) .and. associated(noahmp)) then
+         noahmp = config_noahmp_static
+      else
+         call mpas_log_write('********************************************************************************', &
+                             messageType=MPAS_LOG_ERR)
+         call mpas_log_write('* Error while setting up packages for init_atmosphere core:',                      &
+                             messageType=MPAS_LOG_ERR)
+         call mpas_log_write('*    Either the ''noahmp'' package or the ''config_noahmp_static'' namelist',      &
+                             messageType=MPAS_LOG_ERR)
+         call mpas_log_write('*    option is not defined.', &
+                             messageType=MPAS_LOG_ERR)
+         call mpas_log_write('********************************************************************************', &
+                             messageType=MPAS_LOG_ERR)
+         ierr = 1
+         return
       end if
 
    end function init_atm_setup_packages
