@@ -28,6 +28,7 @@ set(MPAS_FRAMEWORK_SOURCES
         mpas_io.F
         mpas_io_streams.F
         mpas_log.F
+        mpas_log_ext.F
         mpas_stream_inquiry.F
         mpas_stream_manager.F
         mpas_string_utils.F
