@@ -42,6 +42,7 @@ module mpas_log
    use mpas_derived_types
    use mpas_abort, only : mpas_dmpar_global_abort
    use mpas_io_units, only : mpas_new_unit, mpas_release_unit
+   use mpas_debug_spec_handler
 
    implicit none
    private
@@ -98,6 +99,8 @@ module mpas_log
 
    subroutine mpas_log_init(coreLogInfo, domain, unitNumbers, err)
 
+      use mpas_c_interfacing, only : mpas_f_to_c_string_ret
+
       !-----------------------------------------------------------------
       ! input variables
       !-----------------------------------------------------------------
@@ -124,6 +127,7 @@ module mpas_log
       character(len=strKind) :: proposedLogFileName, proposedErrFileName
       logical :: isOpen
       character(len=StrKind) :: fileName
+      character(len=StrKind) :: defaultLogLevel
       integer :: err_tmp
 
       err_tmp = 0
@@ -286,6 +290,16 @@ module mpas_log
          mpas_log_info % errorLog % unitNum = unitNumber
 
       endif
+
+
+      ! Initialize the debug spec handler object
+      call DebugSpecHandler_ctor( mpas_log_info % debugSpecHandlerPtr )
+
+      ! Default values until nml parsing is instantiated
+      ! This will always be in the debug specs, so this exact debug spec will not be
+      ! able to be overridden
+      write( defaultLogLevel, "(i1)" ) MPAS_LOG_OUT
+      call DebugSpecHandler_addDebugSpecs( mpas_log_info % debugSpecHandlerPtr, mpas_f_to_c_string_ret( defaultLogLevel ) )
 
       if (present(err)) then
          err = err_tmp ! !Currently a nonzero err_tmp will never get this far!)
@@ -477,18 +491,21 @@ module mpas_log
 !
 !-----------------------------------------------------------------------
 
-   recursive subroutine mpas_log_write(message, messageType, masterOnly, flushNow, &
+   recursive subroutine mpas_log_write(message, messageType, file, tags, masterOnly, flushNow, &
                  intArgs, int8Args, realArgs, logicArgs, err)
 
       use mpas_threading
+      use mpas_c_interfacing
 
       !-----------------------------------------------------------------
       ! input variables
       !-----------------------------------------------------------------
-      character (len=*), intent(in) :: message  !< Input: message to be printed
+      character (len=*), intent(in) :: message     !< Input: message to be printed
       integer, intent(in), optional :: messageType !< Input: message "type"
-           !<  output (default), warning, error, critical error
-           !< (integer values defined by public parameters MPAS_LOG_* in mpas_log_types.F)
+                                                   !<  output (default), warning, error, critical error
+                                                   !< (integer values defined by public parameters MPAS_LOG_* in mpas_log_types.F)
+      character (len=*), intent(in), optional :: file        !< Input: filename of caller (__FILE__)
+      character (len=*), intent(in), optional :: tags  !< Input: tags associated with the message
       logical, intent(in), optional :: masterOnly  !< Input: flag to only print message on master task
       logical, intent(in), optional :: flushNow  !< Input: flag to force a flush of the message buffer
       integer, dimension(:), intent(in), optional :: intArgs  !< Input: integer variable values to insert into message
@@ -513,11 +530,14 @@ module mpas_log
       !-----------------------------------------------------------------
       integer :: ierr, ierr_tmp
       logical :: masterOnlyWrite  !< local version of masterOnly
+      logical :: canLog
       integer :: messageTypeHere !< local version of messageType
       character(len=16) :: messagePrefix  !< the "keyword" prepended before some message types
       character(len=32) :: messageExtendedPrefix  !< the thread number plus "keyword" prepended before some message types
       logical :: flushLog !< Local variable determining if the output log should be flushed
       character(len=strKind) :: messageExpanded !< message after expansion of $ variable insertions
+      character(len=strKind) :: tagsHere !< local version of tags
+      character(len=strKind) :: fileHere !< local version of file
 
       ierr = 0
 
@@ -527,6 +547,33 @@ module mpas_log
          messageTypeHere = messageType
       else
          messageTypeHere = MPAS_LOG_OUT  ! Default is 'output' message
+      endif
+
+      if ( present(tags) ) then
+        tagsHere = tags
+      else
+        tagsHere = ""
+      endif
+
+      if ( present( file ) ) then
+        fileHere = file
+      else
+        fileHere = ""
+      endif
+
+       ! First determine if we can even log this particular message
+      canLog = DebugSpecHandler_canLog(                                          &
+                                        mpas_log_info % debugSpecHandlerPtr,     &
+                                        int( messageTypeHere, c_int32_t ),   &
+                                        mpas_f_to_c_string_ret( tagsHere ),  &
+                                        mpas_f_to_c_string_ret( fileHere ) )
+
+      if ( .not. ( canLog .or. ( messageTypeHere == MPAS_LOG_CRIT ) ) ) then
+        ! Pass back err code if it was requested
+        if (present(err)) then
+          err = ierr
+        endif
+        return
       endif
 
       if (present(masterOnly)) then
@@ -713,6 +760,9 @@ module mpas_log
          close(mpas_log_info % outputLog % unitNum, iostat = err)
          call mpas_release_unit(mpas_log_info % outputLog % unitNum)
       endif
+
+      ! delete debug spec handler on the C/C++ side to let it call its dtor
+      call DebugSpecHandler_dtor( mpas_log_info % debugSpecHandlerPtr )
 
       ! Note: should not need to close an err file.  If these are open, they are intended to quickly lead to abort
       ! where the abort routine will close them, and this routine is never reached.

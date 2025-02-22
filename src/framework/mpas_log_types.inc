@@ -33,7 +33,7 @@
       integer :: warningMessageCount  !< counter for number of warning messages printed during the run
       integer :: errorMessageCount  !< counter for number of error messages printed during the run
       integer :: criticalErrorMessageCount  !< counter for number of critical error messages printed during the run
-
+      type( c_ptr ) :: debugSpecHandlerPtr = c_null_ptr !< handle for trace level logging
 
    end type mpas_log_type
 
