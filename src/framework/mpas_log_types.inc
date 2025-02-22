@@ -1,11 +1,11 @@
 
 
    ! mpas_log parameters
-
-   integer, parameter :: MPAS_LOG_OUT = 1  !< code for message type "output"
-   integer, parameter :: MPAS_LOG_WARN = 2  !< code for message type "warning"
-   integer, parameter :: MPAS_LOG_ERR = 3  !< code for message type "error"
-   integer, parameter :: MPAS_LOG_CRIT = 4  !< code for message type "critical error"
+   integer, parameter :: MPAS_LOG_CRIT = 1  !< code for message type "critical error"
+   integer, parameter :: MPAS_LOG_ERR  = 2  !< code for message type "error"
+   integer, parameter :: MPAS_LOG_WARN = 3  !< code for message type "warning"
+   integer, parameter :: MPAS_LOG_OUT  = 4  !< code for message type "output"
+   integer, parameter :: MPAS_LOG_DBG  = 5  !< anything at or above for message type "debug"
 
    type mpas_log_file_type
       integer :: unitNum  !< file unit number for the standard log file
