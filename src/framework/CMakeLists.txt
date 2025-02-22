@@ -7,6 +7,7 @@ set(MPAS_FRAMEWORK_SOURCES
         mpas_c_interfacing.F
         mpas_constants.F
         mpas_decomp.F
+        mpas_debug_spec_handler.F
         mpas_domain_routines.F
         mpas_field_routines.F
         mpas_forcing.F

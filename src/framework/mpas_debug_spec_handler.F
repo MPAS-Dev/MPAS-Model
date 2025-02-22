@@ -31,13 +31,13 @@ module mpas_debug_spec_handler
       ! return void
     end subroutine DebugSpecHandler_setDefaultDebugLevel
 
-    subroutine DebugSpecHandler_addDebugSpecs        ( pDebugSpecHandler, specifiers ) &
+    subroutine DebugSpecHandler_addDebugSpecs        ( pDebugSpecHandler, specs ) &
       bind( c, name="DebugSpecHandler_addDebugSpecs"         )
       ! get iso_c_binding types
       import
       implicit none
       type( c_ptr ), value :: pDebugSpecHandler
-      character( kind = c_char ), dimension(*), intent( in ) :: specifiers
+      character( kind = c_char ), dimension(*), intent( in ) :: specs
       ! return void
     end subroutine DebugSpecHandler_addDebugSpecs
 

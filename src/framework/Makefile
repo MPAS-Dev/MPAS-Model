@@ -41,6 +41,7 @@ OBJS = mpas_kind_types.o \
        string.o \
        mpas_stream_inquiry.o \
        stream_inquiry.o \
+       mpas_debug_spec_handler.o \
        DebugSpecHandler.o
 
 all: framework $(DEPS)
