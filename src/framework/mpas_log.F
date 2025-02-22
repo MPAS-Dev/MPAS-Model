@@ -69,10 +69,10 @@ module mpas_log
    !--------------------------------------------------------------------
    ! Private module variables
    !--------------------------------------------------------------------
-   character(len=16), parameter, private :: messagePrefixWarning = "WARNING: "
-   character(len=16), parameter, private :: messagePrefixError = "ERROR: "
-   character(len=16), parameter, private :: messagePrefixCritical = "CRITICAL ERROR: "
-
+   character(len=18), parameter, private :: messagePrefixDebug    = "DEBUG: "
+   character(len=18), parameter, private :: messagePrefixWarning  = "WARNING: "
+   character(len=18), parameter, private :: messagePrefixError    = "ERROR: "
+   character(len=18), parameter, private :: messagePrefixCritical = "CRITICAL ERROR: "
 
 !***********************************************************************
 
@@ -601,7 +601,8 @@ module mpas_log
       case (MPAS_LOG_CRIT)
          messagePrefix = messagePrefixCritical
       case default
-         ! TODO handle this error?
+         ! Anything not of the above is debug
+         messagePrefix = messagePrefixDebug
       end select
 
       if (mpas_threading_in_parallel()) then
