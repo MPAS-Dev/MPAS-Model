@@ -1,5 +1,6 @@
 
 set(MPAS_FRAMEWORK_SOURCES
+        DebugSpecHandler.cpp
         mpas_block_creator.F
         mpas_block_decomp.F
         mpas_bootstrapping.F
