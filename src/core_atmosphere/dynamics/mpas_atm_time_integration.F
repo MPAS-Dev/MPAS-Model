@@ -245,7 +245,6 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: specZoneMaskCell
       real (kind=RKIND), dimension(:,:), pointer :: defc_a
       real (kind=RKIND), dimension(:,:), pointer :: defc_b
-      real (kind=RKIND), dimension(:,:), pointer :: zxu
       real (kind=RKIND), dimension(:), pointer :: latEdge
       real (kind=RKIND), dimension(:), pointer :: angleEdge
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel2
@@ -409,9 +408,6 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'defc_b', defc_b)
       !$acc enter data copyin(defc_b)
 
-      call mpas_pool_get_array(mesh, 'zxu', zxu)
-      !$acc enter data copyin(zxu)
-
       call mpas_pool_get_array(mesh, 'latEdge', latEdge)
       !$acc enter data copyin(latEdge)
 
@@ -504,7 +500,6 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: specZoneMaskCell
       real (kind=RKIND), dimension(:,:), pointer :: defc_a
       real (kind=RKIND), dimension(:,:), pointer :: defc_b
-      real (kind=RKIND), dimension(:,:), pointer :: zxu
       real (kind=RKIND), dimension(:), pointer :: latEdge
       real (kind=RKIND), dimension(:), pointer :: angleEdge
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel2
@@ -667,9 +662,6 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'defc_b', defc_b)
       !$acc exit data delete(defc_b)
-
-      call mpas_pool_get_array(mesh, 'zxu', zxu)
-      !$acc exit data delete(zxu)
 
       call mpas_pool_get_array(mesh, 'latEdge', latEdge)
       !$acc exit data delete(latEdge)
