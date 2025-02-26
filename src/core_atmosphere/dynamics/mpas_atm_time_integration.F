@@ -243,6 +243,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: zxu
       real (kind=RKIND), dimension(:,:), pointer :: dss
       real (kind=RKIND), dimension(:), pointer :: specZoneMaskCell
+      real (kind=RKIND), dimension(:,:), pointer :: defc_a
+      real (kind=RKIND), dimension(:,:), pointer :: defc_b
 #endif
 
 
@@ -395,6 +397,12 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'specZoneMaskCell', specZoneMaskCell)
       !$acc enter data copyin(specZoneMaskCell)
+
+      call mpas_pool_get_array(mesh, 'defc_a', defc_a)
+      !$acc enter data copyin(defc_a)
+
+      call mpas_pool_get_array(mesh, 'defc_b', defc_b)
+      !$acc enter data copyin(defc_b)
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -474,6 +482,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: zxu
       real (kind=RKIND), dimension(:,:), pointer :: dss
       real (kind=RKIND), dimension(:), pointer :: specZoneMaskCell
+      real (kind=RKIND), dimension(:,:), pointer :: defc_a
+      real (kind=RKIND), dimension(:,:), pointer :: defc_b
 #endif
 
 
@@ -626,6 +636,12 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'specZoneMaskCell', specZoneMaskCell)
       !$acc exit data delete(specZoneMaskCell)
+
+      call mpas_pool_get_array(mesh, 'defc_a', defc_a)
+      !$acc exit data delete(defc_a)
+
+      call mpas_pool_get_array(mesh, 'defc_b', defc_b)
+      !$acc exit data delete(defc_b)
 #endif
 
    end subroutine mpas_atm_dynamics_finalize
@@ -4996,10 +5012,23 @@ module atm_time_integration
          ! The integration coefficients were precomputed and stored in defc_a and defc_b
 
          if(config_horiz_mixing == "2d_smagorinsky") then
+
+            !$acc enter data create(kdiff)
+            !$acc enter data copyin(u, v)
+
+            !$acc parallel default(present)
+            !$acc loop gang worker private(d_diag, d_off_diag)
             do iCell = cellStart,cellEnd
-               d_diag(1:nVertLevels) = 0.0
-               d_off_diag(1:nVertLevels) = 0.0
+
+               !$acc loop vector
+               do k = 1, nVertLevels
+                  d_diag(k) = 0.0_RKIND
+                  d_off_diag(k) = 0.0_RKIND
+               end do
+
+               !$acc loop seq
                do iEdge=1,nEdgesOnCell(iCell)
+                  !$acc loop vector
                   do k=1,nVertLevels
                      d_diag(k)     = d_diag(k)     + defc_a(iEdge,iCell)*u(k,EdgesOnCell(iEdge,iCell))  &
                                                    - defc_b(iEdge,iCell)*v(k,EdgesOnCell(iEdge,iCell))
@@ -5008,19 +5037,39 @@ module atm_time_integration
                   end do
                end do
 !DIR$ IVDEP
+               !$acc loop vector
                do k=1, nVertLevels
                   ! here is the Smagorinsky formulation, 
                   ! followed by imposition of an upper bound on the eddy viscosity
                   kdiff(k,iCell) = min((c_s * config_len_disp)**2 * sqrt(d_diag(k)**2 + d_off_diag(k)**2),(0.01*config_len_disp**2) * invDt)
                end do
             end do
+            !$acc end parallel
+
+            !$acc exit data copyout(kdiff)
+            !$acc exit data delete(u, v)
 
             h_mom_eddy_visc4   = config_visc4_2dsmag * config_len_disp**3
             h_theta_eddy_visc4 = h_mom_eddy_visc4
 
          else if(config_horiz_mixing == "2d_fixed") then
 
-            kdiff(1:nVertLevels,cellStart:cellEnd) = config_h_theta_eddy_visc2
+            !!! MGD UNTESTED !!!
+
+            !$acc enter data create(kdiff)
+
+            !$acc parallel default(present)
+            !$acc loop gang worker
+            do iCell = cellStart, cellEnd
+               !$acc loop vector
+               do k = 1, nVertLevels
+                  kdiff(k,iCell) = config_h_theta_eddy_visc2
+               end do
+            end do
+            !$acc end parallel
+
+            !$acc exit data copyout(kdiff)
+
             h_mom_eddy_visc4 = config_h_mom_eddy_visc4
             h_theta_eddy_visc4 = config_h_theta_eddy_visc4
 
@@ -5028,17 +5077,27 @@ module atm_time_integration
 
          if (config_mpas_cam_coef > 0.0) then
 
+            !!! MGD UNTESTED !!!
+
+            !$acc enter data copyin(kdiff)
+
+            !$acc parallel default(present)
+            !$acc loop gang worker
             do iCell = cellStart,cellEnd
                !
                ! 2nd-order filter for top absorbing layer similar to that in CAM-SE :  WCS 10 May 2017, modified 7 April 2023
                ! From MPAS-CAM V4.0 code, with addition to config-specified coefficient (V4.0_coef = 0.2; SE_coef = 1.0)
                !
+               !$acc loop vector
                do k = nVertLevels-config_number_cam_damping_levels + 1, nVertLevels
                   visc2cam = 4.0*2.0833*config_len_disp*config_mpas_cam_coef
                   visc2cam = visc2cam*(1.0-real(nVertLevels-k)/real(config_number_cam_damping_levels))
                   kdiff(k  ,iCell) = max(kdiff(nVertLevels  ,iCell),visc2cam)
                end do
             end do
+            !$acc end parallel
+
+            !$acc exit data copyout(kdiff)
 
          end if
             
@@ -5049,26 +5108,46 @@ module atm_time_integration
 
       ! accumulate horizontal mass-flux
 
+      !$acc enter data create(h_divergence)
+      !$acc enter data copyin(ru)
+
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell=cellStart,cellEnd
-         h_divergence(1:nVertLevels,iCell) = 0.0
+
+         !$acc loop vector
+         do k=1,nVertLevels
+            h_divergence(k,iCell) = 0.0_RKIND
+         end do
+
+         !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
             edge_sign = edgesOnCell_sign(i,iCell) * dvEdge(iEdge)
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
                h_divergence(k,iCell) = h_divergence(k,iCell) + edge_sign * ru(k,iEdge)
             end do
          end do
       end do
+      !$acc end parallel
 
       ! compute horiontal mass-flux divergence, add vertical mass flux divergence to complete tend_rho
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellStart,cellEnd
          r = invAreaCell(iCell)
+         !$acc loop vector
          do k = 1,nVertLevels
             h_divergence(k,iCell) = h_divergence(k,iCell) * r
          end do
-      end do    
+      end do
+      !$acc end parallel
+
+      !$acc exit data copyout(h_divergence)
+      !$acc exit data delete(ru)
 
       !
       ! dp / dz and tend_rho
@@ -5078,14 +5157,26 @@ module atm_time_integration
       if(rk_step == 1) then
 
         rgas_cprcv = rgas*cp/cv
+
+        !$acc enter data copyin(h_divergence, tend_rho_physics, rdzw, rw, rb, qtot, rr_save)
+        !$acc enter data create(tend_rho, dpdz)
+
+        !$acc parallel default(present)
+        !$acc loop gang worker
         do iCell = cellStart,cellEnd
 
 !DIR$ IVDEP
+          !$acc loop vector
           do k = 1,nVertLevels
             tend_rho(k,iCell) = -h_divergence(k,iCell)-rdzw(k)*(rw(k+1,iCell)-rw(k,iCell)) + tend_rho_physics(k,iCell)
             dpdz(k,iCell) = -gravity*(rb(k,iCell)*(qtot(k,iCell)) + rr_save(k,iCell)*(1.+qtot(k,iCell)))
           end do
         end do
+        !$acc end parallel
+
+        !$acc exit data delete(h_divergence, tend_rho_physics, rdzw, rw, rb, qtot, rr_save)
+        !$acc exit data copyout(tend_rho, dpdz)
+
       end if
 
 !$OMP BARRIER
