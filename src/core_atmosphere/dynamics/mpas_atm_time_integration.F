@@ -5035,6 +5035,7 @@ module atm_time_integration
          !$acc enter data create(kdiff)
          !$acc enter data copyin(tend_rho_physics)
          !$acc enter data create(tend_rho)
+         !$acc enter data copyin(rb, qtot, rr_save)
 
          if (config_horiz_mixing == '2d_smagorinsky') then
             !$acc enter data copyin(u, v)
@@ -5196,7 +5197,6 @@ module atm_time_integration
 
         rgas_cprcv = rgas*cp/cv
 
-        !$acc enter data copyin(rb, qtot, rr_save)
         !$acc enter data create(dpdz)
 
         !$acc parallel default(present)
@@ -5212,7 +5212,6 @@ module atm_time_integration
         end do
         !$acc end parallel
 
-        !$acc exit data delete(rb, qtot, rr_save)
         !$acc exit data copyout(dpdz)
 
       end if
@@ -6202,6 +6201,7 @@ module atm_time_integration
       if (rk_step == 1) then
          !$acc exit data copyout(tend_rho)
          !$acc exit data delete(tend_rho_physics)
+         !$acc exit data delete(rb, qtot, rr_save)
          if (config_horiz_mixing == '2d_smagorinsky') then
             !$acc exit data delete(u, v)
          end if
