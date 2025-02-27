@@ -5045,6 +5045,7 @@ module atm_time_integration
          !$acc enter data copyin(tend_rho)
       end if
       !$acc enter data create(dpdz)
+      !$acc enter data create(tend_u)
       !$acc enter data create(h_divergence)
       !$acc enter data copyin(ru, rw)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
@@ -5220,7 +5221,6 @@ module atm_time_integration
       !
 
       !$acc enter data copyin(cqu, pp, u, w, pv_edge, rho_edge, ke)
-      !$acc enter data create(tend_u)
 
       !$acc parallel default(present)
       !$acc loop gang worker private(wduz, q)
@@ -5308,7 +5308,6 @@ module atm_time_integration
       !$acc end parallel
 
       !$acc exit data delete(cqu, pp, u, w, pv_edge, rho_edge, ke)
-      !$acc exit data copyout(tend_u)
 
       !
       !  horizontal mixing for u
@@ -5565,7 +5564,7 @@ module atm_time_integration
 
          !!! MGD UNTESTED !!!
 
-         !$acc enter data copyin(tend_u, rho_edge, rayleigh_damp_coef, u)
+         !$acc enter data copyin(rho_edge, rayleigh_damp_coef, u)
 
          !$acc parallel default(present)
 
@@ -5580,12 +5579,11 @@ module atm_time_integration
 
          !$acc end parallel
 
-         !$acc exit data copyout(tend_u)
          !$acc exit data delete(rho_edge, rayleigh_damp_coef, u)
 
       end if
 
-      !$acc enter data copyin(tend_u, tend_ru_physics)
+      !$acc enter data copyin(tend_ru_physics)
 
       !$acc parallel default(present)
       !$acc loop gang worker
@@ -5599,7 +5597,6 @@ module atm_time_integration
       end do
       !$acc end parallel
 
-      !$acc exit data copyout(tend_u)
       !$acc exit data delete(tend_ru_physics)
 
 
@@ -6206,6 +6203,7 @@ module atm_time_integration
          !$acc exit data delete(tend_rho)
       end if
       !$acc exit data delete(dpdz)
+      !$acc exit data copyout(tend_u)
       !$acc exit data copyout(h_divergence)
       !$acc exit data delete(ru, rw)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
