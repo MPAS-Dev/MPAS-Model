@@ -5046,6 +5046,7 @@ module atm_time_integration
       end if
       !$acc enter data create(dpdz)
       !$acc enter data create(tend_u)
+      !$acc enter data copyin(cqu, pp, u, w, pv_edge, rho_edge, ke)
       !$acc enter data create(h_divergence)
       !$acc enter data copyin(ru, rw)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
@@ -5220,8 +5221,6 @@ module atm_time_integration
       ! Compute u (normal) velocity tendency for each edge (cell face)
       !
 
-      !$acc enter data copyin(cqu, pp, u, w, pv_edge, rho_edge, ke)
-
       !$acc parallel default(present)
       !$acc loop gang worker private(wduz, q)
       do iEdge=edgeSolveStart,edgeSolveEnd
@@ -5307,8 +5306,6 @@ module atm_time_integration
       end do
       !$acc end parallel
 
-      !$acc exit data delete(cqu, pp, u, w, pv_edge, rho_edge, ke)
-
       !
       !  horizontal mixing for u
       !  mixing terms are integrated using forward-Euler, so this tendency is only computed in the
@@ -5323,7 +5320,7 @@ module atm_time_integration
          ! First, storage to hold the result from the first del^2 computation.
 
          !$acc enter data create(delsq_u)
-         !$acc enter data copyin(divergence, vorticity, rho_edge)
+         !$acc enter data copyin(divergence, vorticity)
 
          !$acc parallel default(present)
          !$acc loop gang worker
@@ -5368,7 +5365,7 @@ module atm_time_integration
          !$acc end parallel
 
          !$acc exit data copyout(delsq_u)
-         !$acc exit data delete(divergence, vorticity, rho_edge)
+         !$acc exit data delete(divergence, vorticity)
 
          if (h_mom_eddy_visc4 > 0.0) then  ! 4th order mixing is active
 
@@ -5377,7 +5374,7 @@ module atm_time_integration
             !!! MGD UNTESTED !!!
 
             !$acc enter data create(delsq_vorticity, delsq_divergence)
-            !$acc enter data copyin(delsq_u, rho_edge)
+            !$acc enter data copyin(delsq_u)
 
             !$acc parallel default(present)
 
@@ -5460,7 +5457,7 @@ module atm_time_integration
 
             !$acc end parallel
 
-            !$acc exit data delete(delsq_u, rho_edge, delsq_vorticity, delsq_divergence)
+            !$acc exit data delete(delsq_u, delsq_vorticity, delsq_divergence)
          
          end if ! 4th order mixing is active 
 
@@ -5472,8 +5469,6 @@ module atm_time_integration
             !!! MGD UNTESTED !!!
 
             if (config_mix_full) then  ! mix full state
-
-               !$acc enter data copyin(rho_edge, u)
 
                !$acc parallel default(present)
                !$acc loop gang worker
@@ -5501,12 +5496,11 @@ module atm_time_integration
                end do
                !$acc end parallel
 
-               !$acc exit data delete(rho_edge, u)
 
             else  ! idealized cases where we mix on the perturbation from the initial 1-D state
 
 
-               !$acc enter data copyin(u_init, v_init, rho_edge, u)
+               !$acc enter data copyin(u_init, v_init)
 
                !$acc parallel default(present)
                !$acc loop gang worker private(u_mix)
@@ -5540,7 +5534,7 @@ module atm_time_integration
                end do
                !$acc end parallel
 
-               !$acc exit data delete(rho_edge, u, u_init, v_init)
+               !$acc exit data delete(u_init, v_init)
 
             end if  ! mix perturbation state
 
@@ -5564,7 +5558,7 @@ module atm_time_integration
 
          !!! MGD UNTESTED !!!
 
-         !$acc enter data copyin(rho_edge, rayleigh_damp_coef, u)
+         !$acc enter data copyin(rayleigh_damp_coef)
 
          !$acc parallel default(present)
 
@@ -5579,7 +5573,7 @@ module atm_time_integration
 
          !$acc end parallel
 
-         !$acc exit data delete(rho_edge, rayleigh_damp_coef, u)
+         !$acc exit data delete(rayleigh_damp_coef)
 
       end if
 
@@ -5608,7 +5602,6 @@ module atm_time_integration
       !
 
       !$acc enter data create(tend_w)
-      !$acc enter data copyin(w)
 
       !$acc parallel default(present)
       !$acc loop gang worker private(ru_edge_w, flux_arr)
@@ -5685,7 +5678,6 @@ module atm_time_integration
 #endif
 
       !$acc exit data copyout(tend_w)
-      !$acc exit data delete(w)
 
       !
       !  horizontal mixing for w - we could combine this with advection directly (i.e. as a turbulent flux),
@@ -5702,7 +5694,6 @@ module atm_time_integration
          !  we copied code from the theta mixing, hence the theta* names.
 
          !$acc enter data create(delsq_w, tend_w_euler)
-         !$acc enter data copyin(rho_edge, w)
 
          !$acc parallel default(present)
          !$acc loop gang worker
@@ -5744,7 +5735,6 @@ module atm_time_integration
          !$acc end parallel
 
          !$acc exit data copyout(delsq_w, tend_w_euler)
-         !$acc exit data delete(rho_edge, w)
 
 !$OMP BARRIER
 
@@ -5795,7 +5785,7 @@ module atm_time_integration
       !  vertical advection, pressure gradient and buoyancy for w
       !
 
-      !$acc enter data copyin(tend_w, tend_w_euler, w, cqw, pp)
+      !$acc enter data copyin(tend_w, tend_w_euler, cqw)
 
       !$acc parallel default(present)
       !$acc loop gang worker private(wdwz)
@@ -5838,7 +5828,7 @@ module atm_time_integration
       !$acc end parallel
 
       !$acc exit data copyout(tend_w, tend_w_euler)
-      !$acc exit data delete(w, cqw, pp)
+      !$acc exit data delete(cqw)
 
       if (rk_step == 1) then
 
@@ -5846,7 +5836,7 @@ module atm_time_integration
 
             !!! MGD UNTESTED !!!
 
-            !$acc enter data copyin(tend_w_euler, rho_zz, w)
+            !$acc enter data copyin(tend_w_euler, rho_zz)
 
             !$acc parallel default(present)
             !$acc loop gang worker
@@ -5862,7 +5852,7 @@ module atm_time_integration
             !$acc end parallel
 
             !$acc exit data copyout(tend_w_euler)
-            !$acc exit data delete(rho_zz, w)
+            !$acc exit data delete(rho_zz)
 
          end if
 
@@ -5975,7 +5965,7 @@ module atm_time_integration
       if (rk_step == 1) then
 
          !$acc enter data create(delsq_theta, tend_theta_euler)
-         !$acc enter data copyin(theta_m, rho_edge)
+         !$acc enter data copyin(theta_m)
 
          !$acc parallel default(present)
          !$acc loop gang worker
@@ -6017,7 +6007,7 @@ module atm_time_integration
           !$acc end parallel
 
           !$acc exit data copyout(delsq_theta, tend_theta_euler)
-          !$acc exit data delete(theta_m, rho_edge)
+          !$acc exit data delete(theta_m)
 
 !$OMP BARRIER
             
@@ -6204,6 +6194,7 @@ module atm_time_integration
       end if
       !$acc exit data delete(dpdz)
       !$acc exit data copyout(tend_u)
+      !$acc exit data delete(cqu, pp, u, w, pv_edge, rho_edge, ke)
       !$acc exit data copyout(h_divergence)
       !$acc exit data delete(ru, rw)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
