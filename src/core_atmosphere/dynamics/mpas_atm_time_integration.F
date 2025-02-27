@@ -5044,6 +5044,7 @@ module atm_time_integration
          !$acc enter data copyin(tend_u_euler)
          !$acc enter data copyin(tend_rho)
       end if
+      !$acc enter data create(dpdz)
       !$acc enter data create(h_divergence)
       !$acc enter data copyin(ru, rw)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
@@ -5197,8 +5198,6 @@ module atm_time_integration
 
         rgas_cprcv = rgas*cp/cv
 
-        !$acc enter data create(dpdz)
-
         !$acc parallel default(present)
         !$acc loop gang worker
         do iCell = cellStart,cellEnd
@@ -5212,8 +5211,6 @@ module atm_time_integration
         end do
         !$acc end parallel
 
-        !$acc exit data copyout(dpdz)
-
       end if
 
 !$OMP BARRIER
@@ -5222,7 +5219,7 @@ module atm_time_integration
       ! Compute u (normal) velocity tendency for each edge (cell face)
       !
 
-      !$acc enter data copyin(cqu, pp, dpdz, u, w, pv_edge, rho_edge, ke)
+      !$acc enter data copyin(cqu, pp, u, w, pv_edge, rho_edge, ke)
       !$acc enter data create(tend_u)
 
       !$acc parallel default(present)
@@ -5310,7 +5307,7 @@ module atm_time_integration
       end do
       !$acc end parallel
 
-      !$acc exit data delete(cqu, pp, dpdz, u, w, pv_edge, rho_edge, ke)
+      !$acc exit data delete(cqu, pp, u, w, pv_edge, rho_edge, ke)
       !$acc exit data copyout(tend_u)
 
       !
@@ -5801,7 +5798,7 @@ module atm_time_integration
       !  vertical advection, pressure gradient and buoyancy for w
       !
 
-      !$acc enter data copyin(tend_w, tend_w_euler, w, cqw, pp, dpdz)
+      !$acc enter data copyin(tend_w, tend_w_euler, w, cqw, pp)
 
       !$acc parallel default(present)
       !$acc loop gang worker private(wdwz)
@@ -5844,7 +5841,7 @@ module atm_time_integration
       !$acc end parallel
 
       !$acc exit data copyout(tend_w, tend_w_euler)
-      !$acc exit data delete(w, cqw, pp, dpdz)
+      !$acc exit data delete(w, cqw, pp)
 
       if (rk_step == 1) then
 
@@ -6208,6 +6205,7 @@ module atm_time_integration
       else
          !$acc exit data delete(tend_rho)
       end if
+      !$acc exit data delete(dpdz)
       !$acc exit data copyout(h_divergence)
       !$acc exit data delete(ru, rw)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
