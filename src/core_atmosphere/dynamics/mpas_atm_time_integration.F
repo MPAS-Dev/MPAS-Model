@@ -5196,7 +5196,7 @@ module atm_time_integration
 
         rgas_cprcv = rgas*cp/cv
 
-        !$acc enter data copyin(rdzw, rb, qtot, rr_save)
+        !$acc enter data copyin(rb, qtot, rr_save)
         !$acc enter data create(dpdz)
 
         !$acc parallel default(present)
@@ -5212,7 +5212,7 @@ module atm_time_integration
         end do
         !$acc end parallel
 
-        !$acc exit data delete(rdzw, rb, qtot, rr_save)
+        !$acc exit data delete(rb, qtot, rr_save)
         !$acc exit data copyout(dpdz)
 
       end if
@@ -5223,7 +5223,7 @@ module atm_time_integration
       ! Compute u (normal) velocity tendency for each edge (cell face)
       !
 
-      !$acc enter data copyin(cqu, pp, dpdz, u, w, pv_edge, rho_edge, ke, rdzw)
+      !$acc enter data copyin(cqu, pp, dpdz, u, w, pv_edge, rho_edge, ke)
       !$acc enter data create(tend_u)
 
       !$acc parallel default(present)
@@ -5311,7 +5311,7 @@ module atm_time_integration
       end do
       !$acc end parallel
 
-      !$acc exit data delete(cqu, pp, dpdz, u, w, pv_edge, rho_edge, ke, rdzw)
+      !$acc exit data delete(cqu, pp, dpdz, u, w, pv_edge, rho_edge, ke)
       !$acc exit data copyout(tend_u)
 
       !
