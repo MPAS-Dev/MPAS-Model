@@ -3560,6 +3560,7 @@ module init_atm_cases
                ! many unique levels are found using the code above
                !
                if (too_many_fg_levs) then
+                  deallocate(field % slab)
                   call read_next_met_field(field, istatus)
                   cycle
                end if
@@ -5296,6 +5297,7 @@ call mpas_log_write('Done with soil consistency check')
                ! many unique levels are found using the code above
                !
                if (too_many_fg_levs) then
+                  deallocate(field % slab)
                   call read_next_met_field(field, istatus)
                   cycle
                end if
