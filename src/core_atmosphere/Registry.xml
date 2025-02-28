@@ -1151,6 +1151,7 @@
 
                 </stream>
 
+#ifdef DO_PHYSICS
                 <stream name="ugwp_oro_data_in"
                         type="input"
                         filename_template="x1.40962.ugwp_oro_data.nc"
@@ -1191,6 +1192,7 @@
                         <var name="DAYS"/>
                         <var name="ABSMF"/>
                 </stream>
+#endif
 
 		<stream name="da_state"
                         type="input;output"
