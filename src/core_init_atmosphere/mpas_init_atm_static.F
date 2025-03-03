@@ -432,9 +432,7 @@
     ! Incorporate NLCD fractional percentage land use for CONUS, with MODIS for rest of world
     call mpas_log_write('Overlaying 40-class NLCD 9-arc-second land cover dataset for CONUS')
     geog_sub_path = 'nlcd2011_ll_9s/'
-    call mpas_log_write('--- start interpolate NLCD LU_INDEX for CONUS')
     call interp_landuse2(mesh, dims, configs, trim(config_geog_data_path)//trim(geog_sub_path), isice_lu, iswater_lu, ismax_lu)
-    call mpas_log_write('--- end interpolate NLCD LU_INDEX for CONUS')
  end if
 
 !
