@@ -5051,6 +5051,12 @@ module atm_time_integration
          if (.not. config_mix_full) then
             !$acc enter data copyin(u_init, v_init)
          end if
+         !$acc enter data create(delsq_w, tend_w_euler)
+
+         ! The following are only needed if h_mom_eddy_visc4 > 0.0, but the conditional check
+         ! would be messy, and these variables are created and deleted, rather than copied in
+         ! and out
+         !$acc enter data copyin(tend_w_euler, delsq_w)
       else
          !$acc enter data copyin(tend_u_euler)
          !$acc enter data copyin(tend_rho)
@@ -5064,6 +5070,10 @@ module atm_time_integration
          !$acc enter data copyin(rayleigh_damp_coef)
       end if
       !$acc enter data copyin(tend_ru_physics)
+      !$acc enter data create(tend_w)
+#ifdef CURVATURE
+      !$acc enter data copyin(rho_zz, ur_cell, vr_cell)
+#endif
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
       prandtl_inv = 1.0_RKIND / prandtl
@@ -5594,8 +5604,6 @@ module atm_time_integration
       !  horizontal advection for w
       !
 
-      !$acc enter data create(tend_w)
-
       !$acc parallel default(present)
       !$acc loop gang worker private(ru_edge_w, flux_arr)
       do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
@@ -5648,8 +5656,6 @@ module atm_time_integration
 
       !!! MGD UNTESTED !!!
 
-      !$acc enter data copyin(rho_zz, ur_cell, vr_cell)
-
       !$acc parallel default(present)
       !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd
@@ -5667,10 +5673,7 @@ module atm_time_integration
       end do
       !$acc end parallel
 
-      !$acc exit data delete(rho_zz, ur_cell, vr_cell)
 #endif
-
-      !$acc exit data copyout(tend_w)
 
       !
       !  horizontal mixing for w - we could combine this with advection directly (i.e. as a turbulent flux),
@@ -5685,8 +5688,6 @@ module atm_time_integration
          !
          ! First, storage to hold the result from the first del^2 computation.
          !  we copied code from the theta mixing, hence the theta* names.
-
-         !$acc enter data create(delsq_w, tend_w_euler)
 
          !$acc parallel default(present)
          !$acc loop gang worker
@@ -5727,15 +5728,11 @@ module atm_time_integration
          end do
          !$acc end parallel
 
-         !$acc exit data copyout(delsq_w, tend_w_euler)
-
 !$OMP BARRIER
 
          if (h_mom_eddy_visc4 > 0.0) then  ! 4th order mixing is active
 
             !!! MGD UNTESTED !!!
-
-            !$acc enter data copyin(tend_w_euler, delsq_w)
 
             !$acc parallel default(present)
             !$acc loop gang worker
@@ -5759,9 +5756,6 @@ module atm_time_integration
                end do
             end do
             !$acc end parallel
-
-            !$acc exit data copyout(tend_w_euler)
-            !$acc exit data delete(delsq_w)
 
          end if ! 4th order mixing is active 
 
@@ -6191,6 +6185,10 @@ module atm_time_integration
          if (.not. config_mix_full) then
             !$acc exit data delete(u_init, v_init)
          end if
+
+         !$acc exit data copyout(delsq_w, tend_w_euler)
+         !$acc exit data copyout(tend_w_euler)
+         !$acc exit data delete(delsq_w)
       else
          !$acc exit data delete(tend_rho)
       end if
@@ -6203,6 +6201,10 @@ module atm_time_integration
          !$acc exit data delete(rayleigh_damp_coef)
       end if
       !$acc exit data delete(tend_ru_physics)
+      !$acc exit data copyout(tend_w)
+#ifdef CURVATURE
+      !$acc exit data delete(rho_zz, ur_cell, vr_cell)
+#endif
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
    end subroutine atm_compute_dyn_tend_work
