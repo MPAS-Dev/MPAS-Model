@@ -5037,10 +5037,16 @@ module atm_time_integration
          !$acc enter data create(tend_rho)
          !$acc enter data copyin(rb, qtot, rr_save)
          !$acc enter data copyin(divergence, vorticity)
+         !$acc enter data create(delsq_u)
 
          if (config_horiz_mixing == '2d_smagorinsky') then
             !$acc enter data copyin(u, v)
          end if
+
+         ! The following are only needed if h_mom_eddy_visc4 > 0.0, but the conditional check
+         ! would be messy, and these variables are created and deleted, rather than copied in
+         ! and out
+         !$acc enter data create(delsq_vorticity, delsq_divergence)
       else
          !$acc enter data copyin(tend_u_euler)
          !$acc enter data copyin(tend_rho)
@@ -5320,8 +5326,6 @@ module atm_time_integration
          ! del^4 horizontal filter.  We compute this as del^2 ( del^2 (u) ).
          ! First, storage to hold the result from the first del^2 computation.
 
-         !$acc enter data create(delsq_u)
-
          !$acc parallel default(present)
          !$acc loop gang worker
          do iEdge = edgeStart, edgeEnd
@@ -5364,16 +5368,11 @@ module atm_time_integration
 
          !$acc end parallel
 
-         !$acc exit data copyout(delsq_u)
-
          if (h_mom_eddy_visc4 > 0.0) then  ! 4th order mixing is active
 
 !$OMP BARRIER
 
             !!! MGD UNTESTED !!!
-
-            !$acc enter data create(delsq_vorticity, delsq_divergence)
-            !$acc enter data copyin(delsq_u)
 
             !$acc parallel default(present)
 
@@ -5455,8 +5454,6 @@ module atm_time_integration
             end do
 
             !$acc end parallel
-
-            !$acc exit data delete(delsq_u, delsq_vorticity, delsq_divergence)
          
          end if ! 4th order mixing is active 
 
@@ -6186,9 +6183,13 @@ module atm_time_integration
          !$acc exit data delete(tend_rho_physics)
          !$acc exit data delete(rb, qtot, rr_save)
          !$acc exit data delete(divergence, vorticity)
+         !$acc exit data copyout(delsq_u)
+
          if (config_horiz_mixing == '2d_smagorinsky') then
             !$acc exit data delete(u, v)
          end if
+
+         !$acc exit data delete(delsq_vorticity, delsq_divergence)
       else
          !$acc exit data delete(tend_rho)
       end if
