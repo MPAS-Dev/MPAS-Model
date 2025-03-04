@@ -5036,6 +5036,7 @@ module atm_time_integration
          !$acc enter data copyin(tend_rho_physics)
          !$acc enter data create(tend_rho)
          !$acc enter data copyin(rb, qtot, rr_save)
+         !$acc enter data copyin(divergence, vorticity)
 
          if (config_horiz_mixing == '2d_smagorinsky') then
             !$acc enter data copyin(u, v)
@@ -5320,7 +5321,6 @@ module atm_time_integration
          ! First, storage to hold the result from the first del^2 computation.
 
          !$acc enter data create(delsq_u)
-         !$acc enter data copyin(divergence, vorticity)
 
          !$acc parallel default(present)
          !$acc loop gang worker
@@ -5365,7 +5365,6 @@ module atm_time_integration
          !$acc end parallel
 
          !$acc exit data copyout(delsq_u)
-         !$acc exit data delete(divergence, vorticity)
 
          if (h_mom_eddy_visc4 > 0.0) then  ! 4th order mixing is active
 
@@ -6186,6 +6185,7 @@ module atm_time_integration
          !$acc exit data copyout(tend_rho)
          !$acc exit data delete(tend_rho_physics)
          !$acc exit data delete(rb, qtot, rr_save)
+         !$acc exit data delete(divergence, vorticity)
          if (config_horiz_mixing == '2d_smagorinsky') then
             !$acc exit data delete(u, v)
          end if
