@@ -5047,6 +5047,10 @@ module atm_time_integration
          ! would be messy, and these variables are created and deleted, rather than copied in
          ! and out
          !$acc enter data create(delsq_vorticity, delsq_divergence)
+
+         if (.not. config_mix_full) then
+            !$acc enter data copyin(u_init, v_init)
+         end if
       else
          !$acc enter data copyin(tend_u_euler)
          !$acc enter data copyin(tend_rho)
@@ -5056,6 +5060,10 @@ module atm_time_integration
       !$acc enter data copyin(cqu, pp, u, w, pv_edge, rho_edge, ke)
       !$acc enter data create(h_divergence)
       !$acc enter data copyin(ru, rw)
+      if (config_rayleigh_damp_u) then
+         !$acc enter data copyin(rayleigh_damp_coef)
+      end if
+      !$acc enter data copyin(tend_ru_physics)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
       prandtl_inv = 1.0_RKIND / prandtl
@@ -5495,8 +5503,7 @@ module atm_time_integration
 
             else  ! idealized cases where we mix on the perturbation from the initial 1-D state
 
-
-               !$acc enter data copyin(u_init, v_init)
+               !!! MGD UNTESTED !!!
 
                !$acc parallel default(present)
                !$acc loop gang worker private(u_mix)
@@ -5530,8 +5537,6 @@ module atm_time_integration
                end do
                !$acc end parallel
 
-               !$acc exit data delete(u_init, v_init)
-
             end if  ! mix perturbation state
 
          end if  ! vertical mixing of horizontal momentum
@@ -5554,8 +5559,6 @@ module atm_time_integration
 
          !!! MGD UNTESTED !!!
 
-         !$acc enter data copyin(rayleigh_damp_coef)
-
          !$acc parallel default(present)
 
          !$acc loop gang worker
@@ -5569,11 +5572,7 @@ module atm_time_integration
 
          !$acc end parallel
 
-         !$acc exit data delete(rayleigh_damp_coef)
-
       end if
-
-      !$acc enter data copyin(tend_ru_physics)
 
       !$acc parallel default(present)
       !$acc loop gang worker
@@ -5586,8 +5585,6 @@ module atm_time_integration
          end do
       end do
       !$acc end parallel
-
-      !$acc exit data delete(tend_ru_physics)
 
 
 !----------- rhs for w
@@ -6190,6 +6187,10 @@ module atm_time_integration
          end if
 
          !$acc exit data delete(delsq_vorticity, delsq_divergence)
+
+         if (.not. config_mix_full) then
+            !$acc exit data delete(u_init, v_init)
+         end if
       else
          !$acc exit data delete(tend_rho)
       end if
@@ -6198,6 +6199,10 @@ module atm_time_integration
       !$acc exit data delete(cqu, pp, u, w, pv_edge, rho_edge, ke)
       !$acc exit data copyout(h_divergence)
       !$acc exit data delete(ru, rw)
+      if (config_rayleigh_damp_u) then
+         !$acc exit data delete(rayleigh_damp_coef)
+      end if
+      !$acc exit data delete(tend_ru_physics)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
    end subroutine atm_compute_dyn_tend_work
