@@ -401,7 +401,7 @@ use mpas_stream_manager
     if(config_lsm_scheme .eq. 'sf_noah') then
        call init_lsm(dminfo,mesh,configs,diag_physics,sfc_input)
     elseif(config_lsm_scheme .eq. 'sf_noahmp') then
-       call init_lsm_noahmp(configs,mesh,diag_physics,diag_physics_noahmp,output_noahmp,sfc_input)
+       call init_lsm_noahmp(configs,mesh,clock,diag_physics,diag_physics_noahmp,output_noahmp,sfc_input)
     endif
  endif
 
