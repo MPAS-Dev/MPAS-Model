@@ -5073,8 +5073,9 @@ module atm_time_integration
       !$acc enter data create(tend_w)
       !$acc enter data copyin(tend_w_euler)
 #ifdef CURVATURE
-      !$acc enter data copyin(rho_zz, ur_cell, vr_cell)
+      !$acc enter data copyin(ur_cell, vr_cell)
 #endif
+      !$acc enter data copyin(rho_zz)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
       prandtl_inv = 1.0_RKIND / prandtl
@@ -5823,8 +5824,6 @@ module atm_time_integration
 
             !!! MGD UNTESTED !!!
 
-            !$acc enter data copyin(rho_zz)
-
             !$acc parallel default(present)
             !$acc loop gang worker
             do iCell=cellSolveStart,cellSolveEnd
@@ -5837,8 +5836,6 @@ module atm_time_integration
                end do
             end do
             !$acc end parallel
-
-            !$acc exit data delete(rho_zz)
 
          end if
 
@@ -6034,7 +6031,7 @@ module atm_time_integration
       !  Note: we are also dividing through by the cell area after the horizontal flux divergence
       !
 
-      !$acc enter data copyin(tend_theta, rw_save, theta_m, theta_m_save, rho_zz, rt_diabatic_tend)
+      !$acc enter data copyin(tend_theta, rw_save, theta_m, theta_m_save, rt_diabatic_tend)
       !$acc enter data create(rthdynten)
 
       !$acc parallel default(present)
@@ -6069,7 +6066,7 @@ module atm_time_integration
       !$acc end parallel
 
       !$acc exit data copyout(tend_theta, rthdynten)
-      !$acc exit data delete(rw_save, theta_m, theta_m_save, rho_zz, rt_diabatic_tend)
+      !$acc exit data delete(rw_save, theta_m, theta_m_save, rt_diabatic_tend)
 
       !
       !  vertical mixing for theta - 2nd order 
@@ -6083,7 +6080,7 @@ module atm_time_integration
 
                !!! MGD UNTESTED !!!
 
-               !$acc enter data copyin(tend_theta_euler, rho_zz, theta_m)
+               !$acc enter data copyin(tend_theta_euler, theta_m)
 
                !$acc parallel default(present)
                !$acc loop gang worker
@@ -6108,11 +6105,11 @@ module atm_time_integration
                !$acc end parallel
 
                !$acc exit data copyout(tend_theta_euler)
-               !$acc exit data delete(rho_zz, theta_m)
+               !$acc exit data delete(theta_m)
 
             else  ! idealized cases where we mix on the perturbation from the initial 1-D state
 
-               !$acc enter data copyin(tend_theta_euler, rho_zz, theta_m, t_init)
+               !$acc enter data copyin(tend_theta_euler, theta_m, t_init)
 
                !$acc parallel default(present)
                !$acc loop gang worker
@@ -6135,7 +6132,7 @@ module atm_time_integration
                !$acc end parallel
 
                !$acc exit data copyout(tend_theta_euler)
-               !$acc exit data delete(rho_zz, theta_m, t_init)
+               !$acc exit data delete(theta_m, t_init)
 
             end if
 
@@ -6197,8 +6194,9 @@ module atm_time_integration
       !$acc exit data copyout(tend_w)
       !$acc exit data copyout(tend_w_euler)
 #ifdef CURVATURE
-      !$acc exit data delete(rho_zz, ur_cell, vr_cell)
+      !$acc exit data delete(ur_cell, vr_cell)
 #endif
+      !$acc exit data delete(rho_zz)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
    end subroutine atm_compute_dyn_tend_work
