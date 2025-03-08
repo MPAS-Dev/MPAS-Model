@@ -156,10 +156,12 @@
 
  character(len=StrKIND),pointer:: config_convection_scheme, &
                                   config_radt_lw_scheme,    &
+                                  config_microp_scheme,     &
                                   config_radt_sw_scheme
 
  character(len=StrKIND),pointer:: config_conv_interval,    &
                                   config_radtlw_interval,  &
+                                  config_pbl_interval,     &
                                   config_radtsw_interval
 
  type(block_type),pointer    :: block
@@ -187,9 +189,11 @@
  call mpas_pool_get_config(domain%blocklist%configs,'config_convection_scheme',config_convection_scheme)
  call mpas_pool_get_config(domain%blocklist%configs,'config_radt_lw_scheme'   ,config_radt_lw_scheme   )
  call mpas_pool_get_config(domain%blocklist%configs,'config_radt_sw_scheme'   ,config_radt_sw_scheme   )
+ call mpas_pool_get_config(domain%blocklist%configs,'config_microp_scheme'    ,config_microp_scheme    )
 
  call mpas_pool_get_config(domain%blocklist%configs,'config_conv_interval'  ,config_conv_interval  )
  call mpas_pool_get_config(domain%blocklist%configs,'config_radtlw_interval',config_radtlw_interval)
+ call mpas_pool_get_config(domain%blocklist%configs,'config_pbl_interval',config_pbl_interval )
  call mpas_pool_get_config(domain%blocklist%configs,'config_radtsw_interval',config_radtsw_interval)
 
  call mpas_pool_get_config(domain%blocklist%configs,'config_frac_seaice'        ,config_frac_seaice        )
@@ -218,6 +222,22 @@
 !call mpas_log_write('     CURR_JULDAY = $r', realArgs=(/curr_julday/))
 !call mpas_log_write('     LEAP_YEAR   = $l', logicArgs=(/LeapYear/))
 !call mpas_log_write('     TIME STAMP  = '//trim(timeStamp))
+
+ dt_dyn    = dt
+!... cloud microphysics:
+ dt_microp = dt_dyn
+ n_microp  = 1
+ if(trim(config_microp_scheme)=='mp_thompson' .or. &
+    trim(config_microp_scheme)=='mp_thompson_aerosols') then
+    dt_microp = 90._RKIND
+    n_microp  = max(nint(dt_dyn/dt_microp),1)
+    dt_microp = dt_dyn / n_microp
+    if(dt_dyn <= dt_microp) dt_microp = dt_dyn
+ endif
+ call mpas_log_write(' ')
+ call mpas_log_write('--- dt_microp = $r', realArgs=(/dt_microp/))
+ call mpas_log_write('--- n_microp  = $i', intArgs=(/n_microp/))
+
 
  block => domain % blocklist
  do while(associated(block))
@@ -267,6 +287,8 @@
        endif
     elseif(config_radtlw_interval == "none") then
        l_radtlw = .true.
+       dt_radtlw = dt
+       call mpas_log_write('---- dt_radtlw = $r',realArgs=(/dt_radtlw/))
     endif
     call mpas_log_write('--- time to run the LW radiation scheme L_RADLW = $l',logicArgs=(/l_radtlw/))
  endif
@@ -281,6 +303,8 @@
        endif
     elseif(config_radtsw_interval == "none") then
        l_radtsw = .true.
+       dt_radtsw = dt
+       call mpas_log_write('---- dt_radtsw = $r',realArgs=(/dt_radtsw/))
     endif
     call mpas_log_write('--- time to run the SW radiation scheme L_RADSW = $l',logicArgs=(/l_radtsw/))
  endif
@@ -296,8 +320,17 @@
        endif
     elseif(config_conv_interval == "none") then
        l_conv = .true.
+       dt_cu = dt
+       n_cu   = nint(dt_cu/dt_dyn)
+       n_cu   = max(n_cu,1)
+       call mpas_log_write('---- dt_cu = $r',realArgs=(/dt_cu/))
     endif
     call mpas_log_write('--- time to run the convection scheme L_CONV    = $l',logicArgs=(/l_conv/))
+ endif
+
+ if(trim(config_pbl_interval) == "none") then
+   dt_pbl = dt
+   call mpas_log_write('---- dt_pbl = $r',realArgs=(/dt_pbl/))
  endif
 
 !check to see if it is time to update ozone to the current julian day in the RRTMG radiation codes:
@@ -440,7 +473,7 @@
  call mpas_pool_get_config(configs,'config_microp_re'        ,config_microp_re        )
 
  call mpas_get_timeInterval(mpas_get_clock_timestep(clock, ierr), dt=dt)
-
+ call mpas_log_write('--- physics time-step DT = $r',realArgs=(/dt/))
 
  call mpas_pool_get_dimension(mesh,'cam_dim1'   ,cam_dim1   )
  call mpas_pool_get_dimension(mesh,'nMonths'    ,nMonths    )

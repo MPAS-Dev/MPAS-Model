@@ -274,6 +274,7 @@
  call mpas_pool_get_config(configs,'config_do_restart',do_restart)
  call mpas_pool_get_config(configs,'config_urban_physics',urban_physics)
  call mpas_get_timeInterval(mpas_get_clock_timestep(clock, ierr), dt=dt)
+ call mpas_log_write('--- LSM time-step DT = $r',realArgs=(/dt/))
 
  mpas_noahmp%restart_flag = do_restart
  mpas_noahmp%sf_urban_physics = 0

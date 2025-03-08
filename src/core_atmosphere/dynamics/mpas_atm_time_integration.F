@@ -868,6 +868,8 @@ module atm_time_integration
       ! Initialize RK weights
       !
 
+      call mpas_log_write('--- atm_srk3 time-step DT = $r',realArgs=(/dt/))
+
       dynamics_split = config_dynamics_split
       if (config_split_dynamics_transport) then
         dt_dynamics = dt/real(dynamics_split)

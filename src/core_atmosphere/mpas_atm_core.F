@@ -55,7 +55,7 @@ module atm_core
       character(len=*), intent(out) :: startTimeStamp
       integer :: ierr
 
-      real (kind=RKIND), pointer :: dt
+      real (kind=RKIND) :: dt
       type (block_type), pointer :: block
 
       logical, pointer :: config_do_restart
@@ -68,6 +68,7 @@ module atm_core
       character (len=StrKIND), pointer :: xtime
       character (len=StrKIND), pointer :: initial_time1, initial_time2
       type (MPAS_Time_Type) :: startTime
+      type (MPAS_TimeInterval_type) :: timeStepInterval !< the current time step as an interval
 
       real (kind=RKIND), pointer :: nominalMinDc
       real (kind=RKIND), pointer :: config_len_disp
@@ -116,8 +117,13 @@ module atm_core
       end if
 
       call mpas_pool_get_config(domain % blocklist % configs, 'config_do_restart', config_do_restart)
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_dt', dt)
-
+      !call mpas_pool_get_config(domain % blocklist % configs, 'config_dt', dt)
+      call mpas_get_timeInterval(mpas_get_clock_timestep(domain % clock, ierr), dt=dt)
+      call mpas_log_write('Obtaining initial dt=$r', realArgs=(/dt/))
+      call mpas_log_write('Setting dt=60')
+      call mpas_set_timeInterval(timeStepInterval, dt=60.0_RKIND, ierr=ierr)
+      call mpas_set_clock_timestep(clock, timeStepInterval, ierr)
+      call mpas_get_timeInterval(mpas_get_clock_timestep(domain % clock, ierr), dt=dt)
       !
       ! By default, the 'invariant' stream has an input_interval of "none", so
       ! the following stream read has no effect. However, in case the 'invariant'
@@ -623,13 +629,21 @@ module atm_core
       real (kind=R8KIND) :: diag_start_time, diag_stop_time
       real (kind=R8KIND) :: input_start_time, input_stop_time
       real (kind=R8KIND) :: output_start_time, output_stop_time
-      
+      type (MPAS_TimeInterval_type) :: timeStepInterval !< the current time step as an interval
+
       ierr = 0
 
       clock => domain % clock
       mpas_log_info => domain % logInfo
+
+      ! call mpas_get_timeInterval(mpas_get_clock_timestep(clock, ierr), dt=dt)
+      ! call mpas_log_write('Obtaining initial dt=$r', realArgs=(/dt/))
+      ! call mpas_log_write('Setting dt=60')
+      ! call mpas_set_timeInterval(timeStepInterval, dt=60.0_RKIND, ierr=ierr)
+      ! call mpas_set_clock_timestep(clock, timeStepInterval, ierr)
       
       call mpas_get_timeInterval(mpas_get_clock_timestep(clock, ierr), dt=dt)
+      call mpas_log_write('Obtaining dt=$r', realArgs=(/dt/))
       call mpas_pool_get_config(domain % blocklist % configs, 'config_do_restart', config_do_restart)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_restart_timestamp_name', config_restart_timestamp_name)
 
@@ -1000,7 +1014,7 @@ module atm_core
       !proceed with physics if moist_physics is set to true:
       if(moist_physics) then
          call physics_timetracker(domain,dt,clock,itimestep,xtime_s)
-         call physics_driver(domain,itimestep,xtime_s)
+         call physics_driver(domain,dt,itimestep,xtime_s)
       endif
 #endif
 
