@@ -5057,9 +5057,11 @@ module atm_time_integration
          ! would be messy, and these variables are created and deleted, rather than copied in
          ! and out
          !$acc enter data copyin(delsq_w)
+         !$acc enter data create(tend_theta_euler)
       else
          !$acc enter data copyin(tend_u_euler)
          !$acc enter data copyin(tend_rho)
+         !$acc enter data copyin(tend_theta_euler)
       end if
       !$acc enter data create(dpdz)
       !$acc enter data create(tend_u)
@@ -5934,7 +5936,7 @@ module atm_time_integration
 
       if (rk_step == 1) then
 
-         !$acc enter data create(delsq_theta, tend_theta_euler)
+         !$acc enter data create(delsq_theta)
 
          !$acc parallel default(present)
          !$acc loop gang worker
@@ -5975,7 +5977,7 @@ module atm_time_integration
           end do
           !$acc end parallel
 
-          !$acc exit data copyout(delsq_theta, tend_theta_euler)
+          !$acc exit data copyout(delsq_theta)
 
 !$OMP BARRIER
             
@@ -5983,7 +5985,7 @@ module atm_time_integration
 
             !!! MGD UNTESTED !!!
 
-            !$acc enter data copyin(tend_theta_euler, delsq_theta)
+            !$acc enter data copyin(delsq_theta)
 
             !$acc parallel default(present)
             !$acc loop gang worker
@@ -6008,7 +6010,6 @@ module atm_time_integration
             end do
             !$acc end parallel
 
-            !$acc exit data copyout(tend_theta_euler)
             !$acc exit data delete(delsq_theta)
 
          end if ! 4th order mixing is active 
@@ -6070,8 +6071,6 @@ module atm_time_integration
 
                !!! MGD UNTESTED !!!
 
-               !$acc enter data copyin(tend_theta_euler)
-
                !$acc parallel default(present)
                !$acc loop gang worker
                do iCell = cellSolveStart,cellSolveEnd
@@ -6094,11 +6093,9 @@ module atm_time_integration
                end do
                !$acc end parallel
 
-               !$acc exit data copyout(tend_theta_euler)
-
             else  ! idealized cases where we mix on the perturbation from the initial 1-D state
 
-               !$acc enter data copyin(tend_theta_euler, t_init)
+               !$acc enter data copyin(t_init)
 
                !$acc parallel default(present)
                !$acc loop gang worker
@@ -6120,7 +6117,6 @@ module atm_time_integration
                end do
                !$acc end parallel
 
-               !$acc exit data copyout(tend_theta_euler)
                !$acc exit data delete(t_init)
 
             end if
@@ -6129,7 +6125,7 @@ module atm_time_integration
 
       end if ! compute vertical theta mixing on first rk_step
 
-      !$acc enter data copyin(tend_theta_euler, tend_rtheta_physics)
+      !$acc enter data copyin(tend_rtheta_physics)
 
       !$acc parallel default(present)
       !$acc loop gang worker
@@ -6143,7 +6139,7 @@ module atm_time_integration
       end do
       !$acc end parallel
 
-      !$acc exit data delete(tend_theta_euler, tend_rtheta_physics)
+      !$acc exit data delete(tend_rtheta_physics)
 
       MPAS_ACC_TIMER_START('atm_compute_dyn_tend_work [ACC_data_xfer]')
       !$acc exit data copyout(tend_u_euler)
@@ -6188,6 +6184,7 @@ module atm_time_integration
       !$acc exit data copyout(tend_theta)
       !$acc exit data delete(theta_m)
       !$acc exit data delete(ru_save, theta_m_save)
+      !$acc exit data copyout(tend_theta_euler)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
    end subroutine atm_compute_dyn_tend_work
