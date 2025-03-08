@@ -5773,7 +5773,7 @@ module atm_time_integration
       !  vertical advection, pressure gradient and buoyancy for w
       !
 
-      !$acc enter data copyin(tend_w, cqw)
+      !$acc enter data copyin(cqw)
 
       !$acc parallel default(present)
       !$acc loop gang worker private(wdwz)
@@ -5815,7 +5815,6 @@ module atm_time_integration
       end do
       !$acc end parallel
 
-      !$acc exit data copyout(tend_w)
       !$acc exit data delete(cqw)
 
       if (rk_step == 1) then
@@ -5847,8 +5846,6 @@ module atm_time_integration
 
       ! add in mixing terms for w
 
-      !$acc enter data copyin(tend_w)
-
       !$acc parallel default(present)
       !$acc loop gang worker
       do iCell = cellSolveStart,cellSolveEnd
@@ -5859,8 +5856,6 @@ module atm_time_integration
          end do
       end do
       !$acc end parallel
-
-      !$acc exit data copyout(tend_w)
 
 !----------- rhs for theta
 
