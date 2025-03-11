@@ -865,8 +865,6 @@
        call rrtmg_lwrad( &
             p3d      = pres_hyd_p  , p8w        = pres2_hyd_p   , pi3d      = pi_p       , &
             t3d      = t_p         , t8w        = t2_p          , dz8w      = dz_p       , &
-!           qv3d     = qv_p        , qc3d       = qc_p          , qi3d      = qi_p       , &
-!           qs3d     = qs_p        , cldfra3d   = cldfrac_p     , tsk       = tsk_p      , &
             qv3d     = qvrad_p     , qc3d       = qcrad_p       , qi3d      = qirad_p    , &
             qs3d     = qsrad_p     , cldfra3d   = cldfrac_p     , tsk       = tsk_p      , &
             emiss    = sfc_emiss_p , xland      = xland_p       , xice      = xice_p     , &

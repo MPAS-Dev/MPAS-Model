@@ -2745,13 +2745,8 @@ contains
 !
       module rrtmg_lw_cldprmc
 
-#if defined(mpas)
  use mpas_atmphys_utilities,only: physics_error_fatal
 #define FATAL_ERROR(M) call physics_error_fatal( M )
-#else
-use module_wrf_error
-#define FATAL_ERROR(M) call wrf_error_fatal( M )
-#endif
 
 !  --------------------------------------------------------------------------
 ! |                                                                          |
@@ -11541,55 +11536,8 @@ use module_wrf_error
 
 !------------------------------------------------------------------
 MODULE module_ra_rrtmg_lw
-
-#if defined(mpas)
-!MPAS specific (Laura D. Fowler):
 use mpas_atmphys_constants,only : cp,g=>gravity
 use module_ra_rrtmg_vinterp,only: vinterp_ozn
-
-!> add-ons and modifications to sourcecode:
-!> ----------------------------------------
-!>    * updated the sourcecode to WRF revision 3.5, except for the implementation
-!>      of time-varying trace gases: added multiple layers above the model-top
-!>      following Cavalo et al. (2010). added option to use the ozone climatology
-!>      from the CAM radiation codes.
-!>      Laura D. Fowler (birch.mmm.ucar.edu) / 2013-07-17.
-!>    * in subroutine taugb7, corrected line number 6145 "if (specparm .lt. 0.125_rb) then"
-!>      with if (specparm1 .lt. 0.125_rb) then, in accordance with the bug fix made in WRF
-!>      revision 3.7.
-!>      Laura D. Fowler (birch.mmm.ucar.edu) / 2015-05-04.
-!>    * at the bottom of subroutine rrtmg_lwrad, changed the definition of the arrays lwupt,lwuptc,
-!>      lwdnt,and lwdntc so that they are now defined at the top-of-the-atmosphere.
-!>      Laura D. Fowler (laura@ucar.edu) / 2016-06-23.
-!>    * cleaned-up the subroutine rrtmg_lwrad in preparation for the implementation of the calculation of the
-!>      cloud optical properties when the effective radii for cloud water, cloud ice, and snow are provided by
-!>      the cloud microphysics schemes (note that for now, only the Thompson cloud microphysics scheme has the
-!>      option to calculate cloud radii). With the -g option, results are exactly the same as the original
-!>      subroutine.
-!>      Laura D. Fowler (laura@ucar.edu) / 2016-06-30.
-!>    * updated module_ra_rrtmg_lw.F using module_ra_rrtmg_lw.F from WRF version 3.8, namely to update the
-!>      calculation of the cloud optical properties to include the radiative effect of snow.
-!>      Laura D. Fowler (laura@ucar.edu / 2016-07-05).
-!>    * added the effective radii for cloud water, cloud ice, and snow calculated in the Thompson cloud
-!>      microphysics scheme as inputs to the subroutine rrtmg_lwrad. revised the initialization of arrays rel,
-!>      rei, and res, accordingly.
-!>      Laura D. Fowler (laura@ucar.edu) / 2016-07-07.
-!>    * added diagnostics of the effective radii for cloud water, cloud ice, and snow used in rrtmg_lwrad.
-!>      Laura D. Fowler (laura@ucar.edu) / 2016-07-08.
-
-!MPAS specific end.
-
-#else
-use module_model_constants, only : cp
-use module_wrf_error
-#define FATAL_ERROR(M) call wrf_error_fatal( M )
-#if (HWRF == 1)
-   USE module_state_description, ONLY : FER_MP_HIRES, FER_MP_HIRES_ADVECT, ETAMP_HWRF 
-#else
-   USE module_state_description, ONLY : FER_MP_HIRES, FER_MP_HIRES_ADVECT
-#endif
-!use module_dm
-#endif
 
 use parrrtm, only : nbndlw, ngptlw
 use rrtmg_lw_init, only: rrtmg_lw_ini
@@ -11616,10 +11564,8 @@ use mcica_subcol_gen_lw, only: mcica_subcol_lw
          205.728, 214.055, 222.694, 231.661, 240.971, 250.639/  
     !
     save retab
-#if !defined(mpas)
     ! For buffer layer adjustment.  Steven Cavallo, Dec 2010.
     integer , save    :: nlayers    
-#endif
     real, PARAMETER :: deltap = 4.  ! Pressure interval for buffer layer in mb
     
 CONTAINS
@@ -11990,7 +11936,7 @@ CONTAINS
           ccl4vmr(ncol,k)  = ccl4
        enddo
 
-       !--- drive height of each layer mid-point from layer thickness needed for icl=4 (exponential) and
+       !--- compute height of each layer mid-point from layer thickness needed for icl=4 (exponential) and
        !    icld=5 (exponential-random) overlap. fill in height array above model top using dz1d from top
        !    layer:
        dzsum = 0.
