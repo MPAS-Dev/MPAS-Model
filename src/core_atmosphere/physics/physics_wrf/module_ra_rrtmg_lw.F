@@ -2079,7 +2079,7 @@ contains
 
       use parkind, only : im => kind_im, rb => kind_rb
       use parrrtm, only : nbndlw, ngptlw
-      use rrlw_con, only: grav
+      use rrlw_con, only: grav, pi
       use rrlw_wvn, only: ngb
       use rrlw_vsn
 
@@ -2093,10 +2093,13 @@ contains
 !------------------------------------------------------------------
 ! Public subroutines
 !------------------------------------------------------------------
-
+! mji - Add height needed for exponential and exponential-random cloud overlap methods
+!       (icld=4 and 5, respectively) along with idcor, juldat and lat used to specify
+!       the decorrelation length for these methods
       subroutine mcica_subcol_lw(iplon, ncol, nlay, icld, permuteseed, irng, play, &
-                       cldfrac, ciwp, clwp, cswp, rei, rel, res, tauc, cldfmcl, &
-                       ciwpmcl, clwpmcl, cswpmcl, reicmcl, relqmcl, resnmcl, taucmcl)
+                       cldfrac, ciwp, clwp, cswp, rei, rel, res, tauc, &
+                       hgt, idcor, juldat, lat, &
+                       cldfmcl, ciwpmcl, clwpmcl, cswpmcl, reicmcl, relqmcl, resnmcl, taucmcl)
 
 ! ----- Input -----
 ! Control
@@ -2114,6 +2117,9 @@ contains
 
 ! Atmosphere
       real(kind=rb), intent(in) :: play(:,:)          ! layer pressures (mb) 
+                                                      !    Dimensions: (ncol,nlay)
+
+      real(kind=rb), intent(in) :: hgt(:,:)           ! layer height (m)
                                                       !    Dimensions: (ncol,nlay)
 
 ! Atmosphere/clouds - cldprop
@@ -2137,6 +2143,9 @@ contains
                                                       !    Dimensions: (ncol,nlay)
       real(kind=rb), intent(in) :: res(:,:)           ! snow particle size
                                                       !    Dimensions: (ncol,nlay)
+      integer(kind=im), intent(in) :: idcor           ! Decorrelation length type
+      integer(kind=im), intent(in) :: juldat          ! Julian date (day of year, 1-365)
+      real(kind=rb),    intent(in) :: lat             ! latitude (degrees, -90 to 90)
 
 ! ----- Output -----
 ! Atmosphere/clouds - cldprmc [mcica]
@@ -2172,10 +2181,18 @@ contains
 !      real(kind=rb) :: qi(ncol, nlay)                ! ice water (specific humidity)
 !      real(kind=rb) :: ql(ncol, nlay)                ! liq water (specific humidity)
 
+! MJI - For latitude dependent decorrelation length
+       real(kind=rb), parameter :: am1 = 1.4315_rb
+       real(kind=rb), parameter :: am2 = 2.1219_rb
+       real(kind=rb), parameter :: am4 = -25.584_rb
+       real(kind=rb), parameter :: amr = 7._rb
+       real(kind=rb) :: am3
+       real(kind=rb) :: decorr_len(ncol)                  ! decorrelation length (meters)
+       real(kind=rb), parameter :: Zo_default = 2500._rb  ! default constant decorrelation length (m)
 
 ! Return if clear sky; or stop if icld out of range
       if (icld.eq.0) return
-      if (icld.lt.0.or.icld.gt.3) then 
+      if (icld.lt.0.or.icld.gt.5) then
          stop 'MCICA_SUBCOL: INVALID ICLD'
       endif 
 
@@ -2205,8 +2222,27 @@ contains
 !         ql(ilev) = (clwp(ilev) * grav) / (pdel(ilev) * 1000._rb)
 !      enddo
 
+! MJI - Latitude and day of year dependent decorrelation length
+      if (idcor .eq. 1) then
+! Derive decorrelation length based on day of year and latitude (from NASA GMAO method)
+! Result is in meters
+         if (juldat .gt. 181) then
+            am3 = -4._rb * amr / 365._rb * (juldat-272)
+         else
+            am3 = 4._rb * amr / 365._rb * (juldat-91)
+         endif
+! Latitude in radians, decorrelation length in meters
+!         decorr_len(:) = ( am1 + am2 * exp(-(lat*180._rb/pi - am3)**2 / (am4*am4)) ) * 1.e3_rb
+! Latitude in degrees, decorrelation length in meters
+         decorr_len(:) = ( am1 + am2 * exp(-(lat - am3)**2 / (am4*am4)) ) * 1.e3_rb
+      else
+! Spatially and temporally constant decorrelation length
+         decorr_len(:) = Zo_default
+      endif
+
 !  Generate the stochastic subcolumns of cloud optical properties for the longwave;
       call generate_stochastic_clouds (ncol, nlay, nsubclw, icld, irng, pmid, cldfrac, clwp, ciwp, cswp, tauc, &
+                               hgt, decorr_len, &
                                cldfmcl, clwpmcl, ciwpmcl, cswpmcl, taucmcl, permuteseed)
 
       end subroutine mcica_subcol_lw
@@ -2214,6 +2250,7 @@ contains
 
 !-------------------------------------------------------------------------------------------------
       subroutine generate_stochastic_clouds(ncol, nlay, nsubcol, icld, irng, pmid, cld, clwp, ciwp, cswp, tauc, &
+                                   hgt, decorr_len, &
                                    cld_stoch, clwp_stoch, ciwp_stoch, cswp_stoch, tauc_stoch, changeSeed) 
 !-------------------------------------------------------------------------------------------------
 
@@ -2223,10 +2260,13 @@ contains
   ! 
   ! Original code: Based on Raisanen et al., QJRMS, 2004.
   ! 
-  ! Modifications: Generalized for use with RRTMG and added Mersenne Twister as the default
+  ! Modifications:
+  !   1) Generalized for use with RRTMG and added Mersenne Twister as the default
   !   random number generator, which can be changed to the optional kissvec random number generator
   !   with flag 'irng'. Some extra functionality has been commented or removed.  
   !   Michael J. Iacono, AER, Inc., February 2007
+  !   2) Activated exponential and exponential/random cloud overlap method
+  !   Michael J. Iacono, AER, November 2017
   !
   ! Given a profile of cloud fraction, cloud water and cloud ice, we produce a set of subcolumns.
   ! Each layer within each subcolumn is homogeneous, with cloud fraction equal to zero or one 
@@ -2235,12 +2275,11 @@ contains
   ! and obeys an overlap assumption in the vertical.   
   ! 
   ! Overlap assumption:
-  !  The cloud are consistent with 4 overlap assumptions: random, maximum, maximum-random and exponential. 
-  !  The default option is maximum-random (option 3)
-  !  The options are: 1=random overlap, 2=max/random, 3=maximum overlap, 4=exponential overlap
-  !  This is set with the variable "overlap" 
-  !mji - Exponential overlap option (overlap=4) has been deactivated in this version
-  !  The exponential overlap uses also a length scale, Zo. (real,    parameter  :: Zo = 2500. ) 
+  !  The cloud are consistent with 5 overlap assumptions: random, maximum, maximum-random, exponential and exponential random.
+  !  The default option is maximum-random (option 2)
+  !  The options are: 1=random overlap, 2=max/random, 3=maximum overlap, 4=exponential overlap, 5=exp/random
+  !  This is set with the variable "overlap"
+  !  The exponential overlap uses also a length scale, Zo. (real,    parameter  :: Zo = 2500. )
   ! 
   ! Seed:
   !  If the stochastic cloud generator is called several times during the same timestep, 
@@ -2292,6 +2331,8 @@ contains
 ! Column state (cloud fraction, cloud water, cloud ice) + variables needed to read physics state 
       real(kind=rb), intent(in) :: pmid(:,:)          ! layer pressure (Pa)
                                                       !    Dimensions: (ncol,nlay)
+      real(kind=rb), intent(in) :: hgt(:,:)           ! layer height (m)
+                                                      !    Dimensions: (ncol,nlay)
       real(kind=rb), intent(in) :: cld(:,:)           ! cloud fraction 
                                                       !    Dimensions: (ncol,nlay)
       real(kind=rb), intent(in) :: clwp(:,:)          ! in-cloud liquid water path
@@ -2308,6 +2349,8 @@ contains
 !      real(kind=rb), intent(in) :: asmc(:,:,:)       ! in-cloud asymmetry parameter
                                                       !    Dimensions: (nbndlw,ncol,nlay)
                                                       !   inactive - for future expansion
+      real(kind=rb), intent(in) :: decorr_len(:)      ! decorrelation length (meters)
+                                                      !    Dimensions: (ncol)
 
       real(kind=rb), intent(out) :: cld_stoch(:,:,:)  ! subcolumn cloud fraction 
                                                       !    Dimensions: (ngptlw,ncol,nlay)
@@ -2338,11 +2381,11 @@ contains
 !      real(kind=rb) :: mean_asmc_stoch(ncol, nlay)   ! cloud asymmetry parameter
 
 ! Set overlap
-      integer(kind=im) :: overlap                     ! 1 = random overlap, 2 = maximum/random,
-                                                      ! 3 = maximum overlap, 
-!      real(kind=rb), parameter  :: Zo = 2500._rb        ! length scale (m) 
-!      real(kind=rb) :: zm(ncol,nlay)                 ! Height of midpoints (above surface)
-!      real(kind=rb), dimension(nlay) :: alpha=0.0_rb    ! overlap parameter  
+      integer(kind=im) :: overlap                     ! 1 = random overlap, 2 = maximum-random,
+                                                      ! 3 = maximum overlap, 4 = exponential,
+                                                      ! 5 = exponential-random
+      real(kind=rb)                   :: Zo_inv(ncol) ! inverse of decorrelation length scale (m)
+      real(kind=rb), dimension(ncol,nlay) :: alpha    ! overlap parameter
 
 ! Constants (min value for cloud fraction and cloud water and ice)
       real(kind=rb), parameter :: cldmin = 1.0e-20_rb ! min cloud fraction
@@ -2368,6 +2411,7 @@ contains
 
 ! Pass input cloud overlap setting to local variable
       overlap = icld
+      Zo_inv(:) = 1._rb / decorr_len(:)
 
 ! Ensure that cloud fractions are in bounds 
       do ilev = 1, nlay
@@ -2489,39 +2533,106 @@ contains
              enddo
          endif
 
-!    case(4) - inactive
-!       ! Exponential overlap: weighting between maximum and random overlap increases with the distance. 
-!       ! The random numbers for exponential overlap verify:
-!       ! j=1   RAN(j)=RND1
-!       ! j>1   if RND1 < alpha(j,j-1) => RAN(j) = RAN(j-1)
-!       !                                 RAN(j) = RND2
-!       ! alpha is obtained from the equation
-!       ! alpha = exp(- (Zi-Zj-1)/Zo) where Zo is a characteristic length scale    
+        case(4)
+            ! Exponential overlap: transition from maximum to random cloud overlap increases
+            ! exponentially with layer thickness and distance through layers
+            !
+            ! The random numbers for exponential overlap verify:
+            ! j=1   RAN(j)=RND1
+            ! j>1   if RND1 < alpha(j,j-1) => RAN(j) = RAN(j-1)
+            !                                 RAN(j) = RND2
+            ! alpha is obtained from the equation
+            ! alpha = exp(-(Z(j)-Z(j-1))/Zo) where Zo is a characteristic length scale
 
+            ! compute alpha
+            ! todo - need to permute this loop after adding vectorized expf() function
+            do i = 1, ncol
+               alpha(i, 1) = 0._rb
+               do ilev = 2,nlay
+                  alpha(i, ilev) = exp( -(hgt(i,ilev) - hgt(i,ilev-1)) * Zo_inv(i))
+               enddo
+            enddo
 
-!       ! compute alpha
-!       zm    = state%zm     
-!       alpha(:, 1) = 0.
-!       do ilev = 2,nlay
-!          alpha(:, ilev) = exp( -( zm (:, ilev-1) -  zm (:, ilev)) / Zo)
-!       end do
+            ! generate 2 streams of random numbers
+            if (irng.eq.0) then
+               do isubcol = 1,nsubcol
+                  do ilev = 1,nlay
+                     call kissvec(seed1, seed2, seed3, seed4, rand_num)
+                     CDF(isubcol, :, ilev) = rand_num
+                     call kissvec(seed1, seed2, seed3, seed4, rand_num)
+                     CDF2(isubcol, :, ilev) = rand_num
+                  enddo
+               enddo
+            elseif (irng.eq.1) then
+               do isubcol = 1, nsubcol
+                  do i = 1, ncol
+                     do ilev = 1, nlay
+                        rand_num_mt = getRandomReal(randomNumbers)
+                        CDF(isubcol,i,ilev) = rand_num_mt
+                        rand_num_mt = getRandomReal(randomNumbers)
+                        CDF2(isubcol,i,ilev) = rand_num_mt
+                     enddo
+                  enddo
+               enddo
+            endif
+
+            ! generate random numbers
+            do ilev = 2,nlay
+               where (CDF2(:, :, ilev) < spread(alpha (:,ilev), dim=1, nCopies=nsubcol) )
+                  CDF(:,:,ilev) = CDF(:,:,ilev-1)
+               end where
+            end do
+
+         case(5)
+       ! Exponential_Random overlap: transition from maximum to random cloud overlap increases
+       ! exponentially with layer thickness and with distance through adjacent cloudy layers.
+       ! Non-adjacent blocks of clouds are treated randomly, and each block begins a new
+       ! exponential transition from maximum to random.
+       !
+       ! compute alpha: bottom to top
+       ! - set alpha to 0 in bottom layer (no layer below for correlation)
+       do i = 1, ncol
+          alpha(i, 1) = 0._rb
+          do ilev = 2,nlay
+             alpha(i, ilev) = exp( -(hgt(i,ilev) - hgt(i,ilev-1) ) * Zo_inv(i))
+          ! Decorrelate layers when clear layer follows a cloudy layer to enforce
+          ! random correlation between non-adjacent cloudy layers
+             if (cldf(i,ilev) .eq. 0.0_rb .and. cldf(i,ilev-1) .gt. 0.0_rb) then
+                alpha(i,ilev) = 0.0_rb
+             endif
+          end do
+       end do
        
-!       ! generate 2 streams of random numbers
-!       do isubcol = 1,nsubcol
-!          do ilev = 1,nlay
-!             call kissvec(seed1, seed2, seed3, seed4, rand_num)
-!             CDF(isubcol, :, ilev) = rand_num
-!             call kissvec(seed1, seed2, seed3, seed4, rand_num)
-!             CDF2(isubcol, :, ilev) = rand_num
-!          end do
-!       end do
-
-!       ! generate random numbers
-!       do ilev = 2,nlay
-!          where (CDF2(:, :, ilev) < spread(alpha (:,ilev), dim=1, nCopies=nsubcol) )
-!             CDF(:,:,ilev) = CDF(:,:,ilev-1) 
-!          end where
-!       end do
+       ! generate 2 streams of random numbers
+       ! CDF2 is used to select which sub-columns are vertically correlated relative to alpha
+       ! CDF  is used to select which sub-columns are treated as cloudy relative to cloud fraction
+       if (irng.eq.0) then
+          do isubcol = 1,nsubcol
+             do ilev = 1,nlay
+                call kissvec(seed1, seed2, seed3, seed4, rand_num)
+                CDF(isubcol, :, ilev) = rand_num
+                call kissvec(seed1, seed2, seed3, seed4, rand_num)
+                CDF2(isubcol, :, ilev) = rand_num
+             end do
+          end do
+       elseif (irng.eq.1) then
+          do isubcol = 1, nsubcol
+             do i = 1, ncol
+                do ilev = 1,nlay
+                   rand_num_mt = getRandomReal(randomNumbers)
+                   CDF(isubcol,i,ilev) = rand_num_mt
+                   rand_num_mt = getRandomReal(randomNumbers)
+                   CDF2(isubcol,i,ilev) = rand_num_mt
+                enddo
+             enddo
+          enddo
+       endif
+       ! generate vertical correlations in random number arrays - bottom to top
+       do ilev = 2,nlay
+          where (CDF2(:, :, ilev) < spread(alpha (:,ilev), dim=1, nCopies=nsubcol) )
+             CDF(:,:,ilev) = CDF(:,:,ilev-1)
+          end where
+       end do
 
       end select
 
@@ -2641,7 +2752,6 @@ contains
 use module_wrf_error
 #define FATAL_ERROR(M) call wrf_error_fatal( M )
 #endif
-
 
 !  --------------------------------------------------------------------------
 ! |                                                                          |
@@ -3187,6 +3297,7 @@ use module_wrf_error
          icldlyr(lay) = 0
 
 ! Change to band loop?
+! todo permute, remove condition, vectorize expf
          do ig = 1, ngptlw
             if (cldfmc(ig,lay) .eq. 1._rb) then
                ib = ngb(ig)
@@ -4947,9 +5058,9 @@ use module_wrf_error
 
 ! ----- Output -----
       real(kind=rb), intent(out) :: fracs(:,:)        ! planck fractions
-                                                      !    Dimensions: (nlayers+1,ngptlw)
+                                                      !    Dimensions: (nlayers,ngptlw)
       real(kind=rb), intent(out) :: taug(:,:)         ! gaseous optical depth 
-                                                      !    Dimensions: (nlayers+1,ngptlw)
+                                                      !    Dimensions: (nlayers,ngptlw)
 
 !jm not thread safe      hvrtau = '$Revision: 1.7 $'
 
@@ -6001,10 +6112,12 @@ use module_wrf_error
 
 ! ------- Modules -------
 
-      use parrrtm, only : ng6, ngs5
+      use parrrtm, only : ngs5
+!     use parrrtm, only : ng6, ngs5
       use rrlw_ref, only : chi_mls
-      use rrlw_kg06, only : fracrefa, absa, ka, ka_mco2, &
-                            selfref, forref, cfc11adj, cfc12
+      use rrlw_kg06
+!     use rrlw_kg06, only : fracrefa, absa, ka, ka_mco2, &
+!                           selfref, forref, cfc11adj, cfc12
 
 ! ------- Declarations -------
 
@@ -8779,11 +8892,13 @@ use module_wrf_error
 ! old band 6:  820-980 cm-1 (low - h2o; high - nothing)
 !***************************************************************************
 
-      use parrrtm, only : mg, nbndlw, ngptlw, ng6
-      use rrlw_kg06, only: fracrefao, kao, kao_mco2, cfc11adjo, cfc12o, &
-                           selfrefo, forrefo, &
-                           fracrefa, absa, ka, ka_mco2, cfc11adj, cfc12, &
-                           selfref, forref
+      use parrrtm, only : mg, nbndlw, ngptlw
+!     use parrrtm, only : mg, nbndlw, ngptlw, ng6
+      use rrlw_kg06
+!     use rrlw_kg06, only: fracrefao, kao, kao_mco2, cfc11adjo, cfc12o, &
+!                          selfrefo, forrefo, &
+!                          fracrefa, absa, ka, ka_mco2, cfc11adj, cfc12, &
+!                          selfref, forref
 
 ! ------- Local -------
       integer(kind=im) :: jt, jp, igc, ipr, iprsm 
@@ -10600,7 +10715,8 @@ use module_wrf_error
              inflglw ,iceflglw,liqflglw,cldfmcl , &
              taucmcl ,ciwpmcl ,clwpmcl , cswpmcl ,reicmcl ,relqmcl , resnmcl , &
              tauaer  , &
-             uflx    ,dflx    ,hr      ,uflxc   ,dflxc,  hrc)
+             uflx    ,dflx    ,hr      ,uflxc   ,dflxc,  hrc, &
+             uflxcln ,dflxcln, calc_clean_atm_diag )
 
 ! -------- Description --------
 
@@ -10699,6 +10815,8 @@ use module_wrf_error
                                                       !    1: Random
                                                       !    2: Maximum/random
                                                       !    3: Maximum
+                                                      !    4: Exponential
+                                                      !    5: Exponential/random
       real(kind=rb), intent(in) :: play(:,:)          ! Layer pressures (hPa, mb)
                                                       !    Dimensions: (ncol,nlay)
       real(kind=rb), intent(in) :: plev(:,:)          ! Interface pressures (hPa, mb)
@@ -10781,6 +10899,7 @@ use module_wrf_error
                                                       !    Dimensions: (ncol,nlay,nbndlw)
                                                       !   for future expansion 
                                                       !   (lw aerosols/scattering not yet available)
+      integer, intent(in) :: calc_clean_atm_diag      ! Control for clean air diagnositic calls for WRF-Chem
 
 ! ----- Output -----
 
@@ -10796,6 +10915,10 @@ use module_wrf_error
                                                       !    Dimensions: (ncol,nlay+1)
       real(kind=rb), intent(out) :: hrc(:,:)          ! Clear sky longwave radiative heating rate (K/d)
                                                       !    Dimensions: (ncol,nlay)
+      real(kind=rb), intent(out) :: uflxcln(:,:)      ! Clean sky longwave upward flux (W/m2)
+                                                      !    Dimensions: (ncol,nlay+1)
+      real(kind=rb), intent(out) :: dflxcln(:,:)      ! Clean sky longwave downward flux (W/m2)
+                                                      !    Dimensions: (ncol,nlay+1)
 
 ! ----- Local -----
 
@@ -10907,6 +11030,10 @@ use module_wrf_error
       real(kind=rb) :: totdclfl(0:nlay+1)     ! clear sky downward longwave flux (w/m2)
       real(kind=rb) :: fnetc(0:nlay+1)        ! clear sky net longwave flux (w/m2)
       real(kind=rb) :: htrc(0:nlay+1)         ! clear sky longwave heating rate (k/day)
+      real(kind=rb) :: totuclnlfl(0:nlay+1)   ! clean sky upward longwave flux (w/m2)
+      real(kind=rb) :: totdclnlfl(0:nlay+1)   ! clean sky downward longwave flux (w/m2)
+      real(kind=rb) :: fnetcln(0:nlay+1)      ! clean sky net longwave flux (w/m2)
+      real(kind=rb) :: htrcln(0:nlay+1)       ! clean sky longwave heating rate (k/day)
 
 !
 ! Initializations
@@ -10930,7 +11057,8 @@ use module_wrf_error
 ! icld = 1, with clouds using random cloud overlap
 ! icld = 2, with clouds using maximum/random cloud overlap
 ! icld = 3, with clouds using maximum cloud overlap (McICA only)
-      if (icld.lt.0.or.icld.gt.3) icld = 2
+! icld = 4, with clouds using exponential cloud overlap (McICA only)
+! icld = 5, with clouds using exponential/random cloud overlap (McICA only)
 
 ! Set iaer to select aerosol option
 ! iaer = 0, no aerosols
@@ -11021,6 +11149,29 @@ use module_wrf_error
 ! to be used.  Clear sky calculation is done simultaneously.
 ! For McICA, RTRNMC is called for clear and cloudy calculations.
 
+#if (WRF_CHEM == 1)
+        ! Call the radiative transfer routine for "clean" sky first,
+        ! passing taug rather than taut so we have no aerosol influence.
+        ! We will keep totuclnlfl, totdclnlfl, fnetcln, and htrcln,
+        ! and then overwrite the rest with the second call to rtrnmc.
+         if(calc_clean_atm_diag .gt. 0)then
+             call rtrnmc(nlayers, istart, iend, iout, pz, semiss, ncbands, &
+                     cldfmc, taucmc, planklay, planklev, plankbnd, &
+                     pwvcm, fracs, taug, &
+                     totuclnlfl, totdclnlfl, fnetcln, htrcln, &
+                     totuclfl, totdclfl, fnetc, htrc )
+         else
+            do k = 0, nlayers
+                totuclnlfl(k) = 0.0
+                totdclnlfl(k) = 0.0
+            end do
+         end if
+#else
+         do k = 0, nlayers
+            totuclnlfl(k) = 0.0
+            totdclnlfl(k) = 0.0
+         end do
+#endif
          call rtrnmc(nlayers, istart, iend, iout, pz, semiss, ncbands, &
                      cldfmc, taucmc, planklay, planklev, plankbnd, &
                      pwvcm, fracs, taut, &
@@ -11035,6 +11186,8 @@ use module_wrf_error
             dflx(iplon,k+1) = totdflux(k)
             uflxc(iplon,k+1) = totuclfl(k)
             dflxc(iplon,k+1) = totdclfl(k)
+            uflxcln(iplon,k+1) = totuclnlfl(k)
+            dflxcln(iplon,k+1) = totdclnlfl(k)
          enddo
          do k = 0, nlayers-1
             hr(iplon,k+1) = htr(k)
@@ -11475,7 +11628,8 @@ CONTAINS
  subroutine rrtmg_lwrad( &
                        p3d,p8w,pi3d,t3d,t8w,dz8w,qv3d,qc3d,qr3d,  &
                        qi3d,qs3d,qg3d,cldfra3d,o33d,tsk,emiss,    &
-                       xland,xice,snow,icloud,o3input,noznlevels, &
+                       xland,xice,snow,xlat,julday,icloud,        &
+                       cldovrlp,idcor,o3input,noznlevels,         &
                        pin,o3clim,glw,olr,lwcf,rthratenlw,        &
                        has_reqc,has_reqi,has_reqs,re_cloud,       &
                        re_ice,re_snow,rre_cloud,rre_ice,rre_snow, &
@@ -11495,10 +11649,13 @@ CONTAINS
  integer,intent(in):: ids,ide, jds,jde, kds,kde, &
                       ims,ime, jms,jme, kms,kme, &
                       its,ite, jts,jte, kts,kte
- integer,intent(in):: icloud,has_reqc,has_reqi,has_reqs
+ integer,intent(in):: julday
+ integer,intent(in):: icloud,cldovrlp,idcor
+ integer,intent(in):: has_reqc,has_reqi,has_reqs
  integer,intent(in),optional:: o3input
 
- real,intent(in),dimension(ims:ime,jms:jme):: emiss,tsk,snow,xice,xland
+ real,intent(in),dimension(ims:ime,jms:jme):: emiss,tsk,snow,xice,xland,xlat
+
  real,intent(in),dimension(ims:ime,kms:kme,jms:jme):: t3d,p3d,pi3d
  real,intent(in),dimension(ims:ime,kms:kme,jms:jme):: dz8w,p8w,t8w
 
@@ -11525,6 +11682,7 @@ CONTAINS
      lwupflx,lwupflxc,lwdnflx,lwdnflxc
 
 !local variables and arrays:
+ integer:: calc_clean_atm_diag
  integer:: nb,ncol,nlay,icld,inflglw,iceflglw,liqflglw
  integer:: iplon,irng,permuteseed
  integer:: pcols,pver
@@ -11535,6 +11693,7 @@ CONTAINS
  real:: corr
  real:: gliqwp,gicewp,gsnowp,gravmks
  real:: snow_mass_factor
+ real:: dzsum,lat
  real,dimension(1):: tsfc,landfrac,landm,snowh,icefrac
  real,dimension(1,1:kte-kts+1):: pdel,cliqwp,cicewp,csnowp,reliq,reice,resnow
  real,dimension(1,nbndlw):: emis
@@ -11549,9 +11708,10 @@ CONTAINS
 
  real,dimension(:),allocatable:: o3mmr,varint
  real,dimension(:,:),allocatable:: &
-    plev,tlev,play,tlay,h2ovmr,o3vmr,co2vmr,o2vmr,ch4vmr,n2ovmr,cfc11vmr,  &
+    plev,tlev,play,hlay,tlay,h2ovmr,o3vmr,co2vmr,o2vmr,ch4vmr,n2ovmr,cfc11vmr,  &
     cfc12vmr,cfc22vmr,ccl4vmr,clwpth,ciwpth,cswpth,rel,rei,res,cldfrac,relqmcl,reicmcl,resnmcl
  real,dimension(:,:),allocatable:: uflx,dflx,uflxc,dflxc,hr,hrc
+ real,dimension(:,:),allocatable:: uflxcln,dflxcln
  real,dimension(:,:,:),allocatable:: taucld,cldfmcl,clwpmcl,ciwpmcl,cswpmcl,taucmcl,tauaer
 
 !--- additional local variables and arrays needed for the CAM ozone climatologyL
@@ -11643,17 +11803,26 @@ CONTAINS
 !--- all fields are ordered vertically from bottom to top (pressures are in mb):
  ncol = 1
 
+!--- select cloud overlap asumption (1=random, 2=maximum-random, 3=maximum, 4=exponential, 5=exponential-random).
+!    assign namlist variable cldovrlp to existing icld:
+ icld = cldovrlp
+
 !--- initialize option for the calculation of the cloud optical properties:
- icld     = 2 ! with clouds using maximum/random cloud overlap in subroutine mcica_subcol_lw. 
  inflglw  = 2
  iceflglw = 3
  liqflglw = 1
+
+!--- initialize option for the calculation of clean air upward and downward fluxes:
+ calc_clean_atm_diag = 0
 
 !--- latitude loop:
  j_loop: do j = jts,jte
 
 !--- longitude loop:
     i_loop: do i = its,ite
+
+       !--- initialize local latitude:
+       lat = xlat(i,j)
 
        !--- set surface emissivity in each RRTMG longwave band:
        do nb = 1, nbndlw
@@ -11708,38 +11877,41 @@ CONTAINS
        mpas_nlay(i,j) = nlayers-kte
 !      write(0,101) j,i,kme,kte,nlayers,mpas_nlay(i,j),pw1d(kte+1),pw1d(kte+1)-mpas_nlay(i,j)*deltap
 !      101 format(6i9,3(1x,f9.4))
-       if(.not.allocated(o3mmr)   ) allocate(o3mmr(kts:nlayers)     )
-       if(.not.allocated(varint)  ) allocate(varint(kts:nlayers+1)  )
-       if(.not.allocated(plev)    ) allocate(plev(1,kts:nlayers+1)  )
-       if(.not.allocated(tlev)    ) allocate(tlev(1,kts:nlayers+1)  )
-       if(.not.allocated(play)    ) allocate(play(1,kts:nlayers)    )
-       if(.not.allocated(tlay)    ) allocate(tlay(1,kts:nlayers)    )
-       if(.not.allocated(h2ovmr)  ) allocate(h2ovmr(1,kts:nlayers)  )
-       if(.not.allocated(o3vmr)   ) allocate(o3vmr(1,kts:nlayers)   )
-       if(.not.allocated(co2vmr)  ) allocate(co2vmr(1,kts:nlayers)  )
-       if(.not.allocated(o2vmr)   ) allocate(o2vmr(1,kts:nlayers)   )
-       if(.not.allocated(ch4vmr)  ) allocate(ch4vmr(1,kts:nlayers)  )
-       if(.not.allocated(n2ovmr)  ) allocate(n2ovmr(1,kts:nlayers)  )
-       if(.not.allocated(cfc11vmr)) allocate(cfc11vmr(1,kts:nlayers))
-       if(.not.allocated(cfc12vmr)) allocate(cfc12vmr(1,kts:nlayers))
-       if(.not.allocated(cfc22vmr)) allocate(cfc22vmr(1,kts:nlayers))
-       if(.not.allocated(ccl4vmr) ) allocate(ccl4vmr(1,kts:nlayers) )
-       if(.not.allocated(clwpth)  ) allocate(clwpth(1,kts:nlayers)  )
-       if(.not.allocated(ciwpth)  ) allocate(ciwpth(1,kts:nlayers)  )
-       if(.not.allocated(cswpth)  ) allocate(cswpth(1,kts:nlayers)  )
-       if(.not.allocated(rel)     ) allocate(rel(1,kts:nlayers)     )
-       if(.not.allocated(rei)     ) allocate(rei(1,kts:nlayers)     )
-       if(.not.allocated(res)     ) allocate(res(1,kts:nlayers)     )
-       if(.not.allocated(cldfrac) ) allocate(cldfrac(1,kts:nlayers) )
-       if(.not.allocated(relqmcl) ) allocate(relqmcl(1,kts:nlayers) )
-       if(.not.allocated(reicmcl) ) allocate(reicmcl(1,kts:nlayers) )
-       if(.not.allocated(resnmcl) ) allocate(resnmcl(1,kts:nlayers) )
-       if(.not.allocated(uflx)    ) allocate(uflx(1,kts:nlayers+1)  )
-       if(.not.allocated(dflx)    ) allocate(dflx(1,kts:nlayers+1)  )
-       if(.not.allocated(uflxc)   ) allocate(uflxc(1,kts:nlayers+1) )
-       if(.not.allocated(dflxc)   ) allocate(dflxc(1,kts:nlayers+1) )
-       if(.not.allocated(hr)      ) allocate(hr(1,kts:nlayers)      )
-       if(.not.allocated(hrc)     ) allocate(hrc(1,kts:nlayers)     )
+       if(.not.allocated(o3mmr)   ) allocate(o3mmr(kts:nlayers)      )
+       if(.not.allocated(varint)  ) allocate(varint(kts:nlayers+1)   )
+       if(.not.allocated(plev)    ) allocate(plev(1,kts:nlayers+1)   )
+       if(.not.allocated(tlev)    ) allocate(tlev(1,kts:nlayers+1)   )
+       if(.not.allocated(play)    ) allocate(play(1,kts:nlayers)     )
+       if(.not.allocated(hlay)    ) allocate(hlay(1,kts:nlayers)     )
+       if(.not.allocated(tlay)    ) allocate(tlay(1,kts:nlayers)     )
+       if(.not.allocated(h2ovmr)  ) allocate(h2ovmr(1,kts:nlayers)   )
+       if(.not.allocated(o3vmr)   ) allocate(o3vmr(1,kts:nlayers)    )
+       if(.not.allocated(co2vmr)  ) allocate(co2vmr(1,kts:nlayers)   )
+       if(.not.allocated(o2vmr)   ) allocate(o2vmr(1,kts:nlayers)    )
+       if(.not.allocated(ch4vmr)  ) allocate(ch4vmr(1,kts:nlayers)   )
+       if(.not.allocated(n2ovmr)  ) allocate(n2ovmr(1,kts:nlayers)   )
+       if(.not.allocated(cfc11vmr)) allocate(cfc11vmr(1,kts:nlayers) )
+       if(.not.allocated(cfc12vmr)) allocate(cfc12vmr(1,kts:nlayers) )
+       if(.not.allocated(cfc22vmr)) allocate(cfc22vmr(1,kts:nlayers) )
+       if(.not.allocated(ccl4vmr) ) allocate(ccl4vmr(1,kts:nlayers)  )
+       if(.not.allocated(clwpth)  ) allocate(clwpth(1,kts:nlayers)   )
+       if(.not.allocated(ciwpth)  ) allocate(ciwpth(1,kts:nlayers)   )
+       if(.not.allocated(cswpth)  ) allocate(cswpth(1,kts:nlayers)   )
+       if(.not.allocated(rel)     ) allocate(rel(1,kts:nlayers)      )
+       if(.not.allocated(rei)     ) allocate(rei(1,kts:nlayers)      )
+       if(.not.allocated(res)     ) allocate(res(1,kts:nlayers)      )
+       if(.not.allocated(cldfrac) ) allocate(cldfrac(1,kts:nlayers)  )
+       if(.not.allocated(relqmcl) ) allocate(relqmcl(1,kts:nlayers)  )
+       if(.not.allocated(reicmcl) ) allocate(reicmcl(1,kts:nlayers)  )
+       if(.not.allocated(resnmcl) ) allocate(resnmcl(1,kts:nlayers)  )
+       if(.not.allocated(uflx)    ) allocate(uflx(1,kts:nlayers+1)   )
+       if(.not.allocated(dflx)    ) allocate(dflx(1,kts:nlayers+1)   )
+       if(.not.allocated(uflxc)   ) allocate(uflxc(1,kts:nlayers+1)  )
+       if(.not.allocated(dflxc)   ) allocate(dflxc(1,kts:nlayers+1)  )
+       if(.not.allocated(uflxcln) ) allocate(uflxcln(1,kts:nlayers+1))
+       if(.not.allocated(dflxcln) ) allocate(dflxcln(1,kts:nlayers+1))
+       if(.not.allocated(hr)      ) allocate(hr(1,kts:nlayers)       )
+       if(.not.allocated(hrc)     ) allocate(hrc(1,kts:nlayers)      )
        if(.not.allocated(taucld)  ) allocate(taucld(nbndlw,1,kts:nlayers) )
        if(.not.allocated(cldfmcl) ) allocate(cldfmcl(ngptlw,1,kts:nlayers))         
        if(.not.allocated(clwpmcl) ) allocate(clwpmcl(ngptlw,1,kts:nlayers))
@@ -11777,6 +11949,8 @@ CONTAINS
              uflxc(n,k)   = 0.
              dflx(n,k)    = 0.
              dflxc(n,k)   = 0.
+             uflxcln(n,k) = 0.
+             dflxcln(n,k) = 0.
              hr(n,k)      = 0.
              hrc(n,k)     = 0.
              taucld(1:nbndlw,n,k)  = 0.
@@ -11787,10 +11961,12 @@ CONTAINS
              cswpmcl(1:ngptlw,n,k) = 0.
              taucmcl(1:ngptlw,n,k) = 0.
           enddo
-          uflx(n,nlayers+1)  = 0.
-          uflxc(n,nlayers+1) = 0.
-          dflx(n,nlayers+1)  = 0.
-          dflxc(n,nlayers+1) = 0.
+          uflx(n,nlayers+1)    = 0.
+          uflxc(n,nlayers+1)   = 0.
+          uflxcln(n,nlayers+1) = 0.
+          dflx(n,nlayers+1)    = 0.
+          dflxc(n,nlayers+1)   = 0.
+          dflxcln(n,nlayers+1) = 0.
        enddo
 
        !--- fill local arrays with input sounding. convert water vapor mass mixing ratio to volume mixing ratio:
@@ -11812,6 +11988,19 @@ CONTAINS
           cfc12vmr(ncol,k) = cfc12
           cfc22vmr(ncol,k) = cfc22
           ccl4vmr(ncol,k)  = ccl4
+       enddo
+
+       !--- drive height of each layer mid-point from layer thickness needed for icl=4 (exponential) and
+       !    icld=5 (exponential-random) overlap. fill in height array above model top using dz1d from top
+       !    layer:
+       dzsum = 0.
+       do k = kts, kte
+          hlay(ncol,k) = dzsum + 0.5*dz1d(k)
+          dzsum = dzsum + dz1d(k)
+       enddo
+       do k = kte+1,nlayers
+          hlay(ncol,k) = dzsum + 0.5*dz1d(kte)
+          dzsum = dzsum + dz1d(kte)
        enddo
 
        !--- the sourcecode below follows Steven Cavallo's method to "fill" the atmospheric layers between the
@@ -11872,7 +12061,7 @@ CONTAINS
           cfc12vmr(ncol,k) = cfc12vmr(ncol,kte) 
           cfc22vmr(ncol,k) = cfc22vmr(ncol,kte) 
           ccl4vmr(ncol,k)  = ccl4vmr(ncol,kte) 
-       enddo	 
+       enddo
 
        !--- initialize the ozone voume mixing ratio:
        call inirad(o3mmr,plev,kts,nlayers-1)
@@ -12038,7 +12227,7 @@ CONTAINS
              do nb = 1, nbndlw
                 taucld(nb,ncol,k) = 0.
              enddo
-          enddo	 
+          enddo
 
        endif
 
@@ -12050,8 +12239,8 @@ CONTAINS
        call mcica_subcol_lw &
                   (iplon   , ncol    , nlay    , icld    , permuteseed , irng    , play    , &
                    cldfrac , ciwpth  , clwpth  , cswpth  , rei         , rel     , res     , &
-                   taucld  , cldfmcl , ciwpmcl , clwpmcl , cswpmcl     , reicmcl , relqmcl , & 
-                   resnmcl , taucmcl)
+                   taucld  , hlay    , idcor   , julday  , lat         , cldfmcl , ciwpmcl , &
+                   clwpmcl , cswpmcl , reicmcl , relqmcl , resnmcl     , taucmcl)
 
        !--- initialization of aerosol optical depths:
        do nb = 1, nbndlw
@@ -12070,7 +12259,7 @@ CONTAINS
                    emis    , inflglw , iceflglw , liqflglw , cldfmcl  , taucmcl , & 
                    ciwpmcl , clwpmcl , cswpmcl  , reicmcl  , relqmcl  , resnmcl , &
                    tauaer  , uflx    , dflx     , hr       , uflxc    , dflxc   , &
-                   hrc)
+                   hrc     , uflxcln , dflxcln  , calc_clean_atm_diag)
 
 
 
@@ -12125,6 +12314,7 @@ CONTAINS
        if(allocated(plev)    ) deallocate(plev    )
        if(allocated(tlev)    ) deallocate(tlev    )
        if(allocated(play)    ) deallocate(play    )
+       if(allocated(hlay)    ) deallocate(hlay    )
        if(allocated(tlay)    ) deallocate(tlay    )
        if(allocated(h2ovmr)  ) deallocate(h2ovmr  )
        if(allocated(o3vmr)   ) deallocate(o3vmr   )
@@ -12150,6 +12340,8 @@ CONTAINS
        if(allocated(dflx)    ) deallocate(dflx    )
        if(allocated(uflxc)   ) deallocate(uflxc   )
        if(allocated(dflxc)   ) deallocate(dflxc   )
+       if(allocated(uflxcln) ) deallocate(uflxcln )
+       if(allocated(dflxcln) ) deallocate(dflxcln )
        if(allocated(hr)      ) deallocate(hr      )
        if(allocated(hrc)     ) deallocate(hrc     )
        if(allocated(taucld)  ) deallocate(taucld  )
@@ -12334,7 +12526,7 @@ CONTAINS
 ! Steven Cavallo.  Added for buffer layer adjustment.   December 2010.
    NLAYERS = kme + nint(p_top*0.01/deltap)- 1 ! Model levels plus new levels.
                                               ! nlayers will subsequently 
-					      ! replace kte+1
+                                              ! replace kte+1
 
 ! Read in absorption coefficients and other data
    IF ( allowed_to_read ) THEN
@@ -12903,8 +13095,9 @@ IMPLICIT NONE
       subroutine lw_kgb06(rrtmg_unit)
 ! **************************************************************************
 
-      use rrlw_kg06, only : fracrefao, kao, kao_mco2, selfrefo, forrefo, &
-                            cfc11adjo, cfc12o
+      use rrlw_kg06
+!     use rrlw_kg06, only : fracrefao, kao, kao_mco2, selfrefo, forrefo, &
+!                           cfc11adjo, cfc12o
 
       implicit none
       save
@@ -13958,7 +14151,7 @@ IMPLICIT NONE
           index = int(t(i,k)-179.)
           index = min(max(index,1),94)
           corr = t(i,k) - int(t(i,k))
-          re(i,k) = retab(index)*(1.-corr)		&
+          re(i,k) = retab(index)*(1.-corr)              &
                +retab(index+1)*corr
           !           re(i,k) = amax1(amin1(re(i,k),30.),10.)
        end do
