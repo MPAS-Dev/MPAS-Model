@@ -7242,7 +7242,8 @@ module atm_time_integration
        logical, pointer :: config_print_global_minmax_sca
 
        integer :: iCell, k, iEdge, iScalar
-       integer, pointer :: num_scalars, nCellsSolve, nEdgesSolve, nVertLevels
+       integer, pointer :: num_scalars_ptr, nCellsSolve_ptr, nEdgesSolve_ptr, nVertLevels_ptr
+       integer ::          num_scalars, nCellsSolve, nEdgesSolve, nVertLevels
 
        type (mpas_pool_type), pointer :: state
        type (mpas_pool_type), pointer :: diag
@@ -7286,9 +7287,12 @@ module atm_time_integration
          call mpas_pool_get_array(mesh, 'lonCell', lonCell)
          call mpas_pool_get_array(mesh, 'latEdge', latEdge)
          call mpas_pool_get_array(mesh, 'lonEdge', lonEdge)
-         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
-         call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve)
-         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
+         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve_ptr)
+         call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve_ptr)
+         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels_ptr)
+         nCellsSolve = nCellsSolve_ptr
+         nEdgesSolve = nEdgesSolve_ptr
+         nVertLevels = nVertLevels_ptr
 
          scalar_min = 1.0e20
          indexMax = -1
@@ -7496,9 +7500,12 @@ module atm_time_integration
          call mpas_pool_get_subpool(block % structs, 'state', state)
          call mpas_pool_get_array(state, 'w', w, 2)
          call mpas_pool_get_array(state, 'u', u, 2)
-         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
-         call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve)
-         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
+         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve_ptr)
+         call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve_ptr)
+         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels_ptr)
+         nCellsSolve = nCellsSolve_ptr
+         nEdgesSolve = nEdgesSolve_ptr
+         nVertLevels = nVertLevels_ptr
 
          scalar_min = 0.0
          scalar_max = 0.0
@@ -7532,9 +7539,12 @@ module atm_time_integration
 
          call mpas_pool_get_subpool(block % structs, 'state', state)
          call mpas_pool_get_array(state, 'scalars', scalars, 2)
-         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
-         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
-         call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
+         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve_ptr)
+         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels_ptr)
+         call mpas_pool_get_dimension(state, 'num_scalars', num_scalars_ptr)
+         nCellsSolve = nCellsSolve_ptr
+         nVertLevels = nVertLevels_ptr
+         num_scalars = num_scalars_ptr
 
          do iScalar = 1, num_scalars
             scalar_min = 0.0
