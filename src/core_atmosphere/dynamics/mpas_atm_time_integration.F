@@ -7263,10 +7263,15 @@ module atm_time_integration
        real (kind=RKIND) :: lonMax, lonMax_global
        real (kind=RKIND), dimension(5) :: localVals, globalVals
 
-       real (kind=RKIND) :: spd
+       real (kind=RKIND), dimension(:,:), allocatable :: spd
        real (kind=RKIND), dimension(:,:), pointer :: w
        real (kind=RKIND), dimension(:,:), pointer :: u, v, uReconstructZonal, uReconstructMeridional, uReconstructX, uReconstructY, uReconstructZ
        real (kind=RKIND), dimension(:,:,:), pointer :: scalars, scalars_1, scalars_2
+
+       integer :: lin_indexMax ! Position of min/max in some array as a single integer.
+                               ! If multiple locations match the extrema, always pick the lowest lin_indexMax.
+                               ! array(k,idx) -> lin_indexMax = k+(idx-1)*size(array,1)
+                               ! array(5,4) with size(array,1) = 10 -> lin_indexMax = 35
 
        logical found_NaN
 
@@ -7296,22 +7301,31 @@ module atm_time_integration
          nEdgesSolve = nEdgesSolve_ptr
          nVertLevels = nVertLevels_ptr
 
+         allocate(spd(nVertLevels,nEdgesSolve))
+
          scalar_min = 1.0e20
+         lin_indexMax = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
-            if (w(k,iCell) < scalar_min) then
-               scalar_min = w(k,iCell)
-               indexMax = iCell
-               kMax = k
-               latMax = latCell(iCell)
-               lonMax = lonCell(iCell)
+            scalar_min = min(scalar_min, w(k,iCell))
+         end do
+         end do
+         do iCell = 1, nCellsSolve
+         do k = 1, nVertLevels
+            if (w(k,iCell) == scalar_min) then
+               ! In case 2 locations tie, only save the minimum value
+               lin_indexMax = min(lin_indexMax, k + size(w,1)*(iCell-1))
             end if
          end do
          end do
+         kMax = modulo(lin_indexMax, size(w,1))
+         indexMax = ((lin_indexMax - kMax) / size(w,1)) + 1
+         latMax = latCell(indexMax)
+         lonMax = lonCell(indexMax)
          localVals(1) = scalar_min
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -7333,21 +7347,27 @@ module atm_time_integration
                              realArgs=(/global_scalar_min, latMax_global, lonMax_global/))
 
          scalar_max = -1.0e20
+         lin_indexMax = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
-            if (w(k,iCell) > scalar_max) then
-               scalar_max = w(k,iCell)
-               indexMax = iCell
-               kMax = k
-               latMax = latCell(iCell)
-               lonMax = lonCell(iCell)
+            scalar_max = max(scalar_max, w(k,iCell))
+         end do
+         end do
+         do iCell = 1, nCellsSolve
+         do k = 1, nVertLevels
+            if (w(k,iCell) == scalar_max) then
+               lin_indexMax = min(lin_indexMax, k + size(w,1)*(iCell-1))
             end if
          end do
          end do
+         kMax = modulo(lin_indexMax, size(w,1))
+         indexMax = ((lin_indexMax - kMax) / size(w,1)) + 1
+         latMax = latCell(indexMax)
+         lonMax = lonCell(indexMax)
          localVals(1) = scalar_max
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -7369,21 +7389,27 @@ module atm_time_integration
                              realArgs=(/global_scalar_max, latMax_global, lonMax_global/))
 
          scalar_min = 1.0e20
+         lin_indexMax = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
-            if (u(k,iEdge) < scalar_min) then
-               scalar_min = u(k,iEdge)
-               indexMax = iEdge
-               kMax = k
-               latMax = latEdge(iEdge)
-               lonMax = lonEdge(iEdge)
+            scalar_min = min(scalar_min, u(k,iEdge))
+         end do
+         end do
+         do iEdge = 1, nEdgesSolve
+         do k = 1, nVertLevels
+            if (u(k,iEdge) == scalar_min) then
+               lin_indexMax = min(lin_indexMax, k + size(u,1)*(iEdge-1))
             end if
          end do
          end do
+         kMax = modulo(lin_indexMax, size(u,1))
+         indexMax = ((lin_indexMax - kMax) / size(u,1)) + 1
+         latMax = latEdge(indexMax)
+         lonMax = lonEdge(indexMax)
          localVals(1) = scalar_min
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -7405,21 +7431,27 @@ module atm_time_integration
                              realArgs=(/global_scalar_min, latMax_global, lonMax_global/))
 
          scalar_max = -1.0e20
+         lin_indexMax = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
-            if (u(k,iEdge) > scalar_max) then
-               scalar_max = u(k,iEdge)
-               indexMax = iEdge
-               kMax = k
-               latMax = latEdge(iEdge)
-               lonMax = lonEdge(iEdge)
+            scalar_max = max(scalar_max, u(k,iEdge))
+         end do
+         end do
+         do iEdge = 1, nEdgesSolve
+         do k = 1, nVertLevels
+            if (u(k,iEdge) == scalar_max) then
+               lin_indexMax = min(lin_indexMax, k + size(u,1)*(iEdge-1))
             end if
          end do
          end do
+         kMax = modulo(lin_indexMax, size(u,1))
+         indexMax = ((lin_indexMax - kMax) / size(u,1)) + 1
+         latMax = latEdge(indexMax)
+         lonMax = lonEdge(indexMax)
          localVals(1) = scalar_max
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -7441,22 +7473,28 @@ module atm_time_integration
                              realArgs=(/global_scalar_max, latMax_global, lonMax_global/))
 
          scalar_max = -1.0e20
+         lin_indexMax = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
-            spd = sqrt(u(k,iEdge)*u(k,iEdge) + v(k,iEdge)*v(k,iEdge))
-            if (spd > scalar_max) then
-               scalar_max = spd
-               indexMax = iEdge
-               kMax = k
-               latMax = latEdge(iEdge)
-               lonMax = lonEdge(iEdge)
+            spd(k,iEdge) = sqrt(u(k,iEdge)*u(k,iEdge) + v(k,iEdge)*v(k,iEdge))
+            scalar_max = max(scalar_max, spd(k,iEdge))
+         end do
+         end do
+         do iEdge = 1, nEdgesSolve
+         do k = 1, nVertLevels
+            if (spd(k,iEdge) == scalar_max) then
+               lin_indexMax = min(lin_indexMax, k + size(u,1)*(iEdge-1))
             end if
          end do
          end do
+         kMax = modulo(lin_indexMax, size(u,1))
+         indexMax = ((lin_indexMax - kMax) / size(u,1)) + 1
+         latMax = latEdge(indexMax)
+         lonMax = lonEdge(indexMax)
          localVals(1) = scalar_max
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -7504,6 +7542,8 @@ module atm_time_integration
          if (found_NaN) then
             call mpas_log_write('NaN detected in ''u'' field.', messageType=MPAS_LOG_CRIT)
          end if
+
+         deallocate(spd)
 
       else if (config_print_global_minmax_vel) then
          call mpas_log_write('')
