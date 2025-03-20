@@ -7268,6 +7268,8 @@ module atm_time_integration
        real (kind=RKIND), dimension(:,:), pointer :: u, v, uReconstructZonal, uReconstructMeridional, uReconstructX, uReconstructY, uReconstructZ
        real (kind=RKIND), dimension(:,:,:), pointer :: scalars, scalars_1, scalars_2
 
+       logical found_NaN
+
        call mpas_pool_get_config(block % configs, 'config_print_global_minmax_vel', config_print_global_minmax_vel)
        call mpas_pool_get_config(block % configs, 'config_print_detailed_minmax_vel', config_print_detailed_minmax_vel)
        call mpas_pool_get_config(block % configs, 'config_print_global_minmax_sca', config_print_global_minmax_sca)
@@ -7478,21 +7480,30 @@ module atm_time_integration
          !
          ! Check for NaNs
          !
+         found_NaN = .false.
+
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
             if (ieee_is_nan(w(k,iCell))) then
-               call mpas_log_write('NaN detected in ''w'' field.', messageType=MPAS_LOG_CRIT)
+               found_NaN = .true.
             end if
          end do
          end do
+         if (found_NaN) then
+            call mpas_log_write('NaN detected in ''w'' field.', messageType=MPAS_LOG_CRIT)
+         end if
+
 
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             if (ieee_is_nan(u(k,iEdge))) then
-               call mpas_log_write('NaN detected in ''u'' field.', messageType=MPAS_LOG_CRIT)
+               found_NaN = .true.
             end if
          end do
          end do
+         if (found_NaN) then
+            call mpas_log_write('NaN detected in ''u'' field.', messageType=MPAS_LOG_CRIT)
+         end if
 
       else if (config_print_global_minmax_vel) then
          call mpas_log_write('')
