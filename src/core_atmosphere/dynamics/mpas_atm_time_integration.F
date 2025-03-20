@@ -7597,19 +7597,30 @@ module atm_time_integration
          nVertLevels = nVertLevels_ptr
          num_scalars = num_scalars_ptr
 
+         MPAS_ACC_TIMER_START('summarize_timestep [ACC_data_xfer]')
+         !$acc enter data copyin(scalars)
+         MPAS_ACC_TIMER_STOP('summarize_timestep [ACC_data_xfer]')
+
          do iScalar = 1, num_scalars
             scalar_min = 0.0
             scalar_max = 0.0
+            !$acc parallel default(present)
+            !$acc loop gang vector collapse(2) reduction(min:scalar_min) reduction(max:scalar_max)
             do iCell = 1, nCellsSolve
             do k = 1, nVertLevels
                scalar_min = min(scalar_min, scalars(iScalar,k,iCell))
                scalar_max = max(scalar_max, scalars(iScalar,k,iCell))
             end do
             end do
+            !$acc end parallel
             call mpas_dmpar_min_real(domain % dminfo, scalar_min, global_scalar_min)
             call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
             call mpas_log_write(' global min, max scalar $i $r $r', intArgs=(/iScalar/), realArgs=(/global_scalar_min, global_scalar_max/))
          end do
+
+         MPAS_ACC_TIMER_START('summarize_timestep [ACC_data_xfer]')
+         !$acc exit data delete(scalars)
+         MPAS_ACC_TIMER_STOP('summarize_timestep [ACC_data_xfer]')
       end if
 
    end subroutine summarize_timestep
