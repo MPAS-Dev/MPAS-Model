@@ -26,6 +26,7 @@ module atm_time_integration
    use mpas_derived_types, only : MPAS_Time_type, MPAS_TimeInterval_type, MPAS_NOW
    use mpas_timekeeping, only: mpas_set_time, mpas_set_timeInterval, mpas_get_time, operator(+)
    use mpas_timer
+   use mpas_checkpointing
 
 #ifdef DO_PHYSICS
    use mpas_atmphys_driver_microphysics
@@ -250,6 +251,12 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel2
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel4
 #endif
+      logical, pointer :: config_create_checkpoint
+
+      nullify(config_create_checkpoint)
+      call mpas_pool_get_config(domain % blocklist % configs, 'config_create_checkpoint', config_create_checkpoint)
+
+      call mpas_checkpoint_init(domain % dminfo % my_proc_id, config_create_checkpoint)
 
 
 #ifdef MPAS_CAM_DYCORE
@@ -675,6 +682,8 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
       !$acc exit data delete(meshScalingDel4)
 #endif
+
+      call mpas_checkpoint_finalize()
 
    end subroutine mpas_atm_dynamics_finalize
 
@@ -5029,6 +5038,8 @@ module atm_time_integration
                 flux4(q_im2, q_im1, q_i, q_ip1, ua) +           &
                 coef3*abs(ua)*((q_ip1 - q_im2)-3.*(q_i-q_im1))/12.0
 
+      call mpas_log_write('-- RK step $i --', intArgs=[rk_step])
+
       MPAS_ACC_TIMER_START('atm_compute_dyn_tend_work [ACC_data_xfer]')
       if (rk_step == 1) then
          !$acc enter data create(tend_u_euler)
@@ -5058,6 +5069,7 @@ module atm_time_integration
          ! and out
          !$acc enter data copyin(delsq_w)
          !$acc enter data create(tend_theta_euler)
+         !$acc enter data create(delsq_theta)
       else
          !$acc enter data copyin(tend_u_euler)
          !$acc enter data copyin(tend_rho)
@@ -5090,6 +5102,8 @@ module atm_time_integration
        v_mom_eddy_visc2   = config_v_mom_eddy_visc2
        v_theta_eddy_visc2 = config_v_theta_eddy_visc2
 
+!MGD BROKEN
+
       if (rk_step == 1) then
 
          !$acc parallel
@@ -5102,10 +5116,14 @@ module atm_time_integration
          end do
          !$acc end parallel
 
+      end if
+
+!MGD BROKEN
+
+      if (rk_step == 1) then
+      
          ! Smagorinsky eddy viscosity, based on horizontal deformation (in this case on model coordinate surfaces).
          ! The integration coefficients were precomputed and stored in defc_a and defc_b
-
-         if(config_horiz_mixing == "2d_smagorinsky") then
 
             !$acc parallel default(present)
             !$acc loop gang worker private(d_diag, d_off_diag)
@@ -5140,24 +5158,12 @@ module atm_time_integration
             h_mom_eddy_visc4   = config_visc4_2dsmag * config_len_disp**3
             h_theta_eddy_visc4 = h_mom_eddy_visc4
 
-         else if(config_horiz_mixing == "2d_fixed") then
+      end if
 
-            !!! MGD UNTESTED !!!
+!MGD OK HERE
+      !$acc enter data copyin(cqw)
 
-            !$acc parallel default(present)
-            !$acc loop gang worker
-            do iCell = cellStart, cellEnd
-               !$acc loop vector
-               do k = 1, nVertLevels
-                  kdiff(k,iCell) = config_h_theta_eddy_visc2
-               end do
-            end do
-            !$acc end parallel
-
-            h_mom_eddy_visc4 = config_h_mom_eddy_visc4
-            h_theta_eddy_visc4 = config_h_theta_eddy_visc4
-
-         end if
+      if (rk_step == 1) then
 
          if (config_mpas_cam_coef > 0.0) then
 
@@ -5182,6 +5188,8 @@ module atm_time_integration
          end if
             
       end if
+
+!MGD OK HERE
 
       ! tendency for density.
       ! accumulate total water here for later use in w tendency calculation.
@@ -5222,6 +5230,8 @@ module atm_time_integration
          end do
       end do
       !$acc end parallel
+
+!MGD WORKS HERE
 
       !
       ! dp / dz and tend_rho
@@ -5343,6 +5353,8 @@ module atm_time_integration
       !  mixing terms are integrated using forward-Euler, so this tendency is only computed in the
       !  first Runge-Kutta substep and saved for use in later RK substeps 2 and 3.
       !
+
+!MGD OK HERE?
 
       if (rk_step == 1) then
 
@@ -5606,6 +5618,7 @@ module atm_time_integration
 
 !----------- rhs for w
 
+!MGD OK HERE
 
       !
       !  horizontal advection for w
@@ -5686,6 +5699,8 @@ module atm_time_integration
       !  horizontal mixing for w - we could combine this with advection directly (i.e. as a turbulent flux),
       !  but here we can also code in hyperdiffusion if we wish (2nd order at present)
       !
+
+!MGD OK HERE
 
       if (rk_step == 1) then
 
@@ -5778,8 +5793,6 @@ module atm_time_integration
       !
       !  vertical advection, pressure gradient and buoyancy for w
       !
-
-      !$acc enter data copyin(cqw)
 
       !$acc parallel default(present)
       !$acc loop gang worker private(wdwz)
@@ -5936,8 +5949,6 @@ module atm_time_integration
 
       if (rk_step == 1) then
 
-         !$acc enter data create(delsq_theta)
-
          !$acc parallel default(present)
          !$acc loop gang worker
          do iCell=cellStart,cellEnd
@@ -5977,15 +5988,11 @@ module atm_time_integration
           end do
           !$acc end parallel
 
-          !$acc exit data copyout(delsq_theta)
-
 !$OMP BARRIER
             
          if (h_theta_eddy_visc4 > 0.0) then  ! 4th order mixing is active
 
             !!! MGD UNTESTED !!!
-
-            !$acc enter data copyin(delsq_theta)
 
             !$acc parallel default(present)
             !$acc loop gang worker
@@ -6010,12 +6017,9 @@ module atm_time_integration
             end do
             !$acc end parallel
 
-            !$acc exit data delete(delsq_theta)
-
          end if ! 4th order mixing is active 
 
       end if ! theta mixing calculated first rk_step
-
 
       !
       !  vertical advection plus diabatic term
@@ -6023,7 +6027,13 @@ module atm_time_integration
       !
 
       !$acc enter data copyin(rw_save, rt_diabatic_tend)
+
+      if (rk_step == 1) then
+         !$acc exit data delete(delsq_theta)
+      end if
+
       !$acc enter data create(rthdynten)
+
 
       !$acc parallel default(present)
       !$acc loop gang worker private(wdtz)
