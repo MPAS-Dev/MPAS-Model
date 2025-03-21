@@ -664,7 +664,7 @@
  end subroutine init_lsm
 
 !=================================================================================================================
- subroutine driver_lsm(itimestep,configs,mesh,diag_physics,sfc_input,its,ite)
+ subroutine driver_lsm(itimestep,xtime_s,configs,mesh,diag_physics,sfc_input,its,ite)
 !=================================================================================================================
 
 !input arguments:
@@ -673,6 +673,7 @@
 
  integer,intent(in):: its,ite
  integer,intent(in):: itimestep
+ real(kind=RKIND),intent(in):: xtime_s
 
 !inout arguments:
  type(mpas_pool_type),intent(inout):: diag_physics
@@ -729,7 +730,7 @@
                 fvb_2d      = fvbsnow_p   , fbur_2d     = fbursnow_p   , fgsn_2d   = fgsnsnow_p   , &
                 utype_urb2d = utype_urb_p , frc_urb2d   = frc_urb_p    , ust_urb2d = ust_urb_p    , &
                 swddir      = swddir_p    , swddif      = swddif_p     , fasdas    = fasdas       , &
-                julian      = 0           , julyr       = 0            ,                            &
+                julian      = 0           , julyr       = 0            , xtime_s   = xtime_s      , &
                 num_soil_layers  = num_soils         ,                                              &
                 xice_threshold   = xice_threshold    ,                                              &
                 usemonalb        = config_sfc_albedo ,                                              &

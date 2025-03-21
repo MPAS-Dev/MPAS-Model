@@ -727,6 +727,7 @@
  endif
  call mpas_log_write(' ')
  call mpas_log_write('--- specifics on cloud microphysics option microp_scheme = '//trim(config_microp_scheme))
+ call mpas_log_write('--- dt_dyn = $r', realArgs=(/dt_dyn/))
  call mpas_log_write('--- dt_microp = $r', realArgs=(/dt_microp/))
  call mpas_log_write('--- n_microp  = $i', intArgs=(/n_microp/))
 !... convection:

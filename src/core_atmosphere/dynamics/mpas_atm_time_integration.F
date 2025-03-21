@@ -631,6 +631,7 @@ module atm_time_integration
    end subroutine mpas_atm_dynamics_finalize
 
 
+   !subroutine atm_timestep(domain, dt, nowTime, itimestep, xtime_s, exchange_halo_group)
    subroutine atm_timestep(domain, dt, nowTime, itimestep, exchange_halo_group)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    ! Advance model state forward in time by the specified time step
@@ -647,6 +648,8 @@ module atm_time_integration
       real (kind=RKIND), intent(in) :: dt
       type (MPAS_Time_type), intent(in) :: nowTime
       integer, intent(in) :: itimestep
+      !real (kind=RKIND), intent(in) :: xtime_s
+      real (kind=RKIND) :: xtime_s
       procedure (halo_exchange_routine) :: exchange_halo_group
 
 
@@ -659,6 +662,7 @@ module atm_time_integration
       type (mpas_pool_type), pointer :: state
       character (len=StrKIND), pointer :: config_time_integration
 
+      xtime_s = 0.0_RKIND
 
       clock => domain % clock
       block => domain % blocklist
@@ -667,7 +671,7 @@ module atm_time_integration
       call mpas_pool_get_config(block % configs, 'config_apply_lbcs', config_apply_lbcs)
 
       if (trim(config_time_integration) == 'SRK3') then
-         call atm_srk3(domain, dt, itimestep, exchange_halo_group)
+         call atm_srk3(domain, dt, itimestep, xtime_s, exchange_halo_group)
       else
          call mpas_log_write('Unknown time integration option '//trim(config_time_integration), messageType=MPAS_LOG_ERR)
          call mpas_log_write('Currently, only ''SRK3'' is supported.', messageType=MPAS_LOG_CRIT)
@@ -692,7 +696,7 @@ module atm_time_integration
    end subroutine atm_timestep
 
 
-   subroutine atm_srk3(domain, dt, itimestep, exchange_halo_group)
+   subroutine atm_srk3(domain, dt, itimestep, xtime_s, exchange_halo_group)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    ! Advance model state forward in time by the specified time step using 
    !   time-split RK3 scheme
@@ -711,6 +715,7 @@ module atm_time_integration
       type (domain_type), intent(inout) :: domain
       real (kind=RKIND), intent(in) :: dt
       integer, intent(in) :: itimestep
+      real (kind=RKIND), intent(in) :: xtime_s
       procedure (halo_exchange_routine) :: exchange_halo_group
 
       integer :: thread
@@ -974,7 +979,7 @@ module atm_time_integration
       ! IAU - Incremental Analysis Update
       !
       if (trim(config_IAU_option) /= 'off') then
-         call atm_add_tend_anal_incr(block % configs, block % structs, itimestep, dt, &
+         call atm_add_tend_anal_incr(block % configs, block % structs, itimestep, dt, xtime_s, &
                                      tend_ru_physics, tend_rtheta_physics, tend_rho_physics)
       end if
 

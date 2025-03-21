@@ -45,7 +45,7 @@ CONTAINS
                   SFCRUNOFF, UDRUNOFF,IVGTYP,ISLTYP,ISURBAN,ISICE,VEGFRA,    &
                   ALBEDO,ALBBCK,ZNT,Z0,TMN,XLAND,XICE,EMISS,EMBCK,   &
                   SNOWC,QSFC,RAINBL,MMINLU,                     &
-                  num_soil_layers,DT,DZS,ITIMESTEP,             &
+                  num_soil_layers,DT,DZS,ITIMESTEP, XTIME_S,    &
                   SMOIS,TSLB,SNOW,CANWAT,                       &
                   CHS,CHS2,CQS2,CPM,ROVCP,SR,chklowq,lai,qz0,   & !H
                   myj,frpcpn,                                   &
@@ -322,6 +322,8 @@ CONTAINS
                                                         ISLTYP
 
    INTEGER, INTENT(IN)       ::     num_soil_layers,ITIMESTEP
+
+   REAL,     INTENT(IN):: XTIME_S
 
    REAL,     INTENT(IN   )   ::     DT,ROVCP
 
@@ -1604,7 +1606,7 @@ CONTAINS
             b_q_bep(i,kts:kte,j)=0.
          end do
          end do
-       CALL BEP(frc_urb2d,utype_urb2d,itimestep,dz8w,dt,u_phy,v_phy,   &
+       CALL BEP(frc_urb2d,utype_urb2d,itimestep,xtime_s,dz8w,dt,u_phy,v_phy,   &
                 th_phy,rho,p_phy,swdown,glw,                           &
                 gmt,julday,xlong,xlat,declin_urb,cosz_urb2d,omg_urb2d, &
            num_urban_ndm, urban_map_zrd, urban_map_zwd, urban_map_gd,  &

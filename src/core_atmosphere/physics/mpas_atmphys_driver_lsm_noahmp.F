@@ -132,6 +132,7 @@
 !--- initialization of xice_threshold:
  mpas_noahmp%xice_threshold = xice_threshold
 
+ call mpas_log_write('--- lsm_noahmp_fromMPAS dtbl = $r',realArgs=(/dt/))
 
 !--- initialization of INPUT surface variables:
  call mpas_pool_get_array(sfc_input,'shdmax',shdmax)

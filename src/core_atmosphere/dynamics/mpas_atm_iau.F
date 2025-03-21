@@ -19,7 +19,7 @@ module mpas_atm_iau
  contains
 
 !==================================================================================================
- real (kind=RKIND) function atm_iau_coef(configs, itimestep, dt) result(wgt_iau)
+ real (kind=RKIND) function atm_iau_coef(configs, itimestep, dt, xtime_s) result(wgt_iau)
 !==================================================================================================
 ! Compute the coefficient (or weight) for the IAU forcing at itimestep.
  
@@ -28,6 +28,7 @@ module mpas_atm_iau
       type (mpas_pool_type), intent(in) :: configs
       integer,           intent(in)  :: itimestep
       real (kind=RKIND), intent(in)  :: dt
+      real (kind=RKIND), intent(in) :: xtime_s
 
       integer :: nsteps_iau       ! Total number of time steps where the IAU forcing is applied.
       logical, parameter :: debug = .false.
@@ -67,7 +68,8 @@ module mpas_atm_iau
          nsteps_iau = nint(time_window_sec / dt)
          !if(debug) call mpas_log_write('atm_compute_iau_coef: nsteps_iau = $i', intArgs=(/nsteps_iau/))
       
-         if(itimestep <= nsteps_iau) then
+         !if(itimestep <= nsteps_iau) then
+         if(xtime_s <= time_window_sec) then
             !wgt_iau = 1./nsteps_iau     
             wgt_iau = 1.0_RKIND / time_window_sec
             if(debug) call mpas_log_write('atm_compute_iau_coef: wgt_iau = $r', realArgs=(/wgt_iau/))
@@ -78,7 +80,7 @@ module mpas_atm_iau
  end function atm_iau_coef
       
 !==================================================================================================
- subroutine atm_add_tend_anal_incr (configs, structs, itimestep, dt, tend_ru, tend_rtheta, tend_rho)
+ subroutine atm_add_tend_anal_incr (configs, structs, itimestep, dt, xtime_s, tend_ru, tend_rtheta, tend_rho)
 !==================================================================================================
       
       implicit none
@@ -87,6 +89,7 @@ module mpas_atm_iau
       type (mpas_pool_type), intent(inout) :: structs
       integer,           intent(in)  :: itimestep
       real (kind=RKIND), intent(in)  :: dt
+      real (kind=RKIND), intent(in) :: xtime_s
       real (kind=RKIND), dimension(:,:), intent(inout) :: tend_ru
       real (kind=RKIND), dimension(:,:), intent(inout) :: tend_rtheta
       real (kind=RKIND), dimension(:,:), intent(inout) :: tend_rho
@@ -114,7 +117,7 @@ module mpas_atm_iau
       ! Compute weight for IAU forcing in this timestep, and return if weight
       ! is essentially zero.
       !
-      wgt_iau = atm_iau_coef(configs, itimestep, dt)
+      wgt_iau = atm_iau_coef(configs, itimestep, dt, xtime_s)
       if (wgt_iau <= 1.0e-12_RKIND) then
          return
       end if

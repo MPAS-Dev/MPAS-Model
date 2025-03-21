@@ -283,7 +283,7 @@
           call allocate_lsm
 !$OMP PARALLEL DO
           do thread=1,nThreads
-             call driver_lsm(itimestep,block%configs,mesh,diag_physics,sfc_input, &
+             call driver_lsm(itimestep,xtime_s,block%configs,mesh,diag_physics,sfc_input, &
                              cellSolveThreadStart(thread),cellSolveThreadEnd(thread))
           end do
 !$OMP END PARALLEL DO
