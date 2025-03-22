@@ -5042,57 +5042,43 @@ module atm_time_integration
 
       MPAS_ACC_TIMER_START('atm_compute_dyn_tend_work [ACC_data_xfer]')
       if (rk_step == 1) then
-         !$acc enter data create(tend_u_euler)
-         !$acc enter data create(kdiff)
-         !$acc enter data copyin(tend_rho_physics)
-         !$acc enter data create(tend_rho)
-         !$acc enter data copyin(rb, qtot, rr_save)
-         !$acc enter data copyin(divergence, vorticity)
-         !$acc enter data create(delsq_u)
-
-         if (config_horiz_mixing == '2d_smagorinsky') then
-            !$acc enter data copyin(u, v)
-         end if
-
-         ! The following are only needed if h_mom_eddy_visc4 > 0.0, but the conditional check
-         ! would be messy, and these variables are created and deleted, rather than copied in
-         ! and out
-         !$acc enter data create(delsq_vorticity, delsq_divergence)
-
-         if (.not. config_mix_full) then
-            !$acc enter data copyin(u_init, v_init)
-         end if
-         !$acc enter data create(delsq_w)
-
-         ! The following are only needed if h_mom_eddy_visc4 > 0.0, but the conditional check
-         ! would be messy, and these variables are created and deleted, rather than copied in
-         ! and out
-         !$acc enter data copyin(delsq_w)
-         !$acc enter data create(tend_theta_euler)
-         !$acc enter data create(delsq_theta)
+          !$acc enter data create(tend_w_euler)
+          !$acc enter data create(tend_u_euler)
+          !$acc enter data create(tend_theta_euler)
+          !$acc enter data create(tend_rho)
       else
-         !$acc enter data copyin(tend_u_euler)
-         !$acc enter data copyin(tend_rho)
-         !$acc enter data copyin(tend_theta_euler)
+          !$acc enter data copyin(tend_w_euler)
+          !$acc enter data copyin(tend_u_euler)
+          !$acc enter data copyin(tend_theta_euler)
+          !$acc enter data copyin(tend_rho)
       end if
+      !$acc enter data create(kdiff)
+      !$acc enter data copyin(tend_rho_physics)
+      !$acc enter data copyin(rb, qtot, rr_save)
+      !$acc enter data copyin(divergence, vorticity)
+      !$acc enter data create(delsq_u)
+      !$acc enter data copyin(u, v)
+      !$acc enter data create(delsq_vorticity, delsq_divergence)
+      !$acc enter data copyin(u_init, v_init)
+      !$acc enter data copyin(delsq_w)
       !$acc enter data create(dpdz)
       !$acc enter data create(tend_u)
       !$acc enter data copyin(cqu, pp, u, w, pv_edge, rho_edge, ke)
       !$acc enter data create(h_divergence)
       !$acc enter data copyin(ru, rw)
-      if (config_rayleigh_damp_u) then
-         !$acc enter data copyin(rayleigh_damp_coef)
-      end if
+      !$acc enter data copyin(rayleigh_damp_coef)
       !$acc enter data copyin(tend_ru_physics)
       !$acc enter data create(tend_w)
-      !$acc enter data copyin(tend_w_euler)
-#ifdef CURVATURE
-      !$acc enter data copyin(ur_cell, vr_cell)
-#endif
       !$acc enter data copyin(rho_zz)
       !$acc enter data create(tend_theta)
       !$acc enter data copyin(theta_m)
       !$acc enter data copyin(ru_save, theta_m_save)
+      !$acc enter data create(delsq_theta)
+      !$acc enter data copyin(cqw)
+      !$acc enter data copyin(tend_rtheta_physics)
+      !$acc enter data copyin(rw_save, rt_diabatic_tend)
+      !$acc enter data create(rthdynten)
+      !$acc enter data copyin(t_init)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
       prandtl_inv = 1.0_RKIND / prandtl
@@ -5161,7 +5147,6 @@ module atm_time_integration
       end if
 
 !MGD OK HERE
-      !$acc enter data copyin(cqw)
 
       if (rk_step == 1) then
 
@@ -5834,8 +5819,6 @@ module atm_time_integration
       end do
       !$acc end parallel
 
-      !$acc exit data delete(cqw)
-
       if (rk_step == 1) then
 
          if ( v_mom_eddy_visc2 > 0.0 ) then
@@ -6026,14 +6009,6 @@ module atm_time_integration
       !  Note: we are also dividing through by the cell area after the horizontal flux divergence
       !
 
-      !$acc enter data copyin(rw_save, rt_diabatic_tend)
-
-      if (rk_step == 1) then
-         !$acc exit data delete(delsq_theta)
-      end if
-
-      !$acc enter data create(rthdynten)
-
 
       !$acc parallel default(present)
       !$acc loop gang worker private(wdtz)
@@ -6065,9 +6040,6 @@ module atm_time_integration
          end do
       end do
       !$acc end parallel
-
-      !$acc exit data copyout(rthdynten)
-      !$acc exit data delete(rw_save, rt_diabatic_tend)
 
       !
       !  vertical mixing for theta - 2nd order 
@@ -6105,8 +6077,6 @@ module atm_time_integration
 
             else  ! idealized cases where we mix on the perturbation from the initial 1-D state
 
-               !$acc enter data copyin(t_init)
-
                !$acc parallel default(present)
                !$acc loop gang worker
                do iCell = cellSolveStart,cellSolveEnd
@@ -6127,15 +6097,11 @@ module atm_time_integration
                end do
                !$acc end parallel
 
-               !$acc exit data delete(t_init)
-
             end if
 
          end if
 
       end if ! compute vertical theta mixing on first rk_step
-
-      !$acc enter data copyin(tend_rtheta_physics)
 
       !$acc parallel default(present)
       !$acc loop gang worker
@@ -6149,52 +6115,45 @@ module atm_time_integration
       end do
       !$acc end parallel
 
-      !$acc exit data delete(tend_rtheta_physics)
-
       MPAS_ACC_TIMER_START('atm_compute_dyn_tend_work [ACC_data_xfer]')
-      !$acc exit data copyout(tend_u_euler)
-      !$acc exit data delete(kdiff)
       if (rk_step == 1) then
-         !$acc exit data copyout(tend_rho)
-         !$acc exit data delete(tend_rho_physics)
-         !$acc exit data delete(rb, qtot, rr_save)
-         !$acc exit data delete(divergence, vorticity)
-         !$acc exit data copyout(delsq_u)
-
-         if (config_horiz_mixing == '2d_smagorinsky') then
-            !$acc exit data delete(u, v)
-         end if
-
-         !$acc exit data delete(delsq_vorticity, delsq_divergence)
-
-         if (.not. config_mix_full) then
-            !$acc exit data delete(u_init, v_init)
-         end if
-
-         !$acc exit data copyout(delsq_w)
-         !$acc exit data delete(delsq_w)
+          !$acc exit data copyout(tend_w_euler)
+          !$acc exit data copyout(tend_u_euler)
+          !$acc exit data copyout(tend_theta_euler)
+          !$acc exit data copyout(tend_rho)
       else
-         !$acc exit data delete(tend_rho)
+          !$acc exit data delete(tend_w_euler)
+          !$acc exit data delete(tend_u_euler)
+          !$acc exit data delete(tend_theta_euler)
+          !$acc exit data delete(tend_rho)
       end if
+      !$acc exit data delete(kdiff)
+      !$acc exit data delete(tend_rho_physics)
+      !$acc exit data delete(rb, qtot, rr_save)
+      !$acc exit data delete(divergence, vorticity)
+      !$acc exit data copyout(delsq_u)
+      !$acc exit data delete(u, v)
+      !$acc exit data delete(delsq_vorticity, delsq_divergence)
+      !$acc exit data delete(u_init, v_init)
+      !$acc exit data copyout(delsq_w)
       !$acc exit data delete(dpdz)
       !$acc exit data copyout(tend_u)
       !$acc exit data delete(cqu, pp, u, w, pv_edge, rho_edge, ke)
       !$acc exit data copyout(h_divergence)
       !$acc exit data delete(ru, rw)
-      if (config_rayleigh_damp_u) then
-         !$acc exit data delete(rayleigh_damp_coef)
-      end if
+      !$acc exit data delete(rayleigh_damp_coef)
       !$acc exit data delete(tend_ru_physics)
       !$acc exit data copyout(tend_w)
-      !$acc exit data copyout(tend_w_euler)
-#ifdef CURVATURE
-      !$acc exit data delete(ur_cell, vr_cell)
-#endif
       !$acc exit data delete(rho_zz)
       !$acc exit data copyout(tend_theta)
       !$acc exit data delete(theta_m)
       !$acc exit data delete(ru_save, theta_m_save)
-      !$acc exit data copyout(tend_theta_euler)
+      !$acc exit data delete(delsq_theta)
+      !$acc exit data delete(cqw)
+      !$acc exit data delete(tend_rtheta_physics)
+      !$acc exit data delete(rw_save, rt_diabatic_tend)
+      !$acc exit data copyout(rthdynten)
+      !$acc exit data delete(t_init)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
    end subroutine atm_compute_dyn_tend_work
