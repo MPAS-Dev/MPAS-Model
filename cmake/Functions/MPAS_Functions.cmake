@@ -129,6 +129,17 @@ function(mpas_fortran_target target)
         else()
             list(APPEND MPAS_FORTRAN_TARGET_COMPILE_DEFINITIONS SINGLE_PRECISION)
         endif()
+    elseif(CMAKE_Fortran_COMPILER_ID MATCHES NVHPC)
+
+        list(APPEND MPAS_FORTRAN_TARGET_COMPILE_DEFINITIONS
+            $<$<COMPILE_LANGUAGE:Fortran>:-DCPRPGI -DMPAS_NAMELIST_SUFFIX=atmosphere -DMPAS_EXE_NAME=atmosphere_model>
+            $<$<COMPILE_LANGUAGE:Fortran>:-DMPAS_OPENACC -DSINGLE_PRECISION -DMPAS_BUILD_TARGET=nvhpc>
+        )
+        list(APPEND MPAS_FORTRAN_TARGET_COMPILE_OPTIONS_PRIVATE
+            $<$<COMPILE_LANGUAGE:Fortran>: -Mnofma -acc -gpu=math_uniform,cc70,cc80 -Minfo=accel -byteswapio>
+        )
+        message(VERBOSE "${target} options: ${MPAS_FORTRAN_TARGET_COMPILE_OPTIONS_PRIVATE}")
+        message(VERBOSE "${target} defines: ${MPAS_FORTRAN_TARGET_COMPILE_DEFINITIONS}")
     endif()
     target_compile_definitions(${target} PRIVATE ${MPAS_FORTRAN_TARGET_COMPILE_DEFINITIONS})
     target_compile_options(${target} PRIVATE ${MPAS_FORTRAN_TARGET_COMPILE_OPTIONS_PRIVATE})
