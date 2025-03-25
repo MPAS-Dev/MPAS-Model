@@ -7264,6 +7264,7 @@ module atm_time_integration
        real (kind=RKIND), dimension(5) :: localVals, globalVals
 
        real (kind=RKIND), dimension(:,:), allocatable :: spd
+       !$acc declare create(spd)
        real (kind=RKIND), dimension(:,:), pointer :: w
        real (kind=RKIND), dimension(:,:), pointer :: u, v, uReconstructZonal, uReconstructMeridional, uReconstructX, uReconstructY, uReconstructZ
        real (kind=RKIND), dimension(:,:,:), pointer :: scalars, scalars_1, scalars_2
@@ -7303,17 +7304,26 @@ module atm_time_integration
 
          allocate(spd(nVertLevels,nEdgesSolve))
 
+         MPAS_ACC_TIMER_START('summarize_timestep [ACC_data_xfer]')
+         !$acc enter data copyin(w,u,v)
+         MPAS_ACC_TIMER_STOP('summarize_timestep [ACC_data_xfer]')
+
          scalar_min = 1.0e20
          lin_indexMax = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:scalar_min)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
             scalar_min = min(scalar_min, w(k,iCell))
          end do
          end do
+         !$acc end parallel
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:lin_indexMax)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
             if (w(k,iCell) == scalar_min) then
@@ -7322,6 +7332,7 @@ module atm_time_integration
             end if
          end do
          end do
+         !$acc end parallel
          kMax = modulo(lin_indexMax, size(w,1))
          indexMax = ((lin_indexMax - kMax) / size(w,1)) + 1
          latMax = latCell(indexMax)
@@ -7352,11 +7363,16 @@ module atm_time_integration
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(max:scalar_max)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
             scalar_max = max(scalar_max, w(k,iCell))
          end do
          end do
+         !$acc end parallel
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:lin_indexMax)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
             if (w(k,iCell) == scalar_max) then
@@ -7364,6 +7380,7 @@ module atm_time_integration
             end if
          end do
          end do
+         !$acc end parallel
          kMax = modulo(lin_indexMax, size(w,1))
          indexMax = ((lin_indexMax - kMax) / size(w,1)) + 1
          latMax = latCell(indexMax)
@@ -7394,11 +7411,16 @@ module atm_time_integration
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:scalar_min)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             scalar_min = min(scalar_min, u(k,iEdge))
          end do
          end do
+         !$acc end parallel
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:lin_indexMax)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             if (u(k,iEdge) == scalar_min) then
@@ -7406,6 +7428,7 @@ module atm_time_integration
             end if
          end do
          end do
+         !$acc end parallel
          kMax = modulo(lin_indexMax, size(u,1))
          indexMax = ((lin_indexMax - kMax) / size(u,1)) + 1
          latMax = latEdge(indexMax)
@@ -7436,11 +7459,16 @@ module atm_time_integration
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(max:scalar_max)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             scalar_max = max(scalar_max, u(k,iEdge))
          end do
          end do
+         !$acc end parallel
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:lin_indexMax)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             if (u(k,iEdge) == scalar_max) then
@@ -7448,6 +7476,7 @@ module atm_time_integration
             end if
          end do
          end do
+         !$acc end parallel
          kMax = modulo(lin_indexMax, size(u,1))
          indexMax = ((lin_indexMax - kMax) / size(u,1)) + 1
          latMax = latEdge(indexMax)
@@ -7478,12 +7507,17 @@ module atm_time_integration
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(max:scalar_max)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             spd(k,iEdge) = sqrt(u(k,iEdge)*u(k,iEdge) + v(k,iEdge)*v(k,iEdge))
             scalar_max = max(scalar_max, spd(k,iEdge))
          end do
          end do
+         !$acc end parallel
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:lin_indexMax)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             if (spd(k,iEdge) == scalar_max) then
@@ -7491,6 +7525,7 @@ module atm_time_integration
             end if
          end do
          end do
+         !$acc end parallel
          kMax = modulo(lin_indexMax, size(u,1))
          indexMax = ((lin_indexMax - kMax) / size(u,1)) + 1
          latMax = latEdge(indexMax)
@@ -7520,6 +7555,8 @@ module atm_time_integration
          !
          found_NaN = .false.
 
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(.or.:found_NaN)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
             if (ieee_is_nan(w(k,iCell))) then
@@ -7527,11 +7564,14 @@ module atm_time_integration
             end if
          end do
          end do
+         !$acc end parallel
          if (found_NaN) then
             call mpas_log_write('NaN detected in ''w'' field.', messageType=MPAS_LOG_CRIT)
          end if
 
 
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(.or.:found_NaN)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             if (ieee_is_nan(u(k,iEdge))) then
@@ -7539,9 +7579,14 @@ module atm_time_integration
             end if
          end do
          end do
+         !$acc end parallel
          if (found_NaN) then
             call mpas_log_write('NaN detected in ''u'' field.', messageType=MPAS_LOG_CRIT)
          end if
+
+         MPAS_ACC_TIMER_START('summarize_timestep [ACC_data_xfer]')
+         !$acc exit data delete(w,u,v)
+         MPAS_ACC_TIMER_STOP('summarize_timestep [ACC_data_xfer]')
 
          deallocate(spd)
 
