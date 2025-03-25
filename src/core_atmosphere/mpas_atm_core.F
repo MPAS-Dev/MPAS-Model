@@ -119,13 +119,9 @@ module atm_core
       end if
 
       call mpas_pool_get_config(domain % blocklist % configs, 'config_do_restart', config_do_restart)
-      !call mpas_pool_get_config(domain % blocklist % configs, 'config_dt', dt)
-      !call mpas_get_timeInterval(mpas_get_clock_timestep(domain % clock, ierr), dt=dt)
-      !call mpas_log_write('Obtaining initial dt=$r', realArgs=(/dt/))
-      !call mpas_log_write('Setting dt=60')
-      !call mpas_set_timeInterval(timeStepInterval, dt=60.0_RKIND, ierr=ierr)
-      !call mpas_set_clock_timestep(clock, timeStepInterval, ierr)
+
       call mpas_get_timeInterval(mpas_get_clock_timestep(domain % clock, ierr), dt=dt)
+      call mpas_log_write('atm_core_init: Obtaining initial dt=$r', realArgs=(/dt/))
       !
       ! By default, the 'invariant' stream has an input_interval of "none", so
       ! the following stream read has no effect. However, in case the 'invariant'
@@ -322,7 +318,7 @@ module atm_core
       integer :: local_err
       integer (kind=I8KIND) :: nDivs
       !integer :: nDivs
-      real (kind=RKIND) :: dt_incr_tmp, tmp_duration, tmp_n, tmp_dt_incr, dt_rem, tmp_a, tmp_b
+      real (kind=RKIND) :: dt_incr_tmp, loc_rampup_duration, nDivs_r, loc_dt_incr, dt_rem, tot_remainder, tmp_b
       real (kind=RKIND), pointer :: config_dt
       real (kind=RKIND), pointer :: config_dt_init
       character (len=StrKIND), pointer :: config_start_time
@@ -367,55 +363,48 @@ module atm_core
          end if
          call mpas_set_timeInterval(timeStep_init, dt=config_dt_init, ierr=local_err)
          if (trim(config_dt_rampup_duration) /= "none") then
+            
             call mpas_set_timeInterval(timestep_rampup_Duration, timeString=config_dt_rampup_duration, ierr=local_err)
             
             call mpas_log_write('timestep_rampup_Duration is set to'//trim(config_dt_rampup_duration))
             timestep_rampup_Duration_2 = timestep_rampup_Duration * 2
-            
-            call mpas_get_timeInterval(timestep_rampup_Duration, dt=tmp_duration, ierr=local_err)
-            call mpas_log_write('timestep_rampup_Duration is set to $r', realArgs=(/tmp_duration/))
-            call mpas_get_timeInterval(timestep_rampup_Duration_2, dt=dt_incr_tmp, ierr=local_err)
-            call mpas_log_write('timestep_rampup_Duration_2 is set to $r', realArgs=(/dt_incr_tmp/))
-
             timeStep_sum = timeStep_init + timeStep_config
             
+            ! Assuming an arithmetic sequence of time step sizes, the sum of elements in the sequence 
+            ! is given by the formula Sn = nDivs/2(2*config_dt_init + (nDivs-1)dt_incr), where config_dt_init
+            ! is the first time step size, dt_incr is the timestep size increment, and nDivs is the number of
+            ! elements in the sequence. The sum of time step sizes should ideally equal the rampup duration,
+            ! except for a remainder searchRemainder. 
+
+            ! Given the above assumption, we can solve for nDivs as 
+            ! nDivs_r = floor(2.0_RKIND*loc_rampup_duration/(config_dt + config_dt_init)) - 1
             call mpas_interval_division(startTime, timestep_rampup_Duration_2, timeStep_sum, nDivs, searchRemainder)
             nDivs = nDivs - 1
+            ! set the time step increment
             dt_incr = (timeStep_config - timeStep_init)/int(nDivs)
-
-            tmp_n = floor(2.0_RKIND*tmp_duration/(config_dt + config_dt_init))
-            tmp_n = tmp_n - 1
-            tmp_dt_incr = (config_dt - config_dt_init)/tmp_n
-            tmp_a = (tmp_duration- 0.5*(tmp_n+1)*(2.0*config_dt_init + tmp_n*tmp_dt_incr))
-            tmp_b = tmp_a/(tmp_n + 1)
-            tmp_dt_incr = tmp_dt_incr + tmp_b
-            call mpas_log_write('tmp_n is set to $r, tmp_a is set to $r', &
-                               realArgs=(/tmp_n, tmp_a/))
-            !call mpas_set_timeInterval(dt_incr, dt=tmp_dt_incr, ierr=local_err)
-            config_dt_init = config_dt_init + tmp_b
-            call mpas_set_timeInterval(searchRemainder, dt=tmp_a, ierr=local_err)
-
-
-            ! call mpas_get_timeInterval(dt_incr, dt=dt_incr_tmp, ierr=local_err)
-            ! call mpas_get_timeInterval(searchRemainder, dt=dt_rem, ierr=local_err)
-            ! call mpas_log_write('config_dt_init is set to $r, dt_rem is set to $r, dt_incr is set to $r', &
-            !                    realArgs=(/config_dt_init, dt_rem, dt_incr_tmp/))
+            ! calculate the remainder, which will be set as the first time step size, in order to 
+            ! correctly reach the rampup duration
+            searchRemainder = timestep_rampup_Duration - (timeStep_init*2 + dt_incr*(nDivs))*(nDivs+1)/2
 
             
-            ! searchRemainder = timestep_rampup_Duration - (timeStep_init*2 + dt_incr*(nDivs))*(nDivs+1)/2
+            ! nDivs_r = floor(2.0_RKIND*loc_rampup_duration/(config_dt + config_dt_init)) - 1
+            ! loc_dt_incr = (config_dt - config_dt_init)/nDivs_r
+            ! tot_remainder = (loc_rampup_duration- 0.5*(nDivs_r+1)*(2.0*config_dt_init + nDivs_r*loc_dt_incr))
+            ! call mpas_log_write('nDivs :$r, loc_dt_incr is set to $r', &
+            !                    realArgs=(/nDivs_r, loc_dt_incr/))
+            ! call mpas_set_timeInterval(searchRemainder, dt=tot_remainder, ierr=local_err)
 
+            call mpas_get_timeInterval(dt_incr, dt=dt_incr_tmp, ierr=local_err)
             call mpas_get_timeInterval(searchRemainder, dt=dt_rem, ierr=local_err)
-            call mpas_log_write('remainder is set to $r, nDivs $i', &
-                               realArgs=(/dt_rem/), intArgs=(/int(nDivs)/))
+            call mpas_log_write('dt_rem is set to $r, dt_incr is set to $r, nDivs: $i', &
+                                realArgs=(/dt_rem, dt_incr_tmp/), intArgs=(/int(nDivs)/))
 
-            ! call mpas_log_write('config_dt_init is set to $r, tmp_n is set to $r, dt_incr is set to $r', &
-            ! realArgs=(/config_dt_init, tmp_n, tmp_dt_incr/))
-            
          else
             call mpas_log_write('config_dt_init is set but config_dt_rampup_duration was not specified.', messageType=MPAS_LOG_ERR)
             ierr = 1
          end if
          !timeStep = timeStep_init
+         ! Setting the first timestep to the remainder
          timeStep = searchRemainder
          rampup_stopTime = startTime + timestep_rampup_Duration
       end if
