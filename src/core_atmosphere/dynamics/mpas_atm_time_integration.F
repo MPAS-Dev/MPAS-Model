@@ -5086,10 +5086,8 @@ module atm_time_integration
       invDt = 1.0_RKIND / dt
       inv_r_earth = 1.0_RKIND / r_earth
 
-       v_mom_eddy_visc2   = config_v_mom_eddy_visc2
-       v_theta_eddy_visc2 = config_v_theta_eddy_visc2
-
-!MGD BROKEN
+      v_mom_eddy_visc2   = config_v_mom_eddy_visc2
+      v_theta_eddy_visc2 = config_v_theta_eddy_visc2
 
       if (rk_step == 1) then
 
@@ -5103,14 +5101,10 @@ module atm_time_integration
          end do
          !$acc end parallel
 
-      end if
-
-!MGD BROKEN
-
-      if (rk_step == 1) then
-      
          ! Smagorinsky eddy viscosity, based on horizontal deformation (in this case on model coordinate surfaces).
          ! The integration coefficients were precomputed and stored in defc_a and defc_b
+
+         if(config_horiz_mixing == "2d_smagorinsky") then
 
             !$acc parallel default(present)
             !$acc loop gang worker private(d_diag, d_off_diag)
@@ -5145,11 +5139,24 @@ module atm_time_integration
             h_mom_eddy_visc4   = config_visc4_2dsmag * config_len_disp**3
             h_theta_eddy_visc4 = h_mom_eddy_visc4
 
-      end if
+         else if(config_horiz_mixing == "2d_fixed") then
 
-!MGD OK HERE
+            !!! MGD UNTESTED !!!
 
-      if (rk_step == 1) then
+            !$acc parallel default(present)
+            !$acc loop gang worker
+            do iCell = cellStart, cellEnd
+               !$acc loop vector
+               do k = 1, nVertLevels
+                  kdiff(k,iCell) = config_h_theta_eddy_visc2
+               end do
+            end do
+            !$acc end parallel
+
+            h_mom_eddy_visc4 = config_h_mom_eddy_visc4
+            h_theta_eddy_visc4 = config_h_theta_eddy_visc4
+
+         end if
 
          if (config_mpas_cam_coef > 0.0) then
 
@@ -5174,8 +5181,6 @@ module atm_time_integration
          end if
             
       end if
-
-!MGD OK HERE
 
       ! tendency for density.
       ! accumulate total water here for later use in w tendency calculation.
@@ -5216,8 +5221,6 @@ module atm_time_integration
          end do
       end do
       !$acc end parallel
-
-!MGD WORKS HERE
 
       !
       ! dp / dz and tend_rho
@@ -5339,8 +5342,6 @@ module atm_time_integration
       !  mixing terms are integrated using forward-Euler, so this tendency is only computed in the
       !  first Runge-Kutta substep and saved for use in later RK substeps 2 and 3.
       !
-
-!MGD OK HERE?
 
       if (rk_step == 1) then
 
@@ -5604,8 +5605,6 @@ module atm_time_integration
 
 !----------- rhs for w
 
-!MGD OK HERE
-
       !
       !  horizontal advection for w
       !
@@ -5685,8 +5684,6 @@ module atm_time_integration
       !  horizontal mixing for w - we could combine this with advection directly (i.e. as a turbulent flux),
       !  but here we can also code in hyperdiffusion if we wish (2nd order at present)
       !
-
-!MGD OK HERE
 
       if (rk_step == 1) then
 
