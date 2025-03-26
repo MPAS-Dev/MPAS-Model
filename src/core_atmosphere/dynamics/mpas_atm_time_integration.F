@@ -26,7 +26,6 @@ module atm_time_integration
    use mpas_derived_types, only : MPAS_Time_type, MPAS_TimeInterval_type, MPAS_NOW
    use mpas_timekeeping, only: mpas_set_time, mpas_set_timeInterval, mpas_get_time, operator(+)
    use mpas_timer
-   use mpas_checkpointing
 
 #ifdef DO_PHYSICS
    use mpas_atmphys_driver_microphysics
@@ -251,13 +250,6 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel2
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel4
 #endif
-      logical, pointer :: config_create_checkpoint
-
-      nullify(config_create_checkpoint)
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_create_checkpoint', config_create_checkpoint)
-
-      call mpas_checkpoint_init(domain % dminfo % my_proc_id, config_create_checkpoint)
-
 
 #ifdef MPAS_CAM_DYCORE
       nullify(tend_physics)
@@ -682,8 +674,6 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
       !$acc exit data delete(meshScalingDel4)
 #endif
-
-      call mpas_checkpoint_finalize()
 
    end subroutine mpas_atm_dynamics_finalize
 

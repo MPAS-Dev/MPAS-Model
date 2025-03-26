@@ -388,11 +388,6 @@
                      units="-"
                      description="Method to use for exchanging halos"
                      possible_values="`mpas_dmpar', `mpas_halo'"/>
-
-                <nml_option name="config_create_checkpoint" type="logical" default_value="false"
-                     units="-"
-                     description="..."
-                     possible_values=".true. or .false."/>
         </nml_record>
 
 <!-- **************************************************************************************** -->
