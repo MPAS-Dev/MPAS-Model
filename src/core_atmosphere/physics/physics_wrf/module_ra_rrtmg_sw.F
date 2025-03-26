@@ -1382,7 +1382,7 @@
 
       use parkind, only : im => kind_im, rb => kind_rb
       use parrrsw, only : nbndsw, ngptsw
-      use rrsw_con, only: grav
+      use rrsw_con, only: grav, pi
       use rrsw_wvn, only: ngb
       use rrsw_vsn
 
@@ -3391,6 +3391,10 @@ use module_wrf_error
                                                          !   Dimensions: (nlayers,ngptsw)
 
 !jm not thread safe      hvrtau = '$Revision: 1.3 $'
+
+! Initialize sfluxzen to 0.0 to prevent junk values when nlayers = laytrop
+
+      sfluxzen(:) = 0.0
 
 ! Calculate gaseous optical depth and planck fractions for each spectral band.
 
@@ -8609,27 +8613,36 @@ use module_wrf_error
                zdbt_nodel(jk) = zclear*zdbtmc + zcloud*zdbtmo
                ztdbt_nodel(jk+1) = zdbt_nodel(jk) * ztdbt_nodel(jk)
 !   /\/\/\ Above code only needed for direct beam calculation
+            enddo
 
-
+! to vectorize the following loop
+            do jk=1, klev
 ! Delta scaling - clear   
                zf = zgcc(jk) * zgcc(jk)
                zwf = zomcc(jk) * zf
                ztauc(jk) = (1.0_rb - zwf) * ztauc(jk)
                zomcc(jk) = (zomcc(jk) - zwf) / (1.0_rb - zwf)
                zgcc (jk) = (zgcc(jk) - zf) / (1.0_rb - zf)
+            enddo
+
 
 ! Total sky optical parameters (cloud properties already delta-scaled)
 !   Use this code if cloud properties are derived in rrtmg_sw_cldprop       
                if (icpr .ge. 1) then
+            do jk=1,klev
+                  ikl=klev+1-jk
                   ztauo(jk) = ztauc(jk) + ptaucmc(ikl,iw)
                   zomco(jk) = ztauc(jk) * zomcc(jk) + ptaucmc(ikl,iw) * pomgcmc(ikl,iw) 
                   zgco (jk) = (ptaucmc(ikl,iw) * pomgcmc(ikl,iw) * pasycmc(ikl,iw) + &
                               ztauc(jk) * zomcc(jk) * zgcc(jk)) / zomco(jk)
                   zomco(jk) = zomco(jk) / ztauo(jk)
+            enddo
 
 ! Total sky optical parameters (if cloud properties not delta scaled)
 !   Use this code if cloud properties are not derived in rrtmg_sw_cldprop       
                elseif (icpr .eq. 0) then
+            do jk=1,klev
+                  ikl=klev+1-jk
                   ztauo(jk) = ztaur(ikl,iw) + ztaug(ikl,iw) + ptaua(ikl,ibm) + ptaucmc(ikl,iw)
                   zomco(jk) = ptaua(ikl,ibm) * pomga(ikl,ibm) + ptaucmc(ikl,iw) * pomgcmc(ikl,iw) + &
                               ztaur(ikl,iw) * 1.0_rb
@@ -8644,10 +8657,10 @@ use module_wrf_error
                   ztauo(jk) = (1._rb - zwf) * ztauo(jk)
                   zomco(jk) = (zomco(jk) - zwf) / (1.0_rb - zwf)
                   zgco (jk) = (zgco(jk) - zf) / (1.0_rb - zf)
+            enddo
                endif 
 
 ! End of layer loop
-            enddo    
 
 ! Clear sky reflectivities
             call reftra_sw (klev, &
@@ -8745,22 +8758,27 @@ use module_wrf_error
                pbbcd(ikl) = pbbcd(ikl) + zincflx(iw)*zcd(jk,iw)
                pbbfddir(ikl) = pbbfddir(ikl) + zincflx(iw)*ztdbt_nodel(jk)
                pbbcddir(ikl) = pbbcddir(ikl) + zincflx(iw)*ztdbtc_nodel(jk)
+            enddo
 
 ! Accumulate direct fluxes for UV/visible bands
                if (ibm >= 10 .and. ibm <= 13) then
+            do jk=1,klev+1
+               ikl=klev+2-jk
                   puvcd(ikl) = puvcd(ikl) + zincflx(iw)*zcd(jk,iw)
                   puvfd(ikl) = puvfd(ikl) + zincflx(iw)*zfd(jk,iw)
                   puvcddir(ikl) = puvcddir(ikl) + zincflx(iw)*ztdbtc_nodel(jk)
                   puvfddir(ikl) = puvfddir(ikl) + zincflx(iw)*ztdbt_nodel(jk)
+            enddo
 ! Accumulate direct fluxes for near-IR bands
                else if (ibm == 14 .or. ibm <= 9) then  
+            do jk=1,klev+1
+               ikl=klev+2-jk
                   pnicd(ikl) = pnicd(ikl) + zincflx(iw)*zcd(jk,iw)
                   pnifd(ikl) = pnifd(ikl) + zincflx(iw)*zfd(jk,iw)
                   pnicddir(ikl) = pnicddir(ikl) + zincflx(iw)*ztdbtc_nodel(jk)
                   pnifddir(ikl) = pnifddir(ikl) + zincflx(iw)*ztdbt_nodel(jk)
-               endif
-
             enddo
+               endif
 
 ! End loop on jg, g-point interval
          enddo             
@@ -8860,12 +8878,14 @@ use module_wrf_error
              taucmcl ,ssacmcl ,asmcmcl ,fsfcmcl , &
              ciwpmcl ,clwpmcl ,cswpmcl ,reicmcl ,relqmcl ,resnmcl, &
              tauaer  ,ssaaer  ,asmaer  ,ecaer   , &
-             swuflx  ,swdflx  ,swhr    ,swuflxc ,swdflxc ,swhrc, aer_opt,  &
+             swuflx  ,swdflx  ,swhr    ,swuflxc ,swdflxc ,swhrc, swuflxcln ,swdflxcln , aer_opt,  &
 ! --------- Add the following four compenants for ssib shortwave down radiation ---!
 ! -------------------      by Zhenxin 2011-06-20      --------------------------------!
              sibvisdir, sibvisdif, sibnirdir, sibnirdif,         &
 ! ----------------------  End,  Zhenxin 2011-06-20    --------------------------------!
-             swdkdir,swdkdif                                & ! jararias, 2013/08/10
+             swdkdir,swdkdif,                               & ! jararias, 2013/08/10
+             swdkdirc,                                      & ! PAJ
+             calc_clean_atm_diag                            &
                                                                 )
 
 
@@ -8976,7 +8996,8 @@ use module_wrf_error
                                                       !    1: Random
                                                       !    2: Maximum/random
                                                       !    3: Maximum
-
+                                                      !    4: Exponential
+                                                      !    5: Exponential/random
       real(kind=rb), intent(in) :: play(:,:)          ! Layer pressures (hPa, mb)
                                                       !    Dimensions: (ncol,nlay)
       real(kind=rb), intent(in) :: plev(:,:)          ! Interface pressures (hPa, mb)
@@ -9063,6 +9084,7 @@ use module_wrf_error
       real(kind=rb), intent(in) :: ecaer(:,:,:)       ! Aerosol optical depth at 0.55 micron (iaer=6 only)
                                                       !    Dimensions: (ncol,nlay,naerec)
                                                       ! (non-delta scaled)      
+      integer, intent(in)       :: calc_clean_atm_diag! Control for clean air diagnositic calls for WRF-Chem
 
 ! ----- Output -----
 
@@ -9086,12 +9108,16 @@ use module_wrf_error
                                                       !    Dimensions: (ncol,nlay+1)
       real(kind=rb), intent(out) :: swhrc(:,:)        ! Clear sky shortwave radiative heating rate (K/d)
                                                       !    Dimensions: (ncol,nlay)
+      real(kind=rb), intent(out) :: swuflxcln(:,:)    ! Clean sky shortwave upward flux (W/m2)
+                                                      !    Dimensions: (ncol,nlay+1)
+      real(kind=rb), intent(out) :: swdflxcln(:,:)    ! Clean sky shortwave downward flux (W/m2)
+                                                      !    Dimensions: (ncol,nlay+1)
 
       integer, intent(in)        :: aer_opt
       real(kind=rb), intent(out) :: &
         swdkdir(:,:), & ! Total shortwave downward direct flux (W/m2),  Dimensions: (ncol,nlay) jararias, 2013/08/10
-        swdkdif(:,:)    ! Total shortwave downward diffuse flux (W/m2), Dimensions: (ncol,nlay) jararias, 2013/08/10
-
+        swdkdif(:,:), & ! Total shortwave downward diffuse flux (W/m2), Dimensions: (ncol,nlay) jararias, 2013/08/10
+        swdkdirc(:,:)   ! Total shortwave downward direct flux clear sky (W/m2),  Dimensions: (ncol,nlay)
 
 
 
@@ -9210,6 +9236,7 @@ use module_wrf_error
                                                 !  (first moment of phase function)
       real(kind=rb) :: zomgc(nlay+1,nbndsw)     ! cloud single scattering albedo
       real(kind=rb) :: ztaua(nlay+1,nbndsw)     ! total aerosol optical depth
+      real(kind=rb) :: ztauacln(nlay+1,nbndsw)  ! dummy total aerosol optical depth for clean case (=zero)
       real(kind=rb) :: zasya(nlay+1,nbndsw)     ! total aerosol asymmetry parameter 
       real(kind=rb) :: zomga(nlay+1,nbndsw)     ! total aerosol single scattering albedo
 
@@ -9233,6 +9260,13 @@ use module_wrf_error
       real(kind=rb) :: znicd(nlay+2)          ! temporary clear sky near-IR downward shortwave flux (w/m2)
       real(kind=rb) :: znifddir(nlay+2)       ! temporary near-IR downward direct shortwave flux (w/m2)
       real(kind=rb) :: znicddir(nlay+2)       ! temporary clear sky near-IR downward direct shortwave flux (w/m2)
+      real(kind=rb) :: zbbclnu(nlay+2)        ! temporary clean sky upward shortwave flux (w/m2)
+      real(kind=rb) :: zbbclnd(nlay+2)        ! temporary clean sky downward shortwave flux (w/m2)
+      real(kind=rb) :: zbbclnddir(nlay+2)     ! temporary clean sky downward direct shortwave flux (w/m2)
+      real(kind=rb) :: zuvclnd(nlay+2)        ! temporary clean sky UV downward shortwave flux (w/m2)
+      real(kind=rb) :: zuvclnddir(nlay+2)     ! temporary clean sky UV downward direct shortwave flux (w/m2)
+      real(kind=rb) :: zniclnd(nlay+2)        ! temporary clean sky near-IR downward shortwave flux (w/m2)
+      real(kind=rb) :: zniclnddir(nlay+2)     ! temporary clean sky near-IR downward direct shortwave flux (w/m2)
 
 ! Optional output fields 
       real(kind=rb) :: swnflx(nlay+2)         ! Total sky shortwave net flux (W/m2)
@@ -9289,7 +9323,8 @@ use module_wrf_error
 ! icld = 1, with clouds using random cloud overlap (McICA only)
 ! icld = 2, with clouds using maximum/random cloud overlap (McICA only)
 ! icld = 3, with clouds using maximum cloud overlap (McICA only)
-      if (icld.lt.0.or.icld.gt.3) icld = 2
+! icld = 4, with clouds using exponential cloud overlap (McICA only)
+! icld = 5, with clouds using exponential/random cloud overlap (McICA only)
 
 ! Set iaer to select aerosol option
 ! iaer = 0, no aerosols
@@ -9417,8 +9452,8 @@ use module_wrf_error
 !               enddo
 !            enddo
 
-            do i = 1, nlayers
-               do ib = 1, nbndsw
+            do ib = 1, nbndsw
+               do i = 1, nlayers
                   ztaua(i,ib) = 0._rb
                   zasya(i,ib) = 0._rb
                   zomga(i,ib) = 0._rb
@@ -9441,9 +9476,10 @@ use module_wrf_error
 ! IAER=10: Direct specification of aerosol optical properties from GCM
          elseif (iaer.eq.10) then
 
-            do i = 1 ,nlayers
-               do ib = 1 ,nbndsw
+            do ib = 1 ,nbndsw
+               do i = 1 ,nlayers
                   ztaua(i,ib) = taua(i,ib)
+                  ztauacln(i,ib) = 0.0
                   zasya(i,ib) = asma(i,ib)
                   zomga(i,ib) = ssaa(i,ib)
                enddo
@@ -9499,6 +9535,7 @@ use module_wrf_error
             difdflux(i) = swdflx(iplon,i) - dirdflux(i)
             swdkdir(iplon,i) = dirdflux(i) ! all-sky direct flux   jararias, 2013/08/10
             swdkdif(iplon,i) = difdflux(i) ! all-sky diffuse flux  jararias, 2013/08/10
+            swdkdirc(iplon,i) = zbbcddir(i) ! PAJ: clear-sky direct flux
 
 !  UV/visible direct/diffuse fluxes
             dirdnuv(i) = zuvfddir(i)
@@ -9531,8 +9568,60 @@ use module_wrf_error
          swhrc(iplon,nlayers) = 0._rb
          swhr(iplon,nlayers) = 0._rb
 
+#if (WRF_CHEM == 1)
+         !  Repeat call to 2-stream radiation model using "clean sky"
+         !  variables and aerosol tau set to 0
+         if(calc_clean_atm_diag .gt. 0)then
+            do i=1,nlayers+1
+                zbbcu(i) = 0._rb
+                zbbcd(i) = 0._rb
+                zbbclnu(i) = 0._rb
+                zbbclnd(i) = 0._rb
+                zbbcddir(i) = 0._rb
+                zbbclnddir(i) = 0._rb
+                zuvcd(i) = 0._rb
+                zuvclnd(i) = 0._rb
+                zuvcddir(i) = 0._rb
+                zuvclnddir(i) = 0._rb
+                znicd(i) = 0._rb
+                zniclnd(i) = 0._rb
+                znicddir(i) = 0._rb
+                zniclnddir(i) = 0._rb
+             enddo
+
+             call spcvmc_sw &
+                 (nlayers, istart, iend, icpr, iout, &
+                  pavel, tavel, pz, tz, tbound, albdif, albdir, &
+                  zcldfmc, ztaucmc, zasycmc, zomgcmc, ztaormc, &
+                  ztauacln, zasya, zomga, cossza, coldry, wkl, adjflux, &
+                  laytrop, layswtch, laylow, jp, jt, jt1, &
+                  co2mult, colch4, colco2, colh2o, colmol, coln2o, colo2, colo3, &
+                  fac00, fac01, fac10, fac11, &
+                  selffac, selffrac, indself, forfac, forfrac, indfor, &
+                  zbbclnd, zbbclnu, zbbcd, zbbcu, zuvclnd, zuvcd, zniclnd, znicd, &
+                  zbbclnddir, zbbcddir, zuvclnddir, zuvcddir, zniclnddir, znicddir)
+
+            do i = 1, nlayers+1
+               swuflxcln(iplon,i) = zbbclnu(i)
+               swdflxcln(iplon,i) = zbbclnd(i)
+            enddo
+         else
+            do i = 1, nlayers+1
+               swuflxcln(iplon,i) = 0.0
+               swdflxcln(iplon,i) = 0.0
+            enddo
+         end if
+
+#else
+         do i = 1, nlayers+1
+            swuflxcln(iplon,i) = 0.0
+            swdflxcln(iplon,i) = 0.0
+         enddo
+
+#endif
 ! End longitude loop
       enddo
+
 
       end subroutine rrtmg_sw
 
@@ -9863,8 +9952,8 @@ use module_wrf_error
 ! modify to reverse layer indexing here if necessary.
 
       if (iaer .ge. 1) then 
-         do l = 1, nlayers
-            do ib = 1, nbndsw
+         do ib = 1, nbndsw
+            do l = 1, nlayers
                taua(l,ib) = tauaer(iplon,l,ib)
                ssaa(l,ib) = ssaaer(iplon,l,ib)
                asma(l,ib) = asmaer(iplon,l,ib)
@@ -10049,6 +10138,7 @@ CONTAINS
 !local variables and arrays:
  logical:: dorrsw
 
+ integer:: calc_clean_atm_diag
  integer:: na,nb,ncol,nlay,icld,inflgsw,iceflgsw,liqflgsw
  integer:: dyofyr
  integer:: iplon,irng,permuteseed
@@ -10078,8 +10168,9 @@ CONTAINS
 
  real,dimension(1,kts:kte+2):: plev,tlev
  real,dimension(1,kts:kte+2):: swuflx,swdflx,swuflxc,swdflxc
+ real,dimension(1,kts:kte+2):: swuflxcln,swdflxcln
  real,dimension(1,kts:kte+2):: sibvisdir,sibvisdif,sibnirdir,sibnirdif
- real,dimension(1,kts:kte+2):: swdkdir,swdkdif
+ real,dimension(1,kts:kte+2):: swdkdir,swdkdif,swdkdirc
 
  real,dimension(1,kts:kte+1,nbndsw):: tauaer,ssaaer,asmaer
 
@@ -10140,6 +10231,9 @@ CONTAINS
  inflgsw  = 2
  iceflgsw = 3
  liqflgsw = 1
+
+!--- initialize option for the calculation of clean air upward and downward fluxes:
+ calc_clean_atm_diag = 0
 
 !--- latitude loop:
  j_loop: do j = jts,jte
@@ -10220,22 +10314,24 @@ CONTAINS
              enddo
 
              do k = 1, nlay
-                clwpth(n,k)  = 0.
-                ciwpth(n,k)  = 0.
-                cswpth(n,k)  = 0.
-                rel(n,k)     = 0.
-                rei(n,k)     = 0.
-                res(n,k)     = 0.
-                cldfrac(n,k) = 0.
-                relqmcl(n,k) = 0.
-                reicmcl(n,k) = 0.
-                resnmcl(n,k) = 0.
-                swuflx(n,k)  = 0.
-                swuflxc(n,k) = 0.
-                swdflx(n,k)  = 0.
-                swdflxc(n,k) = 0.
-                swhr(n,k)    = 0.
-                swhrc(n,k)   = 0.
+                clwpth(n,k)    = 0.
+                ciwpth(n,k)    = 0.
+                cswpth(n,k)    = 0.
+                rel(n,k)       = 0.
+                rei(n,k)       = 0.
+                res(n,k)       = 0.
+                cldfrac(n,k)   = 0.
+                relqmcl(n,k)   = 0.
+                reicmcl(n,k)   = 0.
+                resnmcl(n,k)   = 0.
+                swuflx(n,k)    = 0.
+                swuflxc(n,k)   = 0.
+                swuflxcln(n,k) = 0.
+                swdflx(n,k)    = 0.
+                swdflxc(n,k)   = 0.
+                swdflxcln(n,k) = 0.
+                swhr(n,k)      = 0.
+                swhrc(n,k)     = 0.
                 taucld(1:nbndsw,n,k)  = 0.
                 tauaer(n,k,1:nbndsw)  = 0.
                 ssaaer(n,k,1:nbndsw)  = 0.
@@ -10253,11 +10349,14 @@ CONTAINS
                 sibnirdif(ncol,k) = 0.                
                 swdkdir(n,k)      = 0.
                 swdkdif(n,k)      = 0.
+                swdkdirc(n,k)     = 0.
              enddo
-             swuflx(n,nlay+1)  = 0.
-             swuflxc(n,nlay+1) = 0.
-             swdflx(n,nlay+1)  = 0.
-             swdflxc(n,nlay+1) = 0.
+             swuflx(n,nlay+1)    = 0.
+             swuflxc(n,nlay+1)   = 0.
+             swuflxcln(n,nlay+1) = 0.
+             swdflx(n,nlay+1)    = 0.
+             swdflxc(n,nlay+1)   = 0.
+             swdflxcln(n,nlay+1) = 0.
           enddo
 
           !--- initialization of aerosol optical properties:
@@ -10538,17 +10637,16 @@ CONTAINS
 
           !--- CALL TO THE RRTMG SHORT WAVE RADIATION MODEL:
           call rrtmg_sw &
-                     (ncol      , nlay      , icld      , play      , plev    , tlay     , &
-                      tlev      , tsfc      , h2ovmr    , o3vmr     , co2vmr  , ch4vmr   , &
-                      n2ovmr    , o2vmr     , asdir     , asdif     , aldir   , aldif    , &
-                      coszen    , adjes     , dyofyr    , scon      , inflgsw , iceflgsw , &
-                      liqflgsw  , cldfmcl   , taucmcl   , ssacmcl   , asmcmcl , fsfcmcl  , &
-                      ciwpmcl   , clwpmcl   , cswpmcl   , reicmcl   , relqmcl , resnmcl  , &
-                      tauaer    , ssaaer    , asmaer    , ecaer     , swuflx  , swdflx   , &
-                      swhr      , swuflxc   , swdflxc   , swhrc     ,                      &
-                      aer_opt   ,                                                          &
-                      sibvisdir , sibvisdif , sibnirdir , sibnirdif , & !added for ssib coupling.
-                      swdkdir   , swdkdif)
+                     (ncol      , nlay      , icld      , play      , plev      , tlay      , &
+                      tlev      , tsfc      , h2ovmr    , o3vmr     , co2vmr    , ch4vmr    , &
+                      n2ovmr    , o2vmr     , asdir     , asdif     , aldir     , aldif     , &
+                      coszen    , adjes     , dyofyr    , scon      , inflgsw   , iceflgsw  , &
+                      liqflgsw  , cldfmcl   , taucmcl   , ssacmcl   , asmcmcl   , fsfcmcl   , &
+                      ciwpmcl   , clwpmcl   , cswpmcl   , reicmcl   , relqmcl   , resnmcl   , &
+                      tauaer    , ssaaer    , asmaer    , ecaer     , swuflx    , swdflx    , &
+                      swhr      , swuflxc   , swdflxc   , swhrc     , swuflxcln , swdflxcln , &
+                      aer_opt   , sibvisdir , sibvisdif , sibnirdir , sibnirdif , swdkdir   , &
+                      swdkdif   , swdkdirc  , calc_clean_atm_diag)
 
           !--- OUTPUTS:
           gsw(i,j)  = swdflx(1,1) - swuflx(1,1)
