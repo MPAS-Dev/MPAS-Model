@@ -106,8 +106,8 @@ module mpas_bootstrapping
       type (field1dInteger), pointer :: indexToCellIDField
       type (field1dInteger), pointer :: indexToEdgeIDField
       type (field1dInteger), pointer :: indexToVertexIDField
-      type (field1dInteger), pointer :: nEdgesOnCellField
-      type (field2dInteger), pointer :: cellsOnCellField
+      type (field1dInteger), pointer :: nEdgesOnCellField, nEdgesOnCellFull
+      type (field2dInteger), pointer :: cellsOnCellField, cellsOnCellFull
       type (field2dInteger), pointer :: edgesOnCellField
       type (field2dInteger), pointer :: verticesOnCellField
       type (field2dInteger), pointer :: cellsOnEdgeField
@@ -144,7 +144,7 @@ module mpas_bootstrapping
       integer, pointer :: config_num_halos, config_number_of_blocks
       logical, pointer :: config_explicit_proc_decomp
       character (len=StrKIND), pointer :: config_block_decomp_file_prefix, config_proc_decomp_file_prefix
-      integer :: nHalos
+      integer :: nHalos, j, vind
 
 
       call mpas_pool_get_config(domain % configs, 'config_num_halos', config_num_halos)
@@ -197,6 +197,16 @@ module mpas_bootstrapping
       !   which cells/edges/vertices are owned by each block, and which are ghost
       !
 
+      allocate(cellsOnCellFull)
+      allocate(cellsOnCellFull % array(maxEdges,nCells))
+      call MPAS_io_inq_var(inputHandle, 'cellsOnCell', ierr=ierr)
+      call mpas_io_get_var(inputHandle, 'cellsOnCell', cellsOnCellFull % array, ierr)
+
+      allocate(nEdgesOnCellFull)
+      allocate(nEdgesOnCellFull % array(nCells))
+      call MPAS_io_inq_var(inputHandle, 'nEdgesOnCell', ierr=ierr)
+      call mpas_io_get_var(inputHandle, 'nEdgesOnCell', nEdgesOnCellFull % array, ierr)
+
       call mpas_io_setup_cell_block_fields(inputHandle, nreadCells, readCellStart, readingBlock, maxEdges, &
                                            indexTocellIDField, xCellField, yCellField, zCellField, nEdgesOnCellField, &
                                            cellsOnCellField, edgesOnCellField, verticesOnCellField, nHalos)
@@ -235,7 +245,7 @@ module mpas_bootstrapping
       !    file, but in principle it could call some online, distributed mesh partitioning library.
       !
       call mpas_block_decomp_cells_for_proc(domain % dminfo, partial_global_graph_info, local_cell_list, block_id, block_start, &
-                                            block_count, config_number_of_blocks, config_explicit_proc_decomp, &
+                                            block_count, cellsOnCellFull, nEdgesOnCellFull, config_number_of_blocks, config_explicit_proc_decomp, &
                                             config_block_decomp_file_prefix, config_proc_decomp_file_prefix)
 
       deallocate(partial_global_graph_info % vertexID)

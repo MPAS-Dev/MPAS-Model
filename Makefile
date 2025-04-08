@@ -759,6 +759,11 @@ endif
 	LIBS += $(NCLIB)
 endif
 
+export SCOTCH_ROOT=/glade/derecho/scratch/agopal/scotch/build
+
+FCINCLUDES += -I$(SCOTCH_ROOT)/src/include
+
+LIBS +=  -L$(SCOTCH_ROOT)/lib -lscotch -lscotcherr
 
 ifneq "$(PNETCDF)" ""
 ifneq ($(wildcard $(PNETCDF)/lib/libpnetcdf.*), )
