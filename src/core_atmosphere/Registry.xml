@@ -319,7 +319,7 @@
         </nml_record>
 
         <nml_record name="decomposition" in_defaults="true">
-                <nml_option name="config_block_decomp_file_prefix" type="character" default_value="x1.40962.graph.info.part."
+                <nml_option name="config_block_decomp_file_prefix" type="character" default_value=""
                      units="-"
                      description="Prefix of graph decomposition file, to be suffixed with the MPI task count"
                      possible_values="Any valid filename"/>
