@@ -75,7 +75,7 @@ module mpas_block_decomp
       integer, dimension(:,:), allocatable :: sorted_local_cell_list
 
       integer, dimension(:), allocatable :: global_block_id_arr, owning_proc_arr
-      integer :: i, global_block_id, local_block_id, owning_proc, iunit, istatus, vind, j, k
+      integer :: i, global_block_id, local_block_id, owning_proc, iunit, istatus, j, k
       integer :: blocks_per_proc, err, ierr
       integer, dimension(:), pointer :: local_nvertices
       character (len=StrKIND) :: filename, msg
@@ -111,28 +111,36 @@ module mpas_block_decomp
         if (dminfo % my_proc_id == IO_NODE) then
          if ( trim(blockFilePrefix) == '' ) then
                call mpas_log_write('blockFilePrefix is not set: Using LibScotch for graph partitioning')
-               do vind=1,partial_global_graph_info % nVerticesTotal
-                  nTotalEdgesGraph = nTotalEdgesGraph + nEdgesOnCellFull% array(vind)
-                  ! do j=1,nEdgesOnCellFull% array(vind)
-                  !    call mpas_log_write('vind=$i j=$i adj= $i', intArgs=(/vind,j,cellsOnCellFull%array(j,vind)/) )
+               do i=1,partial_global_graph_info % nVerticesTotal
+                  do j=1,nEdgesOnCellFull% array(i)
+                     
+                     if (cellsOnCellFull%array(j,i) == 0) cycle
+                     nTotalEdgesGraph = nTotalEdgesGraph + 1
+                     !nTotalEdgesGraph = nTotalEdgesGraph + nEdgesOnCellFull% array(i)
+                  ! do j=1,nEdgesOnCellFull% array(i)
+                  !    call mpas_log_write('i=$i j=$i adj= $i', intArgs=(/i,j,cellsOnCellFull%array(j,i)/) )
                   ! end do
+                  end do
                end do 
-  
+               call mpas_log_write('nTotalEdgesGraph is $i', intArgs=(/nTotalEdgesGraph/))
                allocate(edgetab(nTotalEdgesGraph))
                allocate(verttab(partial_global_graph_info % nVerticesTotal + 1))
                !allocate(parttab(partial_global_graph_info % nVerticesTotal))
   
-               !do vind=1,partial_global_graph_info % nVerticesTotal
-                  !call mpas_log_write('proc=$i  vind= $i part= $i', intArgs=(/dminfo % my_proc_id, vind,parttab(vind)/))
-                  !call mpas_log_write('vind=$i j=$i adj= $i', intArgs=(/vind,j,cellsOnCellFull%array(j,vind)/) )
+               !do i=1,partial_global_graph_info % nVerticesTotal
+                  !call mpas_log_write('proc=$i  i= $i part= $i', intArgs=(/dminfo % my_proc_id, i,parttab(i)/))
+                  !call mpas_log_write('i=$i j=$i adj= $i', intArgs=(/i,j,cellsOnCellFull%array(j,i)/) )
                !end do 
   
                k = 1
-               do vind=1,partial_global_graph_info % nVerticesTotal
-                  verttab(vind) = k 
-                  !call mpas_log_write('vind=$i verttab= $i', intArgs=(/vind,verttab(vind)/) )
-                  do j=1,nEdgesOnCellFull% array(vind)
-                     edgetab(k) = cellsOnCellFull%array(j,vind)
+               do i=1,partial_global_graph_info % nVerticesTotal
+                  verttab(i) = k 
+                  !call mpas_log_write('i=$i verttab= $i', intArgs=(/i,verttab(i)/) )
+                  do j=1,nEdgesOnCellFull% array(i)
+                     
+                     if (cellsOnCellFull%array(j,i) == 0) cycle
+
+                     edgetab(k) = cellsOnCellFull%array(j,i)
                      !call mpas_log_write('k=$i edgetab= $i', intArgs=(/k,edgetab(k)/) )
                      k = k + 1
                   end do
@@ -154,6 +162,12 @@ module mpas_block_decomp
                IF (IERR .NE. 0) THEN
                      call mpas_log_write('Cannot build Scotch Graph', MPAS_LOG_CRIT)
                ENDIF
+
+               ! CALL SCOTCHFGRAPHSAVE (SCOTCHGRAPH (1), 1, IERR)
+               ! IF (IERR .NE. 0) THEN
+               !    PRINT *, 'ERROR : MAIN : Invalid graph output'
+               !    STOP
+               ! ENDIF
   
                CALL SCOTCHFGRAPHCHECK (SCOTCHGRAPH (1), IERR)
                IF (IERR .NE. 0) THEN
