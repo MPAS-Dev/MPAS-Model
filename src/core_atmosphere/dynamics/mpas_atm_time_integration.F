@@ -7887,7 +7887,8 @@ module atm_time_integration
        logical, pointer :: config_print_global_minmax_sca
 
        integer :: iCell, k, iEdge, iScalar
-       integer, pointer :: num_scalars, nCellsSolve, nEdgesSolve, nVertLevels
+       integer, pointer :: num_scalars_ptr, nCellsSolve_ptr, nEdgesSolve_ptr, nVertLevels_ptr
+       integer ::          num_scalars, nCellsSolve, nEdgesSolve, nVertLevels
 
        type (mpas_pool_type), pointer :: state
        type (mpas_pool_type), pointer :: diag
@@ -7907,10 +7908,18 @@ module atm_time_integration
        real (kind=RKIND) :: lonMax, lonMax_global
        real (kind=RKIND), dimension(5) :: localVals, globalVals
 
-       real (kind=RKIND) :: spd
+       real (kind=RKIND), dimension(:,:), allocatable :: spd
+       !$acc declare create(spd)
        real (kind=RKIND), dimension(:,:), pointer :: w
        real (kind=RKIND), dimension(:,:), pointer :: u, v, uReconstructZonal, uReconstructMeridional, uReconstructX, uReconstructY, uReconstructZ
        real (kind=RKIND), dimension(:,:,:), pointer :: scalars, scalars_1, scalars_2
+
+       integer :: lin_indexMax ! Position of min/max in some array as a single integer.
+                               ! If multiple locations match the extrema, always pick the lowest lin_indexMax.
+                               ! array(k,idx) -> lin_indexMax = k+(idx-1)*size(array,1)
+                               ! array(5,4) with size(array,1) = 10 -> lin_indexMax = 35
+
+       logical found_NaN
 
        call mpas_pool_get_config(block % configs, 'config_print_global_minmax_vel', config_print_global_minmax_vel)
        call mpas_pool_get_config(block % configs, 'config_print_detailed_minmax_vel', config_print_detailed_minmax_vel)
@@ -7931,26 +7940,48 @@ module atm_time_integration
          call mpas_pool_get_array(mesh, 'lonCell', lonCell)
          call mpas_pool_get_array(mesh, 'latEdge', latEdge)
          call mpas_pool_get_array(mesh, 'lonEdge', lonEdge)
-         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
-         call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve)
-         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
+         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve_ptr)
+         call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve_ptr)
+         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels_ptr)
+         nCellsSolve = nCellsSolve_ptr
+         nEdgesSolve = nEdgesSolve_ptr
+         nVertLevels = nVertLevels_ptr
+
+         allocate(spd(nVertLevels,nEdgesSolve))
+
+         MPAS_ACC_TIMER_START('summarize_timestep [ACC_data_xfer]')
+         !$acc enter data copyin(w,u,v)
+         MPAS_ACC_TIMER_STOP('summarize_timestep [ACC_data_xfer]')
 
          scalar_min = 1.0e20
+         lin_indexMax = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:scalar_min)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
-            if (w(k,iCell) < scalar_min) then
-               scalar_min = w(k,iCell)
-               indexMax = iCell
-               kMax = k
-               latMax = latCell(iCell)
-               lonMax = lonCell(iCell)
+            scalar_min = min(scalar_min, w(k,iCell))
+         end do
+         end do
+         !$acc end parallel
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:lin_indexMax)
+         do iCell = 1, nCellsSolve
+         do k = 1, nVertLevels
+            if (w(k,iCell) == scalar_min) then
+               ! In case 2 locations tie, only save the minimum value
+               lin_indexMax = min(lin_indexMax, k + size(w,1)*(iCell-1))
             end if
          end do
          end do
+         !$acc end parallel
+         kMax = modulo(lin_indexMax, size(w,1))
+         indexMax = ((lin_indexMax - kMax) / size(w,1)) + 1
+         latMax = latCell(indexMax)
+         lonMax = lonCell(indexMax)
          localVals(1) = scalar_min
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -7972,21 +8003,33 @@ module atm_time_integration
                              realArgs=(/global_scalar_min, latMax_global, lonMax_global/))
 
          scalar_max = -1.0e20
+         lin_indexMax = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(max:scalar_max)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
-            if (w(k,iCell) > scalar_max) then
-               scalar_max = w(k,iCell)
-               indexMax = iCell
-               kMax = k
-               latMax = latCell(iCell)
-               lonMax = lonCell(iCell)
+            scalar_max = max(scalar_max, w(k,iCell))
+         end do
+         end do
+         !$acc end parallel
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:lin_indexMax)
+         do iCell = 1, nCellsSolve
+         do k = 1, nVertLevels
+            if (w(k,iCell) == scalar_max) then
+               lin_indexMax = min(lin_indexMax, k + size(w,1)*(iCell-1))
             end if
          end do
          end do
+         !$acc end parallel
+         kMax = modulo(lin_indexMax, size(w,1))
+         indexMax = ((lin_indexMax - kMax) / size(w,1)) + 1
+         latMax = latCell(indexMax)
+         lonMax = lonCell(indexMax)
          localVals(1) = scalar_max
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -8008,21 +8051,33 @@ module atm_time_integration
                              realArgs=(/global_scalar_max, latMax_global, lonMax_global/))
 
          scalar_min = 1.0e20
+         lin_indexMax = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:scalar_min)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
-            if (u(k,iEdge) < scalar_min) then
-               scalar_min = u(k,iEdge)
-               indexMax = iEdge
-               kMax = k
-               latMax = latEdge(iEdge)
-               lonMax = lonEdge(iEdge)
+            scalar_min = min(scalar_min, u(k,iEdge))
+         end do
+         end do
+         !$acc end parallel
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:lin_indexMax)
+         do iEdge = 1, nEdgesSolve
+         do k = 1, nVertLevels
+            if (u(k,iEdge) == scalar_min) then
+               lin_indexMax = min(lin_indexMax, k + size(u,1)*(iEdge-1))
             end if
          end do
          end do
+         !$acc end parallel
+         kMax = modulo(lin_indexMax, size(u,1))
+         indexMax = ((lin_indexMax - kMax) / size(u,1)) + 1
+         latMax = latEdge(indexMax)
+         lonMax = lonEdge(indexMax)
          localVals(1) = scalar_min
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -8044,21 +8099,33 @@ module atm_time_integration
                              realArgs=(/global_scalar_min, latMax_global, lonMax_global/))
 
          scalar_max = -1.0e20
+         lin_indexMax = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(max:scalar_max)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
-            if (u(k,iEdge) > scalar_max) then
-               scalar_max = u(k,iEdge)
-               indexMax = iEdge
-               kMax = k
-               latMax = latEdge(iEdge)
-               lonMax = lonEdge(iEdge)
+            scalar_max = max(scalar_max, u(k,iEdge))
+         end do
+         end do
+         !$acc end parallel
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:lin_indexMax)
+         do iEdge = 1, nEdgesSolve
+         do k = 1, nVertLevels
+            if (u(k,iEdge) == scalar_max) then
+               lin_indexMax = min(lin_indexMax, k + size(u,1)*(iEdge-1))
             end if
          end do
          end do
+         !$acc end parallel
+         kMax = modulo(lin_indexMax, size(u,1))
+         indexMax = ((lin_indexMax - kMax) / size(u,1)) + 1
+         latMax = latEdge(indexMax)
+         lonMax = lonEdge(indexMax)
          localVals(1) = scalar_max
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -8080,22 +8147,34 @@ module atm_time_integration
                              realArgs=(/global_scalar_max, latMax_global, lonMax_global/))
 
          scalar_max = -1.0e20
+         lin_indexMax = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(max:scalar_max)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
-            spd = sqrt(u(k,iEdge)*u(k,iEdge) + v(k,iEdge)*v(k,iEdge))
-            if (spd > scalar_max) then
-               scalar_max = spd
-               indexMax = iEdge
-               kMax = k
-               latMax = latEdge(iEdge)
-               lonMax = lonEdge(iEdge)
+            spd(k,iEdge) = sqrt(u(k,iEdge)*u(k,iEdge) + v(k,iEdge)*v(k,iEdge))
+            scalar_max = max(scalar_max, spd(k,iEdge))
+         end do
+         end do
+         !$acc end parallel
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:lin_indexMax)
+         do iEdge = 1, nEdgesSolve
+         do k = 1, nVertLevels
+            if (spd(k,iEdge) == scalar_max) then
+               lin_indexMax = min(lin_indexMax, k + size(u,1)*(iEdge-1))
             end if
          end do
          end do
+         !$acc end parallel
+         kMax = modulo(lin_indexMax, size(u,1))
+         indexMax = ((lin_indexMax - kMax) / size(u,1)) + 1
+         latMax = latEdge(indexMax)
+         lonMax = lonEdge(indexMax)
          localVals(1) = scalar_max
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -8119,21 +8198,42 @@ module atm_time_integration
          !
          ! Check for NaNs
          !
+         found_NaN = .false.
+
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(.or.:found_NaN)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
             if (ieee_is_nan(w(k,iCell))) then
-               call mpas_log_write('NaN detected in ''w'' field.', messageType=MPAS_LOG_CRIT)
+               found_NaN = .true.
             end if
          end do
          end do
+         !$acc end parallel
+         if (found_NaN) then
+            call mpas_log_write('NaN detected in ''w'' field.', messageType=MPAS_LOG_CRIT)
+         end if
 
+
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(.or.:found_NaN)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             if (ieee_is_nan(u(k,iEdge))) then
-               call mpas_log_write('NaN detected in ''u'' field.', messageType=MPAS_LOG_CRIT)
+               found_NaN = .true.
             end if
          end do
          end do
+         !$acc end parallel
+         if (found_NaN) then
+            call mpas_log_write('NaN detected in ''u'' field.', messageType=MPAS_LOG_CRIT)
+         end if
+
+         MPAS_ACC_TIMER_START('summarize_timestep [ACC_data_xfer]')
+         !$acc exit data delete(w,u,v)
+         MPAS_ACC_TIMER_STOP('summarize_timestep [ACC_data_xfer]')
+
+         deallocate(spd)
 
       else if (config_print_global_minmax_vel) then
          call mpas_log_write('')
@@ -8141,33 +8241,50 @@ module atm_time_integration
          call mpas_pool_get_subpool(block % structs, 'state', state)
          call mpas_pool_get_array(state, 'w', w, 2)
          call mpas_pool_get_array(state, 'u', u, 2)
-         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
-         call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve)
-         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
+         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve_ptr)
+         call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve_ptr)
+         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels_ptr)
+         nCellsSolve = nCellsSolve_ptr
+         nEdgesSolve = nEdgesSolve_ptr
+         nVertLevels = nVertLevels_ptr
+
+         MPAS_ACC_TIMER_START('summarize_timestep [ACC_data_xfer]')
+         !$acc enter data copyin(w,u)
+         MPAS_ACC_TIMER_STOP('summarize_timestep [ACC_data_xfer]')
 
          scalar_min = 0.0
          scalar_max = 0.0
+         !$acc parallel default(present)
+         !$acc loop gang vector collapse(2) reduction(min:scalar_min) reduction(max:scalar_max)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
             scalar_min = min(scalar_min, w(k,iCell))
             scalar_max = max(scalar_max, w(k,iCell))
          end do
          end do
+         !$acc end parallel
          call mpas_dmpar_min_real(domain % dminfo, scalar_min, global_scalar_min)
          call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
          call mpas_log_write('global min, max w $r $r', realArgs=(/global_scalar_min, global_scalar_max/))
 
          scalar_min = 0.0
          scalar_max = 0.0
+         !$acc parallel default(present)
+         !$acc loop gang vector collapse(2) reduction(min:scalar_min) reduction(max:scalar_max)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             scalar_min = min(scalar_min, u(k,iEdge))
             scalar_max = max(scalar_max, u(k,iEdge))
          end do
          end do
+         !$acc end parallel
          call mpas_dmpar_min_real(domain % dminfo, scalar_min, global_scalar_min)
          call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
          call mpas_log_write('global min, max u $r $r', realArgs=(/global_scalar_min, global_scalar_max/))
+
+         MPAS_ACC_TIMER_START('summarize_timestep [ACC_data_xfer]')
+         !$acc exit data delete(w,u)
+         MPAS_ACC_TIMER_STOP('summarize_timestep [ACC_data_xfer]')
       end if
 
       if (config_print_global_minmax_sca) then
@@ -8177,23 +8294,37 @@ module atm_time_integration
 
          call mpas_pool_get_subpool(block % structs, 'state', state)
          call mpas_pool_get_array(state, 'scalars', scalars, 2)
-         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
-         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
-         call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
+         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve_ptr)
+         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels_ptr)
+         call mpas_pool_get_dimension(state, 'num_scalars', num_scalars_ptr)
+         nCellsSolve = nCellsSolve_ptr
+         nVertLevels = nVertLevels_ptr
+         num_scalars = num_scalars_ptr
+
+         MPAS_ACC_TIMER_START('summarize_timestep [ACC_data_xfer]')
+         !$acc enter data copyin(scalars)
+         MPAS_ACC_TIMER_STOP('summarize_timestep [ACC_data_xfer]')
 
          do iScalar = 1, num_scalars
             scalar_min = 0.0
             scalar_max = 0.0
+            !$acc parallel default(present)
+            !$acc loop gang vector collapse(2) reduction(min:scalar_min) reduction(max:scalar_max)
             do iCell = 1, nCellsSolve
             do k = 1, nVertLevels
                scalar_min = min(scalar_min, scalars(iScalar,k,iCell))
                scalar_max = max(scalar_max, scalars(iScalar,k,iCell))
             end do
             end do
+            !$acc end parallel
             call mpas_dmpar_min_real(domain % dminfo, scalar_min, global_scalar_min)
             call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
             call mpas_log_write(' global min, max scalar $i $r $r', intArgs=(/iScalar/), realArgs=(/global_scalar_min, global_scalar_max/))
          end do
+
+         MPAS_ACC_TIMER_START('summarize_timestep [ACC_data_xfer]')
+         !$acc exit data delete(scalars)
+         MPAS_ACC_TIMER_STOP('summarize_timestep [ACC_data_xfer]')
       end if
 
    end subroutine summarize_timestep
