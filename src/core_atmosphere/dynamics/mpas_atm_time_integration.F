@@ -249,6 +249,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: angleEdge
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel2
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel4
+      real (kind=RKIND), dimension(:), pointer :: meshScalingRegionalCell
 #endif
 
 #ifdef MPAS_CAM_DYCORE
@@ -418,6 +419,9 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
       !$acc enter data copyin(meshScalingDel4)
+      call mpas_pool_get_array(mesh, 'meshScalingRegionalCell', meshScalingRegionalCell)
+      !$acc enter data copyin(meshScalingRegionalCell)
+
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -503,6 +507,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: angleEdge
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel2
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel4
+      real (kind=RKIND), dimension(:), pointer :: meshScalingRegionalCell
 #endif
 
 
@@ -673,6 +678,10 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
       !$acc exit data delete(meshScalingDel4)
+
+      call mpas_pool_get_array(mesh, 'meshScalingRegionalCell', meshScalingRegionalCell)
+      !$acc exit data delete(meshScalingRegionalCell)
+
 #endif
 
    end subroutine mpas_atm_dynamics_finalize
@@ -7470,17 +7479,29 @@ module atm_time_integration
       integer :: iCell, iEdge, iScalar, i, k, cell1, cell2
 
       !---
+      MPAS_ACC_TIMER_START('atm_bdy_adjust_scalars [ACC_data_xfer]')
+      !$acc enter data create(scalars_tmp) &
+      !$acc            copyin(scalars_driving, scalars_new)
+      MPAS_ACC_TIMER_STOP('atm_bdy_adjust_scalars [ACC_data_xfer]')
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd ! threaded over cells
 
          if ( (bdyMaskCell(iCell) > 1) .and. (bdyMaskCell(iCell) <= nRelaxZone) ) then ! relaxation zone
 
             laplacian_filter_coef = dt_rk*(real(bdyMaskCell(iCell)) - 1.)/real(nRelaxZone)/(10.*dt*meshScalingRegionalCell(iCell))
             rayleigh_damping_coef = laplacian_filter_coef/5.0
-            scalars_tmp(1:num_scalars,1:nVertLevels,iCell) = scalars_new(1:num_scalars,1:nVertLevels,iCell)
+            !$acc loop collapse(2)
+            do k=1,nVertLevels
+               do iScalar=1,num_scalars
+                  scalars_tmp(iScalar,k,iCell) = scalars_new(iScalar,k,iCell)
+               end do
+            end do
 
             !  first, we compute the 2nd-order laplacian filter
             !
+            !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
                !  edge_sign = r_areaCell*edgesOnCell_sign(i,iCell) * dvEdge(iEdge) * invDcEdge(iEdge) * laplacian_filter_coef
@@ -7489,6 +7510,7 @@ module atm_time_integration
                cell1 = cellsOnEdge(1,iEdge)
                cell2 = cellsOnEdge(2,iEdge)
 !DIR$ IVDEP
+               !$acc loop vector collapse(2)
                do k=1,nVertLevels
                   do iScalar = 1, num_scalars
                      filter_flux = edge_sign*(   (scalars_new(iScalar,k,cell2)-scalars_driving(iScalar,k,cell2)) &
@@ -7501,6 +7523,7 @@ module atm_time_integration
             !  second, we compute the Rayleigh damping component
             !
 !DIR$ IVDEP
+            !$acc loop collapse(2)
             do k=1,nVertLevels
                do iScalar = 1, num_scalars
                   scalars_tmp(iScalar,k,iCell) =scalars_tmp(iScalar,k,iCell) - rayleigh_damping_coef * (scalars_new(iScalar,k,iCell)-scalars_driving(iScalar,k,iCell))
@@ -7508,10 +7531,11 @@ module atm_time_integration
             end do
 
          else  if ( bdyMaskCell(iCell) > nRelaxZone) then ! specified zone
-            
+
             !  update the specified-zone values
             !
 !DIR$ IVDEP
+            !$acc loop collapse(2)
             do k=1,nVertLevels
                do iScalar = 1, num_scalars
                   scalars_tmp(iScalar,k,iCell) = scalars_driving(iScalar,k,iCell)
@@ -7521,12 +7545,16 @@ module atm_time_integration
          end if
 
       end do  ! updates now in temp storage
-            
+      !$acc end parallel
+
 !$OMP BARRIER
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd ! threaded over cells
          if (bdyMaskCell(iCell) > 1) then ! update values
 !DIR$ IVDEP
+            !$acc loop collapse(2)
             do k=1,nVertLevels
                do iScalar = 1, num_scalars
                   scalars_new(iScalar,k,iCell) = scalars_tmp(iScalar,k,iCell)
@@ -7534,6 +7562,12 @@ module atm_time_integration
             end do
          end if
       end do
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_bdy_adjust_scalars [ACC_data_xfer]')
+      !$acc exit data delete(scalars_tmp, scalars_driving) &
+      !$acc           copyout(scalars_new)
+      MPAS_ACC_TIMER_STOP('atm_bdy_adjust_scalars [ACC_data_xfer]')
 
    end subroutine atm_bdy_adjust_scalars_work
 
