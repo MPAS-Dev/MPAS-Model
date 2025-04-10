@@ -12,10 +12,10 @@ private
 public:: init_musica
 
 !MPAS initialization of MUSICA library components. In order to use MUSICA components. the
-!`config_musica_scheme' option must be set to the top-level configuration file for MUSICA.
+!`config_musica_scheme` option must be set to the top-level configuration file for MUSICA.
 !The MUSICA library must also be compiled and linked to the MPAS executable, by setting the
-!environment variable `MPAS_USE_MUSICA' to `TRUE' and ensuring that the appropriate include
-!and library paths are included in `LD_LIBRARY_PATH' and `CPATH'.
+!environment variable `MPAS_USE_MUSICA` to `TRUE` and ensuring that the appropriate include
+!and library paths are included in `LD_LIBRARY_PATH` and `CPATH`.
 !ACOM Software Engineering Team 2025
 
 

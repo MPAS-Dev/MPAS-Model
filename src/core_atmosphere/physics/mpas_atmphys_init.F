@@ -14,6 +14,7 @@
  use mpas_atmphys_driver_convection,only: init_convection
  use mpas_atmphys_driver_lsm,only: init_lsm
  use mpas_atmphys_driver_microphysics,only: init_microphysics
+ use mpas_musica,only: init_musica
  use mpas_atmphys_driver_pbl,only: init_pbl
  use mpas_atmphys_driver_radiation_lw,only: init_radiation_lw
  use mpas_atmphys_driver_radiation_sw,only: init_radiation_sw
