@@ -108,6 +108,7 @@
                    config_convection_scheme, &
                    config_lsm_scheme,        &
                    config_microp_scheme,     &
+                   config_musica_scheme,     &
                    config_pbl_scheme,        &
                    config_sfclayer_scheme,   &
                    config_radt_lw_scheme,    &
@@ -149,6 +150,7 @@
  call mpas_pool_get_config(configs,'config_convection_scheme',config_convection_scheme)
  call mpas_pool_get_config(configs,'config_lsm_scheme'       ,config_lsm_scheme       )
  call mpas_pool_get_config(configs,'config_microp_scheme'    ,config_microp_scheme    )
+ call mpas_pool_get_config(configs,'config_musica_scheme'    ,config_musica_scheme    )
  call mpas_pool_get_config(configs,'config_pbl_scheme'       ,config_pbl_scheme       )
  call mpas_pool_get_config(configs,'config_sfclayer_scheme'  ,config_sfclayer_scheme  )
  call mpas_pool_get_config(configs,'config_radt_lw_scheme'   ,config_radt_lw_scheme   )
@@ -365,6 +367,10 @@
 !initialization of cloud microphysics processes:
  if(config_microp_scheme .ne. 'off') &
     call init_microphysics(dminfo,configs,mesh,state,time_lev,sfc_input,diag_physics)
+
+!initialization of MUSICA chemistry:
+if(config_musica_scheme .ne. 'off') &
+    call init_musica(dminfo,configs,mesh,state,time_lev,sfc_input,diag_physics)
 
 !initialization of PBL processes:
  if(config_pbl_scheme .ne. 'off') call init_pbl(configs)

@@ -1,5 +1,12 @@
 .SUFFIXES: .F .c .o
 
+ifeq "$(MPAS_USE_MUSICA)" "TRUE"
+  LIBS += -lmusica
+	FFLAGS += -DUSE_MUSICA
+	INCLUDES += -I$(MUSICA_INC)
+	LIB_DIRS += -L$(MUSICA_LIB)
+endif
+
 ifneq "$(ESM)" ""
 
 include Makefile.in.$(ESM)
@@ -9,7 +16,7 @@ else
 all: mpas
 
 mpas: $(AUTOCLEAN_DEPS) externals frame ops dycore drver
-	$(LINKER) $(LDFLAGS) -o $(EXE_NAME) driver/*.o -L. -ldycore -lops -lframework $(LIBS) -I./external/esmf_time_f90 -L./external/esmf_time_f90 -lesmf_time
+	$(LINKER) $(LDFLAGS) -o $(EXE_NAME) driver/*.o -I./external/esmf_time_f90 $(INCLUDES) -L. -L./external/esmf_time_f90 $(LIB_DIRS) -ldycore -lops -lframework $(LIBS) -lesmf_time 
 
 externals: $(AUTOCLEAN_DEPS)
 	( cd external; $(MAKE) FC="$(FC)" SFC="$(SFC)" CC="$(CC)" SCC="$(SCC)" FFLAGS="$(FFLAGS)" CFLAGS="$(CFLAGS)" CPP="$(CPP)" NETCDF="$(NETCDF)" CORE="$(CORE)" all )
