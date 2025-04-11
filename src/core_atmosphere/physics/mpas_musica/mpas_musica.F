@@ -42,7 +42,7 @@ public:: init_musica
                       "it would be with version: "//version_string%value_)
 #else
   call mpas_log_write("MUSICA Support not available. Ensure the environment "// &
-                      "variable MPAS_USE_MUSICA is set to TRUE", messageType=MPAS_LOG_CRIT)
+                      "variable MPAS_EXTERNAL_CPPFLAGS includes -DUSE_MUSICA", messageType=MPAS_LOG_CRIT)
 #endif
  end subroutine init_musica
 
