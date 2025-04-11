@@ -13,7 +13,7 @@ OBJS = \
 mpas_musica: $(OBJS)
 
 mpas_musica_lib:
-	ar -ru ./../libmusica.a $(OBJS)
+	ar -ru ./../libphys.a $(OBJS)
 
 clean:
 	$(RM) *.f90 *.o *.mod
