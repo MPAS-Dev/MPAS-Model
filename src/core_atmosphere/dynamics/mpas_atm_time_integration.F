@@ -6714,9 +6714,19 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
       call mpas_pool_get_array(tend, 'rt_diabatic_tend', rt_diabatic_tend)
-      
+
+      MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
+      !$acc enter data copyin(tend_ru,tend_rho,tend_rt,tend_rw, &
+      !$acc                   rt_diabatic_tend) &
+      !$acc            copyin(rho_driving_tend,rt_driving_tend, &
+      !$acc                   ru_driving_tend)
+      MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
+
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd
          if(bdyMaskCell(iCell) > nRelaxZone) then
+            !$acc loop vector
             do k=1, nVertLevels
                tend_rho(k,iCell) = rho_driving_tend(k,iCell)
                tend_rt(k,iCell) = rt_driving_tend(k,iCell)
@@ -6725,14 +6735,26 @@ module atm_time_integration
             end do
          end if
       end do
+      !$acc end parallel
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iEdge = edgeSolveStart, edgeSolveEnd
          if(bdyMaskEdge(iEdge) > nRelaxZone) then
+            !$acc loop vector
             do k=1, nVertLevels
                tend_ru(k,iEdge) = ru_driving_tend(k,iEdge)
             end do
          end if
       end do
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
+      !$acc exit data copyout(tend_ru,tend_rho,tend_rt, &
+      !$acc                   tend_rw,rt_diabatic_tend) &
+      !$acc            delete(rho_driving_tend,rt_driving_tend, &
+      !$acc                   ru_driving_tend)
+      MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
       
     end subroutine atm_bdy_adjust_dynamics_speczone_tend
 
