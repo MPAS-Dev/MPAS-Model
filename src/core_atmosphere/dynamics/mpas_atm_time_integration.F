@@ -6984,15 +6984,29 @@ module atm_time_integration
       call mpas_pool_get_array(state, 'theta_m', theta_m, 2)
       call mpas_pool_get_array(diag, 'rtheta_p', rtheta_p)
       call mpas_pool_get_array(diag, 'rtheta_base', rtheta_base)
+
+      MPAS_ACC_TIMER_START('atm_bdy_reset_speczone_values [ACC_data_xfer]')
+      !$acc enter data copyin(rt_driving_values, rho_driving_values, rtheta_base, &
+      !$acc                   theta_m, rtheta_p)
+      MPAS_ACC_TIMER_STOP('atm_bdy_reset_speczone_values [ACC_data_xfer]')
       
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd
          if( bdyMaskCell(iCell) > nRelaxZone) then
+            !$acc loop vector
             do k=1, nVertLevels
               theta_m(k,iCell) = rt_driving_values(k,iCell)/rho_driving_values(k,iCell)
               rtheta_p(k,iCell) = rt_driving_values(k,iCell) - rtheta_base(k,iCell)
             end do
          end if
       end do
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_bdy_reset_speczone_values [ACC_data_xfer]')
+      !$acc exit data copyout(theta_m, rtheta_p) &
+      !$acc            delete(rt_driving_values, rho_driving_values, rtheta_base)
+      MPAS_ACC_TIMER_STOP('atm_bdy_reset_speczone_values [ACC_data_xfer]')
 
    end subroutine atm_bdy_reset_speczone_values
 
