@@ -260,9 +260,6 @@ module mpas_vector_reconstruction
 
     MPAS_ACC_TIMER_START('mpas_reconstruct_2d [ACC_data_xfer]')
     ! Only use sections needed, nCells may be all cells or only non-halo cells
-    !$acc enter data copyin(coeffs_reconstruct(:,:,1:nCells),nEdgesOnCell(1:nCells), &
-    !$acc                   edgesOnCell(:,1:nCells),latCell(1:nCells),lonCell(1:nCells))
-    !$acc enter data copyin(u(:,:))
     !$acc enter data create(uReconstructX(:,1:nCells),uReconstructY(:,1:nCells), &
     !$acc                   uReconstructZ(:,1:nCells),uReconstructZonal(:,1:nCells), &
     !$acc                   uReconstructMeridional(:,1:nCells))
@@ -338,9 +335,6 @@ module mpas_vector_reconstruction
     end if
 
     MPAS_ACC_TIMER_START('mpas_reconstruct_2d [ACC_data_xfer]')
-    !$acc exit data delete(coeffs_reconstruct(:,:,1:nCells),nEdgesOnCell(1:nCells), &
-    !$acc                   edgesOnCell(:,1:nCells),latCell(1:nCells),lonCell(1:nCells))
-    !$acc exit data delete(u(:,:))
     !$acc exit data copyout(uReconstructX(:,1:nCells),uReconstructY(:,1:nCells), &
     !$acc                   uReconstructZ(:,1:nCells), uReconstructZonal(:,1:nCells), &
     !$acc                   uReconstructMeridional(:,1:nCells))

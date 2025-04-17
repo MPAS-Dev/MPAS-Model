@@ -43,7 +43,7 @@ module atm_core
       use mpas_atm_dimensions, only : mpas_atm_set_dims
       use mpas_atm_diagnostics_manager, only : mpas_atm_diag_setup
       use mpas_atm_threading, only : mpas_atm_threading_init
-      use atm_time_integration, only : mpas_atm_dynamics_init
+      use atm_time_integration, only : mpas_atm_dynamics_init, mpas_atm_pre_init
       use mpas_timer, only : mpas_timer_start, mpas_timer_stop
       use mpas_attlist, only : mpas_modify_att
       use mpas_string_utils, only : mpas_string_replace
@@ -264,6 +264,7 @@ module atm_core
       do while (associated(block))
          call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
          call mpas_pool_get_subpool(block % structs, 'state', state)
+         call mpas_atm_pre_init(domain)
 
          call atm_mpas_init_block(domain % dminfo, domain % streamManager, block, mesh, dt)
 
@@ -1000,8 +1001,11 @@ module atm_core
 #ifdef DO_PHYSICS
       !proceed with physics if moist_physics is set to true:
       if(moist_physics) then
+         call mpas_log_write('call physics timetracker')
          call physics_timetracker(domain,dt,clock,itimestep,xtime_s)
+         call mpas_log_write('call physics driver')
          call physics_driver(domain,itimestep,xtime_s)
+         call mpas_log_write('end physics timetracker')
       endif
 #endif
 
