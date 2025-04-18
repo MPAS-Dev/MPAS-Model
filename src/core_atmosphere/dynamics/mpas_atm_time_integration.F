@@ -276,6 +276,10 @@ module atm_time_integration
 
       real (kind=RKIND), dimension(:,:), pointer :: rthdynten
 
+      real (kind=RKIND), dimension(:), pointer :: u_init, v_init, qv_init
+      real (kind=RKIND), dimension(:,:), pointer :: t_init
+
+
 #endif
 
 #ifdef MPAS_CAM_DYCORE
@@ -465,6 +469,15 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'coeffs_reconstruct', coeffs_reconstruct)
       !$acc enter data copyin(coeffs_reconstruct)
+
+      call mpas_pool_get_array(mesh, 'u_init', u_init)
+      !$acc enter data copyin(u_init)
+      call mpas_pool_get_array(mesh, 'v_init', v_init)
+      !$acc enter data copyin(v_init)
+      call mpas_pool_get_array(mesh, 't_init', t_init)
+      !$acc enter data copyin(t_init)
+      call mpas_pool_get_array(mesh, 'qv_init', qv_init)
+      !$acc enter data copyin(qv_init)
 
 
             ! Pointers for these are declared as module level variables
@@ -730,7 +743,6 @@ module atm_time_integration
       !$acc enter data copyin(tend_w_buoy)
       call mpas_pool_get_array(tend, 'scalars_tend', scalar_tend_save)
       !$acc enter data copyin(scalar_tend_save)
-
 
 
       ! call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
@@ -4058,7 +4070,6 @@ module atm_time_integration
       !
 
       MPAS_ACC_TIMER_START('atm_advance_scalars [ACC_data_xfer]')
-      !$acc enter data copyin(scalar_old)
       !$acc enter data create(scalar_tend_column, wdtn)
       MPAS_ACC_TIMER_STOP('atm_advance_scalars [ACC_data_xfer]')
 
@@ -4501,7 +4512,7 @@ module atm_time_integration
       ! AG: Note that scalar_old, scalar_new in this subroutine are not the same 
       ! variables as 'scalars' obtained from the state pool. 
       MPAS_ACC_TIMER_START('atm_advance_scalars_mono [ACC_data_xfer]')
-      !$acc enter data create(scalar_old, scalar_new, scale_arr, s_min, s_max, &
+      !$acc enter data create(scale_arr, s_min, s_max, &
       !$acc                   flux_arr, flux_tmp, flux_upwind_tmp, wdtn)
       MPAS_ACC_TIMER_STOP('atm_advance_scalars_mono [ACC_data_xfer]')
 
@@ -5009,7 +5020,7 @@ module atm_time_integration
       if (local_advance_density) then
          !$acc exit data copyout(rho_zz_int)
       end if
-      !$acc exit data delete(scalar_old, scalar_new, scale_arr, s_min, s_max, &
+      !$acc exit data delete(scale_arr, s_min, s_max, &
       !$acc                  flux_arr, flux_tmp, flux_upwind_tmp, wdtn)
       MPAS_ACC_TIMER_STOP('atm_advance_scalars_mono [ACC_data_xfer]')
 
@@ -5451,17 +5462,13 @@ module atm_time_integration
          !$acc enter data copyin(divergence, vorticity)
          !$acc enter data create(delsq_u)
          !$acc enter data create(delsq_vorticity, delsq_divergence)
-         !$acc enter data copyin(u_init, v_init)
          !$acc enter data create(delsq_w)
       end if
       !$acc enter data create(dpdz)
       !$acc enter data copyin(rayleigh_damp_coef)
       !$acc enter data copyin(tend_ru_physics)
       !$acc enter data copyin(tend_rtheta_physics)
-
-
       !$acc enter data create(delsq_theta)
-      !$acc enter data copyin(t_init)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
       prandtl_inv = 1.0_RKIND / prandtl
@@ -6502,7 +6509,6 @@ module atm_time_integration
          !$acc exit data delete(divergence, vorticity)
          !$acc exit data copyout(delsq_u)
          !$acc exit data delete(delsq_vorticity, delsq_divergence)
-         !$acc exit data delete(u_init, v_init)
          !$acc exit data copyout(delsq_w)
       end if
       !$acc exit data delete(dpdz)
@@ -6511,7 +6517,6 @@ module atm_time_integration
       !$acc exit data delete(tend_ru_physics)
       !$acc exit data delete(tend_rtheta_physics)
       !$acc exit data delete(delsq_theta)
-      !$acc exit data delete(t_init)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
    end subroutine atm_compute_dyn_tend_work
