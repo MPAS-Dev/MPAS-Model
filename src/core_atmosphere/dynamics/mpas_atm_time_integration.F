@@ -289,175 +289,175 @@ module atm_time_integration
 #endif
 
 #ifdef MPAS_OPENACC
-      ! nullify(mesh)
-      ! call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', mesh)
+      nullify(mesh)
+      call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', mesh)
       
-      ! call mpas_pool_get_subpool(domain % blocklist % structs, 'state', state)
-      ! call mpas_pool_get_subpool(domain % blocklist % structs, 'diag', diag)
+      call mpas_pool_get_subpool(domain % blocklist % structs, 'state', state)
+      call mpas_pool_get_subpool(domain % blocklist % structs, 'diag', diag)
 
-      ! call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
-      ! !$acc enter data copyin(dvEdge)
+      call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
+      !$acc enter data copyin(dvEdge)
 
-      ! call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
-      ! !$acc enter data copyin(cellsOnCell)
+      call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
+      !$acc enter data copyin(cellsOnCell)
 
-      ! call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
-      ! !$acc enter data copyin(cellsOnEdge)
+      call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
+      !$acc enter data copyin(cellsOnEdge)
 
-      ! call mpas_pool_get_array(mesh, 'advCellsForEdge', advCellsForEdge)
-      ! !$acc enter data copyin(advCellsForEdge)
+      call mpas_pool_get_array(mesh, 'advCellsForEdge', advCellsForEdge)
+      !$acc enter data copyin(advCellsForEdge)
 
-      ! call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
-      ! !$acc enter data copyin(edgesOnCell)
+      call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
+      !$acc enter data copyin(edgesOnCell)
 
-      ! call mpas_pool_get_array(mesh, 'nAdvCellsForEdge', nAdvCellsForEdge)
-      ! !$acc enter data copyin(nAdvCellsForEdge)
+      call mpas_pool_get_array(mesh, 'nAdvCellsForEdge', nAdvCellsForEdge)
+      !$acc enter data copyin(nAdvCellsForEdge)
 
-      ! call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
-      ! !$acc enter data copyin(nEdgesOnCell)
+      call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
+      !$acc enter data copyin(nEdgesOnCell)
 
-      ! call mpas_pool_get_array(mesh, 'adv_coefs', adv_coefs)
-      ! !$acc enter data copyin(adv_coefs)
+      call mpas_pool_get_array(mesh, 'adv_coefs', adv_coefs)
+      !$acc enter data copyin(adv_coefs)
 
-      ! call mpas_pool_get_array(mesh, 'adv_coefs_3rd', adv_coefs_3rd)
-      ! !$acc enter data copyin(adv_coefs_3rd)
+      call mpas_pool_get_array(mesh, 'adv_coefs_3rd', adv_coefs_3rd)
+      !$acc enter data copyin(adv_coefs_3rd)
 
-      ! call mpas_pool_get_array(mesh, 'edgesOnCell_sign', edgesOnCell_sign)
-      ! !$acc enter data copyin(edgesOnCell_sign)
+      call mpas_pool_get_array(mesh, 'edgesOnCell_sign', edgesOnCell_sign)
+      !$acc enter data copyin(edgesOnCell_sign)
 
-      ! call mpas_pool_get_array(mesh, 'invAreaCell', invAreaCell)
-      ! !$acc enter data copyin(invAreaCell)
+      call mpas_pool_get_array(mesh, 'invAreaCell', invAreaCell)
+      !$acc enter data copyin(invAreaCell)
 
-      ! call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)
-      ! !$acc enter data copyin(bdyMaskCell)
+      call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)
+      !$acc enter data copyin(bdyMaskCell)
 
-      ! call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
-      ! !$acc enter data copyin(bdyMaskEdge)
+      call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
+      !$acc enter data copyin(bdyMaskEdge)
 
-      ! call mpas_pool_get_array(mesh, 'specZoneMaskEdge', specZoneMaskEdge)
-      ! !$acc enter data copyin(specZoneMaskEdge)
+      call mpas_pool_get_array(mesh, 'specZoneMaskEdge', specZoneMaskEdge)
+      !$acc enter data copyin(specZoneMaskEdge)
 
-      ! call mpas_pool_get_array(mesh, 'invDvEdge', invDvEdge)
-      ! !$acc enter data copyin(invDvEdge)
+      call mpas_pool_get_array(mesh, 'invDvEdge', invDvEdge)
+      !$acc enter data copyin(invDvEdge)
 
-      ! call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
-      ! !$acc enter data copyin(dcEdge)
+      call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
+      !$acc enter data copyin(dcEdge)
 
-      ! call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
-      ! !$acc enter data copyin(invDcEdge)
+      call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
+      !$acc enter data copyin(invDcEdge)
 
-      ! call mpas_pool_get_array(mesh, 'edgesOnEdge', edgesOnEdge)
-      ! !$acc enter data copyin(edgesOnEdge)
+      call mpas_pool_get_array(mesh, 'edgesOnEdge', edgesOnEdge)
+      !$acc enter data copyin(edgesOnEdge)
 
-      ! call mpas_pool_get_array(mesh, 'edgesOnVertex', edgesOnVertex)
-      ! !$acc enter data copyin(edgesOnVertex)
+      call mpas_pool_get_array(mesh, 'edgesOnVertex', edgesOnVertex)
+      !$acc enter data copyin(edgesOnVertex)
 
-      ! call mpas_pool_get_array(mesh, 'edgesOnVertex_sign', edgesOnVertex_sign)
-      ! !$acc enter data copyin(edgesOnVertex_sign)
+      call mpas_pool_get_array(mesh, 'edgesOnVertex_sign', edgesOnVertex_sign)
+      !$acc enter data copyin(edgesOnVertex_sign)
 
-      ! call mpas_pool_get_array(mesh, 'nEdgesOnEdge', nEdgesOnEdge)
-      ! !$acc enter data copyin(nEdgesOnEdge)
+      call mpas_pool_get_array(mesh, 'nEdgesOnEdge', nEdgesOnEdge)
+      !$acc enter data copyin(nEdgesOnEdge)
 
-      ! call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
-      ! !$acc enter data copyin(weightsOnEdge)
+      call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
+      !$acc enter data copyin(weightsOnEdge)
 
-      ! call mpas_pool_get_array(mesh, 'cellsOnVertex', cellsOnVertex)
-      ! !$acc enter data copyin(cellsOnVertex)
+      call mpas_pool_get_array(mesh, 'cellsOnVertex', cellsOnVertex)
+      !$acc enter data copyin(cellsOnVertex)
 
-      ! call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
-      ! !$acc enter data copyin(verticesOnCell)
+      call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
+      !$acc enter data copyin(verticesOnCell)
 
-      ! call mpas_pool_get_array(mesh, 'verticesOnEdge', verticesOnEdge)
-      ! !$acc enter data copyin(verticesOnEdge)
+      call mpas_pool_get_array(mesh, 'verticesOnEdge', verticesOnEdge)
+      !$acc enter data copyin(verticesOnEdge)
 
-      ! call mpas_pool_get_array(mesh, 'invAreaTriangle', invAreaTriangle)
-      ! !$acc enter data copyin(invAreaTriangle)
+      call mpas_pool_get_array(mesh, 'invAreaTriangle', invAreaTriangle)
+      !$acc enter data copyin(invAreaTriangle)
 
-      ! call mpas_pool_get_array(mesh, 'kiteForCell', kiteForCell)
-      ! !$acc enter data copyin(kiteForCell)
+      call mpas_pool_get_array(mesh, 'kiteForCell', kiteForCell)
+      !$acc enter data copyin(kiteForCell)
 
-      ! call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
-      ! !$acc enter data copyin(kiteAreasOnVertex)
+      call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
+      !$acc enter data copyin(kiteAreasOnVertex)
 
-      ! call mpas_pool_get_array(mesh, 'fVertex', fVertex)
-      ! !$acc enter data copyin(fVertex)
+      call mpas_pool_get_array(mesh, 'fVertex', fVertex)
+      !$acc enter data copyin(fVertex)
 
-      ! call mpas_pool_get_array(mesh, 'fEdge', fEdge)
-      ! !$acc enter data copyin(fEdge)
+      call mpas_pool_get_array(mesh, 'fEdge', fEdge)
+      !$acc enter data copyin(fEdge)
 
-      ! call mpas_pool_get_array(mesh, 'zz', zz)
-      ! !$acc enter data copyin(zz)
+      call mpas_pool_get_array(mesh, 'zz', zz)
+      !$acc enter data copyin(zz)
 
-      ! call mpas_pool_get_array(mesh, 'rdzw', rdzw)
-      ! !$acc enter data copyin(rdzw)
+      call mpas_pool_get_array(mesh, 'rdzw', rdzw)
+      !$acc enter data copyin(rdzw)
 
-      ! call mpas_pool_get_array(mesh, 'rdzu', rdzu)
-      ! !$acc enter data copyin(rdzu)
+      call mpas_pool_get_array(mesh, 'rdzu', rdzu)
+      !$acc enter data copyin(rdzu)
 
-      ! call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
-      ! !$acc enter data copyin(zb_cell)
+      call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
+      !$acc enter data copyin(zb_cell)
 
-      ! call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
-      ! !$acc enter data copyin(zb3_cell)
+      call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
+      !$acc enter data copyin(zb3_cell)
 
-      ! call mpas_pool_get_array(mesh, 'fzm', fzm)
-      ! !$acc enter data copyin(fzm)
+      call mpas_pool_get_array(mesh, 'fzm', fzm)
+      !$acc enter data copyin(fzm)
 
-      ! call mpas_pool_get_array(mesh, 'fzp', fzp)
-      ! !$acc enter data copyin(fzp)
+      call mpas_pool_get_array(mesh, 'fzp', fzp)
+      !$acc enter data copyin(fzp)
 
-      ! call mpas_pool_get_array(mesh, 'zb', zb)
-      ! !$acc enter data copyin(zb)
+      call mpas_pool_get_array(mesh, 'zb', zb)
+      !$acc enter data copyin(zb)
 
-      ! call mpas_pool_get_array(mesh, 'zb3', zb3)
-      ! !$acc enter data copyin(zb3)
+      call mpas_pool_get_array(mesh, 'zb3', zb3)
+      !$acc enter data copyin(zb3)
 
-      ! call mpas_pool_get_array(mesh, 'nearestRelaxationCell', nearestRelaxationCell)
-      ! !$acc enter data copyin(nearestRelaxationCell)
+      call mpas_pool_get_array(mesh, 'nearestRelaxationCell', nearestRelaxationCell)
+      !$acc enter data copyin(nearestRelaxationCell)
 
-      ! call mpas_pool_get_array(mesh, 'zgrid', zgrid)
-      ! !$acc enter data copyin(zgrid)
+      call mpas_pool_get_array(mesh, 'zgrid', zgrid)
+      !$acc enter data copyin(zgrid)
 
-      ! call mpas_pool_get_array(mesh, 'zxu', zxu)
-      ! !$acc enter data copyin(zxu)
+      call mpas_pool_get_array(mesh, 'zxu', zxu)
+      !$acc enter data copyin(zxu)
 
-      ! call mpas_pool_get_array(mesh, 'dss', dss)
-      ! !$acc enter data copyin(dss)
+      call mpas_pool_get_array(mesh, 'dss', dss)
+      !$acc enter data copyin(dss)
 
-      ! call mpas_pool_get_array(mesh, 'specZoneMaskCell', specZoneMaskCell)
-      ! !$acc enter data copyin(specZoneMaskCell)
+      call mpas_pool_get_array(mesh, 'specZoneMaskCell', specZoneMaskCell)
+      !$acc enter data copyin(specZoneMaskCell)
 
-      ! call mpas_pool_get_array(mesh, 'defc_a', defc_a)
-      ! !$acc enter data copyin(defc_a)
+      call mpas_pool_get_array(mesh, 'defc_a', defc_a)
+      !$acc enter data copyin(defc_a)
 
-      ! call mpas_pool_get_array(mesh, 'defc_b', defc_b)
-      ! !$acc enter data copyin(defc_b)
+      call mpas_pool_get_array(mesh, 'defc_b', defc_b)
+      !$acc enter data copyin(defc_b)
 
-      ! call mpas_pool_get_array(mesh, 'latEdge', latEdge)
-      ! !$acc enter data copyin(latEdge)
+      call mpas_pool_get_array(mesh, 'latEdge', latEdge)
+      !$acc enter data copyin(latEdge)
 
-      ! call mpas_pool_get_array(mesh, 'angleEdge', angleEdge)
-      ! !$acc enter data copyin(angleEdge)
+      call mpas_pool_get_array(mesh, 'angleEdge', angleEdge)
+      !$acc enter data copyin(angleEdge)
 
-      ! call mpas_pool_get_array(mesh, 'meshScalingDel2', meshScalingDel2)
-      ! !$acc enter data copyin(meshScalingDel2)
+      call mpas_pool_get_array(mesh, 'meshScalingDel2', meshScalingDel2)
+      !$acc enter data copyin(meshScalingDel2)
 
-      ! call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
-      ! !$acc enter data copyin(meshScalingDel4)
-      ! call mpas_pool_get_array(mesh, 'meshScalingRegionalCell', meshScalingRegionalCell)
-      ! !$acc enter data copyin(meshScalingRegionalCell)
+      call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
+      !$acc enter data copyin(meshScalingDel4)
+      call mpas_pool_get_array(mesh, 'meshScalingRegionalCell', meshScalingRegionalCell)
+      !$acc enter data copyin(meshScalingRegionalCell)
 
-      ! call mpas_pool_get_array(mesh, 'meshScalingRegionalEdge', meshScalingRegionalEdge)
-      ! !$acc enter data copyin(meshScalingRegionalEdge)
+      call mpas_pool_get_array(mesh, 'meshScalingRegionalEdge', meshScalingRegionalEdge)
+      !$acc enter data copyin(meshScalingRegionalEdge)
 
-      ! call mpas_pool_get_array(mesh, 'latCell', latCell)
-      ! !$acc enter data copyin(latCell)
+      call mpas_pool_get_array(mesh, 'latCell', latCell)
+      !$acc enter data copyin(latCell)
 
-      ! call mpas_pool_get_array(mesh, 'lonCell', lonCell)
-      ! !$acc enter data copyin(lonCell)
+      call mpas_pool_get_array(mesh, 'lonCell', lonCell)
+      !$acc enter data copyin(lonCell)
 
-      ! call mpas_pool_get_array(mesh, 'coeffs_reconstruct', coeffs_reconstruct)
-      ! !$acc enter data copyin(coeffs_reconstruct)
+      call mpas_pool_get_array(mesh, 'coeffs_reconstruct', coeffs_reconstruct)
+      !$acc enter data copyin(coeffs_reconstruct)
 
 #endif
 
@@ -680,169 +680,169 @@ module atm_time_integration
       !$acc enter data copyin(tend_w_buoy)
 
 
-      call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
-      !$acc enter data copyin(dvEdge)
+      ! call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
+      ! !$acc enter data copyin(dvEdge)
 
-      call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
-      !$acc enter data copyin(cellsOnCell)
+      ! call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
+      ! !$acc enter data copyin(cellsOnCell)
 
-      call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
-      !$acc enter data copyin(cellsOnEdge)
+      ! call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
+      ! !$acc enter data copyin(cellsOnEdge)
 
-      call mpas_pool_get_array(mesh, 'advCellsForEdge', advCellsForEdge)
-      !$acc enter data copyin(advCellsForEdge)
+      ! call mpas_pool_get_array(mesh, 'advCellsForEdge', advCellsForEdge)
+      ! !$acc enter data copyin(advCellsForEdge)
 
-      call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
-      !$acc enter data copyin(edgesOnCell)
+      ! call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
+      ! !$acc enter data copyin(edgesOnCell)
 
-      call mpas_pool_get_array(mesh, 'nAdvCellsForEdge', nAdvCellsForEdge)
-      !$acc enter data copyin(nAdvCellsForEdge)
+      ! call mpas_pool_get_array(mesh, 'nAdvCellsForEdge', nAdvCellsForEdge)
+      ! !$acc enter data copyin(nAdvCellsForEdge)
 
-      call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
-      !$acc enter data copyin(nEdgesOnCell)
+      ! call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
+      ! !$acc enter data copyin(nEdgesOnCell)
 
-      call mpas_pool_get_array(mesh, 'adv_coefs', adv_coefs)
-      !$acc enter data copyin(adv_coefs)
+      ! call mpas_pool_get_array(mesh, 'adv_coefs', adv_coefs)
+      ! !$acc enter data copyin(adv_coefs)
 
-      call mpas_pool_get_array(mesh, 'adv_coefs_3rd', adv_coefs_3rd)
-      !$acc enter data copyin(adv_coefs_3rd)
+      ! call mpas_pool_get_array(mesh, 'adv_coefs_3rd', adv_coefs_3rd)
+      ! !$acc enter data copyin(adv_coefs_3rd)
 
-      call mpas_pool_get_array(mesh, 'edgesOnCell_sign', edgesOnCell_sign)
-      !$acc enter data copyin(edgesOnCell_sign)
+      ! call mpas_pool_get_array(mesh, 'edgesOnCell_sign', edgesOnCell_sign)
+      ! !$acc enter data copyin(edgesOnCell_sign)
 
-      call mpas_pool_get_array(mesh, 'invAreaCell', invAreaCell)
-      !$acc enter data copyin(invAreaCell)
+      ! call mpas_pool_get_array(mesh, 'invAreaCell', invAreaCell)
+      ! !$acc enter data copyin(invAreaCell)
 
-      call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)
-      !$acc enter data copyin(bdyMaskCell)
+      ! call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)
+      ! !$acc enter data copyin(bdyMaskCell)
 
-      call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
-      !$acc enter data copyin(bdyMaskEdge)
+      ! call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
+      ! !$acc enter data copyin(bdyMaskEdge)
 
-      call mpas_pool_get_array(mesh, 'specZoneMaskEdge', specZoneMaskEdge)
-      !$acc enter data copyin(specZoneMaskEdge)
+      ! call mpas_pool_get_array(mesh, 'specZoneMaskEdge', specZoneMaskEdge)
+      ! !$acc enter data copyin(specZoneMaskEdge)
 
-      call mpas_pool_get_array(mesh, 'invDvEdge', invDvEdge)
-      !$acc enter data copyin(invDvEdge)
+      ! call mpas_pool_get_array(mesh, 'invDvEdge', invDvEdge)
+      ! !$acc enter data copyin(invDvEdge)
 
-      call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
-      !$acc enter data copyin(dcEdge)
+      ! call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
+      ! !$acc enter data copyin(dcEdge)
 
-      call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
-      !$acc enter data copyin(invDcEdge)
+      ! call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
+      ! !$acc enter data copyin(invDcEdge)
 
-      call mpas_pool_get_array(mesh, 'edgesOnEdge', edgesOnEdge)
-      !$acc enter data copyin(edgesOnEdge)
+      ! call mpas_pool_get_array(mesh, 'edgesOnEdge', edgesOnEdge)
+      ! !$acc enter data copyin(edgesOnEdge)
 
-      call mpas_pool_get_array(mesh, 'edgesOnVertex', edgesOnVertex)
-      !$acc enter data copyin(edgesOnVertex)
+      ! call mpas_pool_get_array(mesh, 'edgesOnVertex', edgesOnVertex)
+      ! !$acc enter data copyin(edgesOnVertex)
 
-      call mpas_pool_get_array(mesh, 'edgesOnVertex_sign', edgesOnVertex_sign)
-      !$acc enter data copyin(edgesOnVertex_sign)
+      ! call mpas_pool_get_array(mesh, 'edgesOnVertex_sign', edgesOnVertex_sign)
+      ! !$acc enter data copyin(edgesOnVertex_sign)
 
-      call mpas_pool_get_array(mesh, 'nEdgesOnEdge', nEdgesOnEdge)
-      !$acc enter data copyin(nEdgesOnEdge)
+      ! call mpas_pool_get_array(mesh, 'nEdgesOnEdge', nEdgesOnEdge)
+      ! !$acc enter data copyin(nEdgesOnEdge)
 
-      call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
-      !$acc enter data copyin(weightsOnEdge)
+      ! call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
+      ! !$acc enter data copyin(weightsOnEdge)
 
-      call mpas_pool_get_array(mesh, 'cellsOnVertex', cellsOnVertex)
-      !$acc enter data copyin(cellsOnVertex)
+      ! call mpas_pool_get_array(mesh, 'cellsOnVertex', cellsOnVertex)
+      ! !$acc enter data copyin(cellsOnVertex)
 
-      call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
-      !$acc enter data copyin(verticesOnCell)
+      ! call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
+      ! !$acc enter data copyin(verticesOnCell)
 
-      call mpas_pool_get_array(mesh, 'verticesOnEdge', verticesOnEdge)
-      !$acc enter data copyin(verticesOnEdge)
+      ! call mpas_pool_get_array(mesh, 'verticesOnEdge', verticesOnEdge)
+      ! !$acc enter data copyin(verticesOnEdge)
 
-      call mpas_pool_get_array(mesh, 'invAreaTriangle', invAreaTriangle)
-      !$acc enter data copyin(invAreaTriangle)
+      ! call mpas_pool_get_array(mesh, 'invAreaTriangle', invAreaTriangle)
+      ! !$acc enter data copyin(invAreaTriangle)
 
-      call mpas_pool_get_array(mesh, 'kiteForCell', kiteForCell)
-      !$acc enter data copyin(kiteForCell)
+      ! call mpas_pool_get_array(mesh, 'kiteForCell', kiteForCell)
+      ! !$acc enter data copyin(kiteForCell)
 
-      call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
-      !$acc enter data copyin(kiteAreasOnVertex)
+      ! call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
+      ! !$acc enter data copyin(kiteAreasOnVertex)
 
-      call mpas_pool_get_array(mesh, 'fVertex', fVertex)
-      !$acc enter data copyin(fVertex)
+      ! call mpas_pool_get_array(mesh, 'fVertex', fVertex)
+      ! !$acc enter data copyin(fVertex)
 
-      call mpas_pool_get_array(mesh, 'fEdge', fEdge)
-      !$acc enter data copyin(fEdge)
+      ! call mpas_pool_get_array(mesh, 'fEdge', fEdge)
+      ! !$acc enter data copyin(fEdge)
 
-      call mpas_pool_get_array(mesh, 'zz', zz)
-      !$acc enter data copyin(zz)
+      ! call mpas_pool_get_array(mesh, 'zz', zz)
+      ! !$acc enter data copyin(zz)
 
-      call mpas_pool_get_array(mesh, 'rdzw', rdzw)
-      !$acc enter data copyin(rdzw)
+      ! call mpas_pool_get_array(mesh, 'rdzw', rdzw)
+      ! !$acc enter data copyin(rdzw)
 
-      call mpas_pool_get_array(mesh, 'rdzu', rdzu)
-      !$acc enter data copyin(rdzu)
+      ! call mpas_pool_get_array(mesh, 'rdzu', rdzu)
+      ! !$acc enter data copyin(rdzu)
 
-      call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
-      !$acc enter data copyin(zb_cell)
+      ! call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
+      ! !$acc enter data copyin(zb_cell)
 
-      call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
-      !$acc enter data copyin(zb3_cell)
+      ! call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
+      ! !$acc enter data copyin(zb3_cell)
 
-      call mpas_pool_get_array(mesh, 'fzm', fzm)
-      !$acc enter data copyin(fzm)
+      ! call mpas_pool_get_array(mesh, 'fzm', fzm)
+      ! !$acc enter data copyin(fzm)
 
-      call mpas_pool_get_array(mesh, 'fzp', fzp)
-      !$acc enter data copyin(fzp)
+      ! call mpas_pool_get_array(mesh, 'fzp', fzp)
+      ! !$acc enter data copyin(fzp)
 
-      call mpas_pool_get_array(mesh, 'zb', zb)
-      !$acc enter data copyin(zb)
+      ! call mpas_pool_get_array(mesh, 'zb', zb)
+      ! !$acc enter data copyin(zb)
 
-      call mpas_pool_get_array(mesh, 'zb3', zb3)
-      !$acc enter data copyin(zb3)
+      ! call mpas_pool_get_array(mesh, 'zb3', zb3)
+      ! !$acc enter data copyin(zb3)
 
-      call mpas_pool_get_array(mesh, 'nearestRelaxationCell', nearestRelaxationCell)
-      !$acc enter data copyin(nearestRelaxationCell)
+      ! call mpas_pool_get_array(mesh, 'nearestRelaxationCell', nearestRelaxationCell)
+      ! !$acc enter data copyin(nearestRelaxationCell)
 
-      call mpas_pool_get_array(mesh, 'zgrid', zgrid)
-      !$acc enter data copyin(zgrid)
+      ! call mpas_pool_get_array(mesh, 'zgrid', zgrid)
+      ! !$acc enter data copyin(zgrid)
 
-      call mpas_pool_get_array(mesh, 'zxu', zxu)
-      !$acc enter data copyin(zxu)
+      ! call mpas_pool_get_array(mesh, 'zxu', zxu)
+      ! !$acc enter data copyin(zxu)
 
-      call mpas_pool_get_array(mesh, 'dss', dss)
-      !$acc enter data copyin(dss)
+      ! call mpas_pool_get_array(mesh, 'dss', dss)
+      ! !$acc enter data copyin(dss)
 
-      call mpas_pool_get_array(mesh, 'specZoneMaskCell', specZoneMaskCell)
-      !$acc enter data copyin(specZoneMaskCell)
+      ! call mpas_pool_get_array(mesh, 'specZoneMaskCell', specZoneMaskCell)
+      ! !$acc enter data copyin(specZoneMaskCell)
 
-      call mpas_pool_get_array(mesh, 'defc_a', defc_a)
-      !$acc enter data copyin(defc_a)
+      ! call mpas_pool_get_array(mesh, 'defc_a', defc_a)
+      ! !$acc enter data copyin(defc_a)
 
-      call mpas_pool_get_array(mesh, 'defc_b', defc_b)
-      !$acc enter data copyin(defc_b)
+      ! call mpas_pool_get_array(mesh, 'defc_b', defc_b)
+      ! !$acc enter data copyin(defc_b)
 
-      call mpas_pool_get_array(mesh, 'latEdge', latEdge)
-      !$acc enter data copyin(latEdge)
+      ! call mpas_pool_get_array(mesh, 'latEdge', latEdge)
+      ! !$acc enter data copyin(latEdge)
 
-      call mpas_pool_get_array(mesh, 'angleEdge', angleEdge)
-      !$acc enter data copyin(angleEdge)
+      ! call mpas_pool_get_array(mesh, 'angleEdge', angleEdge)
+      ! !$acc enter data copyin(angleEdge)
 
-      call mpas_pool_get_array(mesh, 'meshScalingDel2', meshScalingDel2)
-      !$acc enter data copyin(meshScalingDel2)
+      ! call mpas_pool_get_array(mesh, 'meshScalingDel2', meshScalingDel2)
+      ! !$acc enter data copyin(meshScalingDel2)
 
-      call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
-      !$acc enter data copyin(meshScalingDel4)
-      call mpas_pool_get_array(mesh, 'meshScalingRegionalCell', meshScalingRegionalCell)
-      !$acc enter data copyin(meshScalingRegionalCell)
+      ! call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
+      ! !$acc enter data copyin(meshScalingDel4)
+      ! call mpas_pool_get_array(mesh, 'meshScalingRegionalCell', meshScalingRegionalCell)
+      ! !$acc enter data copyin(meshScalingRegionalCell)
 
-      call mpas_pool_get_array(mesh, 'meshScalingRegionalEdge', meshScalingRegionalEdge)
-      !$acc enter data copyin(meshScalingRegionalEdge)
+      ! call mpas_pool_get_array(mesh, 'meshScalingRegionalEdge', meshScalingRegionalEdge)
+      ! !$acc enter data copyin(meshScalingRegionalEdge)
 
-      call mpas_pool_get_array(mesh, 'latCell', latCell)
-      !$acc enter data copyin(latCell)
+      ! call mpas_pool_get_array(mesh, 'latCell', latCell)
+      ! !$acc enter data copyin(latCell)
 
-      call mpas_pool_get_array(mesh, 'lonCell', lonCell)
-      !$acc enter data copyin(lonCell)
+      ! call mpas_pool_get_array(mesh, 'lonCell', lonCell)
+      ! !$acc enter data copyin(lonCell)
 
-      call mpas_pool_get_array(mesh, 'coeffs_reconstruct', coeffs_reconstruct)
-      !$acc enter data copyin(coeffs_reconstruct)
+      ! call mpas_pool_get_array(mesh, 'coeffs_reconstruct', coeffs_reconstruct)
+      ! !$acc enter data copyin(coeffs_reconstruct)
 
 #endif
 

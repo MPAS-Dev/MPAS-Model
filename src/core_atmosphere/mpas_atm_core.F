@@ -264,7 +264,7 @@ module atm_core
       do while (associated(block))
          call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
          call mpas_pool_get_subpool(block % structs, 'state', state)
-         !call mpas_atm_pre_init(domain)
+         call mpas_atm_pre_init(domain)
 
          call atm_mpas_init_block(domain % dminfo, domain % streamManager, block, mesh, dt)
 
@@ -294,7 +294,7 @@ module atm_core
       !
       ! Prepare the dynamics for integration
       !
-      call mpas_atm_pre_init(domain)
+      !call mpas_atm_pre_init(domain)
       call mpas_atm_dynamics_init(domain)
 
    end function atm_core_init
