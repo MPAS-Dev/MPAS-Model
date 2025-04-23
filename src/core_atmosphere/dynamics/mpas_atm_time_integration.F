@@ -1687,6 +1687,13 @@ module atm_time_integration
                ru_driving_tend(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_tend( clock, block, nVertLevels, nEdges, 'ru', 0.0_RKIND )
                rt_driving_tend(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_tend( clock, block, nVertLevels, nCells, 'rtheta_m', 0.0_RKIND )
                rho_driving_tend(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_tend( clock, block, nVertLevels, nCells, 'rho_zz', 0.0_RKIND )
+
+
+               !$ser mode write
+               !$ser data ru_driving_tend=ru_driving_tend
+               !$ser data tert_driving_tendnd_rt=rt_driving_tend
+               !$ser data rho_driving_tend=rho_driving_tend
+               
 !$OMP PARALLEL DO
                do thread=1,nThreads
                   call atm_bdy_adjust_dynamics_speczone_tend( tend, mesh, block % configs, nVertLevels,                 &
@@ -1712,6 +1719,12 @@ module atm_time_integration
                ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nEdges, 'ru', time_dyn_step )
                rt_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rtheta_m', time_dyn_step )
                rho_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rho_zz', time_dyn_step )
+
+
+               !$ser mode write
+               !$ser data ru_driving_values=ru_driving_values
+               !$ser data rt_driving_values=rt_driving_values
+               !$ser data rho_driving_values=rho_driving_values
 
                call mpas_timer_start('atm_bdy_adjust_dynamics_relaxzone_tend')
 !$OMP PARALLEL DO
@@ -1816,26 +1829,44 @@ module atm_time_integration
                time_dyn_step = dt_dynamics*real(dynamics_substep-1) + rk_timestep(rk_step)
 
                ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nEdges, 'u', time_dyn_step )
+
+               !$acc enter data copyin(ru_driving_values)
+               
                ! do this inline at present - it is simple enough
+               !$acc parallel
+               !$acc loop gang
                do iEdge = 1, nEdgesSolve
                   if(bdyMaskEdge(iEdge) > nRelaxZone) then
+                     !$acc loop vector
                      do k = 1, nVertLevels
                         u(k,iEdge) = ru_driving_values(k,iEdge)
                      end do
                   end if
                end do
+               !$acc end parallel
+
+
 
                ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nEdges, 'ru', time_dyn_step )
+
+               !$acc update device(ru_driving_values)
+               
                call mpas_pool_get_array(diag, 'ru', u)
                ! do this inline at present - it is simple enough
+               !$acc parallel
+               !$acc loop gang
                do iEdge = 1, nEdges
                   if(bdyMaskEdge(iEdge) > nRelaxZone) then
+                     !$acc loop vector
                      do k = 1, nVertLevels
                         u(k,iEdge) = ru_driving_values(k,iEdge)
                      end do
                   end if
                end do
+               !$acc end parallel
                
+               !$acc exit data delete(ru_driving_values)
+
                deallocate(ru_driving_values)
 
             end if  ! regional_MPAS addition
@@ -7757,6 +7788,11 @@ module atm_time_integration
       end do
       !$acc end parallel
 
+      !$ser mode write
+      !$ser accdata tend_rho1=tend_rho
+      !$ser accdata tend_rt1=tend_rt
+      
+
       !$acc parallel default(present)
       !$acc loop gang worker
       do iEdge = edgeStart, edgeEnd
@@ -7769,6 +7805,8 @@ module atm_time_integration
          end if
       end do
       !$acc end parallel
+
+      !$ser accdata tend_ru1=tend_ru
 
       !  Second, the horizontal filter for rtheta_m and rho_zz
       !$acc parallel default(present)
@@ -7801,6 +7839,10 @@ module atm_time_integration
 
       end do
       !$acc end parallel
+
+      !$ser accdata tend_rho2=tend_rho
+      !$ser accdata tend_rt2=tend_rt
+
 
       !  Third (and last), the horizontal filter for ru
       !$acc parallel default(present)
@@ -7888,10 +7930,7 @@ module atm_time_integration
        !$acc end parallel
 
             !$ser mode write
-      !$ser accdata divergence1=divergence1
-      !$ser accdata divergence2=divergence2
-      !$ser accdata vorticity1=vorticity1
-      !$ser accdata vorticity2=vorticity2
+      !$ser accdata tend_ru_fin=tend_ru
 
        MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
       !$acc exit data delete(rho_driving_values, rt_driving_values, &
