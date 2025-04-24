@@ -76,7 +76,7 @@ module atm_core
       integer, pointer :: nVertLevels, maxEdges, maxEdges2, num_scalars
       character (len=ShortStrKIND) :: init_stream_name
       real (kind=R8KIND) :: input_start_time, input_stop_time
-
+      real (kind=RKIND), dimension(:,:), pointer :: pv_edge, ru, rw
 
       ierr = 0
 
@@ -94,6 +94,7 @@ module atm_core
       ! Set up inner dimensions used by arrays in optimized dynamics routines
       !
       call mpas_pool_get_subpool(domain % blocklist % structs, 'state', state)
+      call mpas_pool_get_subpool(domain % blocklist % structs, 'diag', diag)
       call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
       call mpas_pool_get_dimension(state, 'maxEdges', maxEdges)
       call mpas_pool_get_dimension(state, 'maxEdges2', maxEdges2)
@@ -285,8 +286,13 @@ module atm_core
 
           block => block % next
       end do
-
+      
+      call mpas_pool_get_array(diag, 'pv_edge', pv_edge)
+      call mpas_pool_get_array(diag, 'ru', ru)
+      call mpas_pool_get_array(diag, 'rw', rw)
+      !$acc update self(pv_edge,ru,rw)
       call exchange_halo_group(domain, 'initialization:pv_edge,ru,rw')
+      !$acc update device(pv_edge,ru,rw)
 
       call mpas_atm_diag_setup(domain % streamManager, domain % blocklist % configs, &
                                domain % blocklist % structs, domain % clock, domain % dminfo)
