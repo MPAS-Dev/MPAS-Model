@@ -583,7 +583,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: rho_p_save
       real (kind=RKIND), dimension(:,:), pointer :: rho_zz_old_split
       real (kind=RKIND), dimension(:,:), pointer :: cqw, rtheta_pp_old, rtheta_pp
-      real (kind=RKIND), dimension(:,:), pointer :: cqu, pressure_base, pressure_p, v
+      real (kind=RKIND), dimension(:,:), pointer :: cqu, pressure_base, pressure_p, pressure, v
       real (kind=RKIND), dimension(:,:), pointer :: kdiff, pv_edge, pv_vertex, pv_cell, rho_edge, h_divergence, ke
       real (kind=RKIND), dimension(:,:), pointer :: cofwr, cofwz, coftz, cofwt, a_tri, alpha_tri, gamma_tri
       real (kind=RKIND), dimension(:), pointer :: cofrz
@@ -660,6 +660,8 @@ module atm_time_integration
       !$acc enter data copyin(pressure_p) ! use values from atm_init_coupled_diagnostics
       call mpas_pool_get_array(diag, 'pressure_base', pressure_base)
       !$acc enter data copyin(pressure_base) ! use values from atm_init_coupled_diagnostics
+      call mpas_pool_get_array(diag, 'pressure', pressure)
+      !$acc enter data copyin(pressure)
       call mpas_pool_get_array(diag, 'v', v)
       !$acc enter data copyin(v) ! use values from atm_compute_solve_diagnostics
       call mpas_pool_get_array(diag, 'rtheta_pp', rtheta_pp)
@@ -929,6 +931,72 @@ module atm_time_integration
 
    end subroutine mpas_atm_pre_init
 
+
+   subroutine mpas_post_step_d2h(inPool)
+
+      implicit none
+
+      TYPE(mpas_pool_type), INTENT(IN) :: inPool
+
+
+#ifdef MPAS_OPENACC
+
+      type (mpas_pool_type), pointer :: state
+      type (mpas_pool_type), pointer :: diag
+      type (mpas_pool_type), pointer :: tend
+      type (mpas_pool_type), pointer :: tend_physics
+
+      real (kind=RKIND), dimension(:,:), pointer :: u_1, u_2
+      real (kind=RKIND), dimension(:,:), pointer :: w_1, w_2
+      real (kind=RKIND), dimension(:,:), pointer :: theta_m_1, theta_m_2
+      real (kind=RKIND), dimension(:,:), pointer :: rho_zz_1, rho_zz_2
+      real (kind=RKIND), dimension(:,:,:), pointer :: scalars_1, scalars_2
+      real (kind=RKIND), dimension(:,:), pointer :: theta, rho, pressure_base, pressure_p, pressure
+      real (kind=RKIND), dimension(:,:), pointer :: exner, exner_base, rtheta_p, rtheta_base, rho_p, ru, rw
+
+
+      nullify(state)
+      nullify(diag)
+     
+      
+      call mpas_pool_get_subpool(inPool, 'state', state)
+      call mpas_pool_get_subpool(inPool, 'diag', diag)
+     
+      
+      call mpas_pool_get_array(state, 'u', u_1, 1)
+      call mpas_pool_get_array(state, 'u', u_2, 2)
+      call mpas_pool_get_array(state, 'w', w_1, 1)
+      call mpas_pool_get_array(state, 'w', w_2, 2)
+      call mpas_pool_get_array(state, 'theta_m', theta_m_1, 1)  
+      call mpas_pool_get_array(state, 'theta_m', theta_m_2, 2)
+      call mpas_pool_get_array(state, 'rho_zz', rho_zz_1, 1)
+      call mpas_pool_get_array(state, 'rho_zz', rho_zz_2, 2)
+      call mpas_pool_get_array(state, 'scalars', scalars_1, 1)
+      call mpas_pool_get_array(state, 'scalars', scalars_2, 2)
+
+      !$acc update self(u_1, u_2, w_1, w_2, theta_m_1, theta_m_2, &
+      !$acc             rho_zz_1, rho_zz_2, scalars_1, scalars_2)
+
+      call mpas_pool_get_array(diag, 'theta', theta)
+      call mpas_pool_get_array(diag, 'rho', rho)
+      call mpas_pool_get_array(diag, 'pressure_p', pressure_p)
+      call mpas_pool_get_array(diag, 'pressure_base', pressure_base)
+      call mpas_pool_get_array(diag, 'pressure', pressure)
+      !$acc update self(theta, rho, pressure_p, pressure_base, pressure)
+
+      call mpas_pool_get_array(diag, 'exner', exner)
+      call mpas_pool_get_array(diag, 'exner_base', exner_base)
+      call mpas_pool_get_array(diag, 'rtheta_p', rtheta_p)
+      call mpas_pool_get_array(diag, 'rtheta_base', rtheta_base)
+      call mpas_pool_get_array(diag, 'rho_p', rho_p)
+      call mpas_pool_get_array(diag, 'ru', ru)
+      call mpas_pool_get_array(diag, 'rw', rw)
+      !$acc update self(exner, exner_base, rtheta_p, rtheta_base, rho_p, ru, rw)
+
+
+#endif
+
+   end subroutine mpas_post_step_d2h
 
 
    !----------------------------------------------------------------------------

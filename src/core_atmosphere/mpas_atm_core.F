@@ -603,6 +603,7 @@ module atm_core
       use mpas_derived_types, only : MPAS_STREAM_LATEST_BEFORE, MPAS_STREAM_INPUT, MPAS_STREAM_INPUT_OUTPUT
       use mpas_timer, only : mpas_timer_start, mpas_timer_stop
       use mpas_atm_boundaries, only : mpas_atm_update_bdy_tend
+      use atm_time_integration, only : mpas_post_step_d2h
       use mpas_atm_diagnostics_manager, only : mpas_atm_diag_update, mpas_atm_diag_compute, mpas_atm_diag_reset
    
       implicit none
@@ -825,7 +826,7 @@ module atm_core
               call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
               call mpas_pool_get_subpool(block_ptr % structs, 'tend', tend)
               call atm_compute_output_diagnostics(state, 1, diag, mesh)
-
+              call mpas_post_step_d2h(block_ptr % structs)
               block_ptr => block_ptr % next
            end do
          end if
@@ -933,6 +934,8 @@ module atm_core
 
       call mpas_pool_get_array(mesh, 'zz', zz)
 
+      !$acc parallel
+      !$acc loop gang vector collapse(2)
       do iCell=1,nCells
          do k=1,nVertLevels
             theta(k,iCell) = theta_m(k,iCell) / (1._RKIND + rvord * scalars(index_qv,k,iCell))
@@ -940,6 +943,7 @@ module atm_core
             pressure(k,iCell) = pressure_base(k,iCell) + pressure_p(k,iCell)
          end do
       end do
+      !$acc end parallel
 
    end subroutine atm_compute_output_diagnostics
    
