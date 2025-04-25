@@ -50,7 +50,7 @@
 
     ! Check if snow/snowh are consistent and cap SWE at 2000mm
     ! the Noah-MP code does it internally but if we don't do it here, problems ensue
-    do i = its, its
+    do i = its, ite 
        if ( NoahmpIO%snow(i)  < 0.0 ) NoahmpIO%snow(i)  = 0.0
        if ( NoahmpIO%snowh(i) < 0.0 ) NoahmpIO%snowh(i) = 0.0
        if ( (NoahmpIO%snow(i) > 0.0) .and. (NoahmpIO%snowh(i) == 0.0) ) &
