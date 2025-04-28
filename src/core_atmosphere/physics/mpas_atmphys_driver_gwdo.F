@@ -779,39 +779,41 @@
     case("bl_ugwp_gwdo")
        call mpas_timer_start('bl_ugwp_gwdo')
        call gwdo_ugwp ( & 
-                  p3d       = pres_hydd_p , p3di      = pres2_hydd_p , pi3d    = pi_p      , &
-                  u3d       = u_p         , v3d       = v_p          , t3d     = t_p       , &
-                  qv3d      = qv_p        , z         = zmid_p       , rublten = rublten_p , &
-                  rvblten   = rvblten_p   , rthblten  = rthblten_p   ,                       &
-                  dtaux3d   = dtaux3d_p   , dtauy3d   = dtauy3d_p    ,                       &
-                  dusfcg    = dusfcg_p    , dvsfcg    = dvsfcg_p     , kpbl2d  = kpbl_p    , &
-                  itimestep = itimestep   , dt        = dt_pbl       , dx      = dx_p      , &
-                  pblh      = hpbl_p      , br1       = br_p         , xland   = xland_p   , &
-                  cp        = cp          , g         = gravity      , rd      = R_d       , &
-                  rv        = R_v         , ep1       = ep_1         , pi      = pii       , &
-                  sina      = sina_p      , cosa      = cosa_p       , dz      = dz_p      , &
-                  var2dls   = var2dls_p   , oc12dls   = conls_p      , oa2d1ls = oa1ls_p   , &
-                  oa2d2ls   = oa2ls_p     , oa2d3ls   = oa3ls_p      , oa2d4ls = oa4ls_p   , &
-                  ol2d1ls   = ol1ls_p     , ol2d2ls   = ol2ls_p      , ol2d3ls = ol3ls_p   , &
-                  ol2d4ls   = ol4ls_p     , var2dss   = var2dss_p    , oc12dss   = conss_p , & 
-                  oa2d1ss = oa1ss_p       , oa2d2ss   = oa2ss_p      , oa2d3ss   = oa3ss_p , & 
-                  oa2d4ss = oa4ss_p       , ol2d1ss   = ol1ss_p      , ol2d2ss   = ol2ss_p , &
-                  ol2d3ss = ol3ss_p       , ol2d4ss   = ol4ss_p      , zi      = z_p       , &
-                  dusfc_ls = dusfc_ls_p , dvsfc_ls = dvsfc_ls_p  , dusfc_bl = dusfc_bl_p,    &
-                  dvsfc_bl = dvsfc_bl_p , dusfc_ss = dusfc_ss_p  , dvsfc_ss = dvsfc_ss_p,    &
-                  dusfc_fd = dusfc_fd_p , dvsfc_fd = dvsfc_fd_p  , dtaux3d_ls = dtaux3d_ls_p,      &
-                  dtauy3d_ls = dtauy3d_ls_p, dtaux3d_bl = dtaux3d_bl_p, dtauy3d_bl = dtauy3d_bl_p, &
-                  dtaux3d_ss = dtaux3d_ss_p, dtauy3d_ss = dtauy3d_ss_p, dtaux3d_fd = dtaux3d_fd_p, &
-                  dtauy3d_fd = dtauy3d_fd_p, ugwp_diags = ugwp_diags  , ngw_scheme = ngw_scheme,   &
-                  xlatd = xlat_p, jindx1_tau = jindx1_tau_p,  jindx2_tau = jindx2_tau_p,     &
-                  ddy_j1tau = ddy_j1tau_p  , ddy_j2tau = ddy_j2tau_p, r_DoY = curr_julday,   &
-                  raincv = raincv_p     , rainncv = rainncv_p    , ntau_d1y = ntau_d1y,      &
-                  ntau_d2t = ntau_d2t   , days_limb = days_limb  , tau_limb = tau_limb,      &
-                  dudt_ngw = dudt_ngw_p , dvdt_ngw = dvdt_ngw_p  , dtdt_ngw = dtdt_ngw_p ,   &
-                  errmsg    = errmsg    , errflg    = errflg     ,                           &
-                  ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,    &
-                  ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,    &
-                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte      &
+                  p3d        = pres_hydd_p , p3di       = pres2_hydd_p, pi3d     = pi_p      ,  &
+                  u3d        = u_p         , v3d        = v_p         , t3d      = t_p       ,  &
+                  qv3d       = qv_p        , z          = zmid_p      , rublten  = rublten_p ,  &
+                  rvblten    = rvblten_p   , rthblten   = rthblten_p  ,                         &
+                  dtaux3d    = dtaux3d_p   , dtauy3d    = dtauy3d_p   ,                         &
+                  dusfcg     = dusfcg_p    , dvsfcg     = dvsfcg_p    , kpbl2d   = kpbl_p    ,  &
+                  itimestep  = itimestep   , dt         = dt_pbl      , dx       = dx_p      ,  &
+                  pblh       = hpbl_p      , br1        = br_p        , xland    = xland_p   ,  &
+                  cp         = cp          , g          = gravity     , rd       = R_d       ,  &
+                  rv         = R_v         , ep1        = ep_1        , pi       = pii       ,  &
+                  sina       = sina_p      , cosa       = cosa_p      , dz       = dz_p      ,  &
+                  var2dls    = var2dls_p   , oc12dls    = conls_p     , oa2d1ls  = oa1ls_p   ,  &
+                  oa2d2ls    = oa2ls_p     , oa2d3ls    = oa3ls_p     , oa2d4ls  = oa4ls_p   ,  &
+                  ol2d1ls    = ol1ls_p     , ol2d2ls    = ol2ls_p     , ol2d3ls  = ol3ls_p   ,  &
+                  ol2d4ls    = ol4ls_p     , var2dss    = var2dss_p   , oc12dss  = conss_p   ,  &
+                  oa2d1ss    = oa1ss_p     , oa2d2ss    = oa2ss_p     , oa2d3ss  = oa3ss_p   ,  &
+                  oa2d4ss    = oa4ss_p     , ol2d1ss    = ol1ss_p     , ol2d2ss  = ol2ss_p   ,  &
+                  ol2d3ss    = ol3ss_p     , ol2d4ss    = ol4ss_p     , zi       = z_p       ,  &
+                  dusfc_ls   = dusfc_ls_p  , dvsfc_ls   = dvsfc_ls_p  , dusfc_bl = dusfc_bl_p,  &
+                  dvsfc_bl   = dvsfc_bl_p  , dusfc_ss   = dusfc_ss_p  , dvsfc_ss = dvsfc_ss_p,  &
+                  dusfc_fd   = dusfc_fd_p  , dvsfc_fd   = dvsfc_fd_p  ,                         &
+                  dtaux3d_ls = dtaux3d_ls_p, dtauy3d_ls = dtauy3d_ls_p,                         &
+                  dtaux3d_bl = dtaux3d_bl_p, dtauy3d_bl = dtauy3d_bl_p,                         &
+                  dtaux3d_ss = dtaux3d_ss_p, dtauy3d_ss = dtauy3d_ss_p,                         &
+                  dtaux3d_fd = dtaux3d_fd_p, dtauy3d_fd = dtauy3d_fd_p,                         &
+                  ugwp_diags = ugwp_diags  , ngw_scheme = ngw_scheme  , xlatd    = xlat_p     , &
+                  jindx1_tau = jindx1_tau_p, jindx2_tau = jindx2_tau_p,                         &
+                  ddy_j1tau  = ddy_j1tau_p , ddy_j2tau  = ddy_j2tau_p , r_DoY    = curr_julday, &
+                  raincv     = raincv_p    , rainncv    = rainncv_p   , ntau_d1y = ntau_d1y   , &
+                  ntau_d2t   = ntau_d2t    , days_limb  = days_limb   , tau_limb = tau_limb   , &
+                  dudt_ngw   = dudt_ngw_p  , dvdt_ngw   = dvdt_ngw_p  , dtdt_ngw = dtdt_ngw_p , &
+                  errmsg     = errmsg      , errflg     = errflg      ,                         &
+                  ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,       &
+                  ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,       &
+                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte         &
                  )
        if (ngw_scheme) then
           if(allocated(days_limb)) deallocate(days_limb)
