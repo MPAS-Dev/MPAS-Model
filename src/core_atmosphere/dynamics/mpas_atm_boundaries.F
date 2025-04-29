@@ -187,6 +187,7 @@ module mpas_atm_boundaries
         call mpas_pool_get_dimension(lbc, 'index_qv', index_qv_ptr)
         call mpas_pool_get_array(mesh, 'zz', zz)
 
+        MPAS_ACC_TIMER_START('mpas_atm_update_bdy_tend [ACC_data_xfer]')
         if (.not. firstCall) then
             call mpas_pool_get_array(lbc, 'lbc_u', lbc_tend_u, 1)
             call mpas_pool_get_array(lbc, 'lbc_ru', lbc_tend_ru, 1)
@@ -204,6 +205,7 @@ module mpas_atm_boundaries
         end if
         !$acc enter data copyin(u, w, theta, rho, scalars)
         !$acc enter data create(ru, rho_edge, rtheta_m, rho_zz)
+        MPAS_ACC_TIMER_STOP('mpas_atm_update_bdy_tend [ACC_data_xfer]')
 
         ! Dereference the pointers to avoid non-array pointer for OpenACC
         nCells = nCells_ptr
@@ -354,6 +356,7 @@ module mpas_atm_boundaries
 
         end if
 
+        MPAS_ACC_TIMER_START('mpas_atm_update_bdy_tend [ACC_data_xfer]')
         if (.not. firstCall) then
            !$acc exit data copyout(lbc_tend_u, lbc_tend_ru, lbc_tend_rho_edge, lbc_tend_w, &
             !$acc                   lbc_tend_theta, lbc_tend_rtheta_m, lbc_tend_rho_zz, &
@@ -362,6 +365,7 @@ module mpas_atm_boundaries
 
         !$acc exit data copyout(ru, rho_edge, rtheta_m, rho_zz)
         !$acc exit data delete(u, w, theta, rho, scalars)
+        MPAS_ACC_TIMER_STOP('mpas_atm_update_bdy_tend [ACC_data_xfer]')
 
         LBC_intv_end = currTime
 
