@@ -7614,7 +7614,7 @@ module atm_time_integration
       !$acc end kernels
 
       inv_dynamics_split = 1.0_RKIND / real(dynamics_split)
-      
+
       if (dynamics_substep < dynamics_split) then
          !$acc parallel default(present)
          !$acc loop gang worker
