@@ -300,10 +300,10 @@ module mpas_atm_boundaries
         real (kind=RKIND), dimension(vertDim,horizDim+1) :: return_tend
 
         type (mpas_pool_type), pointer :: lbc
-        integer, pointer :: idx
+        integer, pointer :: idx_ptr
         real (kind=RKIND), dimension(:,:), pointer :: tend
         real (kind=RKIND), dimension(:,:,:), pointer :: tend_scalars
-        integer :: ierr
+        integer :: idx, i, j
 
 
         call mpas_pool_get_subpool(block % structs, 'lbc', lbc)
@@ -311,14 +311,46 @@ module mpas_atm_boundaries
         nullify(tend)
         call mpas_pool_get_array(lbc, 'lbc_'//trim(field), tend, 1)
 
+        MPAS_ACC_TIMER_START('mpas_atm_get_bdy_tend [ACC_data_xfer]')
+        !$acc enter data create(return_tend)
         if (associated(tend)) then
-            return_tend(:,:) = tend(:,:)
+            !$acc enter data copyin(tend)
         else
             call mpas_pool_get_array(lbc, 'lbc_scalars', tend_scalars, 1)
-            call mpas_pool_get_dimension(lbc, 'index_'//trim(field), idx)
+            !$acc enter data copyin(tend_scalars)
 
-            return_tend(:,:) = tend_scalars(idx,:,:)
+            ! Ensure the integer pointed to by idx_ptr is copied to the gpu device
+            call mpas_pool_get_dimension(lbc, 'index_'//trim(field), idx_ptr)
+            idx = idx_ptr
         end if
+        MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_tend [ACC_data_xfer]')
+
+        !$acc parallel default(present)
+        if (associated(tend)) then
+            !$acc loop gang vector collapse(2)
+            do j=1,horizDim+1
+                do i=1,vertDim
+                    return_tend(i,j) = tend(i,j)
+                end do
+            end do
+        else
+            !$acc loop gang vector collapse(2)
+            do j=1,horizDim+1
+                do i=1,vertDim
+                    return_tend(i,j) = tend_scalars(idx,i,j)
+                end do
+            end do
+        end if
+        !$acc end parallel
+
+        MPAS_ACC_TIMER_START('mpas_atm_get_bdy_tend [ACC_data_xfer]')
+        !$acc exit data copyout(return_tend)
+        if (associated(tend)) then
+            !$acc exit data delete(tend)
+        else
+            !$acc exit data delete(tend_scalars)
+        end if
+        MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_tend [ACC_data_xfer]')
 
     end function mpas_atm_get_bdy_tend
 
