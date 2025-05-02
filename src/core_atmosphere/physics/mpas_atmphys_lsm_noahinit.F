@@ -197,7 +197,7 @@
 !if no snowh do the following:
        call physics_message( 'SNOW HEIGHT NOT FOUND - VALUE DEFINED IN LSMINIT' )
        do iCell = 1, nCells
-          snowh(iCell)=snow(iCell)*0.005 ! snow in mm and snowh in m
+        snowh(iCell) = (10.**(((log10(snow(icell))-log10(0.146_RKIND))/1.102_RKIND)))/1000._RKIND
        enddo
     endif
     110 continue
