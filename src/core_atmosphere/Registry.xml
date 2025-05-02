@@ -72,6 +72,11 @@
                      description="Model time step, seconds"
                      possible_values="Positive real values"/>
 
+                <nml_option name="config_dt_init" type="real" default_value="0.0"
+                     units="s"
+                     description="Model time step at the start of ramp up period (seconds)"
+                     possible_values="Positive real values"/>
+
                 <nml_option name="config_calendar_type" type="character" default_value="gregorian" in_defaults="false"
                      units="-"
                      description="Simulation calendar type"
@@ -90,6 +95,11 @@
                 <nml_option name="config_run_duration" type="character" default_value="5_00:00:00"
                      units="-"
                      description="Length of model simulation"
+                     possible_values="[DDD_]hh:mm:ss"/>
+
+               <nml_option name="config_dt_rampup_duration" type="character" default_value="none"
+                     units="-"
+                     description="Length of model ramp up period"
                      possible_values="[DDD_]hh:mm:ss"/>
 
                 <nml_option name="config_split_dynamics_transport" type="logical" default_value="true"

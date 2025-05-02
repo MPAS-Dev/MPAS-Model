@@ -647,6 +647,7 @@ module atm_time_integration
    end subroutine mpas_atm_dynamics_finalize
 
 
+   !subroutine atm_timestep(domain, dt, nowTime, itimestep, xtime_s, exchange_halo_group)
    subroutine atm_timestep(domain, dt, nowTime, itimestep, exchange_halo_group)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    ! Advance model state forward in time by the specified time step
@@ -663,6 +664,8 @@ module atm_time_integration
       real (kind=RKIND), intent(in) :: dt
       type (MPAS_Time_type), intent(in) :: nowTime
       integer, intent(in) :: itimestep
+      !real (kind=RKIND), intent(in) :: xtime_s
+      real (kind=RKIND) :: xtime_s
       procedure (halo_exchange_routine) :: exchange_halo_group
 
 
@@ -675,6 +678,7 @@ module atm_time_integration
       type (mpas_pool_type), pointer :: state
       character (len=StrKIND), pointer :: config_time_integration
 
+      xtime_s = 0.0_RKIND
 
       clock => domain % clock
       block => domain % blocklist
@@ -683,7 +687,7 @@ module atm_time_integration
       call mpas_pool_get_config(block % configs, 'config_apply_lbcs', config_apply_lbcs)
 
       if (trim(config_time_integration) == 'SRK3') then
-         call atm_srk3(domain, dt, itimestep, exchange_halo_group)
+         call atm_srk3(domain, dt, itimestep, xtime_s, exchange_halo_group)
       else
          call mpas_log_write('Unknown time integration option '//trim(config_time_integration), messageType=MPAS_LOG_ERR)
          call mpas_log_write('Currently, only ''SRK3'' is supported.', messageType=MPAS_LOG_CRIT)
@@ -708,7 +712,7 @@ module atm_time_integration
    end subroutine atm_timestep
 
 
-   subroutine atm_srk3(domain, dt, itimestep, exchange_halo_group)
+   subroutine atm_srk3(domain, dt, itimestep, xtime_s, exchange_halo_group)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    ! Advance model state forward in time by the specified time step using 
    !   time-split RK3 scheme
@@ -727,6 +731,7 @@ module atm_time_integration
       type (domain_type), intent(inout) :: domain
       real (kind=RKIND), intent(in) :: dt
       integer, intent(in) :: itimestep
+      real (kind=RKIND), intent(in) :: xtime_s
       procedure (halo_exchange_routine) :: exchange_halo_group
 
       integer :: thread
@@ -758,7 +763,6 @@ module atm_time_integration
       logical, pointer :: config_scalar_advection
       logical, pointer :: config_positive_definite
       logical, pointer :: config_monotonic
-      real (kind=RKIND), pointer :: config_dt
       character (len=StrKIND), pointer :: config_microp_scheme
       character (len=StrKIND), pointer :: config_convection_scheme
 
@@ -797,8 +801,7 @@ module atm_time_integration
       call mpas_pool_get_config(block % configs, 'config_time_integration_order', config_time_integration_order)
       call mpas_pool_get_config(block % configs, 'config_scalar_advection', config_scalar_advection)
       call mpas_pool_get_config(block % configs, 'config_positive_definite', config_positive_definite)
-      call mpas_pool_get_config(block % configs, 'config_monotonic', config_monotonic)
-      call mpas_pool_get_config(block % configs, 'config_dt', config_dt)
+      call mpas_pool_get_config(block % configs, 'config_monotonic', config_monotonic)      
       call mpas_pool_get_config(block % configs, 'config_IAU_option', config_IAU_option)
       !  config variables for dynamics-transport splitting, WCS 18 November 2014
       call mpas_pool_get_config(block % configs, 'config_split_dynamics_transport', config_split_dynamics_transport)
@@ -885,6 +888,8 @@ module atm_time_integration
       !
       ! Initialize RK weights
       !
+
+      call mpas_log_write('--- atm_srk3 time-step DT = $r',realArgs=(/dt/))
 
       dynamics_split = config_dynamics_split
       if (config_split_dynamics_transport) then
@@ -990,7 +995,7 @@ module atm_time_integration
       ! IAU - Incremental Analysis Update
       !
       if (trim(config_IAU_option) /= 'off') then
-         call atm_add_tend_anal_incr(block % configs, block % structs, itimestep, dt, &
+         call atm_add_tend_anal_incr(block % configs, block % structs, itimestep, dt, xtime_s, &
                                      tend_ru_physics, tend_rtheta_physics, tend_rho_physics)
       end if
 
@@ -1500,7 +1505,7 @@ module atm_time_integration
          !requires that the subroutine atm_advance_scalars_mono was called on the third Runge Kutta step, so that a halo
          !update for the scalars at time_levs(1) is applied. A halo update for the scalars at time_levs(2) is done above. 
          if (config_monotonic) then
-            rqvdynten(:,:) = ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt
+            rqvdynten(:,:) = ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / dt
          else
             rqvdynten(:,:) = 0._RKIND
          end if

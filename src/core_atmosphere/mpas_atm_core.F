@@ -30,6 +30,8 @@ module atm_core
    end interface
 
    type (MPAS_Clock_type), pointer :: clock
+   type (MPAS_TimeInterval_type) :: dt_incr, timeStep_init
+   type (MPAS_Time_Type) :: rampup_stopTime
 
 
    contains
@@ -55,7 +57,7 @@ module atm_core
       character(len=*), intent(out) :: startTimeStamp
       integer :: ierr
 
-      real (kind=RKIND), pointer :: dt
+      real (kind=RKIND) :: dt
       type (block_type), pointer :: block
 
       logical, pointer :: config_do_restart
@@ -68,6 +70,7 @@ module atm_core
       character (len=StrKIND), pointer :: xtime
       character (len=StrKIND), pointer :: initial_time1, initial_time2
       type (MPAS_Time_Type) :: startTime
+      type (MPAS_TimeInterval_type) :: timeStepInterval !< the current time step as an interval
 
       real (kind=RKIND), pointer :: nominalMinDc
       real (kind=RKIND), pointer :: config_len_disp
@@ -116,8 +119,9 @@ module atm_core
       end if
 
       call mpas_pool_get_config(domain % blocklist % configs, 'config_do_restart', config_do_restart)
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_dt', dt)
 
+      call mpas_get_timeInterval(mpas_get_clock_timestep(domain % clock, ierr), dt=dt)
+      call mpas_log_write('atm_core_init: Obtaining initial dt=$r', realArgs=(/dt/))
       !
       ! By default, the 'invariant' stream has an input_interval of "none", so
       ! the following stream read has no effect. However, in case the 'invariant'
@@ -309,12 +313,18 @@ module atm_core
       integer, intent(out) :: ierr
 
       type (MPAS_Time_Type) :: startTime, stopTime
-      type (MPAS_TimeInterval_type) :: runDuration, timeStep
+      type (MPAS_TimeInterval_type) :: runDuration, timeStep_config, timeStep, timeStep_sum
+      type (MPAS_TimeInterval_type) :: timestep_rampup_Duration, timestep_rampup_Duration_2, searchRemainder, tmp_interval
       integer :: local_err
+      integer (kind=I8KIND) :: nDivs
+      !integer :: nDivs
+      real (kind=RKIND) :: dt_incr_tmp, loc_rampup_duration, nDivs_r, loc_dt_incr, dt_rem, tot_remainder, tmp_b
       real (kind=RKIND), pointer :: config_dt
+      real (kind=RKIND), pointer :: config_dt_init
       character (len=StrKIND), pointer :: config_start_time
       character (len=StrKIND), pointer :: config_restart_timestamp_name
       character (len=StrKIND), pointer :: config_run_duration
+      character (len=StrKIND), pointer :: config_dt_rampup_duration
       character (len=StrKIND), pointer :: config_stop_time
       character (len=StrKIND) :: startTimeStamp
       integer :: iounit
@@ -323,9 +333,11 @@ module atm_core
       ierr = 0
 
       call mpas_pool_get_config(configs, 'config_dt', config_dt)
+      call mpas_pool_get_config(configs, 'config_dt_init', config_dt_init)
       call mpas_pool_get_config(configs, 'config_start_time', config_start_time)
       call mpas_pool_get_config(configs, 'config_restart_timestamp_name', config_restart_timestamp_name)
       call mpas_pool_get_config(configs, 'config_run_duration', config_run_duration)
+      call mpas_pool_get_config(configs, 'config_dt_rampup_duration', config_dt_rampup_duration)
       call mpas_pool_get_config(configs, 'config_stop_time', config_stop_time)
 
       if(trim(config_start_time) == 'file') then
@@ -338,7 +350,64 @@ module atm_core
         startTimeStamp = config_start_time
       end if
       call mpas_set_time(curr_time=startTime, dateTimeString=startTimeStamp, ierr=local_err)
-      call mpas_set_timeInterval(timeStep, dt=config_dt, ierr=local_err)
+      
+      !call mpas_set_timeInterval(timeStep, dt=config_dt, ierr=local_err)
+
+      call mpas_set_timeInterval(timeStep_config, dt=config_dt, ierr=local_err)
+      timeStep = timeStep_config
+      if ( config_dt_init > 0.0_RKIND ) then
+         call mpas_log_write('config_dt_init if clause met')
+         if ( config_dt_init > config_dt ) then
+            call mpas_log_write('config_dt_init should be smaller than config_dt.', messageType=MPAS_LOG_ERR)
+            ierr = 1
+         end if
+         call mpas_set_timeInterval(timeStep_init, dt=config_dt_init, ierr=local_err)
+         if (trim(config_dt_rampup_duration) /= "none") then
+            
+            call mpas_set_timeInterval(timestep_rampup_Duration, timeString=config_dt_rampup_duration, ierr=local_err)
+            
+            call mpas_log_write('timestep_rampup_Duration is set to'//trim(config_dt_rampup_duration))
+            timestep_rampup_Duration_2 = timestep_rampup_Duration * 2
+            timeStep_sum = timeStep_init + timeStep_config
+            
+            ! Assuming an arithmetic sequence of time step sizes, the sum of elements in the sequence 
+            ! is given by the formula Sn = nDivs/2(2*config_dt_init + (nDivs-1)dt_incr), where config_dt_init
+            ! is the first time step size, dt_incr is the timestep size increment, and nDivs is the number of
+            ! elements in the sequence. The sum of time step sizes should ideally equal the rampup duration,
+            ! except for a remainder searchRemainder. 
+
+            ! Given the above assumption, we can solve for nDivs as 
+            ! nDivs_r = floor(2.0_RKIND*loc_rampup_duration/(config_dt + config_dt_init)) - 1
+            call mpas_interval_division(startTime, timestep_rampup_Duration_2, timeStep_sum, nDivs, searchRemainder)
+            nDivs = nDivs - 1
+            ! set the time step increment
+            dt_incr = (timeStep_config - timeStep_init)/int(nDivs)
+            ! calculate the remainder, which will be set as the first time step size, in order to 
+            ! correctly reach the rampup duration
+            searchRemainder = timestep_rampup_Duration - (timeStep_init*2 + dt_incr*(nDivs))*(nDivs+1)/2
+
+            
+            ! nDivs_r = floor(2.0_RKIND*loc_rampup_duration/(config_dt + config_dt_init)) - 1
+            ! loc_dt_incr = (config_dt - config_dt_init)/nDivs_r
+            ! tot_remainder = (loc_rampup_duration- 0.5*(nDivs_r+1)*(2.0*config_dt_init + nDivs_r*loc_dt_incr))
+            ! call mpas_log_write('nDivs :$r, loc_dt_incr is set to $r', &
+            !                    realArgs=(/nDivs_r, loc_dt_incr/))
+            ! call mpas_set_timeInterval(searchRemainder, dt=tot_remainder, ierr=local_err)
+
+            call mpas_get_timeInterval(dt_incr, dt=dt_incr_tmp, ierr=local_err)
+            call mpas_get_timeInterval(searchRemainder, dt=dt_rem, ierr=local_err)
+            call mpas_log_write('dt_rem is set to $r, dt_incr is set to $r, nDivs: $i', &
+                                realArgs=(/dt_rem, dt_incr_tmp/), intArgs=(/int(nDivs)/))
+
+         else
+            call mpas_log_write('config_dt_init is set but config_dt_rampup_duration was not specified.', messageType=MPAS_LOG_ERR)
+            ierr = 1
+         end if
+         !timeStep = timeStep_init
+         ! Setting the first timestep to the remainder
+         timeStep = searchRemainder
+         rampup_stopTime = startTime + timestep_rampup_Duration
+      end if
 
       if (trim(config_run_duration) /= "none") then
          call mpas_set_timeInterval(runDuration, timeString=config_run_duration, ierr=local_err)
@@ -602,12 +671,15 @@ module atm_core
       type (domain_type), intent(inout) :: domain
       integer :: ierr
    
-      real (kind=RKIND), pointer :: dt
+      real (kind=RKIND) :: dt
+      real (kind=RKIND), pointer :: config_dt
       logical, pointer :: config_do_restart
       logical, pointer :: config_apply_lbcs
       type (block_type), pointer :: block_ptr
 
       type (MPAS_Time_Type) :: currTime
+      integer :: i_dt_incr = 0
+
       character(len=StrKIND) :: timeStamp
       character (len=StrKIND), pointer :: config_restart_timestamp_name
       integer :: itimestep
@@ -623,16 +695,25 @@ module atm_core
       real (kind=R8KIND) :: diag_start_time, diag_stop_time
       real (kind=R8KIND) :: input_start_time, input_stop_time
       real (kind=R8KIND) :: output_start_time, output_stop_time
-      
+      type (MPAS_TimeInterval_type) :: timeStepInterval !< the current time step as an interval
+
       ierr = 0
 
       clock => domain % clock
       mpas_log_info => domain % logInfo
+
+       call mpas_get_timeInterval(mpas_get_clock_timestep(clock, ierr), dt=dt)
+       call mpas_log_write('Obtaining initial dt=$r', realArgs=(/dt/))
+      ! call mpas_log_write('Setting dt=60')
+       !call mpas_set_timeInterval(timeStepInterval, dt=60.0_RKIND, ierr=ierr)
+       !call mpas_set_clock_timestep(clock, timeStepInterval, ierr)
       
-      ! Eventually, dt should be domain specific
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_dt', dt)
+      
       call mpas_pool_get_config(domain % blocklist % configs, 'config_do_restart', config_do_restart)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_restart_timestamp_name', config_restart_timestamp_name)
+      !call mpas_pool_get_config(domain % blocklist % configs, 'config_dt', config_dt)
+
+      !dt = config_dt
 
       ! Avoid writing a restart file at the initial time
       call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='restart', direction=MPAS_STREAM_OUTPUT, ierr=ierr)
@@ -725,7 +806,10 @@ module atm_core
       do while (.not. mpas_is_clock_stop_time(clock))
 
          currTime = mpas_get_clock_time(clock, MPAS_NOW, ierr)
-         call mpas_get_time(curr_time=currTime, dateTimeString=timeStamp, ierr=ierr)         
+         call mpas_get_time(curr_time=currTime, dateTimeString=timeStamp, ierr=ierr)
+         
+         !call mpas_get_timeInterval(mpas_get_clock_timestep(clock, ierr), dt=dt)
+         !call mpas_log_write('Obtaining dt=$r', realArgs=(/dt/))
 
          call mpas_log_write('')
          call mpas_log_write('Begin timestep '//trim(timeStamp))
@@ -879,6 +963,24 @@ module atm_core
 
          call mpas_stream_mgr_reset_alarms(domain % streamManager, direction=MPAS_STREAM_OUTPUT, ierr=ierr)
 
+         if (currTime < rampup_stopTime) then
+             
+            timeStepInterval = mpas_get_clock_timestep(clock, ierr)
+            call mpas_get_timeInterval(timeStepInterval, dt=dt)
+            call mpas_log_write('Obtaining current dt=$r', realArgs=(/dt/))
+            !dt = real(floor(min(dt * (1.05_RKIND),config_dt)))
+            if (i_dt_incr == 0) then
+               timeStepInterval = timeStep_init
+            else
+               timeStepInterval = timeStepInterval + dt_incr
+            end if 
+            i_dt_incr = i_dt_incr + 1
+            call mpas_get_timeInterval(timeStepInterval, dt=dt)
+            call mpas_log_write('Incrementing dt to $r, incr count: $i', realArgs=(/dt/), intArgs=(/i_dt_incr/))
+            !call mpas_set_timeInterval(timeStepInterval, dt=dt, ierr=ierr)
+            call mpas_set_clock_timestep(clock, timeStepInterval, ierr)
+         end if
+
       end do
    
    end function atm_core_run
@@ -1001,7 +1103,7 @@ module atm_core
       !proceed with physics if moist_physics is set to true:
       if(moist_physics) then
          call physics_timetracker(domain,dt,clock,itimestep,xtime_s)
-         call physics_driver(domain,itimestep,xtime_s)
+         call physics_driver(domain,dt,itimestep,xtime_s)
       endif
 #endif
 

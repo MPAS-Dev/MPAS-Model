@@ -30,7 +30,7 @@
 
 !=================================================================================================================
  subroutine lsm_noahmp_fromMPAS(configs,mesh,diag,diag_physics,diag_physics_noahmp,output_noahmp,sfc_input, &
-                                state,time_lev,itimestep)
+                                state,dt,time_lev,itimestep)
 !=================================================================================================================
 
 !--- input arguments:
@@ -39,6 +39,7 @@
  type(mpas_pool_type),intent(in):: diag
  type(mpas_pool_type),intent(in):: state
 
+ real(kind=RKIND),intent(in):: dt
  integer,intent(in):: time_lev
  integer,intent(in):: itimestep
 
@@ -127,10 +128,11 @@
  mpas_noahmp%day       = day
  mpas_noahmp%julian    = curr_julday 
 
-
+ mpas_noahmp%dtbl    = dt 
 !--- initialization of xice_threshold:
  mpas_noahmp%xice_threshold = xice_threshold
 
+ call mpas_log_write('--- lsm_noahmp_fromMPAS dtbl = $r',realArgs=(/dt/))
 
 !--- initialization of INPUT surface variables:
  call mpas_pool_get_array(sfc_input,'shdmax',shdmax)
@@ -1054,7 +1056,7 @@
  end subroutine lsm_noahmp_toMPAS
 
 !=================================================================================================================
- subroutine driver_lsm_noahmp(configs,mesh,state,time_lev,diag,diag_physics,diag_physics_noahmp,output_noahmp, &
+ subroutine driver_lsm_noahmp(configs,mesh,state,dt,time_lev,diag,diag_physics,diag_physics_noahmp,output_noahmp, &
                               sfc_input,itimestep,its,ite)
 !=================================================================================================================
 
@@ -1064,6 +1066,7 @@
  type(mpas_pool_type),intent(in):: diag
  type(mpas_pool_type),intent(in):: state
 
+ real(kind=RKIND),intent(in):: dt
  integer,intent(in):: itimestep,its,ite
  integer,intent(in):: time_lev
 
@@ -1079,7 +1082,7 @@
 !call mpas_log_write('--- enter subroutine driver_lsm_noahmp:')
 
  call lsm_noahmp_fromMPAS(configs,mesh,diag,diag_physics,diag_physics_noahmp,output_noahmp,sfc_input, &
-                          state,time_lev,itimestep)
+                          state,dt,time_lev,itimestep)
 
  call NoahmpDriverMain(mpas_noahmp)
 

@@ -64,7 +64,7 @@ use module_wrf_error
 
    CONTAINS
  
-      subroutine BEP(FRC_URB2D,UTYPE_URB2D,itimestep,dz8w,dt,u_phy,v_phy,      &
+      subroutine BEP(FRC_URB2D,UTYPE_URB2D,itimestep,xtime_s,dz8w,dt,u_phy,v_phy,      &
                       th_phy,rho,p_phy,swdown,glw,                    &
                       gmt,julday,xlong,xlat,                          &
                       declin_urb,cosz_urb2d,omg_urb2d,                &
@@ -141,6 +141,7 @@ use module_wrf_error
 !      integer nx,ny,nz              ! Number of points in the mesocsale grid
       real z(ims:ime,kms:kme,jms:jme)            ! Vertical coordinates
       REAL, INTENT(IN )::   DT      ! Time step
+      REAL, INTENT(IN )::   xtime_s      ! Time step
 !      real zr(ims:ime,jms:jme)                ! Solar zenith angle
 !      real deltar(ims:ime,jms:jme)            ! Declination of the sun
 !      real ah(ims:ime,jms:jme)                ! Hour angle
@@ -488,7 +489,8 @@ use module_wrf_error
          
          rs1D=swdown(ix,iy)
          rld1D=glw(ix,iy)
-         time_h=(itimestep*dt)/3600.+gmt
+         !time_h=(itimestep*dt)/3600.+gmt
+         time_h=xtime_s/3600.+gmt
 
          zr1D=acos(COSZ_URB2D(ix,iy))
          deltar1D=DECLIN_URB
