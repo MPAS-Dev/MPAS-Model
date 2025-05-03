@@ -245,6 +245,9 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: specZoneMaskCell
       real (kind=RKIND), dimension(:), pointer :: meshScalingRegionalCell
       real (kind=RKIND), dimension(:), pointer :: meshScalingRegionalEdge
+      real (kind=RKIND), dimension(:), pointer :: latCell
+      real (kind=RKIND), dimension(:), pointer :: lonCell
+      real (kind=RKIND), dimension(:,:,:), pointer :: coeffs_reconstruct
 #endif
 
 
@@ -403,6 +406,15 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'meshScalingRegionalEdge', meshScalingRegionalEdge)
       !$acc enter data copyin(meshScalingRegionalEdge)
+
+      call mpas_pool_get_array(mesh, 'latCell', latCell)
+      !$acc enter data copyin(latCell)
+
+      call mpas_pool_get_array(mesh, 'lonCell', lonCell)
+      !$acc enter data copyin(lonCell)
+
+      call mpas_pool_get_array(mesh, 'coeffs_reconstruct', coeffs_reconstruct)
+      !$acc enter data copyin(coeffs_reconstruct)
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -484,6 +496,9 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: specZoneMaskCell
       real (kind=RKIND), dimension(:), pointer :: meshScalingRegionalCell
       real (kind=RKIND), dimension(:), pointer :: meshScalingRegionalEdge
+      real (kind=RKIND), dimension(:), pointer :: latCell
+      real (kind=RKIND), dimension(:), pointer :: lonCell
+      real (kind=RKIND), dimension(:,:,:), pointer :: coeffs_reconstruct
 #endif
 
 
@@ -642,6 +657,15 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'meshScalingRegionalEdge', meshScalingRegionalEdge)
       !$acc exit data delete(meshScalingRegionalEdge)
+
+      call mpas_pool_get_array(mesh, 'latCell', latCell)
+      !$acc exit data delete(latCell)
+
+      call mpas_pool_get_array(mesh, 'lonCell', lonCell)
+      !$acc exit data delete(lonCell)
+
+      call mpas_pool_get_array(mesh, 'coeffs_reconstruct', coeffs_reconstruct)
+      !$acc exit data delete(coeffs_reconstruct)
 #endif
 
    end subroutine mpas_atm_dynamics_finalize
