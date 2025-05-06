@@ -176,6 +176,11 @@
                      description="The climatological monthly vegetation fraction dataset to use (case 7 only)"
                      possible_values="`MODIS' or `NCEP'"/>
 
+	        <nml_option name="config_lai_data"           type="character"     default_value="MODIS"
+                     units="-"
+                     description="The climatological monthly leaf area index dataset to use (case 7 only)"
+                     possible_values="`MODIS'"/>
+
                 <nml_option name="config_albedo_data"           type="character"     default_value="MODIS"
                      units="-"
                      description="The climatological monthly albedo dataset to use (case 7 only)"
@@ -432,6 +437,7 @@
                         <var name="shdmin" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="shdmax" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="albedo12m" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+			<var name="lai12m" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="soilcomp" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="soilcl1" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="soilcl2" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
@@ -537,6 +543,7 @@
                         <var name="shdmin"/>
                         <var name="shdmax"/>
                         <var name="albedo12m"/>
+                        <var name="lai12m"/>
                         <var name="soilcomp"/>
                         <var name="soilcl1"/>
                         <var name="soilcl2"/>
@@ -819,6 +826,9 @@
 
                 <var name="albedo12m" type="real" dimensions="nMonths nCells" units="unitless"
                      description="monthly-mean climatological surface albedo"/>
+
+	        <var name="lai12m" type="real" dimensions="nMonths nCells" units="unitless"
+                     description="monthly-mean climatological leaf area index"/>
 
                 <var name="isice_lu" type="integer" dimensions="" units="unitless" default_value="24"
                      description="Index category for snow/ice"/>

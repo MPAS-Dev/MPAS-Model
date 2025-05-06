@@ -39,8 +39,15 @@
 !defines alarm to update the surface boundary conditions:
  character(len=*), parameter:: sfcbdyAlarmID = 'sfcbdy'
 
-!defines alarm to update the background surface albedo and the greeness fraction:
+!defines alarm to update the background surface albedo:
+ character(len=*), parameter:: albedoAlarmID  = 'albedo'
+
+!defines alarm to update the background greeness fraction:
  character(len=*), parameter:: greenAlarmID  = 'green'
+
+!defines alarm to update the background leaf area index:
+ character(len=*), parameter:: laiAlarmID    = 'lai'
+
 
 !defines alarm to update the ozone path length,the trace gas path length,the total emissivity,
 !and the total absorptivity in the "CAM" long-wave radiation codes. The default time interval
@@ -149,10 +156,13 @@
 !local pointers:
  logical,pointer:: config_frac_seaice,        &
                    config_o3climatology,      &
-                   config_sfc_albedo,         &
                    config_sst_update,         &
                    config_sstdiurn_update,    &
                    config_deepsoiltemp_update
+
+ character(len=StrKIND),pointer:: config_albedo_update, &
+                                  config_lai_update,    &
+                                  config_greeness_update
 
  character(len=StrKIND),pointer:: config_convection_scheme, &
                                   config_radt_lw_scheme,    &
@@ -194,10 +204,13 @@
 
  call mpas_pool_get_config(domain%blocklist%configs,'config_frac_seaice'        ,config_frac_seaice        )
  call mpas_pool_get_config(domain%blocklist%configs,'config_o3climatology'      ,config_o3climatology      )
- call mpas_pool_get_config(domain%blocklist%configs,'config_sfc_albedo'         ,config_sfc_albedo         )
  call mpas_pool_get_config(domain%blocklist%configs,'config_sst_update'         ,config_sst_update         )
  call mpas_pool_get_config(domain%blocklist%configs,'config_sstdiurn_update'    ,config_sstdiurn_update    )
  call mpas_pool_get_config(domain%blocklist%configs,'config_deepsoiltemp_update',config_deepsoiltemp_update)
+
+ call mpas_pool_get_config(domain%blocklist%configs,'config_albedo_update'      ,config_albedo_update      )
+ call mpas_pool_get_config(domain%blocklist%configs,'config_lai_update'         ,config_lai_update         )
+ call mpas_pool_get_config(domain%blocklist%configs,'config_greeness_update'    ,config_greeness_update    )
 
 !update the current julian day and current year:
 
@@ -228,12 +241,28 @@
     call mpas_pool_get_subpool(block%structs,'diag_physics',diag_physics)
 
 
-    !update the background surface albedo and greeness of vegetation: interpolation of input
+    !update the background surface albedo: interpolation of input
+    !monthly values to current day:
+    if(mpas_is_alarm_ringing(clock,albedoAlarmID,ierr=ierr)) then
+       call mpas_reset_clock_alarm(clock,albedoAlarmID,ierr=ierr)
+       call mpas_log_write('--- time to update background surface albedo')
+       call physics_update_surface_alb(timeStamp,mesh,sfc_input)
+    endif
+
+    !update the background surface leaf area index: interpolation of input
+    !monthly values to current day:
+    if(mpas_is_alarm_ringing(clock,laiAlarmID,ierr=ierr)) then
+       call mpas_reset_clock_alarm(clock,laiAlarmID,ierr=ierr)
+       call mpas_log_write('--- time to update background leaf area index.')
+       call physics_update_surface_lai(timeStamp,mesh,sfc_input,diag_physics)
+    endif
+
+    !update the background surface greenness of vegetation: interpolation of input
     !monthly values to current day:
     if(mpas_is_alarm_ringing(clock,greenAlarmID,ierr=ierr)) then
        call mpas_reset_clock_alarm(clock,greenAlarmID,ierr=ierr)
-       call mpas_log_write('--- time to update background surface albedo, greeness fraction.')
-       call physics_update_surface(timeStamp,config_sfc_albedo,mesh,sfc_input)
+       call mpas_log_write('--- time to update background greenness fraction of vegetation')
+       call physics_update_surface_gvf(timeStamp,mesh,sfc_input)
     endif
 
     !update surface boundary conditions with input sea-surface temperatures and fractional
@@ -398,6 +427,8 @@
                                   config_radtsw_interval,   &
                                   config_bucket_update,     &
                                   config_camrad_abs_update, &
+                                  config_albedo_update,     &
+                                  config_lai_update,        &
                                   config_greeness_update
 
  logical,pointer:: config_sst_update
@@ -434,10 +465,13 @@
  call mpas_pool_get_config(configs,'config_radtsw_interval'  ,config_radtsw_interval  )
  call mpas_pool_get_config(configs,'config_bucket_update'    ,config_bucket_update    )
  call mpas_pool_get_config(configs,'config_camrad_abs_update',config_camrad_abs_update)
- call mpas_pool_get_config(configs,'config_greeness_update'  ,config_greeness_update  )
  call mpas_pool_get_config(configs,'config_sst_update'       ,config_sst_update       )
  call mpas_pool_get_config(configs,'config_frac_seaice'      ,config_frac_seaice      )
  call mpas_pool_get_config(configs,'config_microp_re'        ,config_microp_re        )
+
+ call mpas_pool_get_config(configs,'config_albedo_update'    ,config_albedo_update    )
+ call mpas_pool_get_config(configs,'config_lai_update'       ,config_lai_update       )
+ call mpas_pool_get_config(configs,'config_greeness_update'  ,config_greeness_update  )
 
  call mpas_pool_get_config(configs,'config_dt',config_dt)
 
@@ -546,12 +580,32 @@
 
  endif
 
-!set alarm for updating the background surface albedo and the greeness fraction:
- call mpas_set_timeInterval(alarmTimeStep,timeString=config_greeness_update,ierr=ierr)
- alarmStartTime = startTime
- call mpas_add_clock_alarm(clock,greenAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
+!set alarm for updating the background surface albedo:
+ if(trim(config_albedo_update) /= "none") then
+    call mpas_set_timeInterval(alarmTimeStep,timeString=config_albedo_update,ierr=ierr)
+    alarmStartTime = startTime
+    call mpas_add_clock_alarm(clock,albedoAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
     if(ierr /= 0) &
-       call physics_error_fatal('subroutine physics_init: error creating alarm greeness')
+       call physics_error_fatal('subroutine physics_init: error creating alarm albedo')
+ endif
+
+!set alarm for updating the background leaf area index:
+ if(trim(config_lai_update) /= "none") then
+    call mpas_set_timeInterval(alarmTimeStep,timeString=config_lai_update,ierr=ierr)
+    alarmStartTime = startTime
+    call mpas_add_clock_alarm(clock,laiAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
+    if(ierr /= 0) &
+       call physics_error_fatal('subroutine physics_init: error creating alarm lai')
+ endif
+
+!set alarm for updating the background greenness pf vegetation:
+ if(trim(config_greeness_update) /= "none") then
+    call mpas_set_timeInterval(alarmTimeStep,timeString=config_greeness_update,ierr=ierr)
+    alarmStartTime = startTime
+    call mpas_add_clock_alarm(clock,greenAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
+    if(ierr /= 0) &
+       call physics_error_fatal('subroutine physics_init: error creating alarm greenness')
+ endif
 
 !set alarm for updating the surface boundary conditions:
  if (config_sst_update) then

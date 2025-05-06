@@ -547,6 +547,18 @@
 			<var name="surface_pressure"/>
 
 #ifdef DO_PHYSICS
+			<var name="isltyp"/>
+			<var name="ivgtyp"/>
+			<var name="mminlu"/>
+			<var name="isice_lu"/>
+			<var name="iswater_lu"/>
+			<var name="landmask"/>
+			<var name="shdmin"/>
+			<var name="shdmax"/>
+			<var name="snoalb"/>
+			<var name="albedo12m"/>
+			<var name="greenfrac"/>
+			<var name="lai12m"/>
 			<var name="sfc_albbck"/>
 			<var name="skintemp"/>
 			<var name="snow"/>
@@ -821,6 +833,18 @@
 			<var name="rnwfablten"/>
 			<var name="rthratensw"/>
 			<var name="rthratenlw"/>
+			<var name="isltyp"/>
+			<var name="ivgtyp"/>
+			<var name="mminlu"/>
+			<var name="isice_lu"/>
+			<var name="iswater_lu"/>
+			<var name="landmask"/>
+			<var name="shdmin"/>
+			<var name="shdmax"/>
+			<var name="snoalb"/>
+			<var name="albedo12m"/>
+			<var name="greenfrac"/>
+			<var name="lai12m"/>
 			<var name="sfc_albbck"/>
 			<var name="skintemp"/>
 			<var name="snow"/>
@@ -2079,11 +2103,6 @@
                      description="logical for configuration of fractional sea-ice"
                      possible_values=".true. for sea-ice between 0 or 1; .false. for sea-ice equal to 0 or 1 (flag)."/>
 
-                <nml_option name="config_sfc_albedo" type="logical" default_value="true" in_defaults="false"
-                     units="-"
-                     description="logical for configuration of surface albedo"
-                     possible_values=".true. for climatologically varying surface albedo; .false. for fixed input data"/>
-
                 <nml_option name="config_sfc_snowalbedo" type="logical" default_value="true" in_defaults="false"
                      units="-"
                      description="logical for configuration of maximum surface albedo for snow"
@@ -2152,6 +2171,16 @@
                 <nml_option name="config_camrad_abs_update" type="character" default_value="06:00:00" in_defaults="false"
                      units="-"
                      description="time interval between updates of absorption/emission coefficients in CAM radiation"
+                     possible_values="`DD_HH:MM:SS' or `none'"/>
+
+	        <nml_option name="config_albedo_update" type="character" default_value="24:00:00" in_defaults="false"
+                     units="-"
+                     description="time interval between updates of greeness fraction"
+                     possible_values="`DD_HH:MM:SS' or `none'"/>
+
+	        <nml_option name="config_lai_update" type="character" default_value="24:00:00" in_defaults="false"
+                     units="-"
+                     description="time interval between updates of lai"
                      possible_values="`DD_HH:MM:SS' or `none'"/>
 
                 <nml_option name="config_greeness_update" type="character" default_value="24:00:00" in_defaults="false"
@@ -3465,6 +3494,9 @@
 
                 <var name="albedo12m" type="real" dimensions="nMonths nCells" units="unitless"
                      description="monthly-mean climatological surface albedo"/>
+
+		<var name="lai12m" type="real" dimensions="nMonths nCells" units="unitless"
+                     description="monthly-mean climatological leaf area index"/>
 
                 <var name="greenfrac" type="real" dimensions="nMonths nCells" units="unitless"
                      description="monthly-mean climatological greeness fraction"/>
