@@ -99,12 +99,9 @@ module mpas_atm_boundaries
         type (mpas_pool_type), pointer :: lbc
         real (kind=RKIND) :: dt
 
-        integer, pointer :: nCells_ptr
-        integer, pointer :: nEdges_ptr
-        integer, pointer :: nVertLevels_ptr
-        integer, pointer :: index_qv_ptr
-        integer, pointer :: nScalars_ptr
-        integer :: nCells, nEdges, nVertLevels, index_qv, nScalars
+        integer, pointer :: nCells
+        integer, pointer :: nEdges
+        integer, pointer :: index_qv
 
         real (kind=RKIND), dimension(:,:), pointer :: u
         real (kind=RKIND), dimension(:,:), pointer :: ru
@@ -132,7 +129,7 @@ module mpas_atm_boundaries
         type (MPAS_Time_Type) :: currTime
         type (MPAS_TimeInterval_Type) :: lbc_interval
         character(len=StrKIND) :: read_time
-        integer :: iEdge, iCell, k, j
+        integer :: iEdge
         integer :: cell1, cell2
 
 
@@ -170,7 +167,6 @@ module mpas_atm_boundaries
         ! Compute any derived fields from those that were read from the lbc_in stream
         !
         call mpas_pool_get_array(lbc, 'lbc_u', u, 2)
-        call mpas_pool_get_array(lbc, 'lbc_w', w, 2)
         call mpas_pool_get_array(lbc, 'lbc_ru', ru, 2)
         call mpas_pool_get_array(lbc, 'lbc_rho_edge', rho_edge, 2)
         call mpas_pool_get_array(lbc, 'lbc_theta', theta, 2)
@@ -180,81 +176,26 @@ module mpas_atm_boundaries
         call mpas_pool_get_array(lbc, 'lbc_scalars', scalars, 2)
 
         call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
-        call mpas_pool_get_dimension(mesh, 'nCells', nCells_ptr)
-        call mpas_pool_get_dimension(mesh, 'nEdges', nEdges_ptr)
-        call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels_ptr)
-        call mpas_pool_get_dimension(state, 'num_scalars', nScalars_ptr)
-        call mpas_pool_get_dimension(lbc, 'index_qv', index_qv_ptr)
+        call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+        call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
+        call mpas_pool_get_dimension(lbc, 'index_qv', index_qv)
         call mpas_pool_get_array(mesh, 'zz', zz)
 
-        MPAS_ACC_TIMER_START('mpas_atm_update_bdy_tend [ACC_data_xfer]')
-        if (.not. firstCall) then
-            call mpas_pool_get_array(lbc, 'lbc_u', lbc_tend_u, 1)
-            call mpas_pool_get_array(lbc, 'lbc_ru', lbc_tend_ru, 1)
-            call mpas_pool_get_array(lbc, 'lbc_rho_edge', lbc_tend_rho_edge, 1)
-            call mpas_pool_get_array(lbc, 'lbc_w', lbc_tend_w, 1)
-            call mpas_pool_get_array(lbc, 'lbc_theta', lbc_tend_theta, 1)
-            call mpas_pool_get_array(lbc, 'lbc_rtheta_m', lbc_tend_rtheta_m, 1)
-            call mpas_pool_get_array(lbc, 'lbc_rho_zz', lbc_tend_rho_zz, 1)
-            call mpas_pool_get_array(lbc, 'lbc_rho', lbc_tend_rho, 1)
-            call mpas_pool_get_array(lbc, 'lbc_scalars', lbc_tend_scalars, 1)        
-        end if
-        !$acc update device(u, w, theta, rho, scalars)
-        MPAS_ACC_TIMER_STOP('mpas_atm_update_bdy_tend [ACC_data_xfer]')
-
-        ! Dereference the pointers to avoid non-array pointer for OpenACC
-        nCells = nCells_ptr
-        nEdges = nEdges_ptr
-        nVertLevels = nVertLevels_ptr
-        nScalars = nScalars_ptr
-        index_qv = index_qv_ptr
-
         ! Compute lbc_rho_zz
-
-        !$acc kernels default(present)
         zz(:,nCells+1) = 1.0_RKIND          ! Avoid potential division by zero in the following line
-        !$acc end kernels
-
-        !$acc parallel default(present)
-        ! Compute lbc_rho_zz
-        !$acc loop gang vector collapse(2)
-        do iCell=1,nCells+1
-            do k=1,nVertLevels
-                rho_zz(k,iCell) = rho(k,iCell) / zz(k,iCell)
-            end do
-        end do
-        !$acc end parallel
+        rho_zz(:,:) = rho(:,:) / zz(:,:)
 
         ! Average lbc_rho_zz to edges
-        !$acc parallel default(present)
-        !$acc loop gang worker
         do iEdge=1,nEdges
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
             if (cell1 > 0 .and. cell2 > 0) then
-                !$acc loop vector
-                do k = 1, nVertLevels
-                    rho_edge(k,iEdge) = 0.5_RKIND * (rho_zz(k,cell1) + rho_zz(k,cell2))
-                end do
+                rho_edge(:,iEdge) = 0.5_RKIND * (rho_zz(:,cell1) + rho_zz(:,cell2))
             end if
         end do
-        !$acc end parallel
 
-        !$acc parallel default(present)
-        !$acc loop gang vector collapse(2)
-        do iEdge=1,nEdges+1
-            do k=1,nVertLevels
-                ru(k,iEdge) = u(k,iEdge) * rho_edge(k,iEdge)
-            end do
-        end do
-
-        !$acc loop gang vector collapse(2)
-        do iCell=1,nCells+1
-            do k=1,nVertLevels
-                rtheta_m(k,iCell) = theta(k,iCell) * rho_zz(k,iCell) * (1.0_RKIND + rvord * scalars(index_qv,k,iCell))
-            end do
-        end do
-        !$acc end parallel
+        ru(:,:) = u(:,:) * rho_edge(:,:)
+        rtheta_m(:,:) = theta(:,:) * rho_zz(:,:) * (1.0_RKIND + rvord * scalars(index_qv,:,:))
 
         if (.not. firstCall) then
             lbc_interval = currTime - LBC_intv_end
@@ -284,58 +225,15 @@ module mpas_atm_boundaries
 
 
             dt = 1.0_RKIND / dt
-
-            !$acc parallel default(present)
-            !$acc loop gang vector collapse(2)
-            do iEdge=1,nEdges+1
-                do k=1,nVertLevels
-                    lbc_tend_u(k,iEdge) = (u(k,iEdge) - lbc_tend_u(k,iEdge)) * dt
-                    lbc_tend_ru(k,iEdge) = (ru(k,iEdge) - lbc_tend_ru(k,iEdge)) * dt
-                end do
-            end do
-
-            !$acc loop gang vector collapse(2)
-             do iEdge=1,nEdges+1
-                 do k=1,nVertLevels
-                     lbc_tend_rho_edge(k,iEdge) = (rho_edge(k,iEdge) - lbc_tend_rho_edge(k,iEdge)) * dt
-                 end do
-             end do
-
-            !$acc loop gang vector collapse(2)
-            do iCell=1,nCells+1
-                do k=1,nVertLevels+1
-                    lbc_tend_w(k,iCell) = (w(k,iCell) - lbc_tend_w(k,iCell)) * dt
-                end do
-            end do
-
-            !$acc loop gang vector collapse(2)
-            do iCell=1,nCells+1
-                do k=1,nVertLevels
-                    lbc_tend_theta(k,iCell) = (theta(k,iCell) - lbc_tend_theta(k,iCell)) * dt
-                    lbc_tend_rtheta_m(k,iCell) = (rtheta_m(k,iCell) - lbc_tend_rtheta_m(k,iCell)) * dt
-                end do
-            end do
-
-            !$acc loop gang vector collapse(2)
-            do iCell=1,nCells+1
-                do k=1,nVertLevels
-                    lbc_tend_rho_zz(k,iCell) = (rho_zz(k,iCell) - lbc_tend_rho_zz(k,iCell)) * dt
-                    lbc_tend_rho(k,iCell) = (rho(k,iCell) - lbc_tend_rho(k,iCell)) * dt
-                end do
-            end do
-            !$acc end parallel
-
-            !$acc parallel default(present)
-            !$acc loop gang
-            do iCell=1,nCells+1
-                !$acc loop vector collapse(2)
-                do k=1,nVertLevels
-                    do j = 1,nScalars
-                    lbc_tend_scalars(j,k,iCell) = (scalars(j,k,iCell) - lbc_tend_scalars(j,k,iCell)) * dt
-                    end do
-                end do
-            end do
-            !$acc end parallel
+            lbc_tend_u(:,:) = (u(:,:) - lbc_tend_u(:,:)) * dt
+            lbc_tend_ru(:,:) = (ru(:,:) - lbc_tend_ru(:,:)) * dt
+            lbc_tend_rho_edge(:,:) = (rho_edge(:,:) - lbc_tend_rho_edge(:,:)) * dt
+            lbc_tend_w(:,:) = (w(:,:) - lbc_tend_w(:,:)) * dt
+            lbc_tend_theta(:,:) = (theta(:,:) - lbc_tend_theta(:,:)) * dt
+            lbc_tend_rtheta_m(:,:) = (rtheta_m(:,:) - lbc_tend_rtheta_m(:,:)) * dt
+            lbc_tend_rho_zz(:,:) = (rho_zz(:,:) - lbc_tend_rho_zz(:,:)) * dt
+            lbc_tend_rho(:,:) = (rho(:,:) - lbc_tend_rho(:,:)) * dt
+            lbc_tend_scalars(:,:,:) = (scalars(:,:,:) - lbc_tend_scalars(:,:,:)) * dt
 
             !
             ! Logging the lbc start and end times appears to be backwards, but
@@ -413,9 +311,16 @@ module mpas_atm_boundaries
         nullify(tend)
         call mpas_pool_get_array(lbc, 'lbc_'//trim(field), tend, 1)
         
-
         MPAS_ACC_TIMER_START('mpas_atm_get_bdy_tend [ACC_data_xfer]')
         !$acc enter data create(return_tend)
+        if (associated(tend)) then
+        else
+            call mpas_pool_get_array(lbc, 'lbc_scalars', tend_scalars, 1)
+
+            ! Ensure the integer pointed to by idx_ptr is copied to the gpu device
+            call mpas_pool_get_dimension(lbc, 'index_'//trim(field), idx_ptr)
+            idx = idx_ptr
+        end if
         MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_tend [ACC_data_xfer]')
 
         !$acc parallel default(present)
@@ -481,7 +386,6 @@ module mpas_atm_boundaries
         use mpas_pool_routines, only : mpas_pool_get_error_level, mpas_pool_set_error_level
         use mpas_derived_types, only : MPAS_POOL_SILENT
         use mpas_log, only : mpas_log_write
-
 
         implicit none
 

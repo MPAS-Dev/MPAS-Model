@@ -137,6 +137,7 @@ module mpas_atm_iau
       call mpas_pool_get_array(state, 'scalars', scalars, 1)
       call mpas_pool_get_array(state, 'rho_zz',   rho_zz, 2) 
       call mpas_pool_get_array(diag , 'rho_edge', rho_edge)
+      !$acc update self(theta_m, scalars, rho_zz, rho_edge)
       
       call mpas_pool_get_dimension(state, 'moist_start', moist_start)
       call mpas_pool_get_dimension(state, 'moist_end', moist_end)
@@ -149,6 +150,8 @@ module mpas_atm_iau
 !      call mpas_pool_get_array(tend, 'rho_zz',  tend_rho)
 !      call mpas_pool_get_array(tend, 'theta_m', tend_theta)
       call mpas_pool_get_array(tend, 'scalars_tend', tend_scalars)
+      !$acc update self(tend_scalars)
+
 
       call mpas_pool_get_array(tend_iau, 'theta',     theta_amb)
       call mpas_pool_get_array(tend_iau, 'rho',         rho_amb)
@@ -209,6 +212,7 @@ module mpas_atm_iau
             tend_rtheta(k,i) = tend_rtheta(k,i) + tend_th(k,i)
          enddo
       enddo
+
       
       deallocate(theta)
       deallocate(tend_th)

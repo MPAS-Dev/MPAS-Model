@@ -595,11 +595,13 @@
  call mpas_pool_get_array(state,'rho_zz' ,rho_zz ,time_lev)
  call mpas_pool_get_array(state,'theta_m',theta_m,time_lev)
  call mpas_pool_get_array(state,'w'      ,w      ,time_lev)
+ !$acc update host(exner, pressure_b, pressure_p, rho_zz, theta_m, w)
 
  call mpas_pool_get_dimension(state,'index_qv',index_qv)
  call mpas_pool_get_dimension(state,'index_qc',index_qc)
  call mpas_pool_get_dimension(state,'index_qr',index_qr)
  call mpas_pool_get_array(state,'scalars',scalars,time_lev)
+ !$acc update host(scalars)
  qv => scalars(index_qv,:,:)
  qc => scalars(index_qc,:,:)
  qr => scalars(index_qr,:,:)
@@ -831,7 +833,6 @@
  call mpas_pool_get_array(diag,'rtheta_p'        ,rtheta_p        )
  call mpas_pool_get_array(diag,'surface_pressure',surface_pressure)
  call mpas_pool_get_array(diag,'dtheta_dt_mp'    ,dtheta_dt_mp    )
-
  call mpas_pool_get_array(tend,'tend_sfc_pressure',tend_sfc_pressure)
 
  call mpas_pool_get_array(state,'rho_zz' ,rho_zz ,time_lev)
@@ -1038,6 +1039,10 @@
 
     case default
  end select mp_tend_select
+
+ !$acc update device(exner, exner_b, pressure_b, pressure_p, rtheta_b)
+ !$acc update device(rtheta_p, rho_zz, theta_m, scalars)
+ !$acc update device(rt_diabatic_tend)
 
  end subroutine microphysics_to_MPAS
 
