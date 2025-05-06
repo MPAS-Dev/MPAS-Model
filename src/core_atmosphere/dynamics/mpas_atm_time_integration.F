@@ -1155,9 +1155,9 @@ module atm_time_integration
                allocate(rho_driving_values(nVertLevels,nCells+1))
 
                time_dyn_step = dt_dynamics*real(dynamics_substep-1) + rk_timestep(rk_step)
-               ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nEdges, 'ru', time_dyn_step )
-               rt_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rtheta_m', time_dyn_step )
-               rho_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rho_zz', time_dyn_step )
+               call mpas_atm_get_bdy_state(clock, block, nVertLevels, nEdges, 'ru', time_dyn_step, ru_driving_values)
+               call mpas_atm_get_bdy_state(clock, block, nVertLevels, nCells, 'rtheta_m', time_dyn_step, rt_driving_values)
+               call mpas_atm_get_bdy_state(clock, block, nVertLevels, nCells, 'rho_zz', time_dyn_step, rho_driving_values)
 
                call mpas_timer_start('atm_bdy_adjust_dynamics_relaxzone_tend')
 !$OMP PARALLEL DO
@@ -1261,7 +1261,7 @@ module atm_time_integration
 
                time_dyn_step = dt_dynamics*real(dynamics_substep-1) + rk_timestep(rk_step)
 
-               ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nEdges, 'u', time_dyn_step )
+               call mpas_atm_get_bdy_state(clock, block, nVertLevels, nEdges, 'u', time_dyn_step, ru_driving_values)
                ! do this inline at present - it is simple enough
                do iEdge = 1, nEdgesSolve
                   if(bdyMaskEdge(iEdge) > nRelaxZone) then
@@ -1271,7 +1271,7 @@ module atm_time_integration
                   end if
                end do
 
-               ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nEdges, 'ru', time_dyn_step )
+               call mpas_atm_get_bdy_state(clock, block, nVertLevels, nEdges, 'ru', time_dyn_step, ru_driving_values)
                call mpas_pool_get_array(diag, 'ru', u)
                ! do this inline at present - it is simple enough
                do iEdge = 1, nEdges
@@ -1312,8 +1312,8 @@ module atm_time_integration
                   !
                   ! get the scalar values driving the regional boundary conditions
                   !
-                  scalars_driving(:,:,:) = mpas_atm_get_bdy_state(clock, block, num_scalars, nVertLevels, nCells, &
-                                                                  'scalars', rk_timestep(rk_step))
+                  call mpas_atm_get_bdy_state(clock, block, num_scalars, nVertLevels, nCells, &
+                                              'scalars', rk_timestep(rk_step), scalars_driving)
 
                   !$OMP PARALLEL DO
                   do thread=1,nThreads
@@ -1458,8 +1458,8 @@ module atm_time_integration
                !
                ! get the scalar values driving the regional boundary conditions
                !
-               scalars_driving(:,:,:) = mpas_atm_get_bdy_state(clock, block, num_scalars, nVertLevels, nCells, &
-                                                               'scalars', rk_timestep(rk_step))
+               call mpas_atm_get_bdy_state(clock, block, num_scalars, nVertLevels, nCells, &
+                                           'scalars', rk_timestep(rk_step), scalars_driving)
 
 !$OMP PARALLEL DO
                do thread=1,nThreads
@@ -1570,8 +1570,8 @@ module atm_time_integration
         allocate(rho_driving_values(nVertLevels,nCells+1))
         time_dyn_step = dt  ! end of full timestep values
 
-        rt_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rtheta_m', time_dyn_step )
-        rho_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rho_zz', time_dyn_step )
+        call mpas_atm_get_bdy_state(clock, block, nVertLevels, nCells, 'rtheta_m', time_dyn_step, rt_driving_values)
+        call mpas_atm_get_bdy_state(clock, block, nVertLevels, nCells, 'rho_zz', time_dyn_step, rho_driving_values)
 
 !$OMP PARALLEL DO
         do thread=1,nThreads
@@ -1597,7 +1597,7 @@ module atm_time_integration
          !
          ! get the scalar values driving the regional boundary conditions
          !
-         scalars_driving(:,:,:) = mpas_atm_get_bdy_state(clock, block, num_scalars, nVertLevels, nCells, 'scalars', dt)
+         call mpas_atm_get_bdy_state(clock, block, num_scalars, nVertLevels, nCells, 'scalars', dt, scalars_driving)
 
 !$OMP PARALLEL DO
          do thread=1,nThreads
