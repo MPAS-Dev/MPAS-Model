@@ -1271,25 +1271,40 @@ module atm_time_integration
                time_dyn_step = dt_dynamics*real(dynamics_substep-1) + rk_timestep(rk_step)
 
                call mpas_atm_get_bdy_state(clock, block, nVertLevels, nEdges, 'u', time_dyn_step, ru_driving_values)
+
                ! do this inline at present - it is simple enough
+               !$acc enter data copyin(u, ru_driving_values)
+               !$acc parallel default(present)
+               !$acc loop gang worker
                do iEdge = 1, nEdgesSolve
                   if(bdyMaskEdge(iEdge) > nRelaxZone) then
+                     !$acc loop vector
                      do k = 1, nVertLevels
                         u(k,iEdge) = ru_driving_values(k,iEdge)
                      end do
                   end if
                end do
+               !$acc end parallel
+               !$acc exit data copyout(u)
+               !$acc exit data delete(ru_driving_values)
 
                call mpas_atm_get_bdy_state(clock, block, nVertLevels, nEdges, 'ru', time_dyn_step, ru_driving_values)
                call mpas_pool_get_array(diag, 'ru', u)
                ! do this inline at present - it is simple enough
+               !$acc enter data copyin(u, ru_driving_values)
+               !$acc parallel default(present)
+               !$acc loop gang worker
                do iEdge = 1, nEdges
                   if(bdyMaskEdge(iEdge) > nRelaxZone) then
+                     !$acc loop vector
                      do k = 1, nVertLevels
                         u(k,iEdge) = ru_driving_values(k,iEdge)
                      end do
                   end if
                end do
+               !$acc end parallel
+               !$acc exit data copyout(u)
+               !$acc exit data delete(ru_driving_values)
                
                deallocate(ru_driving_values)
 
