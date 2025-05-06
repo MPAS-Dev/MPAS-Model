@@ -133,9 +133,7 @@
  call mpas_pool_get_array(diag ,'rho_edge',mass_edge)
  call mpas_pool_get_array(diag ,'tend_u_phys',tend_u_phys)
 
- !$acc update self(theta_m, scalars, mass, mass_edge)
- !! $acc             tend_ru_physics,tend_rtheta_physics,tend_rho_physics)
- 
+ !$acc update self(theta_m, scalars, mass, mass_edge) 
  call mpas_pool_get_dimension(state,'index_qv',index_qv)
  call mpas_pool_get_dimension(state,'index_qc',index_qc)
  call mpas_pool_get_dimension(state,'index_qr',index_qr)
@@ -174,7 +172,6 @@
 
  call mpas_pool_get_array(tend,'scalars_tend',tend_scalars)
 !$acc update self(tend_scalars) ! Probably not needed
-
 
 
 !initialize the tendency for the potential temperature and all scalars due to PBL, convection,
@@ -225,9 +222,6 @@
               exchange_halo_group)
 
 !$acc update device(tend_scalars)
-
-!!$acc update device(tend_ru_physics,tend_rtheta_physics,tend_rho_physics)
-
 !clean up any pointers that were allocated with zero size before the call to physics_get_tend_work:
  if(size(rucuten) == 0 ) deallocate(rucuten )
  if(size(rvcuten) == 0 ) deallocate(rvcuten )

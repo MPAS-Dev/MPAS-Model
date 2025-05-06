@@ -1039,7 +1039,6 @@
 
     case default
  end select mp_tend_select
-
  !$acc update device(exner, exner_b, pressure_b, pressure_p, rtheta_b)
  !$acc update device(rtheta_p, rho_zz, theta_m, scalars)
  !$acc update device(rt_diabatic_tend)
