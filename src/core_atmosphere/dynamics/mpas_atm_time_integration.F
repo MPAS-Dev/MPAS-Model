@@ -79,9 +79,14 @@ module atm_time_integration
    real (kind=RKIND), dimension(:,:), allocatable :: rho_zz_int
 
    real (kind=RKIND), dimension(:,:,:), allocatable :: scalars_driving ! regional_MPAS addition 
+
    real (kind=RKIND), dimension(:,:), allocatable :: ru_driving_tend ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: rt_driving_tend ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: rho_driving_tend ! regional_MPAS addition 
+   !$acc declare create(ru_driving_tend)
+   !$acc declare create(rt_driving_tend)
+   !$acc declare create(rho_driving_tend)
+
    real (kind=RKIND), dimension(:,:), allocatable :: ru_driving_values ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: rt_driving_values ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: rho_driving_values ! regional_MPAS addition 
@@ -6849,9 +6854,7 @@ module atm_time_integration
 
       MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
       !$acc enter data copyin(tend_ru,tend_rho,tend_rt,tend_rw, &
-      !$acc                   rt_diabatic_tend) &
-      !$acc            copyin(rho_driving_tend,rt_driving_tend, &
-      !$acc                   ru_driving_tend)
+      !$acc                   rt_diabatic_tend)
       MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
 
       !$acc parallel default(present)
@@ -6883,9 +6886,7 @@ module atm_time_integration
 
       MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
       !$acc exit data copyout(tend_ru,tend_rho,tend_rt, &
-      !$acc                   tend_rw,rt_diabatic_tend) &
-      !$acc            delete(rho_driving_tend,rt_driving_tend, &
-      !$acc                   ru_driving_tend)
+      !$acc                   tend_rw,rt_diabatic_tend)
       MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
       
     end subroutine atm_bdy_adjust_dynamics_speczone_tend
