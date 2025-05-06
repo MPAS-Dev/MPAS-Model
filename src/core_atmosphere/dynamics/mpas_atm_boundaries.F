@@ -452,8 +452,7 @@ module mpas_atm_boundaries
         !
         if (associated(tend) .and. associated(state)) then
             MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
-            !$acc enter data create(return_state) &
-            !$acc            copyin(tend, state)
+            !$acc enter data copyin(tend, state)
             MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
 
             !$acc parallel default(present)
@@ -466,8 +465,7 @@ module mpas_atm_boundaries
             !$acc end parallel
 
             MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
-            !$acc exit data copyout(return_state) &
-            !$acc           delete(tend, state)
+            !$acc exit data delete(tend, state)
             MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
         else
             call mpas_pool_get_array(lbc, 'lbc_scalars', tend_scalars, 1)
@@ -477,8 +475,7 @@ module mpas_atm_boundaries
             idx=idx_ptr ! Avoid non-array pointer for OpenACC
 
             MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
-            !$acc enter data create(return_state) &
-            !$acc            copyin(tend_scalars, state_scalars)
+            !$acc enter data copyin(tend_scalars, state_scalars)
             MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
 
             !$acc parallel default(present)
@@ -491,8 +488,7 @@ module mpas_atm_boundaries
             !$acc end parallel
 
             MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
-            !$acc exit data copyout(return_state) &
-            !$acc           delete(tend_scalars, state_scalars)
+            !$acc exit data delete(tend_scalars, state_scalars)
             MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
         end if
 
@@ -575,8 +571,7 @@ module mpas_atm_boundaries
         call mpas_pool_get_array(lbc, 'lbc_'//trim(field), state, 2)
 
         MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_3d [ACC_data_xfer]')
-        !$acc enter data create(return_state) &
-        !$acc            copyin(tend, state)
+        !$acc enter data copyin(tend, state)
         MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_3d [ACC_data_xfer]')
 
         !$acc parallel default(present)
@@ -591,8 +586,7 @@ module mpas_atm_boundaries
         !$acc end parallel
 
         MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_3d [ACC_data_xfer]')
-        !$acc exit data copyout(return_state) &
-        !$acc           delete(tend, state)
+        !$acc exit data delete(tend, state)
         MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_3d [ACC_data_xfer]')
 
     end subroutine mpas_atm_get_bdy_state_3d

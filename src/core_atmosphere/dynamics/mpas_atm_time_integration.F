@@ -78,13 +78,19 @@ module atm_time_integration
    real (kind=RKIND), dimension(:,:), allocatable :: wdtn_arr
    real (kind=RKIND), dimension(:,:), allocatable :: rho_zz_int
 
-   real (kind=RKIND), dimension(:,:,:), allocatable :: scalars_driving ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: ru_driving_tend ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: rt_driving_tend ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: rho_driving_tend ! regional_MPAS addition 
+
+   real (kind=RKIND), dimension(:,:,:), allocatable :: scalars_driving ! regional_MPAS addition
    real (kind=RKIND), dimension(:,:), allocatable :: ru_driving_values ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: rt_driving_values ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: rho_driving_values ! regional_MPAS addition 
+   !$acc declare create(scalars_driving)
+   !$acc declare create(ru_driving_values)
+   !$acc declare create(rt_driving_values)
+   !$acc declare create(rho_driving_values)
+
    integer, dimension(:), pointer :: bdyMaskEdge ! regional_MPAS addition
    logical, pointer :: config_apply_lbcs
    
@@ -1273,7 +1279,7 @@ module atm_time_integration
                call mpas_atm_get_bdy_state(clock, block, nVertLevels, nEdges, 'u', time_dyn_step, ru_driving_values)
 
                ! do this inline at present - it is simple enough
-               !$acc enter data copyin(u, ru_driving_values)
+               !$acc enter data copyin(u)
                !$acc parallel default(present)
                !$acc loop gang worker
                do iEdge = 1, nEdgesSolve
@@ -1286,12 +1292,11 @@ module atm_time_integration
                end do
                !$acc end parallel
                !$acc exit data copyout(u)
-               !$acc exit data delete(ru_driving_values)
 
                call mpas_atm_get_bdy_state(clock, block, nVertLevels, nEdges, 'ru', time_dyn_step, ru_driving_values)
                call mpas_pool_get_array(diag, 'ru', u)
                ! do this inline at present - it is simple enough
-               !$acc enter data copyin(u, ru_driving_values)
+               !$acc enter data copyin(u)
                !$acc parallel default(present)
                !$acc loop gang worker
                do iEdge = 1, nEdges
@@ -1304,8 +1309,7 @@ module atm_time_integration
                end do
                !$acc end parallel
                !$acc exit data copyout(u)
-               !$acc exit data delete(ru_driving_values)
-               
+
                deallocate(ru_driving_values)
 
             end if  ! regional_MPAS addition
@@ -6997,8 +7001,7 @@ module atm_time_integration
       vertexDegree = vertexDegree_ptr
 
       MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
-      !$acc enter data copyin(tend_rho, tend_rt, rho_zz, theta_m, rho_driving_values, &
-      !$acc                   rt_driving_values, tend_ru, ru, ru_driving_values)
+      !$acc enter data copyin(tend_rho, tend_rt, rho_zz, theta_m, tend_ru, ru)
       !$acc enter data create(divergence1, divergence2, vorticity1, vorticity2)
       MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
       
@@ -7147,8 +7150,8 @@ module atm_time_integration
 
        MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
       !$acc exit data copyout(tend_rho, tend_rt, tend_ru)
-      !$acc exit data delete(rho_zz, theta_m, ru, rho_driving_values, rt_driving_values, &
-      !$acc            ru_driving_values, divergence1, divergence2, vorticity1, vorticity2)
+      !$acc exit data delete(rho_zz, theta_m, ru, &
+      !$acc            divergence1, divergence2, vorticity1, vorticity2)
       MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
        
    end subroutine atm_bdy_adjust_dynamics_relaxzone_tend
@@ -7185,8 +7188,7 @@ module atm_time_integration
       call mpas_pool_get_array(diag, 'rtheta_base', rtheta_base)
 
       MPAS_ACC_TIMER_START('atm_bdy_reset_speczone_values [ACC_data_xfer]')
-      !$acc enter data copyin(rt_driving_values, rho_driving_values, rtheta_base, &
-      !$acc                   theta_m, rtheta_p)
+      !$acc enter data copyin(rtheta_base, theta_m, rtheta_p)
       MPAS_ACC_TIMER_STOP('atm_bdy_reset_speczone_values [ACC_data_xfer]')
       
       !$acc parallel default(present)
@@ -7204,7 +7206,7 @@ module atm_time_integration
 
       MPAS_ACC_TIMER_START('atm_bdy_reset_speczone_values [ACC_data_xfer]')
       !$acc exit data copyout(theta_m, rtheta_p) &
-      !$acc            delete(rt_driving_values, rho_driving_values, rtheta_base)
+      !$acc            delete(rtheta_base)
       MPAS_ACC_TIMER_STOP('atm_bdy_reset_speczone_values [ACC_data_xfer]')
 
    end subroutine atm_bdy_reset_speczone_values
@@ -7297,7 +7299,7 @@ module atm_time_integration
       !---
       MPAS_ACC_TIMER_START('atm_bdy_adjust_scalars [ACC_data_xfer]')
       !$acc enter data create(scalars_tmp) &
-      !$acc            copyin(scalars_driving, scalars_new)
+      !$acc            copyin(scalars_new)
       MPAS_ACC_TIMER_STOP('atm_bdy_adjust_scalars [ACC_data_xfer]')
 
       !$acc parallel default(present)
@@ -7381,7 +7383,7 @@ module atm_time_integration
       !$acc end parallel
 
       MPAS_ACC_TIMER_START('atm_bdy_adjust_scalars [ACC_data_xfer]')
-      !$acc exit data delete(scalars_tmp, scalars_driving) &
+      !$acc exit data delete(scalars_tmp) &
       !$acc           copyout(scalars_new)
       MPAS_ACC_TIMER_STOP('atm_bdy_adjust_scalars [ACC_data_xfer]')
 
@@ -7454,7 +7456,7 @@ module atm_time_integration
       !---
 
       MPAS_ACC_TIMER_START('atm_bdy_set_scalars_work [ACC_data_xfer]')
-      !$acc enter data copyin(scalars_new, scalars_driving)
+      !$acc enter data copyin(scalars_new)
       MPAS_ACC_TIMER_STOP('atm_bdy_set_scalars_work [ACC_data_xfer]')
 
       !$acc parallel default(present)
@@ -7480,7 +7482,6 @@ module atm_time_integration
 
       MPAS_ACC_TIMER_START('atm_bdy_set_scalars_work [ACC_data_xfer]')
       !$acc exit data copyout(scalars_new)
-      !$acc exit data delete(scalars_driving)
       MPAS_ACC_TIMER_STOP('atm_bdy_set_scalars_work [ACC_data_xfer]')
             
    end subroutine atm_bdy_set_scalars_work
