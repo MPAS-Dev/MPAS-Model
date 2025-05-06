@@ -786,7 +786,9 @@ module atm_time_integration
       character (len=StrKIND), pointer :: config_microp_scheme
       character (len=StrKIND), pointer :: config_convection_scheme
 
-      integer, pointer :: num_scalars, index_qv, nCells, nCellsSolve, nEdges, nEdgesSolve, nVertices, nVerticesSolve, nVertLevels
+      integer, pointer :: num_scalars, index_qv, nCells, nCellsSolve, nVertices, nVerticesSolve
+      integer, pointer :: nEdges_ptr, nEdgesSolve_ptr, nVertLevels_ptr
+      integer :: nEdges, nEdgesSolve, nVertLevels
 
       character(len=StrKIND), pointer :: config_IAU_option
 
@@ -851,13 +853,20 @@ module atm_time_integration
       !
       call mpas_pool_get_dimension(mesh, 'nCells', nCells)
       call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
-      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
+      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges_ptr)
       call mpas_pool_get_dimension(mesh, 'nVertices', nVertices)
-      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels_ptr)
 
       !call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
-      call mpas_pool_get_dimension(mesh, 'nEdgesSolve', nEdgesSolve)
+      call mpas_pool_get_dimension(mesh, 'nEdgesSolve', nEdgesSolve_ptr)
       !call mpas_pool_get_dimension(mesh, 'nVerticesSolve', nVerticesSolve)
+
+      ! For OpenACC parallel regions, use regular scalar integers for loop
+      ! bounds rather than pointers to integers, as the former are implicitly
+      ! copied to the device
+      nEdges = nEdges_ptr
+      nEdgesSolve = nEdgesSolve_ptr
+      nVertLevels = nVertLevels_ptr
 
       call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
 
