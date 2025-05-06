@@ -258,11 +258,11 @@ module mpas_atm_boundaries
     !
     !  routine mpas_atm_get_bdy_tend
     !
-    !> \brief   Returns LBC tendencies a specified delta-t in the future
+    !> \brief   Provide LBC tendencies a specified delta-t in the future
     !> \author  Michael Duda
     !> \date    28 September 2016
     !> \details 
-    !>  This function returns an array providing the tendency for the requested
+    !>  This subroutine returns an array with the tendency for the requested
     !>  progostic variable delta_t in the future from the current time known
     !>  by the simulation clock (which is typically the time at the start of
     !>  the current timestep).
@@ -270,7 +270,7 @@ module mpas_atm_boundaries
     !>  The vertDim and horizDim should match the nominal block dimensions of
     !>  the field to be returned by the call; for example, a call to retrieve
     !>  the tendency for the 'u' field would set vertDim=nVertLevels and 
-    !>  horizDim=nEdges. This function internally adds 1 to the horizontal
+    !>  horizDim=nEdges. This routine internally adds 1 to the horizontal
     !>  dimension to account for the "garbage" element.
     !>
     !>  The field is identified by the 'field' argument, and this argument is
@@ -278,16 +278,16 @@ module mpas_atm_boundaries
     !>  the 'lbc' pool. For scalars, the field argument should give the name 
     !>  of the constituent, e.g., 'qv'.
     !>
-    !>  Example calls to this function:
+    !>  Example calls to this subroutine:
     !>  
-    !>   tend_u(:,:) = mpas_atm_get_bdy_tend(clock, domain % blocklist, nVertLevels, nEdges, 'u', 0.0_RKIND)
-    !>   tend_w(:,:) = mpas_atm_get_bdy_tend(clock, domain % blocklist, nVertLevels+1, nCells, 'w', 0.0_RKIND)
-    !>   tend_rho_zz(:,:) = mpas_atm_get_bdy_tend(clock, domain % blocklist, nVertLevels, nCells, 'rho_zz', 0.0_RKIND)
-    !>   tend_theta(:,:) = mpas_atm_get_bdy_tend(clock, domain % blocklist, nVertLevels, nCells, 'theta', 0.0_RKIND)
-    !>   tend_scalars(1,:,:) = mpas_atm_get_bdy_tend(clock, domain % blocklist, nVertLevels, nCells, 'qv', 0.0_RKIND)
+    !>   call mpas_atm_get_bdy_tend(clock, domain % blocklist, nVertLevels, nEdges, 'u', 0.0_RKIND, tend_u)
+    !>   call mpas_atm_get_bdy_tend(clock, domain % blocklist, nVertLevels+1, nCells, 'w', 0.0_RKIND, tend_w)
+    !>   call mpas_atm_get_bdy_tend(clock, domain % blocklist, nVertLevels, nCells, 'rho_zz', 0.0_RKIND, tend_rho_zz)
+    !>   call mpas_atm_get_bdy_tend(clock, domain % blocklist, nVertLevels, nCells, 'theta', 0.0_RKIND, tend_theta)
+    !>   call mpas_atm_get_bdy_tend(clock, domain % blocklist, nVertLevels, nCells, 'qv', 0.0_RKIND, tend_qv)
     !
     !-----------------------------------------------------------------------
-    function mpas_atm_get_bdy_tend(clock, block, vertDim, horizDim, field, delta_t) result(return_tend)
+    subroutine mpas_atm_get_bdy_tend(clock, block, vertDim, horizDim, field, delta_t, return_tend)
 
         implicit none
 
@@ -296,8 +296,7 @@ module mpas_atm_boundaries
         integer, intent(in) :: vertDim, horizDim
         character(len=*), intent(in) :: field
         real (kind=RKIND), intent(in) :: delta_t
-
-        real (kind=RKIND), dimension(vertDim,horizDim+1) :: return_tend
+        real (kind=RKIND), dimension(vertDim,horizDim+1), intent(out) :: return_tend
 
         type (mpas_pool_type), pointer :: lbc
         integer, pointer :: idx_ptr
@@ -352,7 +351,7 @@ module mpas_atm_boundaries
         end if
         MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_tend [ACC_data_xfer]')
 
-    end function mpas_atm_get_bdy_tend
+    end subroutine mpas_atm_get_bdy_tend
 
 
     !***********************************************************************
