@@ -7265,6 +7265,7 @@ module atm_time_integration
        real (kind=RKIND), dimension(5) :: localVals, globalVals
 
        real (kind=RKIND), dimension(:,:), allocatable :: spd
+       !$acc declare create(spd)
        real (kind=RKIND), dimension(:,:), pointer :: w
        real (kind=RKIND), dimension(:,:), pointer :: u, v, uReconstructZonal, uReconstructMeridional, uReconstructX, uReconstructY, uReconstructZ
        real (kind=RKIND), dimension(:,:,:), pointer :: scalars, scalars_1, scalars_2
@@ -7290,6 +7291,17 @@ module atm_time_integration
       nVertLevels = nVertLevels_ptr
       num_scalars = num_scalars_ptr
 
+      MPAS_ACC_TIMER_START('summarize_timestep [ACC_data_xfer]')
+      if (config_print_detailed_minmax_vel) then
+         !$acc enter data copyin(w,u,v)
+      else if (config_print_global_minmax_vel) then
+         !$acc enter data copyin(w,u)
+      end if
+      if (config_print_global_minmax_sca) then
+         !$acc enter data copyin(scalars)
+      end if
+      MPAS_ACC_TIMER_STOP('summarize_timestep [ACC_data_xfer]')
+
       if (config_print_detailed_minmax_vel) then
          call mpas_log_write('')
 
@@ -7309,14 +7321,19 @@ module atm_time_integration
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:scalar_min)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
             scalar_min = min(scalar_min, w(k,iCell))
          end do
          end do
+         !$acc end parallel
 
          ! This second loop using offset_1d ensures the same (kMax,indexMax) are reported with the scalar_min
          ! Especially when using OpenACC
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:offset_1d)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
             if (w(k,iCell) == scalar_min) then
@@ -7325,6 +7342,7 @@ module atm_time_integration
             end if
          end do
          end do
+         !$acc end parallel
          kMax = mod(offset_1d, size(w,1)) + 1
          indexMax = (offset_1d / size(w,1)) + 1 ! Integer divide
          latMax = latCell(indexMax)
@@ -7355,12 +7373,17 @@ module atm_time_integration
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(max:scalar_max)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
             scalar_max = max(scalar_max, w(k,iCell))
          end do
          end do
+         !$acc end parallel
 
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:offset_1d)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
             if (w(k,iCell) == scalar_max) then
@@ -7368,6 +7391,7 @@ module atm_time_integration
             end if
          end do
          end do
+         !$acc end parallel
          kMax = mod(offset_1d, size(w,1)) + 1
          indexMax = (offset_1d / size(w,1)) + 1
          latMax = latCell(indexMax)
@@ -7398,12 +7422,17 @@ module atm_time_integration
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:scalar_min)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             scalar_min = min(scalar_min, u(k,iEdge))
          end do
          end do
+         !$acc end parallel
 
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:offset_1d)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             if (u(k,iEdge) == scalar_min) then
@@ -7411,6 +7440,7 @@ module atm_time_integration
             end if
          end do
          end do
+         !$acc end parallel
          kMax = mod(offset_1d, size(u,1)) + 1
          indexMax = (offset_1d / size(u,1)) + 1
          latMax = latEdge(indexMax)
@@ -7441,12 +7471,17 @@ module atm_time_integration
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(max:scalar_max)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             scalar_max = max(scalar_max, u(k,iEdge))
          end do
          end do
+         !$acc end parallel
 
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:offset_1d)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             if (u(k,iEdge) == scalar_max) then
@@ -7454,6 +7489,7 @@ module atm_time_integration
             end if
          end do
          end do
+         !$acc end parallel
          kMax = mod(offset_1d, size(u,1)) + 1
          indexMax = (offset_1d / size(u,1)) + 1
          latMax = latEdge(indexMax)
@@ -7484,13 +7520,18 @@ module atm_time_integration
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(max:scalar_max)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             spd(k,iEdge) = sqrt(u(k,iEdge)*u(k,iEdge) + v(k,iEdge)*v(k,iEdge))
             scalar_max = max(scalar_max, spd(k,iEdge))
          end do
          end do
+         !$acc end parallel
 
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:offset_1d)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             if (spd(k,iEdge) == scalar_max) then
@@ -7498,6 +7539,7 @@ module atm_time_integration
             end if
          end do
          end do
+         !$acc end parallel
          kMax = mod(offset_1d, size(spd,1)) + 1
          indexMax = (offset_1d / size(spd,1)) + 1
          latMax = latEdge(indexMax)
@@ -7527,6 +7569,8 @@ module atm_time_integration
          !
          found_NaN = .false.
 
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(.or.:found_NaN)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
             if (ieee_is_nan(w(k,iCell))) then
@@ -7534,12 +7578,15 @@ module atm_time_integration
             end if
          end do
          end do
+         !$acc end parallel
          if (found_NaN) then
             call mpas_log_write('NaN detected in ''w'' field.', messageType=MPAS_LOG_CRIT)
          end if
 
          found_NaN = .false.
 
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(.or.:found_NaN)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             if (ieee_is_nan(u(k,iEdge))) then
@@ -7547,6 +7594,7 @@ module atm_time_integration
             end if
          end do
          end do
+         !$acc end parallel
          if (found_NaN) then
             call mpas_log_write('NaN detected in ''u'' field.', messageType=MPAS_LOG_CRIT)
          end if
@@ -7558,24 +7606,30 @@ module atm_time_integration
 
          scalar_min = 0.0
          scalar_max = 0.0
+         !$acc parallel default(present)
+         !$acc loop gang vector collapse(2) reduction(min:scalar_min) reduction(max:scalar_max)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
             scalar_min = min(scalar_min, w(k,iCell))
             scalar_max = max(scalar_max, w(k,iCell))
          end do
          end do
+         !$acc end parallel
          call mpas_dmpar_min_real(domain % dminfo, scalar_min, global_scalar_min)
          call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
          call mpas_log_write('global min, max w $r $r', realArgs=(/global_scalar_min, global_scalar_max/))
 
          scalar_min = 0.0
          scalar_max = 0.0
+         !$acc parallel default(present)
+         !$acc loop gang vector collapse(2) reduction(min:scalar_min) reduction(max:scalar_max)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             scalar_min = min(scalar_min, u(k,iEdge))
             scalar_max = max(scalar_max, u(k,iEdge))
          end do
          end do
+         !$acc end parallel
          call mpas_dmpar_min_real(domain % dminfo, scalar_min, global_scalar_min)
          call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
          call mpas_log_write('global min, max u $r $r', realArgs=(/global_scalar_min, global_scalar_max/))
@@ -7589,17 +7643,32 @@ module atm_time_integration
          do iScalar = 1, num_scalars
             scalar_min = 0.0
             scalar_max = 0.0
+            !$acc parallel default(present)
+            !$acc loop gang vector collapse(2) reduction(min:scalar_min) reduction(max:scalar_max)
             do iCell = 1, nCellsSolve
             do k = 1, nVertLevels
                scalar_min = min(scalar_min, scalars(iScalar,k,iCell))
                scalar_max = max(scalar_max, scalars(iScalar,k,iCell))
             end do
             end do
+            !$acc end parallel
             call mpas_dmpar_min_real(domain % dminfo, scalar_min, global_scalar_min)
             call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
             call mpas_log_write(' global min, max scalar $i $r $r', intArgs=(/iScalar/), realArgs=(/global_scalar_min, global_scalar_max/))
          end do
+
       end if
+
+      MPAS_ACC_TIMER_START('summarize_timestep [ACC_data_xfer]')
+      if (config_print_detailed_minmax_vel) then
+         !$acc exit data delete(w,u,v)
+      else if (config_print_global_minmax_vel) then
+         !$acc exit data delete(w,u)
+      end if
+      if (config_print_global_minmax_sca) then
+         !$acc exit data delete(scalars)
+      end if
+      MPAS_ACC_TIMER_STOP('summarize_timestep [ACC_data_xfer]')
 
    end subroutine summarize_timestep
 
