@@ -7242,7 +7242,8 @@ module atm_time_integration
        logical, pointer :: config_print_global_minmax_sca
 
        integer :: iCell, k, iEdge, iScalar
-       integer, pointer :: num_scalars, nCellsSolve, nEdgesSolve, nVertLevels
+       integer, pointer :: num_scalars_ptr, nCellsSolve_ptr, nEdgesSolve_ptr, nVertLevels_ptr
+       integer :: num_scalars, nCellsSolve, nEdgesSolve, nVertLevels
 
        type (mpas_pool_type), pointer :: state
        type (mpas_pool_type), pointer :: diag
@@ -7258,54 +7259,76 @@ module atm_time_integration
        integer, dimension(:), pointer :: indexToCellID
        integer :: indexMax, indexMax_global
        integer :: kMax, kMax_global
+       integer :: offset_1d ! Offset into a multi-dimensional array, as if it were a contiguous 1-d array
        real (kind=RKIND) :: latMax, latMax_global
        real (kind=RKIND) :: lonMax, lonMax_global
        real (kind=RKIND), dimension(5) :: localVals, globalVals
 
-       real (kind=RKIND) :: spd
+       real (kind=RKIND), dimension(:,:), allocatable :: spd
        real (kind=RKIND), dimension(:,:), pointer :: w
        real (kind=RKIND), dimension(:,:), pointer :: u, v, uReconstructZonal, uReconstructMeridional, uReconstructX, uReconstructY, uReconstructZ
        real (kind=RKIND), dimension(:,:,:), pointer :: scalars, scalars_1, scalars_2
+
+       logical :: found_NaN
 
        call mpas_pool_get_config(block % configs, 'config_print_global_minmax_vel', config_print_global_minmax_vel)
        call mpas_pool_get_config(block % configs, 'config_print_detailed_minmax_vel', config_print_detailed_minmax_vel)
        call mpas_pool_get_config(block % configs, 'config_print_global_minmax_sca', config_print_global_minmax_sca)
 
+      call mpas_pool_get_subpool(block % structs, 'state', state)
+      call mpas_pool_get_subpool(block % structs, 'diag', diag)
+      call mpas_pool_get_array(state, 'w', w, 2)
+      call mpas_pool_get_array(state, 'u', u, 2)
+      call mpas_pool_get_array(diag, 'v', v)
+      call mpas_pool_get_array(state, 'scalars', scalars, 2)
+      call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve_ptr)
+      call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve_ptr)
+      call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels_ptr)
+      call mpas_pool_get_dimension(state, 'num_scalars', num_scalars_ptr)
+      nCellsSolve = nCellsSolve_ptr
+      nEdgesSolve = nEdgesSolve_ptr
+      nVertLevels = nVertLevels_ptr
+      num_scalars = num_scalars_ptr
+
       if (config_print_detailed_minmax_vel) then
          call mpas_log_write('')
 
-         call mpas_pool_get_subpool(block % structs, 'state', state)
-         call mpas_pool_get_subpool(block % structs, 'diag', diag)
          call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
 
-         call mpas_pool_get_array(state, 'w', w, 2)
-         call mpas_pool_get_array(state, 'u', u, 2)
-         call mpas_pool_get_array(diag, 'v', v)
          call mpas_pool_get_array(mesh, 'indexToCellID', indexToCellID)
          call mpas_pool_get_array(mesh, 'latCell', latCell)
          call mpas_pool_get_array(mesh, 'lonCell', lonCell)
          call mpas_pool_get_array(mesh, 'latEdge', latEdge)
          call mpas_pool_get_array(mesh, 'lonEdge', lonEdge)
-         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
-         call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve)
-         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
+
+         allocate(spd(nVertLevels,nEdgesSolve))
 
          scalar_min = 1.0e20
+         offset_1d = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
-            if (w(k,iCell) < scalar_min) then
-               scalar_min = w(k,iCell)
-               indexMax = iCell
-               kMax = k
-               latMax = latCell(iCell)
-               lonMax = lonCell(iCell)
+            scalar_min = min(scalar_min, w(k,iCell))
+         end do
+         end do
+
+         ! This second loop using offset_1d ensures the same (kMax,indexMax) are reported with the scalar_min
+         ! Especially when using OpenACC
+         do iCell = 1, nCellsSolve
+         do k = 1, nVertLevels
+            if (w(k,iCell) == scalar_min) then
+               ! In case 2 locations tie, only save the minimum value
+               offset_1d = min(offset_1d, (k-1) + size(w,1)*(iCell-1))
             end if
          end do
          end do
+         kMax = mod(offset_1d, size(w,1)) + 1
+         indexMax = (offset_1d / size(w,1)) + 1 ! Integer divide
+         latMax = latCell(indexMax)
+         lonMax = lonCell(indexMax)
          localVals(1) = scalar_min
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -7327,21 +7350,28 @@ module atm_time_integration
                              realArgs=(/global_scalar_min, latMax_global, lonMax_global/))
 
          scalar_max = -1.0e20
+         offset_1d = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
-            if (w(k,iCell) > scalar_max) then
-               scalar_max = w(k,iCell)
-               indexMax = iCell
-               kMax = k
-               latMax = latCell(iCell)
-               lonMax = lonCell(iCell)
+            scalar_max = max(scalar_max, w(k,iCell))
+         end do
+         end do
+
+         do iCell = 1, nCellsSolve
+         do k = 1, nVertLevels
+            if (w(k,iCell) == scalar_max) then
+               offset_1d = min(offset_1d, (k-1) + size(w,1)*(iCell-1))
             end if
          end do
          end do
+         kMax = mod(offset_1d, size(w,1)) + 1
+         indexMax = (offset_1d / size(w,1)) + 1
+         latMax = latCell(indexMax)
+         lonMax = lonCell(indexMax)
          localVals(1) = scalar_max
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -7363,21 +7393,28 @@ module atm_time_integration
                              realArgs=(/global_scalar_max, latMax_global, lonMax_global/))
 
          scalar_min = 1.0e20
+         offset_1d = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
-            if (u(k,iEdge) < scalar_min) then
-               scalar_min = u(k,iEdge)
-               indexMax = iEdge
-               kMax = k
-               latMax = latEdge(iEdge)
-               lonMax = lonEdge(iEdge)
+            scalar_min = min(scalar_min, u(k,iEdge))
+         end do
+         end do
+
+         do iEdge = 1, nEdgesSolve
+         do k = 1, nVertLevels
+            if (u(k,iEdge) == scalar_min) then
+               offset_1d = min(offset_1d, (k-1) + size(u,1)*(iEdge-1))
             end if
          end do
          end do
+         kMax = mod(offset_1d, size(u,1)) + 1
+         indexMax = (offset_1d / size(u,1)) + 1
+         latMax = latEdge(indexMax)
+         lonMax = lonEdge(indexMax)
          localVals(1) = scalar_min
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -7399,21 +7436,28 @@ module atm_time_integration
                              realArgs=(/global_scalar_min, latMax_global, lonMax_global/))
 
          scalar_max = -1.0e20
+         offset_1d = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
-            if (u(k,iEdge) > scalar_max) then
-               scalar_max = u(k,iEdge)
-               indexMax = iEdge
-               kMax = k
-               latMax = latEdge(iEdge)
-               lonMax = lonEdge(iEdge)
+            scalar_max = max(scalar_max, u(k,iEdge))
+         end do
+         end do
+
+         do iEdge = 1, nEdgesSolve
+         do k = 1, nVertLevels
+            if (u(k,iEdge) == scalar_max) then
+               offset_1d = min(offset_1d, (k-1) + size(u,1)*(iEdge-1))
             end if
          end do
          end do
+         kMax = mod(offset_1d, size(u,1)) + 1
+         indexMax = (offset_1d / size(u,1)) + 1
+         latMax = latEdge(indexMax)
+         lonMax = lonEdge(indexMax)
          localVals(1) = scalar_max
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -7435,22 +7479,29 @@ module atm_time_integration
                              realArgs=(/global_scalar_max, latMax_global, lonMax_global/))
 
          scalar_max = -1.0e20
+         offset_1d = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
-            spd = sqrt(u(k,iEdge)*u(k,iEdge) + v(k,iEdge)*v(k,iEdge))
-            if (spd > scalar_max) then
-               scalar_max = spd
-               indexMax = iEdge
-               kMax = k
-               latMax = latEdge(iEdge)
-               lonMax = lonEdge(iEdge)
+            spd(k,iEdge) = sqrt(u(k,iEdge)*u(k,iEdge) + v(k,iEdge)*v(k,iEdge))
+            scalar_max = max(scalar_max, spd(k,iEdge))
+         end do
+         end do
+
+         do iEdge = 1, nEdgesSolve
+         do k = 1, nVertLevels
+            if (spd(k,iEdge) == scalar_max) then
+               offset_1d = min(offset_1d, (k-1) + size(spd,1)*(iEdge-1))
             end if
          end do
          end do
+         kMax = mod(offset_1d, size(spd,1)) + 1
+         indexMax = (offset_1d / size(spd,1)) + 1
+         latMax = latEdge(indexMax)
+         lonMax = lonEdge(indexMax)
          localVals(1) = scalar_max
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -7474,31 +7525,36 @@ module atm_time_integration
          !
          ! Check for NaNs
          !
+         found_NaN = .false.
+
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
             if (ieee_is_nan(w(k,iCell))) then
-               call mpas_log_write('NaN detected in ''w'' field.', messageType=MPAS_LOG_CRIT)
+               found_NaN = .true.
             end if
          end do
          end do
+         if (found_NaN) then
+            call mpas_log_write('NaN detected in ''w'' field.', messageType=MPAS_LOG_CRIT)
+         end if
+
+         found_NaN = .false.
 
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             if (ieee_is_nan(u(k,iEdge))) then
-               call mpas_log_write('NaN detected in ''u'' field.', messageType=MPAS_LOG_CRIT)
+               found_NaN = .true.
             end if
          end do
          end do
+         if (found_NaN) then
+            call mpas_log_write('NaN detected in ''u'' field.', messageType=MPAS_LOG_CRIT)
+         end if
+
+         deallocate(spd)
 
       else if (config_print_global_minmax_vel) then
          call mpas_log_write('')
-
-         call mpas_pool_get_subpool(block % structs, 'state', state)
-         call mpas_pool_get_array(state, 'w', w, 2)
-         call mpas_pool_get_array(state, 'u', u, 2)
-         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
-         call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve)
-         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
 
          scalar_min = 0.0
          scalar_max = 0.0
@@ -7529,12 +7585,6 @@ module atm_time_integration
          if (.not. (config_print_global_minmax_vel .or. config_print_detailed_minmax_vel)) then
             call mpas_log_write('')
          end if
-
-         call mpas_pool_get_subpool(block % structs, 'state', state)
-         call mpas_pool_get_array(state, 'scalars', scalars, 2)
-         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
-         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
-         call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
 
          do iScalar = 1, num_scalars
             scalar_min = 0.0
