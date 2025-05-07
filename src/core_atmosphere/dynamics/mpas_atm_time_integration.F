@@ -104,6 +104,9 @@ module atm_time_integration
    ! Used in compute_solve_diagnostics
    real (kind=RKIND), allocatable, dimension(:,:) :: ke_vertex
    real (kind=RKIND), allocatable, dimension(:,:) :: ke_edge
+   !$acc declare create(ke_edge)
+   
+
 
    type (MPAS_Clock_type), pointer, private :: clock
    type (block_type), pointer, private :: block
@@ -479,19 +482,67 @@ module atm_time_integration
 
 
 #ifdef MPAS_OPENACC
+      type (mpas_pool_type), pointer :: mesh
       type (mpas_pool_type), pointer :: diag
+      type (mpas_pool_type), pointer :: state
       type (mpas_pool_type), pointer :: tend_physics
       real (kind=RKIND), dimension(:,:), pointer :: rthdynten
 
-      real (kind=RKIND), dimension(:,:), pointer :: h_edge, h, u, v, &
-                                                    vorticity, ke, pv_edge, pv_vertex, pv_cell, gradPVn, gradPVt, &
-                                                    divergence
+      real (kind=RKIND), dimension(:,:), pointer :: h_edge, v, vorticity, ke, pv_edge, &
+                                                   pv_vertex, pv_cell, gradPVn, gradPVt, divergence
+      real (kind=RKIND), dimension(:,:), pointer :: u, h
+
+      real (kind=RKIND), dimension(:,:), pointer :: zz
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb_cell
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb3_cell
+      real (kind=RKIND), dimension(:), pointer :: fzm
+      real (kind=RKIND), dimension(:), pointer :: fzp
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb3
 
 
+      real (kind=RKIND), dimension(:), pointer :: dvEdge
+      integer, dimension(:,:), pointer :: cellsOnCell
+      integer, dimension(:,:), pointer :: cellsOnEdge
+      integer, dimension(:,:), pointer :: advCellsForEdge
+      integer, dimension(:,:), pointer :: edgesOnCell
+      integer, dimension(:), pointer :: nAdvCellsForEdge
+      integer, dimension(:), pointer :: nEdgesOnCell
+      real (kind=RKIND), dimension(:,:), pointer :: adv_coefs
+      real (kind=RKIND), dimension(:,:), pointer :: adv_coefs_3rd
+      real (kind=RKIND), dimension(:,:), pointer :: edgesOnCell_sign
+      real (kind=RKIND), dimension(:), pointer :: invAreaCell
+      integer, dimension(:), pointer :: bdyMaskCell
+      integer, dimension(:), pointer :: bdyMaskEdge
+      real (kind=RKIND), dimension(:), pointer :: specZoneMaskEdge
+      real (kind=RKIND), dimension(:), pointer :: invDvEdge
+      real (kind=RKIND), dimension(:), pointer :: dcEdge
+      real (kind=RKIND), dimension(:), pointer :: invDcEdge
+      integer, dimension(:,:), pointer :: edgesOnEdge
+      integer, dimension(:,:), pointer :: edgesOnVertex
+      real (kind=RKIND), dimension(:,:), pointer :: edgesOnVertex_sign
+      integer, dimension(:), pointer :: nEdgesOnEdge
+      real (kind=RKIND), dimension(:,:), pointer :: weightsOnEdge
+      integer, dimension(:,:), pointer :: cellsOnVertex
+      integer, dimension(:,:), pointer :: verticesOnCell
+      integer, dimension(:,:), pointer :: verticesOnEdge
+      real (kind=RKIND), dimension(:), pointer :: invAreaTriangle
+      integer, dimension(:,:), pointer :: kiteForCell
+      real (kind=RKIND), dimension(:,:), pointer :: kiteAreasOnVertex
+      real (kind=RKIND), dimension(:), pointer :: fEdge
+      real (kind=RKIND), dimension(:), pointer :: fVertex
+
+      nullify(mesh)
+      call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
+      nullify(state)
+      call mpas_pool_get_subpool(block % structs, 'state', state)
       nullify(diag)
       call mpas_pool_get_subpool(block % structs, 'diag', diag)
-      nullify(tend_physics)
-      call mpas_pool_get_subpool(block % structs, 'tend_physics', tend_physics)
+
+      call mpas_pool_get_array(state, 'rho_zz', h, 1)
+      !$acc enter data create(h)
+      call mpas_pool_get_array(state, 'u', u, 1)
+      !$acc enter data copyin(u)
 
       call mpas_pool_get_array(diag, 'v', v)
       !$acc enter data copyin(v)
@@ -513,6 +564,89 @@ module atm_time_integration
       !$acc enter data copyin(gradPVn)
       call mpas_pool_get_array(diag, 'gradPVt', gradPVt)
       !$acc enter data copyin(gradPVt)
+
+      ! Required by atm_init_coupled_diagnostics
+      call mpas_pool_get_array(mesh, 'zz', zz)
+      !$acc enter data copyin(zz)
+
+      call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
+      !$acc enter data copyin(zb_cell)
+
+      call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
+      !$acc enter data copyin(zb3_cell)
+
+      call mpas_pool_get_array(mesh, 'fzm', fzm)
+      !$acc enter data copyin(fzm)
+
+      call mpas_pool_get_array(mesh, 'fzp', fzp)
+      !$acc enter data copyin(fzp)
+
+      call mpas_pool_get_array(mesh, 'zb', zb)
+      !$acc enter data copyin(zb)
+
+      call mpas_pool_get_array(mesh, 'zb3', zb3)
+      !$acc enter data copyin(zb3)
+
+      ! Required by atm_compute_solve_diagnostics
+      call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
+      !$acc enter data copyin(dvEdge)
+
+      call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
+      !$acc enter data copyin(cellsOnEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
+      !$acc enter data copyin(edgesOnCell)
+
+      call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
+      !$acc enter data copyin(nEdgesOnCell)
+
+      call mpas_pool_get_array(mesh, 'edgesOnCell_sign', edgesOnCell_sign)
+      !$acc enter data copyin(edgesOnCell_sign)
+
+      call mpas_pool_get_array(mesh, 'invAreaCell', invAreaCell)
+      !$acc enter data copyin(invAreaCell)
+
+      call mpas_pool_get_array(mesh, 'invDvEdge', invDvEdge)
+      !$acc enter data copyin(invDvEdge)
+
+      call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
+      !$acc enter data copyin(dcEdge)
+
+      call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
+      !$acc enter data copyin(invDcEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnEdge', edgesOnEdge)
+      !$acc enter data copyin(edgesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnVertex', edgesOnVertex)
+      !$acc enter data copyin(edgesOnVertex)
+
+      call mpas_pool_get_array(mesh, 'edgesOnVertex_sign', edgesOnVertex_sign)
+      !$acc enter data copyin(edgesOnVertex_sign)
+
+      call mpas_pool_get_array(mesh, 'nEdgesOnEdge', nEdgesOnEdge)
+      !$acc enter data copyin(nEdgesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
+      !$acc enter data copyin(weightsOnEdge)
+
+      call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
+      !$acc enter data copyin(verticesOnCell)
+
+      call mpas_pool_get_array(mesh, 'verticesOnEdge', verticesOnEdge)
+      !$acc enter data copyin(verticesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'invAreaTriangle', invAreaTriangle)
+      !$acc enter data copyin(invAreaTriangle)
+
+      call mpas_pool_get_array(mesh, 'kiteForCell', kiteForCell)
+      !$acc enter data copyin(kiteForCell)
+
+      call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
+      !$acc enter data copyin(kiteAreasOnVertex)
+
+      call mpas_pool_get_array(mesh, 'fVertex', fVertex)
+      !$acc enter data copyin(fVertex)
 #endif
 
    end subroutine mpas_atm_pre_computesolvediag_h2d
@@ -526,18 +660,67 @@ module atm_time_integration
 
 
 #ifdef MPAS_OPENACC
+      type (mpas_pool_type), pointer :: mesh
       type (mpas_pool_type), pointer :: diag
+      type (mpas_pool_type), pointer :: state
       type (mpas_pool_type), pointer :: tend_physics
       real (kind=RKIND), dimension(:,:), pointer :: rthdynten
 
-      real (kind=RKIND), dimension(:,:), pointer :: h_edge, h, u, v, &
-                                                    vorticity, ke, pv_edge, pv_vertex, pv_cell, gradPVn, gradPVt, &
-                                                    divergence
+      real (kind=RKIND), dimension(:,:), pointer :: h_edge, v, vorticity, ke, pv_edge, &
+                                                   pv_vertex, pv_cell, gradPVn, gradPVt, divergence
+      real (kind=RKIND), dimension(:,:), pointer :: u, h
 
+      real (kind=RKIND), dimension(:,:), pointer :: zz
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb_cell
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb3_cell
+      real (kind=RKIND), dimension(:), pointer :: fzm
+      real (kind=RKIND), dimension(:), pointer :: fzp
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb3
+
+
+      real (kind=RKIND), dimension(:), pointer :: dvEdge
+      integer, dimension(:,:), pointer :: cellsOnCell
+      integer, dimension(:,:), pointer :: cellsOnEdge
+      integer, dimension(:,:), pointer :: advCellsForEdge
+      integer, dimension(:,:), pointer :: edgesOnCell
+      integer, dimension(:), pointer :: nAdvCellsForEdge
+      integer, dimension(:), pointer :: nEdgesOnCell
+      real (kind=RKIND), dimension(:,:), pointer :: adv_coefs
+      real (kind=RKIND), dimension(:,:), pointer :: adv_coefs_3rd
+      real (kind=RKIND), dimension(:,:), pointer :: edgesOnCell_sign
+      real (kind=RKIND), dimension(:), pointer :: invAreaCell
+      integer, dimension(:), pointer :: bdyMaskCell
+      integer, dimension(:), pointer :: bdyMaskEdge
+      real (kind=RKIND), dimension(:), pointer :: specZoneMaskEdge
+      real (kind=RKIND), dimension(:), pointer :: invDvEdge
+      real (kind=RKIND), dimension(:), pointer :: dcEdge
+      real (kind=RKIND), dimension(:), pointer :: invDcEdge
+      integer, dimension(:,:), pointer :: edgesOnEdge
+      integer, dimension(:,:), pointer :: edgesOnVertex
+      real (kind=RKIND), dimension(:,:), pointer :: edgesOnVertex_sign
+      integer, dimension(:), pointer :: nEdgesOnEdge
+      real (kind=RKIND), dimension(:,:), pointer :: weightsOnEdge
+      integer, dimension(:,:), pointer :: cellsOnVertex
+      integer, dimension(:,:), pointer :: verticesOnCell
+      integer, dimension(:,:), pointer :: verticesOnEdge
+      real (kind=RKIND), dimension(:), pointer :: invAreaTriangle
+      integer, dimension(:,:), pointer :: kiteForCell
+      real (kind=RKIND), dimension(:,:), pointer :: kiteAreasOnVertex
+      real (kind=RKIND), dimension(:), pointer :: fEdge
+      real (kind=RKIND), dimension(:), pointer :: fVertex
+
+      nullify(mesh)
+      call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
+      nullify(state)
+      call mpas_pool_get_subpool(block % structs, 'state', state)
       nullify(diag)
       call mpas_pool_get_subpool(block % structs, 'diag', diag)
-      nullify(tend_physics)
-      call mpas_pool_get_subpool(block % structs, 'tend_physics', tend_physics)
+
+      call mpas_pool_get_array(state, 'rho_zz', h, 1)
+      !$acc exit data copyout(h)
+      call mpas_pool_get_array(state, 'u', u, 1)
+      !$acc exit data copyout(u)
 
       call mpas_pool_get_array(diag, 'v', v)
       !$acc exit data copyout(v)
@@ -559,6 +742,89 @@ module atm_time_integration
       !$acc exit data copyout(gradPVn)
       call mpas_pool_get_array(diag, 'gradPVt', gradPVt)
       !$acc exit data copyout(gradPVt)
+
+      ! Required by atm_init_coupled_diagnostics
+      call mpas_pool_get_array(mesh, 'zz', zz)
+      !$acc exit data delete(zz)
+
+      call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
+      !$acc exit data delete(zb_cell)
+
+      call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
+      !$acc exit data delete(zb3_cell)
+
+      call mpas_pool_get_array(mesh, 'fzm', fzm)
+      !$acc exit data delete(fzm)
+
+      call mpas_pool_get_array(mesh, 'fzp', fzp)
+      !$acc exit data delete(fzp)
+
+      call mpas_pool_get_array(mesh, 'zb', zb)
+      !$acc exit data delete(zb)
+
+      call mpas_pool_get_array(mesh, 'zb3', zb3)
+      !$acc exit data delete(zb3)
+
+
+      call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
+      !$acc exit data delete(dvEdge)
+
+      call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
+      !$acc exit data delete(cellsOnEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
+      !$acc exit data delete(edgesOnCell)
+
+      call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
+      !$acc exit data delete(nEdgesOnCell)
+
+      call mpas_pool_get_array(mesh, 'edgesOnCell_sign', edgesOnCell_sign)
+      !$acc exit data delete(edgesOnCell_sign)
+
+      call mpas_pool_get_array(mesh, 'invAreaCell', invAreaCell)
+      !$acc exit data delete(invAreaCell)
+
+      call mpas_pool_get_array(mesh, 'invDvEdge', invDvEdge)
+      !$acc exit data delete(invDvEdge)
+
+      call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
+      !$acc exit data delete(dcEdge)
+
+      call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
+      !$acc exit data delete(invDcEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnEdge', edgesOnEdge)
+      !$acc exit data delete(edgesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnVertex', edgesOnVertex)
+      !$acc exit data delete(edgesOnVertex)
+
+      call mpas_pool_get_array(mesh, 'edgesOnVertex_sign', edgesOnVertex_sign)
+      !$acc exit data delete(edgesOnVertex_sign)
+
+      call mpas_pool_get_array(mesh, 'nEdgesOnEdge', nEdgesOnEdge)
+      !$acc exit data delete(nEdgesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
+      !$acc exit data delete(weightsOnEdge)
+
+      call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
+      !$acc exit data delete(verticesOnCell)
+
+      call mpas_pool_get_array(mesh, 'verticesOnEdge', verticesOnEdge)
+      !$acc exit data delete(verticesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'invAreaTriangle', invAreaTriangle)
+      !$acc exit data delete(invAreaTriangle)
+
+      call mpas_pool_get_array(mesh, 'kiteForCell', kiteForCell)
+      !$acc exit data delete(kiteForCell)
+
+      call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
+      !$acc exit data delete(kiteAreasOnVertex)
+
+      call mpas_pool_get_array(mesh, 'fVertex', fVertex)
+      !$acc exit data delete(fVertex)
 #endif
 
    end subroutine mpas_atm_post_computesolvediag_d2h
@@ -2065,7 +2331,9 @@ module atm_time_integration
             allocate(ke_vertex(nVertLevels,nVertices+1))
             ke_vertex(:,nVertices+1) = 0.0_RKIND
             allocate(ke_edge(nVertLevels,nEdges+1))
+            !$acc kernels
             ke_edge(:,nEdges+1) = 0.0_RKIND
+            !$acc end kernels
    
 !$OMP PARALLEL DO
             do thread=1,nThreads
@@ -4648,11 +4916,7 @@ module atm_time_integration
 
       MPAS_ACC_TIMER_START('atm_advance_scalars_mono [ACC_data_xfer]')
 
-#ifdef DO_PHYSICS
-      !$acc enter data copyin(scalar_tend)
-#else
-      !$acc enter data create(scalar_tend)
-#endif
+
       if (local_advance_density) then
          !$acc enter data copyin(rho_zz_int)
       end if
@@ -4680,7 +4944,6 @@ module atm_time_integration
       !$acc end parallel
 
       MPAS_ACC_TIMER_START('atm_advance_scalars_mono [ACC_data_xfer]')
-      !$acc exit data copyout(scalar_tend)
 
       !$acc update self(scalars_old)
       MPAS_ACC_TIMER_STOP('atm_advance_scalars_mono [ACC_data_xfer]')
@@ -6905,26 +7168,10 @@ module atm_time_integration
       logical :: reconstruct_v
 
 
-      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
-      !$acc enter data copyin(cellsOnEdge,dcEdge,dvEdge, &
-      !$acc                   edgesOnVertex,edgesOnVertex_sign,invAreaTriangle, &
-      !$acc                   nEdgesOnCell,edgesOnCell, &
-      !$acc                   edgesOnCell_sign,invAreaCell, &
-      !$acc                   invAreaTriangle,edgesOnVertex, &
-      !$acc                   verticesOnCell,kiteForCell,kiteAreasOnVertex, &
-      !$acc                   nEdgesOnEdge,edgesOnEdge,weightsOnEdge, &
-      !$acc                   fVertex, &
-      !$acc                   verticesOnEdge, &
-      !$acc                   invDvEdge,invDcEdge)
-      !$acc enter data copyin(u,h)
-      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
 
       !
       ! Compute height on cell edges at velocity locations
       !
-      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
-      !$acc enter data create(ke_edge)  ! local variable
-      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
       !$acc parallel default(present)
       !$acc loop gang
       do iEdge=edgeStart,edgeEnd
@@ -7217,9 +7464,6 @@ module atm_time_integration
          ! Merged loops for calculating gradPVt, gradPVn and pv_edge
          ! Also precomputed inverses of dvEdge and dcEdge to avoid repeated divisions
          !
-         MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
-         !$acc enter data create(gradPVt,gradPVn)
-         MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
          r = config_apvm_upwinding * dt
          !$acc parallel default(present)
          !$acc loop gang
@@ -7240,19 +7484,6 @@ module atm_time_integration
       end if  ! apvm upwinding
 
 
-      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
-     !$acc exit data delete(cellsOnEdge,dcEdge,dvEdge, &
-      !$acc                  edgesOnVertex,edgesOnVertex_sign,invAreaTriangle, &
-      !$acc                  nEdgesOnCell,edgesOnCell, &
-      !$acc                  edgesOnCell_sign,invAreaCell, &
-      !$acc                  invAreaTriangle,edgesOnVertex, &
-      !$acc                  verticesOnCell,kiteForCell,kiteAreasOnVertex, &
-      !$acc                  nEdgesOnEdge,edgesOnEdge,weightsOnEdge, &
-      !$acc                  verticesOnEdge, &
-      !$acc                  fVertex,invDvEdge,invDcEdge)
-      !$acc exit data delete(u,h)
-      !$acc exit data copyout(ke_edge)
-      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
 
    end subroutine atm_compute_solve_diagnostics_work
 
@@ -7342,17 +7573,13 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
 
       MPAS_ACC_TIMER_START('atm_init_coupled_diagnostics [ACC_data_xfer]')
-      ! copyin invariant fields
-      !$acc enter data copyin(cellsOnEdge,nEdgesOnCell,edgesOnCell, &
-      !$acc                   edgesOnCell_sign,zz,fzm,fzp,zb,zb3, &
-      !$acc                   zb_cell,zb3_cell)
-
+      
       ! copyin the data that is only on the right-hand side
-      !$acc enter data copyin(scalars(index_qv,:,:),u,w,rho,theta, &
+      !$acc enter data copyin(scalars(index_qv,:,:),w,rho,theta, &
       !$acc                           rho_base,theta_base)
 
       ! copyin the data that will be modified in this routine
-      !$acc enter data create(theta_m,rho_zz,ru,rw,rho_p,rtheta_base, &
+      !$acc enter data create(theta_m,ru,rw,rho_p,rtheta_base, &
       !$acc                   rtheta_p,exner,exner_base,pressure_p, &
       !$acc                   pressure_base)
       MPAS_ACC_TIMER_STOP('atm_init_coupled_diagnostics [ACC_data_xfer]')
@@ -7476,17 +7703,12 @@ module atm_time_integration
       !$acc end parallel
 
       MPAS_ACC_TIMER_START('atm_init_coupled_diagnostics [ACC_data_xfer]')
-      ! delete invariant fields
-      !$acc exit data delete(cellsOnEdge,nEdgesOnCell,edgesOnCell, &
-      !$acc                  edgesOnCell_sign,zz,fzm,fzp,zb,zb3, &
-      !$acc                  zb_cell,zb3_cell)
-
       ! delete the data that is only on the right-hand side
-      !$acc exit data delete(scalars(index_qv,:,:),u,w,rho,theta, &
+      !$acc exit data delete(scalars(index_qv,:,:),w,rho,theta, &
       !$acc                           rho_base,theta_base)
 
       ! copyout the data that will be modified in this routine
-      !$acc exit data copyout(theta_m,rho_zz,ru,rw,rho_p,rtheta_base, &
+      !$acc exit data copyout(theta_m,ru,rw,rho_p,rtheta_base, &
       !$acc                   rtheta_p,exner,exner_base,pressure_p, &
       !$acc                   pressure_base)
       MPAS_ACC_TIMER_STOP('atm_init_coupled_diagnostics [ACC_data_xfer]')

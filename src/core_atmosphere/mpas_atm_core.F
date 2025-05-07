@@ -476,7 +476,9 @@ module atm_core
       allocate(ke_vertex(nVertLevels,nVertices+1))  ! ke_vertex is a module variable defined in mpas_atm_time_integration.F
       ke_vertex(:,nVertices+1) = 0.0_RKIND
       allocate(ke_edge(nVertLevels,nEdges+1))       ! ke_edge is a module variable defined in mpas_atm_time_integration.F
+      !$acc kernels
       ke_edge(:,nEdges+1) = 0.0_RKIND
+      !$acc end kernels
 
       call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
 
@@ -507,7 +509,6 @@ module atm_core
                                               vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
                                               edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
          end if
-
          call atm_compute_solve_diagnostics(dt, state, 1, diag, mesh, block % configs, &
                                             cellThreadStart(thread), cellThreadEnd(thread), &
                                             vertexThreadStart(thread), vertexThreadEnd(thread), &
