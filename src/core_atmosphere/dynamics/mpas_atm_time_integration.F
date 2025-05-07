@@ -65,6 +65,9 @@ module atm_time_integration
 !   real (kind=RKIND), allocatable, dimension(:,:) :: delsq_circulation    ! no longer used -> removed 
    real (kind=RKIND), allocatable, dimension(:,:) :: delsq_vorticity
    real (kind=RKIND), allocatable, dimension(:,:) :: dpdz
+   !$acc declare create(qtot)
+   !$acc declare create(delsq_theta, delsq_w, delsq_divergence)
+   !$acc declare create(delsq_u, delsq_vorticity, dpdz)
 
    ! Used in atm_advance_scalars
    real (kind=RKIND), dimension(:,:,:), allocatable :: horiz_flux_array
@@ -1562,7 +1565,9 @@ module atm_time_integration
       ! allocate storage for physics tendency save
       !
       allocate(qtot(nVertLevels,nCells+1))
+      !$acc kernels
       qtot(:,nCells+1) = 0.0_RKIND
+      !$acc end kernels
 
 #ifndef MPAS_CAM_DYCORE
       call mpas_pool_get_field(tend_physics, 'tend_rtheta_physics', tend_rtheta_physicsField)
@@ -1749,19 +1754,31 @@ module atm_time_integration
             call mpas_timer_start('atm_compute_dyn_tend')
    
             allocate(delsq_theta(nVertLevels,nCells+1))
+            !$acc kernels
             delsq_theta(:,nCells+1) = 0.0_RKIND
+            !$acc end kernels
             allocate(delsq_w(nVertLevels,nCells+1))
+            !$acc kernels
             delsq_w(:,nCells+1) = 0.0_RKIND
+            !$acc end kernels
 !!            allocate(qtot(nVertLevels,nCells+1))  ! initializing this earlier in solution sequence
             allocate(delsq_divergence(nVertLevels,nCells+1))
+            !$acc kernels
             delsq_divergence(:,nCells+1) = 0.0_RKIND
+            !$acc end kernels
             allocate(delsq_u(nVertLevels,nEdges+1))
+            !$acc kernels
             delsq_u(:,nEdges+1) = 0.0_RKIND
+            !$acc end kernels
 !!            allocate(delsq_circulation(nVertLevels,nVertices+1))  ! no longer used -> removed 
             allocate(delsq_vorticity(nVertLevels,nVertices+1))
+            !$acc kernels
             delsq_vorticity(:,nVertices+1) = 0.0_RKIND
+            !$acc end kernels
             allocate(dpdz(nVertLevels,nCells+1))
+            !$acc kernels
             dpdz(:,nCells+1) = 0.0_RKIND
+            !$acc end kernels
 
 !$OMP PARALLEL DO
             do thread=1,nThreads
@@ -2677,7 +2694,6 @@ module atm_time_integration
       moist_end = moist_end_ptr
 
       MPAS_ACC_TIMER_START('atm_compute_moist_coefficients [ACC_data_xfer]')
-      !$acc enter data create(qtot)
       MPAS_ACC_TIMER_STOP('atm_compute_moist_coefficients [ACC_data_xfer]')
 
       !$acc parallel default(present)
@@ -2729,7 +2745,6 @@ module atm_time_integration
       !$acc end parallel
 
       MPAS_ACC_TIMER_START('atm_compute_moist_coefficients [ACC_data_xfer]')
-      !$acc exit data copyout(qtot)
       MPAS_ACC_TIMER_STOP('atm_compute_moist_coefficients [ACC_data_xfer]')
 
    end subroutine atm_compute_moist_coefficients
@@ -2863,7 +2878,6 @@ module atm_time_integration
       real (kind=RKIND), dimension( nVertLevels ) :: b_tri, c_tri
 
       MPAS_ACC_TIMER_START('atm_compute_vert_imp_coefs_work [ACC_data_xfer]')
-      !$acc enter data copyin(qtot)
       !$acc enter data create(b_tri, c_tri)
       MPAS_ACC_TIMER_STOP('atm_compute_vert_imp_coefs_work [ACC_data_xfer]')
 
@@ -2947,7 +2961,6 @@ module atm_time_integration
 
       MPAS_ACC_TIMER_START('atm_compute_vert_imp_coefs_work [ACC_data_xfer]')
       !$acc exit data copyout( b_tri, c_tri)
-      !$acc exit data delete(qtot)
       MPAS_ACC_TIMER_STOP('atm_compute_vert_imp_coefs_work [ACC_data_xfer]')
 
    end subroutine atm_compute_vert_imp_coefs_work
@@ -5680,16 +5693,10 @@ module atm_time_integration
       MPAS_ACC_TIMER_START('atm_compute_dyn_tend_work [ACC_data_xfer]')
       if (rk_step == 1) then
          !$acc enter data copyin(tend_rho_physics)
-         !$acc enter data copyin(qtot)
-         !$acc enter data create(delsq_u)
-         !$acc enter data create(delsq_vorticity, delsq_divergence)
-         !$acc enter data create(delsq_w)
       end if
-      !$acc enter data create(dpdz)
-      !$acc enter data copyin(rayleigh_damp_coef)
+      !$acc enter data create(rayleigh_damp_coef)
       !$acc enter data copyin(tend_ru_physics)
       !$acc enter data copyin(tend_rtheta_physics)
-      !$acc enter data create(delsq_theta)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
       prandtl_inv = 1.0_RKIND / prandtl
@@ -6726,16 +6733,10 @@ module atm_time_integration
       MPAS_ACC_TIMER_START('atm_compute_dyn_tend_work [ACC_data_xfer]')
       if (rk_step == 1) then
          !$acc exit data delete(tend_rho_physics)
-         !$acc exit data delete(qtot)
-         !$acc exit data copyout(delsq_u)
-         !$acc exit data delete(delsq_vorticity, delsq_divergence)
-         !$acc exit data copyout(delsq_w)
       end if
-      !$acc exit data delete(dpdz)
       !$acc exit data delete(rayleigh_damp_coef)
       !$acc exit data delete(tend_ru_physics)
       !$acc exit data delete(tend_rtheta_physics)
-      !$acc exit data delete(delsq_theta)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
    end subroutine atm_compute_dyn_tend_work
