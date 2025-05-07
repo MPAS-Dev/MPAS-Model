@@ -280,9 +280,6 @@ module atm_time_integration
 #ifdef MPAS_OPENACC
       nullify(mesh)
       call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', mesh)
-      ! nullify(tend_physics)
-      ! call mpas_pool_get_subpool(domain % blocklist % structs, 'tend_physics', tend_physics)
-
 
       call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
       !$acc enter data copyin(dvEdge)
@@ -456,21 +453,10 @@ module atm_time_integration
       !$acc enter data copyin(t_init)
       call mpas_pool_get_array(mesh, 'qv_init', qv_init)
       !$acc enter data copyin(qv_init)
-
-
-            ! Pointers for these are declared as module level variables
-      ! call mpas_pool_get_array(tend_physics, 'tend_rho_physics', tend_rho_physics)
-      ! !$acc enter data copyin(tend_rho_physics)
-      ! call mpas_pool_get_array(tend_physics, 'tend_ru_physics', tend_ru_physics)
-      ! !$acc enter data copyin(tend_ru_physics)
-      ! call mpas_pool_get_array(tend_physics, 'tend_rtheta_physics', tend_rtheta_physics)
-      ! !$acc enter data copyin(tend_rtheta_physics)
-      !call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
-      !!$acc enter data copyin(rthdynten)
-
 #endif
 
    end subroutine mpas_atm_dynamics_init
+
 
    subroutine mpas_atm_pre_computesolvediag_h2d(block)
 
@@ -517,7 +503,6 @@ module atm_time_integration
 #endif
 
    end subroutine mpas_atm_pre_computesolvediag_h2d
-
 
 
    subroutine mpas_atm_post_computesolvediag_d2h(block)
@@ -2002,6 +1987,7 @@ module atm_time_integration
             end if  ! regional_MPAS addition
 
 !-------------------------------------------------------------------
+            
             call mpas_pool_get_array(state, 'u', u, 2)
             !$acc update self(u)
             ! u
@@ -2070,6 +2056,7 @@ module atm_time_integration
             deallocate(ke_edge)
 
             call mpas_timer_stop('atm_compute_solve_diagnostics')
+
             call mpas_pool_get_array(state, 'w', w, 2)
             call mpas_pool_get_array(diag, 'pv_edge', pv_edge)
             call mpas_pool_get_array(diag, 'rho_edge', rho_edge)            

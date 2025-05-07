@@ -152,7 +152,6 @@ module mpas_atm_iau
       call mpas_pool_get_array(tend, 'scalars_tend', tend_scalars)
       !$acc update self(tend_scalars)
 
-
       call mpas_pool_get_array(tend_iau, 'theta',     theta_amb)
       call mpas_pool_get_array(tend_iau, 'rho',         rho_amb)
       call mpas_pool_get_array(tend_iau, 'u',             u_amb)
@@ -212,7 +211,6 @@ module mpas_atm_iau
             tend_rtheta(k,i) = tend_rtheta(k,i) + tend_th(k,i)
          enddo
       enddo
-
       
       deallocate(theta)
       deallocate(tend_th)
