@@ -287,7 +287,7 @@ module mpas_atm_boundaries
     !>   tend_scalars(1,:,:) = mpas_atm_get_bdy_tend(clock, domain % blocklist, nVertLevels, nCells, 'qv', 0.0_RKIND)
     !
     !-----------------------------------------------------------------------
-    function mpas_atm_get_bdy_tend(clock, block, vertDim, horizDim, field, delta_t) result(return_tend)
+    subroutine mpas_atm_get_bdy_tend(clock, block, vertDim, horizDim, field, delta_t, return_tend)
 
         implicit none
 
@@ -296,8 +296,7 @@ module mpas_atm_boundaries
         integer, intent(in) :: vertDim, horizDim
         character(len=*), intent(in) :: field
         real (kind=RKIND), intent(in) :: delta_t
-
-        real (kind=RKIND), dimension(vertDim,horizDim+1) :: return_tend
+        real (kind=RKIND), dimension(vertDim,horizDim+1), intent(out) :: return_tend
 
         type (mpas_pool_type), pointer :: lbc
         integer, pointer :: idx_ptr
@@ -312,7 +311,6 @@ module mpas_atm_boundaries
         call mpas_pool_get_array(lbc, 'lbc_'//trim(field), tend, 1)
         
         MPAS_ACC_TIMER_START('mpas_atm_get_bdy_tend [ACC_data_xfer]')
-        !$acc enter data create(return_tend)
         if (associated(tend)) then
         else
             call mpas_pool_get_array(lbc, 'lbc_scalars', tend_scalars, 1)
@@ -342,10 +340,9 @@ module mpas_atm_boundaries
         !$acc end parallel
 
         MPAS_ACC_TIMER_START('mpas_atm_get_bdy_tend [ACC_data_xfer]')
-        !$acc exit data copyout(return_tend)
         MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_tend [ACC_data_xfer]')
 
-    end function mpas_atm_get_bdy_tend
+    end subroutine mpas_atm_get_bdy_tend
 
 
     !***********************************************************************
@@ -381,7 +378,7 @@ module mpas_atm_boundaries
     !>   scalars(1,:,:) = mpas_atm_get_bdy_state(clock, domain % blocklist, nVertLevels, nCells, 'qv', 0.0_RKIND)
     !
     !-----------------------------------------------------------------------
-    function mpas_atm_get_bdy_state_2d(clock, block, vertDim, horizDim, field, delta_t) result(return_state)
+    subroutine mpas_atm_get_bdy_state_2d(clock, block, vertDim, horizDim, field, delta_t, return_state)
 
         use mpas_pool_routines, only : mpas_pool_get_error_level, mpas_pool_set_error_level
         use mpas_derived_types, only : MPAS_POOL_SILENT
@@ -394,8 +391,7 @@ module mpas_atm_boundaries
         integer, intent(in) :: vertDim, horizDim
         character(len=*), intent(in) :: field
         real (kind=RKIND), intent(in) :: delta_t
-
-        real (kind=RKIND), dimension(vertDim,horizDim+1) :: return_state
+        real (kind=RKIND), dimension(vertDim,horizDim+1), intent(out) :: return_state
 
         type (mpas_pool_type), pointer :: lbc
         integer, pointer :: idx_ptr
@@ -447,7 +443,6 @@ module mpas_atm_boundaries
         !
         if (associated(tend) .and. associated(state)) then
             MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
-            !$acc enter data create(return_state)
             MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
 
             !$acc parallel default(present)
@@ -460,7 +455,6 @@ module mpas_atm_boundaries
             !$acc end parallel
 
             MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
-            !$acc exit data copyout(return_state)
             MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
         else
             call mpas_pool_get_array(lbc, 'lbc_scalars', tend_scalars, 1)
@@ -470,7 +464,6 @@ module mpas_atm_boundaries
             idx=idx_ptr ! Avoid non-array pointer for OpenACC
 
             MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
-            !$acc enter data create(return_state)
             MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
 
             !$acc parallel default(present)
@@ -483,11 +476,10 @@ module mpas_atm_boundaries
             !$acc end parallel
 
             MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
-            !$acc exit data copyout(return_state)
             MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
         end if
 
-    end function mpas_atm_get_bdy_state_2d
+    end subroutine mpas_atm_get_bdy_state_2d
 
 
     !***********************************************************************
@@ -520,7 +512,7 @@ module mpas_atm_boundaries
     !>                       num_scalars, nVertLevels, nCells, 'scalars', 0.0_RKIND)
     !
     !-----------------------------------------------------------------------
-    function mpas_atm_get_bdy_state_3d(clock, block, innerDim, vertDim, horizDim, field, delta_t) result(return_state)
+    subroutine mpas_atm_get_bdy_state_3d(clock, block, innerDim, vertDim, horizDim, field, delta_t, return_state)
 
         use mpas_pool_routines, only : mpas_pool_get_error_level, mpas_pool_set_error_level
         use mpas_derived_types, only : MPAS_POOL_SILENT
@@ -532,8 +524,7 @@ module mpas_atm_boundaries
         integer, intent(in) :: innerDim, vertDim, horizDim
         character(len=*), intent(in) :: field
         real (kind=RKIND), intent(in) :: delta_t
-
-        real (kind=RKIND), dimension(innerDim,vertDim,horizDim+1) :: return_state
+        real (kind=RKIND), dimension(innerDim,vertDim,horizDim+1), intent(out) :: return_state
 
         type (mpas_pool_type), pointer :: lbc
         real (kind=RKIND), dimension(:,:,:), pointer :: tend
@@ -566,7 +557,6 @@ module mpas_atm_boundaries
         call mpas_pool_get_array(lbc, 'lbc_'//trim(field), state, 2)
 
         MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_3d [ACC_data_xfer]')
-        !$acc enter data create(return_state)
         MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_3d [ACC_data_xfer]')
 
         !$acc parallel default(present)
@@ -581,10 +571,9 @@ module mpas_atm_boundaries
         !$acc end parallel
 
         MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_3d [ACC_data_xfer]')
-        !$acc exit data copyout(return_state)
         MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_3d [ACC_data_xfer]')
 
-    end function mpas_atm_get_bdy_state_3d
+    end subroutine mpas_atm_get_bdy_state_3d
 
 
     !***********************************************************************

@@ -78,13 +78,23 @@ module atm_time_integration
    real (kind=RKIND), dimension(:,:), allocatable :: wdtn_arr
    real (kind=RKIND), dimension(:,:), allocatable :: rho_zz_int
 
-   real (kind=RKIND), dimension(:,:,:), allocatable :: scalars_driving ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: ru_driving_tend ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: rt_driving_tend ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: rho_driving_tend ! regional_MPAS addition 
+   !$acc declare create(ru_driving_tend)
+   !$acc declare create(rt_driving_tend)
+   !$acc declare create(rho_driving_tend)
+
+   real (kind=RKIND), dimension(:,:,:), allocatable :: scalars_driving ! regional_MPAS addition
    real (kind=RKIND), dimension(:,:), allocatable :: ru_driving_values ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: rt_driving_values ! regional_MPAS addition 
-   real (kind=RKIND), dimension(:,:), allocatable :: rho_driving_values ! regional_MPAS addition 
+   real (kind=RKIND), dimension(:,:), allocatable :: rho_driving_values ! regional_MPAS addition
+
+   !$acc declare create(scalars_driving)
+   !$acc declare create(ru_driving_values)
+   !$acc declare create(rt_driving_values)
+   !$acc declare create(rho_driving_values)
+
    integer, dimension(:), pointer :: bdyMaskEdge ! regional_MPAS addition
    logical, pointer :: config_apply_lbcs
    
@@ -1807,9 +1817,9 @@ module atm_time_integration
                allocate(ru_driving_tend(nVertLevels,nEdges+1))
                allocate(rt_driving_tend(nVertLevels,nCells+1))
                allocate(rho_driving_tend(nVertLevels,nCells+1))
-               ru_driving_tend(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_tend( clock, block, nVertLevels, nEdges, 'ru', 0.0_RKIND )
-               rt_driving_tend(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_tend( clock, block, nVertLevels, nCells, 'rtheta_m', 0.0_RKIND )
-               rho_driving_tend(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_tend( clock, block, nVertLevels, nCells, 'rho_zz', 0.0_RKIND )
+               call mpas_atm_get_bdy_tend( clock, block, nVertLevels, nEdges, 'ru', 0.0_RKIND, ru_driving_tend)
+               call mpas_atm_get_bdy_tend( clock, block, nVertLevels, nCells, 'rtheta_m', 0.0_RKIND, rt_driving_tend)
+               call mpas_atm_get_bdy_tend( clock, block, nVertLevels, nCells, 'rho_zz', 0.0_RKIND, rho_driving_tend)
 !$OMP PARALLEL DO
                do thread=1,nThreads
                   call atm_bdy_adjust_dynamics_speczone_tend( tend, mesh, block % configs, nVertLevels,                 &
@@ -1832,9 +1842,9 @@ module atm_time_integration
                allocate(rho_driving_values(nVertLevels,nCells+1))
 
                time_dyn_step = dt_dynamics*real(dynamics_substep-1) + rk_timestep(rk_step)
-               ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nEdges, 'ru', time_dyn_step )
-               rt_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rtheta_m', time_dyn_step )
-               rho_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rho_zz', time_dyn_step )
+               call mpas_atm_get_bdy_state(clock, block, nVertLevels, nEdges, 'ru', time_dyn_step, ru_driving_values)
+               call mpas_atm_get_bdy_state(clock, block, nVertLevels, nCells, 'rtheta_m', time_dyn_step, rt_driving_values)
+               call mpas_atm_get_bdy_state(clock, block, nVertLevels, nCells, 'rho_zz', time_dyn_step, rho_driving_values)
 
                call mpas_timer_start('atm_bdy_adjust_dynamics_relaxzone_tend')
 !$OMP PARALLEL DO
@@ -1950,8 +1960,7 @@ module atm_time_integration
 
                time_dyn_step = dt_dynamics*real(dynamics_substep-1) + rk_timestep(rk_step)
 
-               ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nEdges, 'u', time_dyn_step )
-               !$acc enter data copyin(ru_driving_values)
+               call mpas_atm_get_bdy_state(clock, block, nVertLevels, nEdges, 'u', time_dyn_step, ru_driving_values)
                ! do this inline at present - it is simple enough
                !$acc parallel
                !$acc loop gang
@@ -1965,8 +1974,7 @@ module atm_time_integration
                end do
                !$acc end parallel
 
-               ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nEdges, 'ru', time_dyn_step )
-               !$acc update device(ru_driving_values)
+               call mpas_atm_get_bdy_state(clock, block, nVertLevels, nEdges, 'ru', time_dyn_step, ru_driving_values)
                call mpas_pool_get_array(diag, 'ru', u)
                ! do this inline at present - it is simple enough
                !$acc parallel
@@ -1980,7 +1988,6 @@ module atm_time_integration
                   end if
                end do
                !$acc end parallel
-               !$acc exit data delete(ru_driving_values)
 
                deallocate(ru_driving_values)
 
@@ -2018,8 +2025,8 @@ module atm_time_integration
                   !
                   ! get the scalar values driving the regional boundary conditions
                   !
-                  scalars_driving(:,:,:) = mpas_atm_get_bdy_state(clock, block, num_scalars, nVertLevels, nCells, &
-                                                                  'scalars', rk_timestep(rk_step))
+                  call mpas_atm_get_bdy_state(clock, block, num_scalars, nVertLevels, nCells, &
+                                              'scalars', rk_timestep(rk_step), scalars_driving)
 
                   !$OMP PARALLEL DO
                   do thread=1,nThreads
@@ -2183,8 +2190,8 @@ module atm_time_integration
                !
                ! get the scalar values driving the regional boundary conditions
                !
-               scalars_driving(:,:,:) = mpas_atm_get_bdy_state(clock, block, num_scalars, nVertLevels, nCells, &
-                                                               'scalars', rk_timestep(rk_step))
+               call mpas_atm_get_bdy_state(clock, block, num_scalars, nVertLevels, nCells, &
+                                           'scalars', rk_timestep(rk_step), scalars_driving)
 
 !$OMP PARALLEL DO
                do thread=1,nThreads
@@ -2303,8 +2310,8 @@ module atm_time_integration
         allocate(rho_driving_values(nVertLevels,nCells+1))
         time_dyn_step = dt  ! end of full timestep values
 
-        rt_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rtheta_m', time_dyn_step )
-        rho_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rho_zz', time_dyn_step )
+        call mpas_atm_get_bdy_state(clock, block, nVertLevels, nCells, 'rtheta_m', time_dyn_step, rt_driving_values)
+        call mpas_atm_get_bdy_state(clock, block, nVertLevels, nCells, 'rho_zz', time_dyn_step, rho_driving_values)
 
 !$OMP PARALLEL DO
         do thread=1,nThreads
@@ -2333,7 +2340,7 @@ module atm_time_integration
          !
          ! get the scalar values driving the regional boundary conditions
          !
-         scalars_driving(:,:,:) = mpas_atm_get_bdy_state(clock, block, num_scalars, nVertLevels, nCells, 'scalars', dt)
+         call mpas_atm_get_bdy_state(clock, block, num_scalars, nVertLevels, nCells, 'scalars', dt, scalars_driving)
 
 !$OMP PARALLEL DO
          do thread=1,nThreads
@@ -7757,8 +7764,6 @@ module atm_time_integration
       call mpas_pool_get_array(tend, 'rt_diabatic_tend', rt_diabatic_tend)
 
       MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
-      !$acc enter data copyin(rho_driving_tend,rt_driving_tend, &
-      !$acc                   ru_driving_tend)
       MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
 
       !$acc parallel default(present)
@@ -7789,8 +7794,6 @@ module atm_time_integration
       !$acc end parallel
 
       MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
-      !$acc exit data delete(rho_driving_tend,rt_driving_tend, &
-      !$acc                   ru_driving_tend)
       MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
       
     end subroutine atm_bdy_adjust_dynamics_speczone_tend
@@ -7878,8 +7881,6 @@ module atm_time_integration
       vertexDegree = vertexDegree_ptr
 
       MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
-      !$acc enter data copyin(rho_driving_values, &
-      !$acc                   rt_driving_values, ru_driving_values)
       !$acc enter data create(divergence1, divergence2, vorticity1, vorticity2)
       MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
       
@@ -8028,9 +8029,8 @@ module atm_time_integration
        end do  !  end of loop over edges
        !$acc end parallel
 
-       MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
-      !$acc exit data delete(rho_driving_values, rt_driving_values, &
-      !$acc            ru_driving_values, divergence1, divergence2, vorticity1, vorticity2)
+      MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
+      !$acc exit data delete(divergence1, divergence2, vorticity1, vorticity2)
       MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
        
    end subroutine atm_bdy_adjust_dynamics_relaxzone_tend
@@ -8067,7 +8067,6 @@ module atm_time_integration
       call mpas_pool_get_array(diag, 'rtheta_base', rtheta_base)
 
       MPAS_ACC_TIMER_START('atm_bdy_reset_speczone_values [ACC_data_xfer]')
-      !$acc enter data copyin(rt_driving_values, rho_driving_values)
       MPAS_ACC_TIMER_STOP('atm_bdy_reset_speczone_values [ACC_data_xfer]')
       
       !$acc parallel default(present)
@@ -8084,7 +8083,6 @@ module atm_time_integration
       !$acc end parallel
 
       MPAS_ACC_TIMER_START('atm_bdy_reset_speczone_values [ACC_data_xfer]')
-      !$acc exit data delete(rt_driving_values, rho_driving_values)
       MPAS_ACC_TIMER_STOP('atm_bdy_reset_speczone_values [ACC_data_xfer]')
 
    end subroutine atm_bdy_reset_speczone_values
@@ -8176,8 +8174,7 @@ module atm_time_integration
 
       !---
       MPAS_ACC_TIMER_START('atm_bdy_adjust_scalars [ACC_data_xfer]')
-      !$acc enter data create(scalars_tmp) &
-      !$acc            copyin(scalars_driving)
+      !$acc enter data create(scalars_tmp)
       MPAS_ACC_TIMER_STOP('atm_bdy_adjust_scalars [ACC_data_xfer]')
 
       !$acc parallel default(present)
@@ -8261,7 +8258,7 @@ module atm_time_integration
       !$acc end parallel
 
       MPAS_ACC_TIMER_START('atm_bdy_adjust_scalars [ACC_data_xfer]')
-      !$acc exit data delete(scalars_tmp, scalars_driving)
+      !$acc exit data delete(scalars_tmp)
       MPAS_ACC_TIMER_STOP('atm_bdy_adjust_scalars [ACC_data_xfer]')
 
    end subroutine atm_bdy_adjust_scalars_work
@@ -8333,7 +8330,6 @@ module atm_time_integration
       !---
 
       MPAS_ACC_TIMER_START('atm_bdy_set_scalars_work [ACC_data_xfer]')
-      !$acc enter data copyin(scalars_driving)
       MPAS_ACC_TIMER_STOP('atm_bdy_set_scalars_work [ACC_data_xfer]')
 
       !$acc parallel default(present)
@@ -8358,7 +8354,6 @@ module atm_time_integration
       !$acc end parallel
 
       MPAS_ACC_TIMER_START('atm_bdy_set_scalars_work [ACC_data_xfer]')
-      !$acc exit data delete(scalars_driving)
       MPAS_ACC_TIMER_STOP('atm_bdy_set_scalars_work [ACC_data_xfer]')
             
    end subroutine atm_bdy_set_scalars_work
