@@ -1158,17 +1158,17 @@ module atm_time_integration
       call mpas_pool_get_array(diag, 'ru_p', ru_p)
       !$acc exit data copyout(ru_p)
       call mpas_pool_get_array(diag, 'ru_save', ru_save)
-      !$acc exit data copyout(ru_save)
+      !$acc exit data delete(ru_save)
       call mpas_pool_get_array(diag, 'rw', rw)
       !$acc exit data copyout(rw) ! use values from atm_init_coupled_diagnostics
       call mpas_pool_get_array(diag, 'rw_p', rw_p)
       !$acc exit data copyout(rw_p)
       call mpas_pool_get_array(diag, 'rw_save', rw_save)
-      !$acc exit data copyout(rw_save)
+      !$acc exit data delete(rw_save)
       call mpas_pool_get_array(diag, 'rtheta_p', rtheta_p)
       !$acc exit data copyout(rtheta_p) ! use values from atm_init_coupled_diagnostics
       call mpas_pool_get_array(diag, 'rtheta_p_save', rtheta_p_save)
-      !$acc exit data copyout(rtheta_p_save)
+      !$acc exit data delete(rtheta_p_save)
       call mpas_pool_get_array(diag, 'exner', exner)
       !$acc exit data copyout(exner) ! use values from atm_init_coupled_diagnostics
       call mpas_pool_get_array(diag, 'exner_base', exner_base)
@@ -1186,11 +1186,11 @@ module atm_time_integration
       call mpas_pool_get_array(diag, 'rho_p', rho_p)
       !$acc exit data copyout(rho_p) ! use values from atm_init_coupled_diagnostics
       call mpas_pool_get_array(diag, 'rho_p_save', rho_p_save)
-      !$acc exit data copyout(rho_p_save)
+      !$acc exit data delete(rho_p_save)
       call mpas_pool_get_array(diag, 'rho_pp', rho_pp)
       !$acc exit data copyout(rho_pp)
       call mpas_pool_get_array(diag, 'rho_zz_old_split', rho_zz_old_split)
-      !$acc exit data copyout(rho_zz_old_split)
+      !$acc exit data delete(rho_zz_old_split)
       call mpas_pool_get_array(diag, 'cqw', cqw)
       !$acc exit data delete(cqw)
       call mpas_pool_get_array(diag, 'cqu', cqu)
@@ -1214,7 +1214,7 @@ module atm_time_integration
       call mpas_pool_get_array(diag, 'pv_vertex', pv_vertex)
       !$acc exit data copyout(pv_vertex) 
       call mpas_pool_get_array(diag, 'pv_cell', pv_cell)
-      !$acc exit data copyout(pv_cell) 
+      !$acc exit data delete(pv_cell) 
       call mpas_pool_get_array(diag, 'rho_edge', rho_edge)
       !$acc exit data copyout(rho_edge) ! use values from atm_compute_solve_diagnostics
       call mpas_pool_get_array(diag, 'h_divergence', h_divergence)
@@ -1222,9 +1222,9 @@ module atm_time_integration
       call mpas_pool_get_array(diag, 'ke', ke)
       !$acc exit data copyout(ke) ! use values from atm_compute_solve_diagnostics
       call mpas_pool_get_array(diag, 'gradPVn', gradPVn)
-      !$acc exit data copyout(gradPVn)
+      !$acc exit data delete(gradPVn)
       call mpas_pool_get_array(diag, 'gradPVt', gradPVt)
-      !$acc exit data copyout(gradPVt)
+      !$acc exit data delete(gradPVt)
 
       call mpas_pool_get_array(diag, 'alpha_tri', alpha_tri)
       !$acc exit data delete(alpha_tri)
@@ -1258,23 +1258,23 @@ module atm_time_integration
       call mpas_pool_get_array(state, 'u', u_1, 1)
       !$acc exit data copyout(u_1)
       call mpas_pool_get_array(state, 'u', u_2, 2)
-      !$acc exit data copyout(u_2)
+      !$acc exit data delete(u_2)
       call mpas_pool_get_array(state, 'w', w_1, 1)
       !$acc exit data copyout(w_1)
       call mpas_pool_get_array(state, 'w', w_2, 2)
-      !$acc exit data copyout(w_2)
+      !$acc exit data delete(w_2)
       call mpas_pool_get_array(state, 'theta_m', theta_m_1, 1)  
       !$acc exit data copyout(theta_m_1)   ! use values from atm_init_coupled_diagnostics
       call mpas_pool_get_array(state, 'theta_m', theta_m_2, 2)
-      !$acc exit data copyout(theta_m_2)
+      !$acc exit data copyout(theta_m_2)   ! Delete gives incorrect results
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_1, 1)
       !$acc exit data copyout(rho_zz_1)
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_2, 2)
-      !$acc exit data copyout(rho_zz_2)
+      !$acc exit data delete(rho_zz_2)
       call mpas_pool_get_array(state, 'scalars', scalars_1, 1)
       !$acc exit data copyout(scalars_1)
       call mpas_pool_get_array(state, 'scalars', scalars_2, 2)
-      !$acc exit data copyout(scalars_2)
+      !$acc exit data copyout(scalars_2)   ! Delete gives incorrect results
 
 
       call mpas_pool_get_array(tend, 'u', tend_ru)
