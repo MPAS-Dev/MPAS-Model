@@ -8,7 +8,7 @@
 #
 ifeq ($(findstring MPAS_CAM_DYCORE,$(CPPFLAGS)),)
     PHYSICS = -DDO_PHYSICS
-		CHEMISTRY = -DDO_CHEMISTRY
+    CHEMISTRY = -DDO_CHEMISTRY
 endif
 
 ifdef PHYSICS
@@ -17,8 +17,8 @@ ifdef PHYSICS
 endif
 
 ifdef CHEMISTRY
-		CHEMCORE = chemcore
-		CHEM_OBJS = libchem/*.o
+    CHEMCORE = chemcore
+    CHEM_OBJS = libchem/*.o
 endif
 
 OBJS = mpas_atm_core.o \
