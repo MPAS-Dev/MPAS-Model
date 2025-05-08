@@ -297,6 +297,7 @@ module atm_time_integration
       nullify(mesh)
       call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', mesh)
 
+      MPAS_ACC_TIMER_START('mpas_dynamics_init [ACC_data_xfer]')
       call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
       !$acc enter data copyin(dvEdge)
 
@@ -469,6 +470,8 @@ module atm_time_integration
       !$acc enter data copyin(t_init)
       call mpas_pool_get_array(mesh, 'qv_init', qv_init)
       !$acc enter data copyin(qv_init)
+
+      MPAS_ACC_TIMER_STOP('mpas_dynamics_init [ACC_data_xfer]')
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -539,6 +542,7 @@ module atm_time_integration
       nullify(diag)
       call mpas_pool_get_subpool(block % structs, 'diag', diag)
 
+      MPAS_ACC_TIMER_START('first_compute_solve_diagnostics [ACC_data_xfer]')
       call mpas_pool_get_array(state, 'rho_zz', h, 1)
       !$acc enter data create(h)
       call mpas_pool_get_array(state, 'u', u, 1)
@@ -647,6 +651,8 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'fVertex', fVertex)
       !$acc enter data copyin(fVertex)
+
+      MPAS_ACC_TIMER_STOP('first_compute_solve_diagnostics [ACC_data_xfer]')
 #endif
 
    end subroutine mpas_atm_pre_computesolvediag_h2d
@@ -716,6 +722,8 @@ module atm_time_integration
       call mpas_pool_get_subpool(block % structs, 'state', state)
       nullify(diag)
       call mpas_pool_get_subpool(block % structs, 'diag', diag)
+
+      MPAS_ACC_TIMER_START('first_compute_solve_diagnostics [ACC_data_xfer]')
 
       call mpas_pool_get_array(state, 'rho_zz', h, 1)
       !$acc exit data copyout(h)
@@ -825,6 +833,8 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'fVertex', fVertex)
       !$acc exit data delete(fVertex)
+
+      MPAS_ACC_TIMER_STOP('first_compute_solve_diagnostics [ACC_data_xfer]')
 #endif
 
    end subroutine mpas_atm_post_computesolvediag_d2h
@@ -894,6 +904,7 @@ module atm_time_integration
       call mpas_pool_get_subpool(domain % blocklist % structs, 'tend_physics', tend_physics)
       call mpas_pool_get_subpool(domain % blocklist % structs, 'lbc', lbc)
 
+      MPAS_ACC_TIMER_START('atm_srk3 [ACC_data_xfer]')
       call mpas_pool_get_array(diag, 'ru', ru)
       !$acc enter data copyin(ru) ! use values from atm_init_coupled_diagnostics
       call mpas_pool_get_array(diag, 'ru_p', ru_p)
@@ -1083,6 +1094,8 @@ module atm_time_integration
 
       call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
       !$acc enter data copyin(rthdynten)
+
+      MPAS_ACC_TIMER_STOP('atm_srk3 [ACC_data_xfer]')
 #endif
 
    end subroutine mpas_atm_pre_dynamics_h2d
@@ -1153,6 +1166,7 @@ module atm_time_integration
       call mpas_pool_get_subpool(domain % blocklist % structs, 'tend_physics', tend_physics)
       call mpas_pool_get_subpool(domain % blocklist % structs, 'lbc', lbc)
 
+      MPAS_ACC_TIMER_START('atm_srk3 [ACC_data_xfer]')
       call mpas_pool_get_array(diag, 'ru', ru)
       !$acc exit data copyout(ru) ! use values from atm_init_coupled_diagnostics
       call mpas_pool_get_array(diag, 'ru_p', ru_p)
@@ -1342,6 +1356,7 @@ module atm_time_integration
 
       call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
       !$acc exit data copyout(rthdynten)
+      MPAS_ACC_TIMER_STOP('atm_srk3 [ACC_data_xfer]')
 #endif
 
    end subroutine mpas_atm_post_dynamics_d2h
@@ -2974,8 +2989,6 @@ module atm_time_integration
       moist_start = moist_start_ptr
       moist_end = moist_end_ptr
 
-      MPAS_ACC_TIMER_START('atm_compute_moist_coefficients [ACC_data_xfer]')
-      MPAS_ACC_TIMER_STOP('atm_compute_moist_coefficients [ACC_data_xfer]')
 
       !$acc parallel default(present)
       !$acc loop gang worker
@@ -3025,8 +3038,6 @@ module atm_time_integration
       end do
       !$acc end parallel
 
-      MPAS_ACC_TIMER_START('atm_compute_moist_coefficients [ACC_data_xfer]')
-      MPAS_ACC_TIMER_STOP('atm_compute_moist_coefficients [ACC_data_xfer]')
 
    end subroutine atm_compute_moist_coefficients
 
@@ -4928,8 +4939,6 @@ module atm_time_integration
 
 
       MPAS_ACC_TIMER_START('atm_advance_scalars_mono [ACC_data_xfer]')
-
-
       if (local_advance_density) then
          !$acc enter data copyin(rho_zz_int)
       end if
@@ -4957,7 +4966,6 @@ module atm_time_integration
       !$acc end parallel
 
       MPAS_ACC_TIMER_START('atm_advance_scalars_mono [ACC_data_xfer]')
-
       !$acc update self(scalars_old)
       MPAS_ACC_TIMER_STOP('atm_advance_scalars_mono [ACC_data_xfer]')
 
@@ -7359,9 +7367,6 @@ module atm_time_integration
         if(rk_step /= 3) reconstruct_v = .false.
       end if
 
-      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')     
-      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
-
       if (reconstruct_v) then
         !$acc parallel default(present)
         !$acc loop gang
@@ -7989,9 +7994,6 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
       call mpas_pool_get_array(tend, 'rt_diabatic_tend', rt_diabatic_tend)
 
-      MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
-      MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
-
       !$acc parallel default(present)
       !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd
@@ -8018,9 +8020,6 @@ module atm_time_integration
          end if
       end do
       !$acc end parallel
-
-      MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
-      MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
       
     end subroutine atm_bdy_adjust_dynamics_speczone_tend
 
@@ -8291,9 +8290,6 @@ module atm_time_integration
       call mpas_pool_get_array(state, 'theta_m', theta_m, 2)
       call mpas_pool_get_array(diag, 'rtheta_p', rtheta_p)
       call mpas_pool_get_array(diag, 'rtheta_base', rtheta_base)
-
-      MPAS_ACC_TIMER_START('atm_bdy_reset_speczone_values [ACC_data_xfer]')
-      MPAS_ACC_TIMER_STOP('atm_bdy_reset_speczone_values [ACC_data_xfer]')
       
       !$acc parallel default(present)
       !$acc loop gang worker
@@ -8307,9 +8303,6 @@ module atm_time_integration
          end if
       end do
       !$acc end parallel
-
-      MPAS_ACC_TIMER_START('atm_bdy_reset_speczone_values [ACC_data_xfer]')
-      MPAS_ACC_TIMER_STOP('atm_bdy_reset_speczone_values [ACC_data_xfer]')
 
    end subroutine atm_bdy_reset_speczone_values
 
@@ -8555,9 +8548,6 @@ module atm_time_integration
 
       !---
 
-      MPAS_ACC_TIMER_START('atm_bdy_set_scalars_work [ACC_data_xfer]')
-      MPAS_ACC_TIMER_STOP('atm_bdy_set_scalars_work [ACC_data_xfer]')
-
       !$acc parallel default(present)
       !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd ! threaded over cells
@@ -8578,9 +8568,6 @@ module atm_time_integration
 
       end do  ! updates now in temp storage
       !$acc end parallel
-
-      MPAS_ACC_TIMER_START('atm_bdy_set_scalars_work [ACC_data_xfer]')
-      MPAS_ACC_TIMER_STOP('atm_bdy_set_scalars_work [ACC_data_xfer]')
             
    end subroutine atm_bdy_set_scalars_work
 
@@ -8956,9 +8943,6 @@ module atm_time_integration
          nEdgesSolve = nEdgesSolve_ptr
          nVertLevels = nVertLevels_ptr
 
-         MPAS_ACC_TIMER_START('summarize_timestep [ACC_data_xfer]')
-         MPAS_ACC_TIMER_STOP('summarize_timestep [ACC_data_xfer]')
-
          scalar_min = 0.0
          scalar_max = 0.0
          !$acc parallel default(present)
@@ -8989,8 +8973,6 @@ module atm_time_integration
          call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
          call mpas_log_write('global min, max u $r $r', realArgs=(/global_scalar_min, global_scalar_max/))
 
-         MPAS_ACC_TIMER_START('summarize_timestep [ACC_data_xfer]')
-         MPAS_ACC_TIMER_STOP('summarize_timestep [ACC_data_xfer]')
       end if
 
       if (config_print_global_minmax_sca) then
@@ -9006,9 +8988,6 @@ module atm_time_integration
          nCellsSolve = nCellsSolve_ptr
          nVertLevels = nVertLevels_ptr
          num_scalars = num_scalars_ptr
-
-         MPAS_ACC_TIMER_START('summarize_timestep [ACC_data_xfer]')
-         MPAS_ACC_TIMER_STOP('summarize_timestep [ACC_data_xfer]')
 
          do iScalar = 1, num_scalars
             scalar_min = 0.0
