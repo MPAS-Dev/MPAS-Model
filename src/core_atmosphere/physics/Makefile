@@ -6,7 +6,7 @@ endif
 
 all:
 	./../tools/manage_externals/checkout_externals --externals ./../Externals.cfg
-	$(MAKE) lookup_tables core_physics_init core_physics_mmm core_physics_wrf core_physics_noahmp core_mpas_musica core_physics
+	$(MAKE) lookup_tables core_physics_init core_physics_mmm core_physics_wrf core_physics_noahmp core_physics
 
 dummy:
 	echo "****** compiling physics ******"
@@ -67,12 +67,9 @@ core_physics_noahmp:
 	(cd physics_noahmp/src; $(MAKE) all COREDEF="$(COREDEF)")
 	(cd physics_noahmp/drivers/mpas; $(MAKE) all COREDEF="$(COREDEF)")
 
-core_mpas_musica: core_physics_init
-	(cd mpas_musica; $(MAKE) all COREDEF="$(COREDEF)")
-
 core_physics_init: $(OBJS_init)
 
-core_physics: core_physics_wrf core_physics_noahmp core_mpas_musica
+core_physics: core_physics_wrf core_physics_noahmp
 	($(MAKE) phys_interface COREDEF="$(COREDEF)")
 	ar -ru libphys.a $(OBJS_init) $(OBJS)
 	($(MAKE) -C ./physics_mmm -f Makefile.mpas physics_mmm_lib)
@@ -80,7 +77,6 @@ core_physics: core_physics_wrf core_physics_noahmp core_mpas_musica
 	($(MAKE) -C ./physics_noahmp/drivers/mpas driver_lib)
 	($(MAKE) -C ./physics_noahmp/src src_lib)
 	($(MAKE) -C ./physics_noahmp/utility utility_lib)
-	($(MAKE) -C ./mpas_musica mpas_musica_lib)
 
 phys_interface: $(OBJS)
 
@@ -243,7 +239,6 @@ mpas_atmphys_update.o: \
 clean:
 	$(RM) *.o *.mod *.f90 libphys.a
 	( cd physics_wrf; $(MAKE) clean )
-	( cd mpas_musica; $(MAKE) clean )
 	( if [ -d physics_mmm ]; then cd physics_mmm; $(MAKE) -f Makefile.mpas clean; fi; )
 	( cd physics_noahmp/drivers/mpas; $(MAKE) clean )
 	( cd physics_noahmp/src; $(MAKE) clean )
@@ -256,7 +251,7 @@ clean:
 	$(RM) $@ $*.mod
 ifeq "$(GEN_F90)" "true"
 	$(CPP) $(CPPFLAGS) $(COREDEF) $(HYDROSTATIC) $(CPPINCLUDES) $< > $*.f90
-	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I./physics_mmm -I./physics_wrf -I./physics_noahmp -I./physics_noahmp/utility -I./physics_noahmp/drivers/mpas -I./physics_noahmp/src -I./mpas_musica -I.. -I../../framework -I../../external/esmf_time_f90
+	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I./physics_mmm -I./physics_wrf -I./physics_noahmp -I./physics_noahmp/utility -I./physics_noahmp/drivers/mpas -I./physics_noahmp/src -I.. -I../../framework -I../../external/esmf_time_f90
 else
-	$(FC) $(CPPFLAGS) $(COREDEF) $(HYDROSATIC) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I./physics_mmm -I./physics_wrf -I./physics_noahmp -I./physics_noahmp/utility -I./physics_noahmp/drivers/mpas -I./physics_noahmp/src -I./mpas_musica -I.. -I../../framework -I../../external/esmf_time_f90
+	$(FC) $(CPPFLAGS) $(COREDEF) $(HYDROSATIC) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I./physics_mmm -I./physics_wrf -I./physics_noahmp -I./physics_noahmp/utility -I./physics_noahmp/drivers/mpas -I./physics_noahmp/src -I.. -I../../framework -I../../external/esmf_time_f90
 endif

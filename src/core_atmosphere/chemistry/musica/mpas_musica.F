@@ -6,23 +6,22 @@
 !
 !=================================================================================================================
 module mpas_musica
-#ifdef USE_MUSICA
+#ifdef MPAS_USE_MUSICA
   use musica_micm, only : get_micm_version
   use musica_util, only : string_t
 #endif
-use mpas_derived_types, only: MPAS_LOG_CRIT
 use mpas_log, only: mpas_log_write
 
 implicit none
 private
-public:: init_musica
+public:: log_musica_support
 
-!MPAS initialization of MUSICA library components. To use MUSICA components. the
-!`config_musica_scheme` option must be set to the top-level configuration file for MUSICA.
-!The MUSICA library must also be compiled and linked to the MPAS executable, by setting the
-!environment variable `MPAS_EXTERNAL_CPPFLAGS` to `-DUSE_MUSICA` and ensuring that the
-!appropriate include and library paths are included in `MPAS_EXTERNAL_INCLUDES` and
-!`MPAS_EXTERNAL_LIBS`.
+!The MUSICA library must also be compiled and linked to the MPAS executable, This is
+!typically done by first installing the MUSICA and then including the `MUSICA=true` option
+!when building the MPAS atmosphere model.
+!
+!CURRENTLY UNDER DEVELOPMENT
+!
 !ACOM Software Engineering Team 2025
 
 
@@ -30,21 +29,19 @@ public:: init_musica
 
 
 !=================================================================================================================
- subroutine init_musica()
+ subroutine log_musica_support()
 !=================================================================================================================
-#ifdef USE_MUSICA
+#ifdef MPAS_USE_MUSICA
 
 !local variables
   type(string_t) :: version_string
 
   version_string = get_micm_version()
-  call mpas_log_write("You are NOT using MICM for chemistry, but if you were, "// &
-                      "it would be with version: "//version_string%value_)
+  call mpas_log_write("MUSICA support is available. MICM version: "//version_string%value_)
 #else
-  call mpas_log_write("MUSICA Support not available. Ensure the environment "// &
-                      "variable MPAS_EXTERNAL_CPPFLAGS includes -DUSE_MUSICA", messageType=MPAS_LOG_CRIT)
+  call mpas_log_write("MUSICA support not available.")
 #endif
- end subroutine init_musica
+ end subroutine log_musica_support
 
 !=================================================================================================================
 end module mpas_musica

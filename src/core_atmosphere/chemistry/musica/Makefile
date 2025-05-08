@@ -13,7 +13,7 @@ OBJS = \
 mpas_musica: $(OBJS)
 
 mpas_musica_lib:
-	ar -ru ./../libphys.a $(OBJS)
+	ar -ru ./../libchem.a $(OBJS)
 
 clean:
 	$(RM) *.f90 *.o *.mod
@@ -24,7 +24,7 @@ clean:
 .F.o:
 ifeq "$(GEN_F90)" "true"
 	$(CPP) $(CPPFLAGS) $(COREDEF) $(CPPINCLUDES) $< > $*.f90
-	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I.. -I../physics_mmm -I../../../framework -I../../../external/esmf_time_f90
+	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I.. -I../../../framework -I../../../external/esmf_time_f90
 else
-	$(FC) $(CPPFLAGS) $(COREDEF) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I.. -I../physics_mmm -I../../../framework -I../../../external/esmf_time_f90
+	$(FC) $(CPPFLAGS) $(COREDEF) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I.. -I../../../framework -I../../../external/esmf_time_f90
 endif
