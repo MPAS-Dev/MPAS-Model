@@ -356,11 +356,11 @@ module mpas_atm_boundaries
     !
     !  routine mpas_atm_get_bdy_state_2d
     !
-    !> \brief   Returns LBC state at a specified delta-t in the future
+    !> \brief   Provides LBC state at a specified delta-t in the future
     !> \author  Michael Duda
     !> \date    28 September 2016
     !> \details 
-    !>  This function returns an array providing the state for the requested
+    !>  This subroutine returns an array providing the state for the requested
     !>  progostic variable delta_t in the future from the current time known
     !>  by the simulation clock (which is typically the time at the start of
     !>  the current timestep).
@@ -368,24 +368,24 @@ module mpas_atm_boundaries
     !>  The vertDim and horizDim should match the nominal block dimensions of
     !>  the field to be returned by the call; for example, a call to retrieve
     !>  the state of the 'u' field would set vertDim=nVertLevels and 
-    !>  horizDim=nEdges. This function internally adds 1 to the horizontal
+    !>  horizDim=nEdges. This routine internally adds 1 to the horizontal
     !>  dimension to account for the "garbage" element.
     !>
     !>  The field is identified by the 'field' argument, and this argument is
     !>  prefixed with 'lbc_' before attempting to retrieve the field from
-    !>  the 'lbc' pool. For scalars, the field argument should give the name 
+    !>  the 'lbc' pool. For scalars, the field argument should give the name
     !>  of the constituent, e.g., 'qv'.
     !>
-    !>  Example calls to this function:
-    !>  
-    !>   u(:,:) = mpas_atm_get_bdy_state(clock, domain % blocklist, nVertLevels, nEdges, 'u', 0.0_RKIND)
-    !>   w(:,:) = mpas_atm_get_bdy_state(clock, domain % blocklist, nVertLevels+1, nCells, 'w', 0.0_RKIND)
-    !>   rho_zz(:,:) = mpas_atm_get_bdy_state(clock, domain % blocklist, nVertLevels, nCells, 'rho_zz', 0.0_RKIND)
-    !>   theta(:,:) = mpas_atm_get_bdy_state(clock, domain % blocklist, nVertLevels, nCells, 'theta', 0.0_RKIND)
-    !>   scalars(1,:,:) = mpas_atm_get_bdy_state(clock, domain % blocklist, nVertLevels, nCells, 'qv', 0.0_RKIND)
+    !>  Example calls to this subroutine:
+    !> 
+    !>   call mpas_atm_get_bdy_state(clock, domain % blocklist, nVertLevels, nEdges, 'u', 0.0_RKIND, u)
+    !>   call mpas_atm_get_bdy_state(clock, domain % blocklist, nVertLevels+1, nCells, 'w', 0.0_RKIND, w)
+    !>   call mpas_atm_get_bdy_state(clock, domain % blocklist, nVertLevels, nCells, 'rho_zz', 0.0_RKIND, rho_zz)
+    !>   call mpas_atm_get_bdy_state(clock, domain % blocklist, nVertLevels, nCells, 'theta', 0.0_RKIND, theta)
+    !>   call mpas_atm_get_bdy_state(clock, domain % blocklist, nVertLevels, nCells, 'qv', 0.0_RKIND, scalars(1,:,:))
     !
     !-----------------------------------------------------------------------
-    function mpas_atm_get_bdy_state_2d(clock, block, vertDim, horizDim, field, delta_t) result(return_state)
+    subroutine mpas_atm_get_bdy_state_2d(clock, block, vertDim, horizDim, field, delta_t, return_state)
 
         use mpas_pool_routines, only : mpas_pool_get_error_level, mpas_pool_set_error_level
         use mpas_derived_types, only : MPAS_POOL_SILENT
@@ -397,8 +397,7 @@ module mpas_atm_boundaries
         integer, intent(in) :: vertDim, horizDim
         character(len=*), intent(in) :: field
         real (kind=RKIND), intent(in) :: delta_t
-
-        real (kind=RKIND), dimension(vertDim,horizDim+1) :: return_state
+        real (kind=RKIND), dimension(vertDim,horizDim+1), intent(out) :: return_state
 
         type (mpas_pool_type), pointer :: lbc
         integer, pointer :: idx_ptr
@@ -450,8 +449,7 @@ module mpas_atm_boundaries
         !
         if (associated(tend) .and. associated(state)) then
             MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
-            !$acc enter data create(return_state) &
-            !$acc            copyin(tend, state)
+            !$acc enter data copyin(tend, state)
             MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
 
             !$acc parallel default(present)
@@ -464,8 +462,7 @@ module mpas_atm_boundaries
             !$acc end parallel
 
             MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
-            !$acc exit data copyout(return_state) &
-            !$acc           delete(tend, state)
+            !$acc exit data delete(tend, state)
             MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
         else
             call mpas_pool_get_array(lbc, 'lbc_scalars', tend_scalars, 1)
@@ -475,8 +472,7 @@ module mpas_atm_boundaries
             idx=idx_ptr ! Avoid non-array pointer for OpenACC
 
             MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
-            !$acc enter data create(return_state) &
-            !$acc            copyin(tend_scalars, state_scalars)
+            !$acc enter data copyin(tend_scalars, state_scalars)
             MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
 
             !$acc parallel default(present)
@@ -489,23 +485,22 @@ module mpas_atm_boundaries
             !$acc end parallel
 
             MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
-            !$acc exit data copyout(return_state) &
-            !$acc           delete(tend_scalars, state_scalars)
+            !$acc exit data delete(tend_scalars, state_scalars)
             MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
         end if
 
-    end function mpas_atm_get_bdy_state_2d
+    end subroutine mpas_atm_get_bdy_state_2d
 
 
     !***********************************************************************
     !
     !  routine mpas_atm_get_bdy_state_3d
     !
-    !> \brief   Returns LBC state at a specified delta-t in the future
+    !> \brief   Provides LBC state at a specified delta-t in the future
     !> \author  Michael Duda
     !> \date    4 September 2024
     !> \details
-    !>  This function returns an array providing the state for the requested
+    !>  This subroutine returns an array providing the state for the requested
     !>  progostic variable delta_t in the future from the current time known
     !>  by the simulation clock (which is typically the time at the start of
     !>  the current timestep).
@@ -514,20 +509,21 @@ module mpas_atm_boundaries
     !>  dimensions of the field to be returned by the call; for example, a
     !>  call to retrieve the state of the 'scalars' field would set
     !>  innerDim=num_scalars, vertDim=nVertLevels, and horizDim=nCells. This
-    !>  function internally adds 1 to the horizontal dimension to account for
+    !>  routine internally adds 1 to the horizontal dimension to account for
     !>  the "garbage" element.
     !>
     !>  The field is identified by the 'field' argument, and this argument is
     !>  prefixed with 'lbc_' before attempting to retrieve the field from
     !>  the 'lbc' pool.
     !>
-    !>  Example calls to this function:
+    !>  Example call to this subroutine:
     !>
-    !>   scalar(:,:,:) = mpas_atm_get_bdy_state(clock, domain % blocklist, &
-    !>                       num_scalars, nVertLevels, nCells, 'scalars', 0.0_RKIND)
+    !>   call mpas_atm_get_bdy_state(clock, domain % blocklist, &
+    !>                               num_scalars, nVertLevels, nCells, 'scalars', &
+    !>                               0.0_RKIND, scalars)
     !
     !-----------------------------------------------------------------------
-    function mpas_atm_get_bdy_state_3d(clock, block, innerDim, vertDim, horizDim, field, delta_t) result(return_state)
+    subroutine mpas_atm_get_bdy_state_3d(clock, block, innerDim, vertDim, horizDim, field, delta_t, return_state)
 
         use mpas_pool_routines, only : mpas_pool_get_error_level, mpas_pool_set_error_level
         use mpas_derived_types, only : MPAS_POOL_SILENT
@@ -539,8 +535,7 @@ module mpas_atm_boundaries
         integer, intent(in) :: innerDim, vertDim, horizDim
         character(len=*), intent(in) :: field
         real (kind=RKIND), intent(in) :: delta_t
-
-        real (kind=RKIND), dimension(innerDim,vertDim,horizDim+1) :: return_state
+        real (kind=RKIND), dimension(innerDim,vertDim,horizDim+1), intent(out) :: return_state
 
         type (mpas_pool_type), pointer :: lbc
         real (kind=RKIND), dimension(:,:,:), pointer :: tend
@@ -573,8 +568,7 @@ module mpas_atm_boundaries
         call mpas_pool_get_array(lbc, 'lbc_'//trim(field), state, 2)
 
         MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_3d [ACC_data_xfer]')
-        !$acc enter data create(return_state) &
-        !$acc            copyin(tend, state)
+        !$acc enter data copyin(tend, state)
         MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_3d [ACC_data_xfer]')
 
         !$acc parallel default(present)
@@ -589,11 +583,10 @@ module mpas_atm_boundaries
         !$acc end parallel
 
         MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_3d [ACC_data_xfer]')
-        !$acc exit data copyout(return_state) &
-        !$acc           delete(tend, state)
+        !$acc exit data delete(tend, state)
         MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_3d [ACC_data_xfer]')
 
-    end function mpas_atm_get_bdy_state_3d
+    end subroutine mpas_atm_get_bdy_state_3d
 
 
     !***********************************************************************
