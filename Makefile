@@ -690,8 +690,8 @@ ifeq "$(shell echo $(MUSICA) | tr '[:upper:]' '[:lower:]')" "true"
 ifeq ($(shell pkg-config --exists musica-fortran && echo yes || echo no), no)
 $(error "musica-fortran package is not installed. Please install it to proceed.")
 endif
-	FCINCLUDES += $(shell pkg-config --cflags musica-fortran)
-	LIBS += $(shell pkg-config --libs musica-fortran)
+	MUSICA_FCINCLUDES += $(shell pkg-config --cflags musica-fortran)
+	MUSICA_LIBS += $(shell pkg-config --libs musica-fortran)
 	MUSICA_FFLAGS = -DMPAS_USE_MUSICA
 endif
 
@@ -882,6 +882,8 @@ $(if $(PRECISION),$(info NOTE: PRECISION=single is unnecessary, single is the de
 	PRECISION_MESSAGE="MPAS was built with default single-precision reals."
 endif #PRECISION IF
 
+FCINCLUDES += $(MUSICA_FCINCLUDES)
+LIBS += $(MUSICA_LIBS)
 FFLAGS += $(MUSICA_FFLAGS)
 
 ifeq "$(USE_PAPI)" "true"
@@ -1386,6 +1388,31 @@ mpi_f08_test:
 	$(if $(findstring 1,$(MPAS_MPI_F08)), $(eval MPI_F08_MESSAGE = "Using the mpi_f08 module."), )
 	$(if $(findstring 1,$(MPAS_MPI_F08)), $(info mpi_f08 module detected.))
 
+musica_fortran_test:
+	@#
+	@# Create a Fortran test program that will link against the MUSICA library
+	@#
+	$(info Building a simple program with the MUSICA-Fortran library...)
+	$(eval MUSICA_FORTRAN_TEST := $(shell $\
+		printf "program test_musica_fortran\n$\
+						&   use musica_util, only : string_t\n$\
+						&   use musica_micm, only : get_micm_version\n$\
+						&   type(string_t) :: version_string\n$\
+						&   version_string = get_micm_version()\n$\
+						&   print *, \"MUSICA support is available. MICM version: \", version_string%%value_\n$\
+						end program test_musica_fortran\n" | sed 's/&/ /' > test_musica_fortran.f90; $\
+		$\
+		$(FC) $(MUSICA_FCINCLUDES) $(MUSICA_FFLAGS) test_musica_fortran.f90 -o test_musica_fortran.x $(MUSICA_LIBS) > /dev/null 2>&1; $\
+		musica_fortran_status=$$?; $\
+		rm -f test_musica_fortran.f90 test_musica_fortran.x; $\
+		if [ $$musica_fortran_status -eq 0 ]; then $\
+			printf "1"; $\
+		else $\
+			printf "0"; $\
+		fi $\
+	))
+	$(if $(findstring 0,$(MUSICA_FORTRAN_TEST)), $(error Could not build a simple test program with MUSICA-Fortran))
+	$(if $(findstring 1,$(MUSICA_FORTRAN_TEST)), $(eval CHEMISTRY_MESSAGE = "MUSICA-Fortran library available."), )
 
 pnetcdf_test:
 	@#
@@ -1436,6 +1463,12 @@ IO_MESSAGE = "Using the SMIOL library."
 override CPPFLAGS += "-DMPAS_SMIOL_SUPPORT"
 endif
 
+ifneq "$(MUSICA_FFLAGS)" ""
+MAIN_DEPS += musica_fortran_test
+else
+CHEMISTRY_MESSAGE = "No external chemistry libraries available."
+endif
+
 mpas_main: $(MAIN_DEPS)
 	cd src; $(MAKE) FC="$(FC)" \
                  CC="$(CC)" \
@@ -1468,6 +1501,7 @@ mpas_main: $(MAIN_DEPS)
 	@echo $(PARALLEL_MESSAGE)
 	@echo $(MPI_F08_MESSAGE)
 	@echo $(PAPI_MESSAGE)
+	@echo $(CHEMISTRY_MESSAGE)
 	@echo $(TAU_MESSAGE)
 	@echo $(OPENMP_MESSAGE)
 	@echo $(OPENMP_OFFLOAD_MESSAGE)
