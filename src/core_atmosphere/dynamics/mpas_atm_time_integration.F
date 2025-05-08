@@ -860,6 +860,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: kdiff, pv_edge, pv_vertex, pv_cell, rho_edge, h_divergence, ke
       real (kind=RKIND), dimension(:,:), pointer :: cofwr, cofwz, coftz, cofwt, a_tri, alpha_tri, gamma_tri
       real (kind=RKIND), dimension(:), pointer :: cofrz
+      real (kind=RKIND), dimension(:,:), pointer :: gradPVn, gradPVt
 
 
       real (kind=RKIND), dimension(:,:), pointer :: u_1, u_2
@@ -961,6 +962,10 @@ module atm_time_integration
       !$acc enter data copyin(h_divergence)
       call mpas_pool_get_array(diag, 'ke', ke)
       !$acc enter data copyin(ke) ! use values from atm_compute_solve_diagnostics
+      call mpas_pool_get_array(diag, 'gradPVn', gradPVn)
+      !$acc enter data copyin(gradPVn)
+      call mpas_pool_get_array(diag, 'gradPVt', gradPVt)
+      !$acc enter data copyin(gradPVt)
 
       call mpas_pool_get_array(diag, 'alpha_tri', alpha_tri)
       !$acc enter data copyin(alpha_tri)
@@ -1114,6 +1119,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: kdiff, pv_edge, pv_vertex, pv_cell, rho_edge, h_divergence, ke
       real (kind=RKIND), dimension(:,:), pointer :: cofwr, cofwz, coftz, cofwt, a_tri, alpha_tri, gamma_tri
       real (kind=RKIND), dimension(:), pointer :: cofrz
+      real (kind=RKIND), dimension(:,:), pointer :: gradPVn, gradPVt
 
 
       real (kind=RKIND), dimension(:,:), pointer :: u_1, u_2
@@ -1215,6 +1221,10 @@ module atm_time_integration
       !$acc exit data copyout(h_divergence)
       call mpas_pool_get_array(diag, 'ke', ke)
       !$acc exit data copyout(ke) ! use values from atm_compute_solve_diagnostics
+      call mpas_pool_get_array(diag, 'gradPVn', gradPVn)
+      !$acc exit data copyout(gradPVn)
+      call mpas_pool_get_array(diag, 'gradPVt', gradPVt)
+      !$acc exit data copyout(gradPVt)
 
       call mpas_pool_get_array(diag, 'alpha_tri', alpha_tri)
       !$acc exit data copyout(alpha_tri)
@@ -1971,6 +1981,8 @@ module atm_time_integration
                                      tend_ru_physics, tend_rtheta_physics, tend_rho_physics)
       end if
 
+      !$acc enter data copyin(tend_rtheta_physics,tend_rho_physics,tend_ru_physics)
+
 
       DYNAMICS_SUBSTEPS : do dynamics_substep = 1, dynamics_split
 
@@ -2437,6 +2449,7 @@ module atm_time_integration
 
       deallocate(qtot)  !  we are finished with these now
 
+      !$acc exit data delete(tend_rtheta_physics,tend_rho_physics,tend_ru_physics)
 #ifndef MPAS_CAM_DYCORE
       call mpas_deallocate_scratch_field(tend_rtheta_physicsField)
       call mpas_deallocate_scratch_field(tend_rho_physicsField)
@@ -5954,12 +5967,7 @@ module atm_time_integration
       call mpas_log_write('-- RK step $i --', intArgs=[rk_step])
 
       MPAS_ACC_TIMER_START('atm_compute_dyn_tend_work [ACC_data_xfer]')
-      if (rk_step == 1) then
-         !$acc enter data copyin(tend_rho_physics)
-      end if
       !$acc enter data create(rayleigh_damp_coef)
-      !$acc enter data copyin(tend_ru_physics)
-      !$acc enter data copyin(tend_rtheta_physics)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
       prandtl_inv = 1.0_RKIND / prandtl
@@ -6994,12 +7002,7 @@ module atm_time_integration
       !$acc end parallel
 
       MPAS_ACC_TIMER_START('atm_compute_dyn_tend_work [ACC_data_xfer]')
-      if (rk_step == 1) then
-         !$acc exit data delete(tend_rho_physics)
-      end if
       !$acc exit data delete(rayleigh_damp_coef)
-      !$acc exit data delete(tend_ru_physics)
-      !$acc exit data delete(tend_rtheta_physics)
       MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
    end subroutine atm_compute_dyn_tend_work
