@@ -63,8 +63,6 @@ set(FRAMEWORK_LINK_LIBRARIES
         ${PROJECT_NAME}::external::ezxml
         ${IO_LIBS}
         PnetCDF::PnetCDF_Fortran
-        NetCDF::NetCDF_Fortran
-        NetCDF::NetCDF_C
         MPI::MPI_Fortran)
 
 if (MPAS_PROFILE)
