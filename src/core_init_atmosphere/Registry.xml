@@ -273,6 +273,11 @@
                      description="Whether to recompute subgrid-scale orography statistics directly on the native MPAS mesh (case 7 only)"
                      possible_values="true or false"/>
 
+                <nml_option name="config_native_gwd_gsl_static"     type="logical"       default_value="false"
+                     units="-"
+                     description="Whether to recompute subgrid-scale orography statistics for the GSL drag directly on the native MPAS mesh (case 7 only)"
+                     possible_values="true or false"/>
+
                 <nml_option name="config_gwd_cell_scaling"      type="real"          default_value="1.0"      in_defaults="false"
                      units="-"
                      description="Scaling factor for the effective grid cell diameter used in computation of GWD static fields"
@@ -353,6 +358,7 @@
                 <package name="lbcs" description="Active when lateral boundary conditions are interpolated and written."/>
                 <package name="gwd_stage_in" description="Active only if GWD static fields are be generated and other static fields are not being generated"/>
                 <package name="gwd_stage_out" description="Active only if GWD static fields are be generated and other static fields are not being generated"/>
+                <package name="gwd_gsl_stage_out" description="Active only if GSL GWD static fields are be generated"/>
                 <package name="vertical_stage_in" description="Active only if a vertical grid is being generated"/>
                 <package name="vertical_stage_out" description="Active only if a vertical grid is being generated"/>
                 <package name="met_stage_in" description="Active only if meteorological fields are being interpolated"/>
@@ -610,6 +616,35 @@
                         <var name="rh2" packages="met_stage_out"/>
                         <var name="t2m" packages="met_stage_out"/>
 		</stream>
+
+                <stream name="ugwp_oro_data"
+                        type="output"
+                        filename_template="x1.40962.ugwp_oro_data.nc"
+                        output_interval="initial_only"
+                        immutable="true"
+                        packages="gwd_gsl_stage_out">
+
+                        <var name="var2dls"/>
+                        <var name="conls"/>
+                        <var name="oa1ls"/>
+                        <var name="oa2ls"/>
+                        <var name="oa3ls"/>
+                        <var name="oa4ls"/>
+                        <var name="ol1ls"/>
+                        <var name="ol2ls"/>
+                        <var name="ol3ls"/>
+                        <var name="ol4ls"/>
+                        <var name="var2dss"/>
+                        <var name="conss"/>
+                        <var name="oa1ss"/>
+                        <var name="oa2ss"/>
+                        <var name="oa3ss"/>
+                        <var name="oa4ss"/>
+                        <var name="ol1ss"/>
+                        <var name="ol2ss"/>
+                        <var name="ol3ss"/>
+                        <var name="ol4ss"/>
+                </stream>
 
 		<stream name="surface" 
                         type="output" 
@@ -880,13 +915,95 @@
                      description="effective orographic length for southerly flow"
                      packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
 
-                <var name="ol3" type="real" dimensions="nCells" units="unitles"
+                <var name="ol3" type="real" dimensions="nCells" units="unitless"
                      description="effective orographic length for south-westerly flow"
                      packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
 
                 <var name="ol4" type="real" dimensions="nCells" units="unitless"
                      description="effective orographic length for north-westerly flow"
                      packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
+
+                <!-- GSL GWDO fields - meso-scale -->
+                <var name="var2dls" type="real" dimensions="nCells" units="m"
+                     description="standard deviation of subgrid-scale orography (meso-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="conls" type="real" dimensions="nCells" units="unitless"
+                     description="orographic convexity (meso-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="oa1ls" type="real" dimensions="nCells" units="unitless"
+                     description="asymmetry of subgrid-scale orography for westerly flow (meso-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="oa2ls" type="real" dimensions="nCells" units="unitless"
+                     description="asymmetry of subgrid-scale orography for southerly flow (meso-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="oa3ls" type="real" dimensions="nCells" units="unitless"
+                     description="asymmetry of subgrid-scale orography for south-westerly flow (meso-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="oa4ls" type="real" dimensions="nCells" units="unitless"
+                     description="asymmetry of subgrid-scale orography for north-westerly flow (meso-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="ol1ls" type="real" dimensions="nCells" units="unitless"
+                     description="effective orographic length for westerly flow (meso-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="ol2ls" type="real" dimensions="nCells" units="unitless"
+                     description="effective orographic length for southerly flow (meso-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="ol3ls" type="real" dimensions="nCells" units="unitless"
+                     description="effective orographic length for south-westerly flow (meso-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="ol4ls" type="real" dimensions="nCells" units="unitless"
+                     description="effective orographic length for north-westerly flow (meso-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <!-- GSL GWDO fields - small-scale -->
+                <var name="var2dss" type="real" dimensions="nCells" units="m"
+                     description="standard deviation of subgrid-scale orography (small-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="conss" type="real" dimensions="nCells" units="unitless"
+                     description="orographic convexity (small-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="oa1ss" type="real" dimensions="nCells" units="unitless"
+                     description="asymmetry of subgrid-scale orography for westerly flow (small-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="oa2ss" type="real" dimensions="nCells" units="unitless"
+                     description="asymmetry of subgrid-scale orography for southerly flow (small-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="oa3ss" type="real" dimensions="nCells" units="unitless"
+                     description="asymmetry of subgrid-scale orography for south-westerly flow (small-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="oa4ss" type="real" dimensions="nCells" units="unitless"
+                     description="asymmetry of subgrid-scale orography for north-westerly flow (small-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="ol1ss" type="real" dimensions="nCells" units="unitless"
+                     description="effective orographic length for westerly flow (small-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="ol2ss" type="real" dimensions="nCells" units="unitless"
+                     description="effective orographic length for southerly flow (small-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="ol3ss" type="real" dimensions="nCells" units="unitless"
+                     description="effective orographic length for south-westerly flow (small-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
+
+                <var name="ol4ss" type="real" dimensions="nCells" units="unitless"
+                     description="effective orographic length for north-westerly flow (small-scale GWD)"
+                     packages="gwd_gsl_stage_out"/>
 
                 <!-- GOCART aerosol fields -->
                 <var name="nifa_gocart_clim" type="real" dimensions="nMonths nGocartLevels nCells" units="nb kg^{-1}"

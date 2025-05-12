@@ -127,6 +127,7 @@
                                  output_noahmp,       &
                                  tend_physics,        &
                                  atm_input,           &
+                                 ngw_input,           &
                                  sfc_input
 
  logical,pointer:: config_frac_seaice
@@ -188,6 +189,7 @@
     call mpas_pool_get_subpool(block%structs,'output_noahmp'      ,output_noahmp      )
     call mpas_pool_get_subpool(block%structs,'atm_input'          ,atm_input          )
     call mpas_pool_get_subpool(block%structs,'sfc_input'          ,sfc_input          )
+    call mpas_pool_get_subpool(block%structs,'ngw_input'          ,ngw_input          )
     call mpas_pool_get_subpool(block%structs,'tend_physics'       ,tend_physics       )
 
     call mpas_pool_get_dimension(block%dimensions,'nThreads',nThreads)
@@ -321,14 +323,14 @@
 
     !call to gravity wave drag over orography scheme:
     if(config_gwdo_scheme .ne. 'off') then
-       call allocate_gwdo
+       call allocate_gwdo(block%configs)
 !$OMP PARALLEL DO
        do thread=1,nThreads
-          call driver_gwdo(itimestep,block%configs,mesh,sfc_input,diag_physics,tend_physics, &
-                           cellSolveThreadStart(thread),cellSolveThreadEnd(thread))
+          call driver_gwdo(itimestep,block%configs,mesh,sfc_input,ngw_input,diag_physics,       &
+                           tend_physics,cellSolveThreadStart(thread),cellSolveThreadEnd(thread))
        end do
 !$OMP END PARALLEL DO
-       call deallocate_gwdo
+       call deallocate_gwdo(block%configs)
     endif
 
     !call to convection scheme:

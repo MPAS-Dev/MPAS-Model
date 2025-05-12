@@ -2,3 +2,4 @@
 physics_wrf/*.f90
 physics_wrf/files/
 physics_mmm
+UGWP

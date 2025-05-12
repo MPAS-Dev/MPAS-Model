@@ -393,6 +393,7 @@ module atm_core
       type (mpas_pool_type), pointer :: sfc_input
       type (mpas_pool_type), pointer :: diag_physics
       type (mpas_pool_type), pointer :: diag_physics_noahmp
+      type (mpas_pool_type), pointer :: ngw_input
       type (mpas_pool_type), pointer :: atm_input
       type (mpas_pool_type), pointer :: output_noahmp
 
@@ -554,6 +555,7 @@ module atm_core
          call mpas_pool_get_subpool(block % structs, 'tend', tend)
          call mpas_pool_get_subpool(block % structs, 'diag_physics', diag_physics)
          call mpas_pool_get_subpool(block % structs, 'diag_physics_noahmp', diag_physics_noahmp)
+         call mpas_pool_get_subpool(block % structs, 'ngw_input', ngw_input)
          call mpas_pool_get_subpool(block % structs, 'atm_input', atm_input)
          call mpas_pool_get_subpool(block % structs, 'output_noahmp', output_noahmp)
          call physics_tables_init(dminfo, block % configs)
@@ -561,8 +563,8 @@ module atm_core
          call physics_run_init(block % configs, mesh, state, clock, stream_manager)
 
          !initialization of all physics:
-         call physics_init(dminfo, clock, block % configs, mesh, diag, tend, state, 1, diag_physics, &
-                           diag_physics_noahmp, atm_input, sfc_input, output_noahmp)
+         call physics_init(dminfo, stream_manager, clock, block % configs, mesh, diag, tend, state, 1,       &
+                           diag_physics, diag_physics_noahmp, ngw_input, atm_input, sfc_input, output_noahmp)
       endif
 #endif
    
