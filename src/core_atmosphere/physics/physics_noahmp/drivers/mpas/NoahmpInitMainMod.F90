@@ -50,7 +50,7 @@
 
     ! Check if snow/snowh are consistent and cap SWE at 2000mm
     ! the Noah-MP code does it internally but if we don't do it here, problems ensue
-    do i = its, its
+    do i = its, ite !cenlin help cye modified
        if ( NoahmpIO%snow(i)  < 0.0 ) NoahmpIO%snow(i)  = 0.0
        if ( NoahmpIO%snowh(i) < 0.0 ) NoahmpIO%snowh(i) = 0.0
        if ( (NoahmpIO%snow(i) > 0.0) .and. (NoahmpIO%snowh(i) == 0.0) ) &
@@ -127,9 +127,11 @@
        NoahmpIO%tahxy(i)    = NoahmpIO%tsk(i)
        NoahmpIO%t2mvxy(i)   = NoahmpIO%tsk(i)
        NoahmpIO%t2mbxy(i)   = NoahmpIO%tsk(i)
+       NoahmpIO%t2mxy(i)    = NoahmpIO%tsk(i) !cye add 2025-02-25
        if ( (NoahmpIO%snow(i) > 0.0) .and. (NoahmpIO%tsk(i) > t0) ) NoahmpIO%tahxy(i)  = t0
        if ( (NoahmpIO%snow(i) > 0.0) .and. (NoahmpIO%tsk(i) > t0) ) NoahmpIO%t2mvxy(i) = t0
        if ( (NoahmpIO%snow(i) > 0.0) .and. (NoahmpIO%tsk(i) > t0) ) NoahmpIO%t2mbxy(i) = t0
+       if ( (NoahmpIO%snow(i) > 0.0) .and. (NoahmpIO%tsk(i) > t0) ) NoahmpIO%t2mxy(i)  = t0 !cye add 2025-02-25
 
        NoahmpIO%cmxy(i)     = 0.0
        NoahmpIO%chxy(i)     = 0.0
@@ -157,6 +159,7 @@
 
        if ( (NoahmpIO%ivgtyp(i) == NoahmpIO%isbarren_table)                      .or. &
             (NoahmpIO%ivgtyp(i) == NoahmpIO%isice_table)                         .or. &
+            ! ( urbanpt_flag .eqv. .true.) .or. & !cye change 23/01/2025 urban 
             ((NoahmpIO%sf_urban_physics == 0) .and. (urbanpt_flag .eqv. .true.)) .or. &
             (NoahmpIO%ivgtyp(i) == NoahmpIO%iswater_table )) then
           NoahmpIO%lai(i)      = 0.0
@@ -172,10 +175,21 @@
           NoahmpIO%cropcat(i)  = 0
        else
           if ( (NoahmpIO%lai(i) > 100) .or. (NoahmpIO%lai(i) < 0) ) NoahmpIO%lai(i) = 0.0
+
+
+
+
           NoahmpIO%lai(i)      = max(NoahmpIO%lai(i), 0.05)                      !at least start with 0.05 for arbitrary initialization (v3.7)
           NoahmpIO%xsaixy(i)   = max(0.1*NoahmpIO%lai(i), 0.05)                  !mb: arbitrarily initialize sai using input lai (v3.7)
-          NoahmpIO%lfmassxy(i) = NoahmpIO%lai(i) * 1000.0 / &
-                                 max(NoahmpIO%sla_table(NoahmpIO%ivgtyp(i)),1.0) !use lai to initialize (v3.7)
+         !  NoahmpIO%lfmassxy(i) = NoahmpIO%lai(i) * 1000.0 / & ! cye add modification! 20-02-2025
+         !                         max(NoahmpIO%sla_table(NoahmpIO%ivgtyp(i)),1.0) !use lai to initialize (v3.7)
+         if ( urbanpt_flag .eqv. .true. ) then !cye add modification! 20-02-2025
+            NoahmpIO%LFMASSXY(I) = NoahmpIO%LAI(I) * 1000.0 / &
+                                    max(NoahmpIO%SLA_TABLE(NoahmpIO%NATURAL_TABLE),1.0)! use LAI to initialize (v3.7)
+         else
+            NoahmpIO%LFMASSXY(I) = NoahmpIO%LAI(I) * 1000.0 / &
+                                    max(NoahmpIO%SLA_TABLE(NoahmpIO%IVGTYP(I)),1.0)  ! use LAI to initialize (v3.7)
+         endif
           NoahmpIO%stmassxy(i) = NoahmpIO%xsaixy(i) * 1000.0 / 3.0               !use sai to initialize (v3.7)
           NoahmpIO%rtmassxy(i) = 500.0                                           !these are all arbitrary and probably should be
           NoahmpIO%woodxy(i)   = 500.0                                           !in the table or read from initialization

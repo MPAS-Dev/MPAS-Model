@@ -1,15 +1,12 @@
 MODULE module_sf_urban
-
-!reference: WRF-v4.5.1
-!Laura D. Fowler (laura@ucar.edu)/2023-04-21.
 #if defined(mpas)
 use mpas_atmphys_utilities, only: physics_message,physics_error_fatal
-#define FATAL_ERROR(M) call physics_error_fatal(M)
-#define WRITE_MESSAGE(M) call physics_message(M)
+#define FATAL_ERROR(M) call physics_error_fatal( M )
+#define WRITE_MESSAGE(M) call physics_message( M )
 #else
 use module_wrf_error
-#define FATAL_ERROR(M) call wrf_error_fatal(M)
-#define WRITE_MESSAGE(M) call wrf_message(M)
+#define FATAL_ERROR(M) call wrf_error_fatal( M )
+#define WRITE_MESSAGE(M) call wrf_message( M )
 #endif
 
 !===============================================================================
@@ -379,7 +376,7 @@ use module_wrf_error
 
    REAL, INTENT(IN)    :: XLAT ! latitude                               [deg]
    REAL, INTENT(IN)    :: DELT ! time step                              [s]
-   REAL, INTENT(IN)    :: CHS,CHS2 ! CH*U at za and 2 m             [m/s]
+   REAL, INTENT(INOUT) :: CHS,CHS2 ! CH*U at za and 2 m             [m/s]
 
    REAL, INTENT(INOUT) :: SSGD ! downward direct short wave radiation   [W/m/m]
    REAL, INTENT(INOUT) :: SSGQ ! downward diffuse short wave radiation  [W/m/m]
@@ -615,6 +612,8 @@ use module_wrf_error
      if(tloc2==0) tloc2=48
    endif
 
+
+
    CALL read_param(UTYPE,ZR,SIGMA_ZED,Z0C,Z0HC,ZDC,SVF,R,RW,HGT,  &
                    AH,CAPR,CAPB,CAPG,AKSR,AKSB,AKSG,ALBR,ALBB,    &
                    ALBG,EPSR,EPSB,EPSG,Z0R,Z0B,Z0G,Z0HB,Z0HG,     &
@@ -628,9 +627,6 @@ use module_wrf_error
                    AKANDA_URBAN,ALH)
 
 ! Glotfelty, 2012/07/05, NUDAPT Modification
-
-
-
 
  if(mh_urb.gt.0.0)THEN 
   !write(mesg,*) 'Mean Height NUDAPT',mh_urb
@@ -790,11 +786,6 @@ use module_wrf_error
    if(alhoption==1) ALH = ALH*alhdiuprf(tloc2)*alhseason(Kalh)
 
    IF( ZDC+Z0C+2. >= ZA) THEN
-   
-          open( 30, file= 'output.csv',position="append" )!cye-write
-          write(30,*) 'ZDC,Z0C,ZA',ZDC,Z0C,ZA
-          close(30) 
-
     FATAL_ERROR("ZDC + Z0C + 2m is larger than the 1st WRF level - Stop in subroutine urban - change ZDC and Z0C" ) 
    END IF
 
@@ -1028,17 +1019,9 @@ use module_wrf_error
 !    TRP=350.
 
      DO ITERATION=1,20
-!cye
-
 
        ES=6.11*EXP( (2.5*10.**6./461.51)*(TRP-273.15)/(273.15*TRP) )
        DESDT=(2.5*10.**6./461.51)*ES/(TRP**2.)
-
-         ! open( 30, file= 'output.csv',position="append" )!cye-write
-         ! write(30,*) PS,ES,TRP
-         ! close(30) 
-
-
        QS0R=0.622*ES/(PS-0.378*ES) 
        DQS0RDTR = DESDT*0.622*PS/((PS-0.378*ES)**2.) 
 
@@ -1297,14 +1280,8 @@ ENDIF
 
        ES=6.11*EXP( (2.5*10.**6./461.51)*(TGP-273.15)/(273.15*TGP) ) 
        DESDT=(2.5*10.**6./461.51)*ES/(TGP**2.)
-
-         ! open( 30, file= 'output.csv',position="append" )!cye-write
-         ! write(30,*) PS,ES,0.378*ES
-         ! close(30) 
-
-          
        QS0G=0.622*ES/(PS-0.378*ES)        
-       DQS0GDTG=DESDT*0.22*PS/((PS-0.378*ES)**2.) 
+       DQS0GDTG=DESDT*0.622*PS/((PS-0.378*ES)**2.) 
 
        RG1=EPSG*( RX*VFGS          &
        +EPSB*VFGW*SIG*TBP**4./60.  &
@@ -1322,7 +1299,7 @@ ENDIF
        RB2=EPSB*( (1.-EPSG)*VFWG*VFGS*RX                          &
        +(1.-EPSG)*EPSB*VFGW*VFWG*SIG*(TBP**4.)/60.                &
        +(1.-EPSB)*VFWS*(1.-2.*VFWS)*RX                            &
-       +(1.-EPSB)*VFWG*(1.-2.*VFWS)*EPSG*SIG*EPSG*TGP**4./60.     &
+       +(1.-EPSB)*VFWG*(1.-2.*VFWS)*EPSG*SIG*TGP**4./60.     &
        +EPSB*(1.-EPSB)*(1.-2.*VFWS)*(1.-2.*VFWS)*SIG*TBP**4./60. )
 
        RG=RG1+RG2
@@ -1441,7 +1418,7 @@ ENDIF
        RB2=EPSB*( (1.-EPSG)*VFWG*VFGS*RX                          &
        +(1.-EPSG)*EPSB*VFGW*VFWG*SIG*(TBP**4.)/60.                &
        +(1.-EPSB)*VFWS*(1.-2.*VFWS)*RX                            &
-       +(1.-EPSB)*VFWG*(1.-2.*VFWS)*EPSG*SIG*EPSG*TGP**4./60.     &
+       +(1.-EPSB)*VFWG*(1.-2.*VFWS)*EPSG*SIG*TGP**4./60.     &
        +EPSB*(1.-EPSB)*(1.-2.*VFWS)*(1.-2.*VFWS)*SIG*TBP**4./60. )
 
        RG=RG1+RG2
@@ -1540,11 +1517,6 @@ ENDIF
    Z0H = Z0HC
    Z = ZA - ZDC
    ZNT = Z0   ! add by Dan Li
-   ! ZNT = 3.   ! add by cye
-
-         !  open( 30, file= 'output.csv',position="append" )!cye-write
-         !  write(30,*)UTYPE, ZNT
-         !  close(30) 
 
    XXX = 0.4*9.81*Z*TST/TA/UST/UST
 
@@ -1564,7 +1536,7 @@ ENDIF
    CD = 0.4**2./(ALOG(Z/Z0)-PSIM)**2.
 !
 !m   CH = 0.4**2./(ALOG(Z/Z0)-PSIM)/(ALOG(Z/Z0H)-PSIH)
-!m   CHS = 0.4*UST/(ALOG(Z/Z0H)-PSIH)
+   CHS = 0.4*UST/(ALOG(Z/Z0H)-PSIH) ! cenlin 03/09/2023: uncomment to allow CHS calc for offline hrldas-urban
 !m   TS = TA + FLXTH/CH/UA    ! surface potential temp (flux temp)
 !m   QS = QA + FLXHUM/CH/UA   ! surface humidity
 !
@@ -1574,16 +1546,8 @@ ENDIF
 !-------------------------------------------------------
 !  diagnostic  GRID AVERAGED  U10  V10  TH2  Q2 --> WRF
 !-------------------------------------------------------
-if (Z ==0 ) then
-         open( 30, file= 'output1.csv',position="append" )!cye-write
-          write(30,*) ZA, ZDC
-          close(30) 
-endif
 
-   XXX2 = (2./Z)*XXX !cye
-
-
-
+   XXX2 = (2./Z)*XXX
    IF ( XXX2 >= 1. ) XXX2 = 1.
    IF ( XXX2 <= -5. ) XXX2 = -5.
 
@@ -1596,7 +1560,7 @@ endif
       PSIH2 = 2.*ALOG((1.+X*X)/2.)
    END IF
 !
-!m   CHS2 = 0.4*UST/(ALOG(2./Z0H)-PSIH2)
+   CHS2 = 0.4*UST/(ALOG(2./Z0H)-PSIH2) ! cenlin 03/09/2023: uncomment to allow CHS2 calc for offline hrldas-urban
 !
 
    XXX10 = (10./Z)*XXX
@@ -1612,17 +1576,6 @@ endif
       PSIH10 = 2.*ALOG((1.+X*X)/2.)
    END IF
 
-
-   ! PSIX = ALOG( (Z- z0d) /Z0) - PSIM
-   ! PSIT = ALOG(Z/Z0H) - PSIH
-
-   ! PSIX2 = ALOG(2./Z0) - PSIM2
-   ! PSIT2 = ALOG(2./Z0H) - PSIH2
-
-   ! PSIX10 = ALOG( (10. - z0d) /Z0) - PSIM10
-   ! PSIT10 = ALOG(10./Z0H) - PSIH10
-
-
    PSIX = ALOG(Z/Z0) - PSIM
    PSIT = ALOG(Z/Z0H) - PSIH
 
@@ -1633,7 +1586,6 @@ endif
    PSIT10 = ALOG(10./Z0H) - PSIH10
 
    U10 = U1 * (PSIX10/PSIX)       ! u at 10 m [m/s]
-   ! U10(I)=UX(I)*PSIX10/PSIX    
    V10 = V1 * (PSIX10/PSIX)       ! v at 10 m [m/s]
 
 !   TH2 = TS + (TA-TS)*(PSIT2/PSIT)   ! potential temp at 2 m [K]
@@ -1930,6 +1882,10 @@ endif
    INTEGER, INTENT(OUT) :: BOUNDR,BOUNDB,BOUNDG,CH_SCHEME,TS_SCHEME
 
 
+            ! open( 30, file= 'output.csv',position="append" )!cye-write
+            ! write(30,*)  ZR_TBL, UTYPE
+            ! close(30) 
+
    ZR =     ZR_TBL(UTYPE)
    SIGMA_ZED = SIGMA_ZED_TBL(UTYPE)
    Z0C=     Z0C_TBL(UTYPE)
@@ -1998,7 +1954,7 @@ endif
 !
 !===============================================================================
    SUBROUTINE urban_param_init(DZR,DZB,DZG,num_soil_layers, &
-                               sf_urban_physics,use_wudapt_lcz)
+                               sf_urban_physics,use_wudapt_lcz,IRI_URBAN) ! cenlin: added for use in noahmp driver
 !                              num_roof_layers,num_wall_layers,num_road_layers)
 
    IMPLICIT NONE
@@ -2013,6 +1969,7 @@ endif
    REAL, DIMENSION(1:num_soil_layers), INTENT(INOUT) :: DZG
    INTEGER,                            INTENT(IN)    :: SF_URBAN_PHYSICS
    INTEGER,                            INTENT(IN)    :: USE_WUDAPT_LCZ !AndreaLCZ
+   INTEGER,                            INTENT(INOUT) :: IRI_URBAN ! cenlin added
 
    INTEGER :: LC, K
    INTEGER :: IOSTATUS, ALLOCATE_STATUS
@@ -2078,6 +2035,8 @@ endif
          ENDIF
  endif
  
+
+
 
    READLOOP : do 
       read(11,'(A512)', iostat=iostatus) string
@@ -2212,9 +2171,9 @@ endif
             ALLOCATE( HSESF_TBL(ICATE), stat=allocate_status )
             if(allocate_status /= 0) FATAL_ERROR('Error allocating HSESF_TBL in urban_param_init')
             ALLOCATE( PV_FRAC_ROOF_TBL(ICATE), stat=allocate_status )
-            if(allocate_status /= 0) FATAL_ERROR('Error allocating PV_FRAC_ROOF_TBL in urban_param_init')
+            if(allocate_status /= 0) CALL wrf_error_fatal('Error allocating PV_FRAC_ROOF_TBL in urban_param_init')
             ALLOCATE( GR_FRAC_ROOF_TBL(ICATE), stat=allocate_status )
-            if(allocate_status /= 0) FATAL_ERROR('Error allocating GR_FRAC_ROOF_TBL in urban_param_init')
+            if(allocate_status /= 0) CALL wrf_error_fatal('Error allocating GR_FRAC_ROOF_TBL in urban_param_init')
 
          endif
          numdir_tbl = 0
@@ -2427,6 +2386,9 @@ endif
 
    CLOSE(11)
 
+   ! cenlin: pass IRI_SCHEME value to NoahmpIO variable IRI_URBAN
+   IRI_URBAN = IRI_SCHEME
+
    ! Assign a few table values that do not need to come from URBPARM.TBL
 
    Z0HB_TBL = 0.1 * Z0B_TBL
@@ -2460,13 +2422,10 @@ endif
       beta_macd  = 1.0
 
 
-
       ZDC_TBL(LC) = ZR_TBL(LC) * ( 1.0 + ( alpha_macd ** ( -Lambda_P ) )  * ( Lambda_P - 1.0 ) )
 
       Z0C_TBL(LC) = ZR_TBL(LC) * ( 1.0 - ZDC_TBL(LC)/ZR_TBL(LC) ) * &
            exp (-(0.5 * beta_macd * Cd / (VonK**2) * ( 1.0-ZDC_TBL(LC)/ZR_TBL(LC) ) * Lambda_F )**(-0.5))
-
-
 
       IF (SF_URBAN_PHYSICS == 1) THEN
          ! Include roof height variability in Macdonald
@@ -2502,15 +2461,9 @@ endif
      SVF_TBL(LC)=VFGS
    END DO
 
-         !  open( 30, file= 'output.csv',position="append" )!cye-write
-         !  write(30,*) Z0C_TBL,HGT_TBL
-         !  close(30) 
-         ! open( 30, file= 'output.csv',position="append" )!cye-write
-         !  write(30,*) R_TBL
-         !  write(30,*) HGT_TBL
-         !  write(30,*) ZDC_TBL
-         !  write(30,*) Z0C_TBL
-         !  close(30) 
+            open( 30, file= 'output.csv',position="append" )!cye-write
+            write(30,*)  ZR_TBL, ICATE
+            close(30) 
 
    deallocate(roof_width)
    deallocate(road_width)
@@ -2695,10 +2648,6 @@ endif
 
    CHECK = 0
 
-
-
-
-
    DO I=ims,ime
     DO J=jms,jme
 
@@ -2716,8 +2665,6 @@ endif
 !FS   FRC_URB2D(I,J)=0.
       UTYPE_URB2D(I,J)=0
       SWITCH_URB=1
-
-
 
             IF( IVGTYP(I,J) == ISURBAN)  THEN
                IF(use_wudapt_lcz==0) THEN
@@ -2750,15 +2697,6 @@ endif
             ELSE
                SWITCH_URB=0
             ENDIF
-
-
-            
-            ! FRC_URB2D(I,J) = FRC_URB_TBL(UTYPE_URB) !cye
-            ! LP_URB2D(I,J)  =
-            ! LB_URB2D(I,J)  =
-            ! HGT_URB2D(I,J) = ZR_TBL(UTYPE)
-            ! MH_URB2D(I,J) = ZR_TBL(UTYPE)
-            ! STDH_URB2D(I,J) = SIGMA_ZED_TBL(UTYPE)
 
             IF (SWITCH_URB == 1) THEN
                UTYPE_URB = UTYPE_URB2D(I,J)  ! for default. high-intensity
@@ -2968,7 +2906,7 @@ endif
       IF (CHECK.EQ.0)THEN
       IF(IVGTYP(I,J).EQ.1)THEN
         write(mesg,*) 'Sample of Urban settings'
-        WRITE_MESSAGE(mesg)
+        call wrf_message(mesg)
         write(mesg,*) 'TSURFACE0_URB',TSURFACE0_URB(I,J)
         WRITE_MESSAGE(mesg)
         write(mesg,*) 'TDEEP0_URB', TDEEP0_URB(I,J)

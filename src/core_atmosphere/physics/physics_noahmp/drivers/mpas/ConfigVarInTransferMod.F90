@@ -132,7 +132,7 @@ contains
        if(NoahmpIO%SF_URBAN_PHYSICS == 0 ) then
            noahmp%config%domain%VegType = NoahmpIO%ISURBAN_TABLE
        else
-           noahmp%config%domain%VegType = NoahmpIO%NATURAL_TABLE  ! set urban vegetation type based on table natural
+           noahmp%config%domain%VegType = NoahmpIO%NATURAL_TABLE  ! set urban vegetation type based on table natural !cye 21/03/2025 don't understand
            NoahmpIO%GVFMAX(I)         = 0.96 * 100.0            ! unit: %
        endif         
     endif
@@ -149,10 +149,10 @@ contains
        NoahmpIO%GVFMAX(I)          = 0.95 * 100.0              ! unit: %
     endif
 
-    ! correct inconsistent soil type
+    ! correct inconsistent soil type !cye 24/02/2025 test for urban
     if ( any(noahmp%config%domain%SoilType == 14) .and. (NoahmpIO%XICE(I) == 0.0) ) then
-       write(*,*) "SOIL TYPE FOUND TO BE WATER AT A LAND-POINT"
-       write(*,*) "RESET SOIL type to SANDY CLAY LOAM at grid = ", I
+      !  write(*,*) "SOIL TYPE FOUND TO BE WATER AT A LAND-POINT"
+      !  write(*,*) "RESET SOIL type to SANDY CLAY LOAM at grid = ", I
        noahmp%config%domain%SoilType = 7
     endif
 

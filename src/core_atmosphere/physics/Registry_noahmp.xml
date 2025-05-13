@@ -360,11 +360,17 @@
       <var name="t2mbxy" type="real" dimensions="nCells Time" units="K"
                 description="2-meter temperature over bare ground" missing_value="-9999.0"/>
 
+      <var name="t2mxy" type="real" dimensions="nCells Time" units="K"
+                description="grid-mean 2-meter temperature" missing_value="-9999.0"/>
+
       <var name="q2mvxy" type="real" dimensions="nCells Time" units="kg kg^{-1}"
                 description="2-meter water vapor mixing ratio over canopy" missing_value="-9999.0"/>
 
       <var name="q2mbxy" type="real" dimensions="nCells Time" units="kg kg^{-1}"
                 description="2-meter water vapor mixing ratio over bare ground" missing_value="-9999.0"/>
+
+      <var name="q2mxy" type="real" dimensions="nCells Time" units="kg kg^{-1}"
+                description="grid-mean 2-meter water vapor mixing ratio" missing_value="-9999.0"/>
 
       <var name="tradxy" type="real" dimensions="nCells Time" units="K"
                 description="surface radiative temperature" missing_value="-9999.0"/>
@@ -617,6 +623,124 @@
 
       <var name="acc_etranixy" type="real" dimensions="nSoilLevels nCells Time" units="m s^{-1}"
                 description="accumulated  transpiration rate within soil timestep"/>
+
+<!-- 1D Integer Variables -->
+<var name="utype_urb2dxy" type="integer" dimensions="nCells Time" units="category"
+     description="urban land use type" missing_value="0"/>
+
+<!-- 1D Real Variables -->
+<var name="cmr_sfcdifxy" type="real" dimensions="nCells Time" units="unitless"
+     description="drag coefficient for momentum in urban roof surface diffusion" missing_value="0.0"/>
+<var name="chr_sfcdifxy" type="real" dimensions="nCells Time" units="unitless"
+     description="drag coefficient for heat in urban roof surface diffusion" missing_value="0.0"/>
+<var name="cmc_sfcdifxy" type="real" dimensions="nCells Time" units="unitless"
+     description="drag coefficient for momentum in urban canopy surface diffusion" missing_value="0.0"/>
+<var name="chc_sfcdifxy" type="real" dimensions="nCells Time" units="unitless"
+     description="drag coefficient for heat in urban canopy surface diffusion" missing_value="0.0"/>
+<var name="cmgr_sfcdifxy" type="real" dimensions="nCells Time" units="unitless"
+     description="drag coefficient for momentum in urban ground surface diffusion" missing_value="0.0"/>
+<var name="chgr_sfcdifxy" type="real" dimensions="nCells Time" units="unitless"
+     description="drag coefficient for heat in urban ground surface diffusion" missing_value="0.0"/>
+<var name="tr_urb2dxy" type="real" dimensions="nCells Time" units="K"
+     description="urban roof surface temperature" missing_value="0.0"/>
+<var name="tb_urb2dxy" type="real" dimensions="nCells Time" units="K"
+     description="urban building wall temperature" missing_value="0.0"/>
+<var name="tg_urb2dxy" type="real" dimensions="nCells Time" units="K"
+     description="urban ground surface temperature" missing_value="0.0"/>
+<var name="tc_urb2dxy" type="real" dimensions="nCells Time" units="K"
+     description="urban canopy air temperature" missing_value="0.0"/>
+<var name="qc_urb2dxy" type="real" dimensions="nCells Time" units="kg kg^-1"
+     description="urban canopy specific humidity" missing_value="0.0"/>
+<var name="uc_urb2dxy" type="real" dimensions="nCells Time" units="m s^-1"
+     description="urban canopy wind speed" missing_value="0.0"/>
+<var name="xxxr_urb2dxy" type="real" dimensions="nCells Time" units="unknown"
+     description="unknown urban roof parameter" missing_value="0.0"/>
+<var name="xxxb_urb2dxy" type="real" dimensions="nCells Time" units="unknown"
+     description="unknown urban building parameter" missing_value="0.0"/>
+<var name="xxxg_urb2dxy" type="real" dimensions="nCells Time" units="unknown"
+     description="unknown urban ground parameter" missing_value="0.0"/>
+<var name="xxxc_urb2dxy" type="real" dimensions="nCells Time" units="unknown"
+     description="unknown urban canopy parameter" missing_value="0.0"/>
+<var name="sh_urb2dxy" type="real" dimensions="nCells Time" units="W m^-2"
+     description="urban sensible heat flux" missing_value="0.0"/>
+<var name="lh_urb2dxy" type="real" dimensions="nCells Time" units="W m^-2"
+     description="urban latent heat flux" missing_value="0.0"/>
+<var name="g_urb2dxy" type="real" dimensions="nCells Time" units="W m^-2"
+     description="urban ground heat flux" missing_value="0.0"/>
+<var name="rn_urb2dxy" type="real" dimensions="nCells Time" units="W m^-2"
+     description="urban net radiation" missing_value="0.0"/>
+<var name="ts_urb2dxy" type="real" dimensions="nCells Time" units="K"
+     description="urban surface temperature" missing_value="0.0"/>
+<var name="psim_urb2dxy" type="real" dimensions="nCells Time" units="unitless"
+     description="urban similarity stability function for momentum" missing_value="0.0"/>
+<var name="psih_urb2dxy" type="real" dimensions="nCells Time" units="unitless"
+     description="urban similarity stability function for heat" missing_value="0.0"/>
+<var name="u10_urb2dxy" type="real" dimensions="nCells Time" units="m s^-1"
+     description="urban wind speed at 10m" missing_value="0.0"/>
+<var name="v10_urb2dxy" type="real" dimensions="nCells Time" units="m s^-1"
+     description="urban meridional wind speed at 10m" missing_value="0.0"/>
+<var name="gz1oz0_urb2dxy" type="real" dimensions="nCells Time" units="unitless"
+     description="urban logarithmic ratio of z1 to roughness length" missing_value="0.0"/>
+<var name="akms_urb2dxy" type="real" dimensions="nCells Time" units="m s^-1"
+     description="urban momentum exchange coefficient" missing_value="0.0"/>
+<var name="th2_urb2dxy" type="real" dimensions="nCells Time" units="K"
+     description="urban potential temperature at 2m" missing_value="0.0"/>
+<var name="q2_urb2dxy" type="real" dimensions="nCells Time" units="kg kg^-1"
+     description="urban specific humidity at 2m" missing_value="0.0"/>
+<var name="ust_urb2dxy" type="real" dimensions="nCells Time" units="m s^-1"
+     description="urban friction velocity" missing_value="0.0"/>
+<var name="dzrxy" type="real" dimensions="nCells Time" units="m"
+     description="urban roof layer thickness" missing_value="0.0"/>
+<var name="dzbxy" type="real" dimensions="nCells Time" units="m"
+     description="urban building wall layer thickness" missing_value="0.0"/>
+<var name="dzgxy" type="real" dimensions="nCells Time" units="m"
+     description="urban ground layer thickness" missing_value="0.0"/>
+<var name="cmcr_urb2dxy" type="real" dimensions="nCells Time" units="unitless"
+     description="urban canopy momentum drag coefficient" missing_value="0.0"/>
+<var name="tgr_urb2dxy" type="real" dimensions="nCells Time" units="K"
+     description="urban ground reference temperature" missing_value="0.0"/>
+<var name="drelr_urb2dxy" type="real" dimensions="nCells Time" units="unitless"
+     description="urban roof drainage efficiency" missing_value="0.0"/>
+<var name="drelb_urb2dxy" type="real" dimensions="nCells Time" units="unitless"
+     description="urban building drainage efficiency" missing_value="0.0"/>
+<var name="drelg_urb2dxy" type="real" dimensions="nCells Time" units="unitless"
+     description="urban ground drainage efficiency" missing_value="0.0"/>
+<var name="flxhumr_urb2dxy" type="real" dimensions="nCells Time" units="kg m^-2 s^-1"
+     description="urban roof moisture flux" missing_value="0.0"/>
+<var name="flxhumb_urb2dxy" type="real" dimensions="nCells Time" units="kg m^-2 s^-1"
+     description="urban building moisture flux" missing_value="0.0"/>
+<var name="flxhumg_urb2dxy" type="real" dimensions="nCells Time" units="kg m^-2 s^-1"
+     description="urban ground moisture flux" missing_value="0.0"/>
+<var name="frc_urb2dxy" type="real" dimensions="nCells Time" units="unitless"
+     description="urban fraction" missing_value="0.0"/>
+<var name="chsxy" type="real" dimensions="nCells Time" units="m s^-1"
+     description="surface exchange coefficient for heat" missing_value="0.0"/>
+<var name="chs2xy" type="real" dimensions="nCells Time" units="m s^-1"
+     description="surface exchange coefficient for heat at 2m" missing_value="0.0"/>
+<var name="cqs2xy" type="real" dimensions="nCells Time" units="m s^-1"
+     description="surface exchange coefficient for moisture at 2m" missing_value="0.0"/>
+<var name="sf_ac_urb3dxy" type="real" dimensions="nCells Time" units="W m^-2"
+     description="urban air conditioning sensible heat flux" missing_value="0.0"/>
+<var name="lf_ac_urb3dxy" type="real" dimensions="nCells Time" units="W m^-2"
+     description="urban air conditioning latent heat flux" missing_value="0.0"/>
+<var name="cm_ac_urb3dxy" type="real" dimensions="nCells Time" units="unitless"
+     description="urban air conditioning momentum coefficient" missing_value="0.0"/>
+<var name="sfvent_urb3dxy" type="real" dimensions="nCells Time" units="W m^-2"
+     description="urban ventilation sensible heat flux" missing_value="0.0"/>
+<var name="lfvent_urb3dxy" type="real" dimensions="nCells Time" units="W m^-2"
+     description="urban ventilation latent heat flux" missing_value="0.0"/>
+<var name="lp_urb2dxy" type="real" dimensions="nCells Time" units="m"
+     description="urban plan area length" missing_value="0.0"/>
+<var name="lb_urb2dxy" type="real" dimensions="nCells Time" units="m"
+     description="urban building length" missing_value="0.0"/>
+<var name="hgt_urb2dxy" type="real" dimensions="nCells Time" units="m"
+     description="urban building height" missing_value="0.0"/>
+<var name="mh_urb2dxy" type="real" dimensions="nCells Time" units="m"
+     description="urban mean building height" missing_value="0.0"/>
+<var name="stdh_urb2dxy" type="real" dimensions="nCells Time" units="m"
+     description="standard deviation of urban building height" missing_value="0.0"/>
+<var name="ustxy" type="real" dimensions="nCells Time" units="m s^-1"
+     description="surface friction velocity" missing_value="0.0"/>
 
 </var_struct>
 

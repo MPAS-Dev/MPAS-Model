@@ -48,11 +48,12 @@ OBJS = \
 	mpas_atmphys_packages.o            \
 	mpas_atmphys_rrtmg_lwinit.o        \
 	mpas_atmphys_rrtmg_swinit.o        \
+	mpas_atmphys_sfc_diagnostics.o     \
 	mpas_atmphys_todynamics.o          \
 	mpas_atmphys_update_surface.o      \
 	mpas_atmphys_update.o              \
-	mpas_atmphys_vars.o
-
+	mpas_atmphys_vars.o					
+	
 lookup_tables:
 	./checkout_data_files.sh
 
@@ -65,7 +66,9 @@ core_physics_wrf: core_physics_init core_physics_mmm
 core_physics_noahmp:
 	(cd physics_noahmp/utility; $(MAKE) all COREDEF="$(COREDEF)")
 	(cd physics_noahmp/src; $(MAKE) all COREDEF="$(COREDEF)")
+	(cd physics_noahmp/urban; $(MAKE) all COREDEF="$(COREDEF)") 
 	(cd physics_noahmp/drivers/mpas; $(MAKE) all COREDEF="$(COREDEF)")
+#cye add urban
 
 core_physics_init: $(OBJS_init)
 
@@ -76,7 +79,9 @@ core_physics: core_physics_wrf core_physics_noahmp
 	($(MAKE) -C ./physics_wrf physics_wrf_lib)
 	($(MAKE) -C ./physics_noahmp/drivers/mpas driver_lib)
 	($(MAKE) -C ./physics_noahmp/src src_lib)
+	($(MAKE) -C ./physics_noahmp/urban urban_lib)
 	($(MAKE) -C ./physics_noahmp/utility utility_lib)
+#cye add urban
 
 phys_interface: $(OBJS)
 
@@ -87,6 +92,10 @@ mpas_atmphys_camrad_init.o: \
 
 mpas_atmphys_control.o: \
 	mpas_atmphys_utilities.o \
+	mpas_atmphys_vars.o
+
+mpas_atmphys_sfc_diagnostics.o: \
+	mpas_atmphys_constants.o \
 	mpas_atmphys_vars.o
 
 mpas_atmphys_driver.o: \
@@ -103,6 +112,7 @@ mpas_atmphys_driver.o: \
 	mpas_atmphys_driver_oml.o \
 	mpas_atmphys_constants.o \
 	mpas_atmphys_interface.o \
+	mpas_atmphys_sfc_diagnostics.o \
 	mpas_atmphys_update.o \
 	mpas_atmphys_vars.o
 
@@ -127,7 +137,9 @@ mpas_atmphys_driver_lsm.o: \
 mpas_atmphys_driver_lsm_noahmp.o: \
 	mpas_atmphys_constants.o \
 	mpas_atmphys_manager.o \
-	mpas_atmphys_vars.o
+	mpas_atmphys_vars.o \
+	./physics_noahmp/urban/NoahmpUrbanDriverMainMod.o
+#cye add 22/01/2025
 
 mpas_atmphys_driver_microphysics.o: \
 	mpas_atmphys_constants.o \
@@ -198,7 +210,10 @@ mpas_atmphys_lsm_noahinit.o: \
 
 mpas_atmphys_lsm_noahmpinit.o: \
 	mpas_atmphys_utilities.o \
-	mpas_atmphys_vars.o
+	mpas_atmphys_vars.o \
+	./physics_wrf/module_sf_urban.o
+#cye add 22/01/2025
+
 
 mpas_atmphys_lsm_noahmpfinalize.o : \
 	mpas_atmphys_vars.o
@@ -247,11 +262,16 @@ clean:
 	@# This removes them during the clean process
 	$(RM) *.i
 
+
+#cye add urban 22/01/2025
 .F.o:
 	$(RM) $@ $*.mod
 ifeq "$(GEN_F90)" "true"
 	$(CPP) $(CPPFLAGS) $(COREDEF) $(HYDROSTATIC) $(CPPINCLUDES) $< > $*.f90
-	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I./physics_mmm -I./physics_wrf -I./physics_noahmp -I./physics_noahmp/utility -I./physics_noahmp/drivers/mpas -I./physics_noahmp/src -I.. -I../../framework -I../../external/esmf_time_f90
+	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I. -I./physics_mmm -I./physics_wrf -I./physics_noahmp -I./physics_noahmp/utility \
+	   -I./physics_noahmp/drivers/mpas -I./physics_noahmp/src -I.. -I../../framework -I../../external/esmf_time_f90  \
+	   -I./physics_noahmp/urban
 else
-	$(FC) $(CPPFLAGS) $(COREDEF) $(HYDROSATIC) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I./physics_mmm -I./physics_wrf -I./physics_noahmp -I./physics_noahmp/utility -I./physics_noahmp/drivers/mpas -I./physics_noahmp/src -I.. -I../../framework -I../../external/esmf_time_f90
+	$(FC) $(CPPFLAGS) $(COREDEF) $(HYDROSATIC) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I. -I./physics_mmm -I./physics_wrf -I./physics_noahmp -I./physics_noahmp/utility \
+	-I./physics_noahmp/drivers/mpas -I./physics_noahmp/src -I.. -I../../framework -I../../external/esmf_time_f90 -I./physics_noahmp/urban
 endif

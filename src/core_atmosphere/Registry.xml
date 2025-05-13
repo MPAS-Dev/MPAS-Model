@@ -970,6 +970,17 @@
 			<var name="sh2o"/>
 			<var name="smois"/>
 			<var name="tslb"/>
+               <var name="lai"/>
+               <var name="sfc_albedo"/>
+               <var name="z0"/>
+			<var name="znt"/>
+               <var name="savxy"/>
+               <var name="sagxy"/>
+               <var name="pahxy"/>
+               <var name="firaxy"/>
+               <var name="grdflx"/>
+               <var name="canhsxy"/>
+               <var_struct name="output_noahmp"/>
 #endif
 		</stream>
 

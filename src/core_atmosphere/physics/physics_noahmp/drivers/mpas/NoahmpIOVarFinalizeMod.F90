@@ -196,8 +196,10 @@ contains
     ! OUT (with no Noah LSM equivalent) (as defined in WRF)   
     if ( allocated (NoahmpIO%t2mvxy)     ) deallocate ( NoahmpIO%t2mvxy             ) ! 2m temperature of vegetation part
     if ( allocated (NoahmpIO%t2mbxy)     ) deallocate ( NoahmpIO%t2mbxy             ) ! 2m temperature of bare ground part
+    if ( allocated (NoahmpIO%t2mxy)      ) deallocate ( NoahmpIO%t2mxy              ) ! 2m grid-mean temperature !cye add 2025-02-25
     if ( allocated (NoahmpIO%q2mvxy)     ) deallocate ( NoahmpIO%q2mvxy             ) ! 2m mixing ratio of vegetation part
     if ( allocated (NoahmpIO%q2mbxy)     ) deallocate ( NoahmpIO%q2mbxy             ) ! 2m mixing ratio of bare ground part
+    if ( allocated (NoahmpIO%q2mxy)      ) deallocate ( NoahmpIO%q2mxy              ) ! 2m grid-mean mixing ratio !cye add 2025-02-25
     if ( allocated (NoahmpIO%tradxy)     ) deallocate ( NoahmpIO%tradxy             ) ! surface radiative temperature (K)
     if ( allocated (NoahmpIO%neexy)      ) deallocate ( NoahmpIO%neexy              ) ! net ecosys exchange (g/m2/s CO2)
     if ( allocated (NoahmpIO%gppxy)      ) deallocate ( NoahmpIO%gppxy              ) ! gross primary assimilation [g/m2/s C]
@@ -359,6 +361,9 @@ contains
        if ( allocated (NoahmpIO%gz1oz0_urb2d) ) deallocate ( NoahmpIO%gz1oz0_urb2d  )
        if ( allocated (NoahmpIO%akms_urb2d)   ) deallocate ( NoahmpIO%akms_urb2d    )
        if ( allocated (NoahmpIO%th2_urb2d)    ) deallocate ( NoahmpIO%th2_urb2d     )
+       if ( allocated (NoahmpIO%u10)    ) deallocate ( NoahmpIO%u10     )
+       if ( allocated (NoahmpIO%v10)    ) deallocate ( NoahmpIO%v10     )
+       if ( allocated (NoahmpIO%th2m)    ) deallocate ( NoahmpIO%th2m     )
        if ( allocated (NoahmpIO%q2_urb2d)     ) deallocate ( NoahmpIO%q2_urb2d      )
        if ( allocated (NoahmpIO%ust_urb2d)    ) deallocate ( NoahmpIO%ust_urb2d     )
        if ( allocated (NoahmpIO%cmcr_urb2d)   ) deallocate ( NoahmpIO%cmcr_urb2d    )

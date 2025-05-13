@@ -50,7 +50,7 @@ OBJS = \
 	cu_ntiedtke_post.o             \
 	cu_ntiedtke_pre.o	       \
 	sf_mynn_pre.o                  \
-	sf_sfclayrev_pre.o
+	sf_sfclayrev_pre.o 			
 
 
 physics_wrf: $(OBJS)
@@ -80,6 +80,8 @@ module_ra_rrtmg_lw.o: \
 module_ra_rrtmg_sw.o: \
 	module_ra_rrtmg_lw.o \
 	module_ra_rrtmg_vinterp.o
+
+
 
 module_sf_bep.o: \
 	module_bep_bem_helper.o \

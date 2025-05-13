@@ -34,6 +34,9 @@ contains
              )
 ! -------------------------------------------------
 
+
+
+
     ! Input variables
     if ( .not. allocated (NoahmpIO%coszen)    ) allocate ( NoahmpIO%coszen     (its:ite            )      ) ! cosine zenith angle
     if ( .not. allocated (NoahmpIO%xlat)      ) allocate ( NoahmpIO%xlat       (its:ite            )      ) ! latitude [radians]
@@ -200,8 +203,10 @@ contains
     ! OUT (with no Noah LSM equivalent) (as defined in WRF)   
     if ( .not. allocated (NoahmpIO%t2mvxy)     ) allocate ( NoahmpIO%t2mvxy      (its:ite) ) ! 2m temperature of vegetation part
     if ( .not. allocated (NoahmpIO%t2mbxy)     ) allocate ( NoahmpIO%t2mbxy      (its:ite) ) ! 2m temperature of bare ground part
+    if ( .not. allocated (NoahmpIO%t2mxy)      ) allocate ( NoahmpIO%t2mxy       (its:ite) ) ! 2m grid-mean temperature cye add 2025-02-25
     if ( .not. allocated (NoahmpIO%q2mvxy)     ) allocate ( NoahmpIO%q2mvxy      (its:ite) ) ! 2m mixing ratio of vegetation part
     if ( .not. allocated (NoahmpIO%q2mbxy)     ) allocate ( NoahmpIO%q2mbxy      (its:ite) ) ! 2m mixing ratio of bare ground part
+    if ( .not. allocated (NoahmpIO%q2mxy)      ) allocate ( NoahmpIO%q2mxy       (its:ite) ) ! 2m grid-mean mixing ratio cye add 2025-02-25
     if ( .not. allocated (NoahmpIO%tradxy)     ) allocate ( NoahmpIO%tradxy      (its:ite) ) ! surface radiative temperature (K)
     if ( .not. allocated (NoahmpIO%neexy)      ) allocate ( NoahmpIO%neexy       (its:ite) ) ! net ecosys exchange (g/m2/s CO2)
     if ( .not. allocated (NoahmpIO%gppxy)      ) allocate ( NoahmpIO%gppxy       (its:ite) ) ! gross primary assimilation [g/m2/s C]
@@ -324,6 +329,9 @@ contains
     if ( .not. allocated (NoahmpIO%croptype)  ) allocate ( NoahmpIO%croptype   (its:ite,5) )
 
     ! Single- and Multi-layer Urban Models
+
+
+
     if ( NoahmpIO%sf_urban_physics > 0 )  then
        if ( .not. allocated (NoahmpIO%sh_urb2d)   ) allocate ( NoahmpIO%sh_urb2d    (its:ite) )
        if ( .not. allocated (NoahmpIO%lh_urb2d)   ) allocate ( NoahmpIO%lh_urb2d    (its:ite) )
@@ -363,6 +371,9 @@ contains
        if ( .not. allocated (NoahmpIO%gz1oz0_urb2d) ) allocate ( NoahmpIO%gz1oz0_urb2d  (its:ite)         )
        if ( .not. allocated (NoahmpIO%akms_urb2d)   ) allocate ( NoahmpIO%akms_urb2d    (its:ite)         )
        if ( .not. allocated (NoahmpIO%th2_urb2d)    ) allocate ( NoahmpIO%th2_urb2d     (its:ite)         )
+       if ( .not. allocated (NoahmpIO%u10)    ) allocate ( NoahmpIO%u10     (its:ite)         )
+       if ( .not. allocated (NoahmpIO%v10)    ) allocate ( NoahmpIO%v10     (its:ite)         )
+       if ( .not. allocated (NoahmpIO%th2m)    ) allocate ( NoahmpIO%th2m     (its:ite)         )
        if ( .not. allocated (NoahmpIO%q2_urb2d)     ) allocate ( NoahmpIO%q2_urb2d      (its:ite)         )
        if ( .not. allocated (NoahmpIO%ust_urb2d)    ) allocate ( NoahmpIO%ust_urb2d     (its:ite)         )
        if ( .not. allocated (NoahmpIO%cmcr_urb2d)   ) allocate ( NoahmpIO%cmcr_urb2d    (its:ite)         )
@@ -388,6 +399,7 @@ contains
        if ( .not. allocated (NoahmpIO%dzb)          ) allocate ( NoahmpIO%dzb           (            1:nsoil) )
        if ( .not. allocated (NoahmpIO%dzg)          ) allocate ( NoahmpIO%dzg           (            1:nsoil) )
        !endif
+
 
        !if(sf_urban_physics == 2 .or. sf_urban_physics == 3) then  ! bep or bem urban models
        if ( .not. allocated (NoahmpIO%trb_urb4d)  ) allocate ( NoahmpIO%trb_urb4d   (its:ite,NoahmpIO%urban_map_zrd) )
@@ -546,9 +558,11 @@ contains
     NoahmpIO%emiss           = undefined_real
     NoahmpIO%snowc           = undefined_real
     NoahmpIO%t2mvxy          = undefined_real
-    NoahmpIO%t2mbxy          = undefined_real
+    NoahmpIO%t2mbxy          = undefined_real!cye add 2025-02-25
+    NoahmpIO%t2mxy           = undefined_real
     NoahmpIO%q2mvxy          = undefined_real
     NoahmpIO%q2mbxy          = undefined_real
+    NoahmpIO%q2mxy           = undefined_real !cye add 2025-02-25
     NoahmpIO%tradxy          = undefined_real
     NoahmpIO%neexy           = undefined_real
     NoahmpIO%gppxy           = undefined_real
@@ -752,6 +766,9 @@ contains
        NoahmpIO%gz1oz0_urb2d  = undefined_real_neg
        NoahmpIO%akms_urb2d    = undefined_real_neg
        NoahmpIO%th2_urb2d     = undefined_real_neg
+       NoahmpIO%u10     = undefined_real_neg
+       NoahmpIO%v10     = undefined_real_neg
+       NoahmpIO%th2m     = undefined_real_neg
        NoahmpIO%q2_urb2d      = undefined_real_neg
        NoahmpIO%ust_urb2d     = undefined_real_neg
        NoahmpIO%dzr           = undefined_real_neg

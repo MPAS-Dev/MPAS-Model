@@ -1,0 +1,23 @@
+# Define RM (remove file or object)
+# export RM=rm
+
+# Define CPP (C Preprocessor)
+export CPP=cpp
+
+# Define CPPFLAGS (Preprocessor flags, only if necessary)
+export CPPFLAGS=-P -traditional -Dmpas
+
+# Define F90FLAGS (Fortran compiler flags)
+export F90FLAGS= \
+-I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/core_atmosphere/physics \
+-I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/core_atmosphere/physics/physics_noahmp/drivers/mpas/ \
+-I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/core_atmosphere/physics
+
+# Define COMPILERF90 (Fortran compiler)
+export COMPILERF90=mpiifx
+
+# Define FREESOURCE (For free-form source code, if applicable)
+export FREESOURCE=
+
+# Define NETCDFMOD (NetCDF library include path)
+export NETCDFMOD="-I${NETCDF}include"

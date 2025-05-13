@@ -1,0 +1,46 @@
+# Define RM (remove file or object)
+# export RM=rm
+
+# Define CPP (C Preprocessor)
+export CPP=cpp
+
+# Define CPPFLAGS (Preprocessor flags, only if necessary)
+export CPPFLAGS=-P -traditional -Dmpas
+
+# Define F90FLAGS (Fortran compiler flags)
+export F90FLAGS= -D_MPI -DCORE_ATMOSPHERE -DMPAS_NAMELIST_SUFFIX=atmosphere \
+    -DMPAS_EXE_NAME=atmosphere_model -DMPAS_DEBUG -DSINGLE_PRECISION -DMPAS_NATIVE_TIMERS \
+    -DMPAS_GIT_VERSION=unknown -DMPAS_BUILD_TARGET=intel-mpi -DMPAS_SMIOL_SUPPORT \
+    -DMPAS_USE_MPI_F08 -Dmpas -g -convert big_endian -free -CU -CB -check all -fpe0 -traceback -c \
+  -I/home/metctm1/array/soft/netcdf-472c453f-intel20-amd//include \
+ -I/disk/r182/wzhangcy/yeer/pnetcdf-1.13.0/include \
+ -I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/external/SMIOL \
+ -I/home/metctm1/array/soft/netcdf-472c453f-intel20-amd//include \
+ -I/disk/r182/wzhangcy/yeer/pnetcdf-1.13.0/include \
+ -I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/core_atmosphere/physics/physics_noahmp/drivers/mpas \
+ -I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/core_atmosphere/physics/physics_noahmp/utility \
+ -I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/core_atmosphere/physics/physics_noahmp/src \
+ -I../utility -I../../../../framework
+
+
+# export F90FLAGS=  -D_MPI -DCORE_ATMOSPHERE -DMPAS_NAMELIST_SUFFIX=atmosphere -DMPAS_EXE_NAME=atmosphere_model \
+#  -DSINGLE_PRECISION -DMPAS_NATIVE_TIMERS -DMPAS_GIT_VERSION=unknown -DMPAS_BUILD_TARGET=intel-mpi \
+#  -DMPAS_SMIOL_SUPPORT -DMPAS_USE_MPI_F08 -Dmpas -O3 -no-fma -ftz  -fp-model precise  -convert big_endian -free -align array64byte -c \
+#   -I/home/metctm1/array/soft/netcdf-472c453f-intel20-amd//include \
+#  -I/disk/r182/wzhangcy/yeer/pnetcdf-1.13.0/include \
+#  -I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/external/SMIOL \
+#  -I/home/metctm1/array/soft/netcdf-472c453f-intel20-amd//include \
+#  -I/disk/r182/wzhangcy/yeer/pnetcdf-1.13.0/include \
+#  -I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/core_atmosphere/physics/physics_noahmp/drivers/mpas \
+#  -I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/core_atmosphere/physics/physics_noahmp/utility \
+#  -I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/core_atmosphere/physics/physics_noahmp/src \
+#  -I../utility -I../../../../framework
+
+# Define COMPILERF90 (Fortran compiler)
+export COMPILERF90=mpiifort
+
+# Define FREESOURCE (For free-form source code, if applicable)
+export FREESOURCE=
+
+# Define NETCDFMOD (NetCDF library include path)
+export NETCDFMOD="-I${NETCDF}include"

@@ -137,7 +137,7 @@ OBJS =  ConstantDefineMod.o \
 	SurfaceEmissivityGlacierMod.o \
 	SurfaceEnergyFluxGlacierMod.o \
 	SurfaceRadiationGlacierMod.o \
-	WaterMainGlacierMod.o
+	WaterMainGlacierMod.o \
 
 src: $(OBJS)
 
@@ -339,6 +339,7 @@ SurfaceEnergyFluxGlacierMod.o:           ../utility/Machine.o NoahmpVarType.o Co
                                          VaporPressureSaturationMod.o ResistanceBareGroundMostMod.o
 SurfaceRadiationGlacierMod.o:            ../utility/Machine.o NoahmpVarType.o ConstantDefineMod.o
 WaterMainGlacierMod.o:                   ../utility/Machine.o NoahmpVarType.o ConstantDefineMod.o SnowWaterMainGlacierMod.o
+
 
 clean:
 	$(RM) *.f90 *.o *.mod

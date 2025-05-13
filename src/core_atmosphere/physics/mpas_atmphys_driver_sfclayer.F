@@ -28,7 +28,7 @@
           driver_sfclayer
 
  integer,parameter,private:: isfflx   = 1        !=1 for surface heat and moisture fluxes.
- integer,parameter,private:: isftcflx = 0        !=0,(Charnock and Carlson-Boland).
+ integer,parameter,private:: isftcflx = 1        !=0,(Charnock and Carlson-Boland). !cye-add 2025-04-27
  integer,parameter,private:: iz0tlnd  = 0        !=0,(Carlson-Boland).
  integer,parameter,private:: scm_force_flux = 0  !SCM surface forcing by surface fluxes.
                                                  !0=no 1=yes (WRF single column model option only).

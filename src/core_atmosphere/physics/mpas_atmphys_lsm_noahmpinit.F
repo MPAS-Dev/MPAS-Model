@@ -11,13 +11,15 @@
  use mpas_pool_routines
 
  use mpas_atmphys_utilities,only: physics_error_fatal
- use mpas_atmphys_vars,only     : mpas_noahmp
+!  use mpas_atmphys_vars,only     : mpas_noahmp
 
  use NoahmpInitMainMod,only : NoahmpInitMain
  use NoahmpIOVarInitMod,only: NoahmpIOVarInitDefault
  use NoahmpIOVarType
  use NoahmpReadNamelistMod
  use NoahmpReadTableMod,only: NoahmpReadTable
+ use module_sf_urban,          only : urban_param_init, urban_var_init !cye add-urban 22/01/25
+ use mpas_atmphys_vars                !cye add-urban 22/01/25
 
 
  private
@@ -56,13 +58,50 @@
 
  
 !--- initialize namelist options:
- call noahmp_read_namelist(configs)
+ call noahmp_read_namelist(configs)  !cye add urban 25/01/2025
 
+    if ( mpas_noahmp%use_wudapt_lcz == 0 ) then   !cye add urban 25/01/2025
+      nurbm = 3
+    elseif ( mpas_noahmp%use_wudapt_lcz == 1 ) then  !cye add urban 25/01/2025
+      nurbm = 11
+    endif
+
+  ! derived urban dimensions 
+    if (mpas_noahmp%sf_urban_physics > 0 ) then
+       mpas_noahmp%urban_map_zrd  = mpas_noahmp%num_urban_ndm * mpas_noahmp%num_urban_nwr * mpas_noahmp%num_urban_nz
+       mpas_noahmp%urban_map_zwd  = mpas_noahmp%num_urban_ndm * mpas_noahmp%num_urban_nwr * mpas_noahmp%num_urban_nz * &
+                                 mpas_noahmp%num_urban_nbui
+       mpas_noahmp%urban_map_gd   = mpas_noahmp%num_urban_ndm * mpas_noahmp%num_urban_ng
+       mpas_noahmp%urban_map_zd   = mpas_noahmp%num_urban_ndm * mpas_noahmp%num_urban_nz  * mpas_noahmp%num_urban_nbui
+       mpas_noahmp%urban_map_zdf  = mpas_noahmp%num_urban_ndm * mpas_noahmp%num_urban_nz 
+       mpas_noahmp%urban_map_bd   = mpas_noahmp%num_urban_nz  * mpas_noahmp%num_urban_nbui
+       mpas_noahmp%urban_map_wd   = mpas_noahmp%num_urban_ndm * mpas_noahmp%num_urban_nz  * mpas_noahmp%num_urban_nbui
+       mpas_noahmp%urban_map_gbd  = mpas_noahmp%num_urban_ndm * mpas_noahmp%num_urban_ngb * mpas_noahmp%num_urban_nbui
+       mpas_noahmp%urban_map_fbd  = mpas_noahmp%num_urban_ndm * (mpas_noahmp%num_urban_nz - 1)  * &
+                                 mpas_noahmp%num_urban_nf  * mpas_noahmp%num_urban_nbui
+       mpas_noahmp%urban_map_zgrd = mpas_noahmp%num_urban_ndm * mpas_noahmp%num_urban_ngr * mpas_noahmp%num_urban_nz  ! for green roof
+       ! C. He: compute maximum urban dimension
+       mpas_noahmp%max_urban_dim  = max(mpas_noahmp%num_urban_hi, mpas_noahmp%urban_map_zrd, mpas_noahmp%urban_map_zwd, &
+                                     mpas_noahmp%urban_map_gd, mpas_noahmp%urban_map_zd,  mpas_noahmp%urban_map_zdf, &
+                                     mpas_noahmp%urban_map_bd, mpas_noahmp%urban_map_wd,  mpas_noahmp%urban_map_gbd, &
+                                     mpas_noahmp%urban_map_fbd,mpas_noahmp%urban_map_zgrd)
+    endif     
+      
+    if ( (mpas_noahmp%sf_urban_physics == 2) .or. (mpas_noahmp%sf_urban_physics == 3) ) then
+       kde = mpas_noahmp%num_urban_atmosphere + 1  ! to be consistent with kme
+       kme = mpas_noahmp%num_urban_atmosphere + 1  ! bug fix for dimension of urban cell interfaces
+       kte = mpas_noahmp%num_urban_atmosphere
+    endif
 
 !--- allocate Noahmp arrays:
 !call mpas_log_write(' ')
 !call mpas_log_write('--- enter subroutine NoahmpIOVarInitDefault:')
+
+
  call NoahmpIOVarInitDefault(mpas_noahmp)
+
+
+
 !call mpas_log_write('--- end subroutine NoahmpIOVarInitDefault:')
 
 
@@ -87,9 +126,89 @@
 !call mpas_log_write('--- end subroutine NoahmpReadTable:')
 
 
+
+            ! open( 30, file= 'output.csv',position="append" )!cye-write
+            ! write(30,*)    'before ',mpas_noahmp%SF_URBAN_PHYSICS
+            ! close(30) 
+
 !--- initialize noahmp:
  call noahmp_init(configs,mesh,diag_physics,diag_physics_noahmp,output_noahmp,sfc_input)
 
+
+
+if ( mpas_noahmp%SF_URBAN_PHYSICS > 0 ) then  !cye add urban 22/01/2025
+
+  
+
+   call urban_param_init(dzr=mpas_noahmp%dzr,&
+                         dzb=mpas_noahmp%dzb, &
+                         dzg=mpas_noahmp%dzg, &
+                        num_soil_layers=mpas_noahmp%NSOIL, & !urban
+                        sf_urban_physics=mpas_noahmp%sf_urban_physics, &
+                        use_wudapt_lcz=mpas_noahmp%use_wudapt_lcz) 
+
+
+
+   call urban_var_init(ISURBAN=mpas_noahmp%ISURBAN_TABLE, TSURFACE0_URB=mpas_noahmp%TSK, TLAYER0_URB=mpas_noahmp%TSLB, TDEEP0_URB=mpas_noahmp%TMN,                                   & !urban
+                     IVGTYP=mpas_noahmp%IVGTYP, ims=ims,ime=ime,jms=jms,jme=jme,                         & !urban
+                     kms=kms,kme=kme,num_soil_layers=mpas_noahmp%NSOIL, LCZ_1=mpas_noahmp%LCZ_1_TABLE,                                  & !urban  
+                     LCZ_2=mpas_noahmp%LCZ_2_TABLE,LCZ_3=mpas_noahmp%LCZ_3_TABLE,LCZ_4=mpas_noahmp%LCZ_4_TABLE,LCZ_5=mpas_noahmp%LCZ_5_TABLE,             & !urban
+                     LCZ_6=mpas_noahmp%LCZ_6_TABLE,LCZ_7=mpas_noahmp%LCZ_7_TABLE,LCZ_8=mpas_noahmp%LCZ_8_TABLE,LCZ_9=mpas_noahmp%LCZ_9_TABLE,             & !urban
+                     LCZ_10=mpas_noahmp%LCZ_10_TABLE, LCZ_11=mpas_noahmp%LCZ_11_TABLE,restart=mpas_noahmp%restart_flag,sf_urban_physics=mpas_noahmp%sf_urban_physics,    & !urban
+                     XXXR_URB2D=mpas_noahmp%XXXR_URB2D, XXXB_URB2D=mpas_noahmp%XXXB_URB2D, XXXG_URB2D=mpas_noahmp%XXXG_URB2D, XXXC_URB2D=mpas_noahmp%XXXC_URB2D,              & !urban
+                     TR_URB2D=mpas_noahmp%TR_URB2D, TB_URB2D=mpas_noahmp%TB_URB2D,TG_URB2D=mpas_noahmp%TG_URB2D, TC_URB2D=mpas_noahmp%TC_URB2D,QC_URB2D=mpas_noahmp%QC_URB2D, & !urban
+                     TRL_URB3D=mpas_noahmp%TRL_URB3D, TBL_URB3D=mpas_noahmp%TBL_URB3D, TGL_URB3D=mpas_noahmp%TGL_URB3D, SH_URB2D=mpas_noahmp%SH_URB2D,                   & !urban
+                     LH_URB2D=mpas_noahmp%LH_URB2D, G_URB2D=mpas_noahmp%G_URB2D, RN_URB2D=mpas_noahmp%RN_URB2D, TS_URB2D=mpas_noahmp%TS_URB2D,                       & !urban
+                     num_urban_ndm=mpas_noahmp%num_urban_ndm,  urban_map_zrd=mpas_noahmp%urban_map_zrd,  urban_map_zwd=mpas_noahmp%urban_map_zwd,                           & !urban
+                     urban_map_gd=mpas_noahmp%urban_map_gd,                                                                                    & !I multi-layer urban
+                     urban_map_zd=mpas_noahmp%urban_map_zd,  urban_map_zdf=mpas_noahmp%urban_map_zdf, urban_map_bd=mpas_noahmp%urban_map_bd,                              & !I multi-layer urban   
+                     urban_map_wd=mpas_noahmp%urban_map_wd, urban_map_gbd=mpas_noahmp%urban_map_gbd,  urban_map_fbd=mpas_noahmp%urban_map_fbd,                             & !I multi-layer urban
+                     urban_map_zgrd=mpas_noahmp%urban_map_zgrd,                                                                                  & !I multi-layer urban
+                     num_urban_hi=mpas_noahmp%num_urban_hi,                                                                                    & !urban
+                     TRB_URB4D=mpas_noahmp%TRB_URB4D, TW1_URB4D=mpas_noahmp%TW1_URB4D,TW2_URB4D=mpas_noahmp%TW2_URB4D, TGB_URB4D=mpas_noahmp%TGB_URB4D,                  & !urban
+                     TLEV_URB3D=mpas_noahmp%TLEV_URB3D, QLEV_URB3D=mpas_noahmp%QLEV_URB3D,                                                              & !urban
+                     TW1LEV_URB3D=mpas_noahmp%TW1LEV_URB3D,TW2LEV_URB3D=mpas_noahmp%TW2LEV_URB3D,                                                           & !urban
+                     TGLEV_URB3D=mpas_noahmp%TGLEV_URB3D, TFLEV_URB3D=mpas_noahmp%TFLEV_URB3D,                                                            & !urban
+                     SF_AC_URB3D=mpas_noahmp%SF_AC_URB3D, LF_AC_URB3D=mpas_noahmp%LF_AC_URB3D, CM_AC_URB3D=mpas_noahmp%CM_AC_URB3D,                                   & !urban
+                     SFVENT_URB3D=mpas_noahmp%SFVENT_URB3D, LFVENT_URB3D=mpas_noahmp%LFVENT_URB3D,                                                          & !urban
+                     SFWIN1_URB3D=mpas_noahmp%SFWIN1_URB3D, SFWIN2_URB3D=mpas_noahmp%SFWIN2_URB3D,                                                          & !urban
+                     SFW1_URB3D=mpas_noahmp%SFW1_URB3D, SFW2_URB3D=mpas_noahmp%SFW2_URB3D, SFR_URB3D=mpas_noahmp%SFR_URB3D, SFG_URB3D=mpas_noahmp%SFG_URB3D,                & !urban
+                     EP_PV_URB3D=mpas_noahmp%EP_PV_URB3D, T_PV_URB3D=mpas_noahmp%T_PV_URB3D,                                                             & !GRZ
+                     TRV_URB4D=mpas_noahmp%TRV_URB4D, QR_URB4D=mpas_noahmp%QR_URB4D, QGR_URB3D=mpas_noahmp%QGR_URB3D, TGR_URB3D=mpas_noahmp%TGR_URB3D,                   & !GRZ
+                     DRAIN_URB4D=mpas_noahmp%DRAIN_URB4D, DRAINGR_URB3D=mpas_noahmp%DRAINGR_URB3D, SFRV_URB3D=mpas_noahmp%SFRV_URB3D,                                  & !GRZ
+                     LFRV_URB3D=mpas_noahmp%LFRV_URB3D, DGR_URB3D=mpas_noahmp%DGR_URB3D, DG_URB3D=mpas_noahmp%DG_URB3D, LFR_URB3D=mpas_noahmp%LFR_URB3D,                  & !GRZ   
+                     LFG_URB3D=mpas_noahmp%LFG_URB3D, SMOIS_URB=mpas_noahmp%SMOIS,                                                                    & !GRZ
+                     LP_URB2D=mpas_noahmp%LP_URB2D, HI_URB2D=mpas_noahmp%HI_URB2D, LB_URB2D=mpas_noahmp%LB_URB2D,                                            & !urban
+                     HGT_URB2D=mpas_noahmp%HGT_URB2D, MH_URB2D=mpas_noahmp%MH_URB2D, STDH_URB2D=mpas_noahmp%STDH_URB2D,                                         & !urban
+                     LF_URB2D=mpas_noahmp%LF_URB2D,                                                                                        & !urban
+                     CMCR_URB2D=mpas_noahmp%CMCR_URB2D, TGR_URB2D=mpas_noahmp%TGR_URB2D, TGRL_URB3D=mpas_noahmp%TGRL_URB3D, SMR_URB3D=mpas_noahmp%SMR_URB3D,                & !urban
+                     DRELR_URB2D=mpas_noahmp%DRELR_URB2D, DRELB_URB2D=mpas_noahmp%DRELB_URB2D, DRELG_URB2D=mpas_noahmp%DRELG_URB2D,                                   & !urban
+                     FLXHUMR_URB2D=mpas_noahmp%FLXHUMR_URB2D,FLXHUMB_URB2D=mpas_noahmp%FLXHUMB_URB2D, FLXHUMG_URB2D=mpas_noahmp%FLXHUMG_URB2D,                             & !urban
+                     A_U_BEP=mpas_noahmp%A_U_BEP, A_V_BEP=mpas_noahmp%A_V_BEP, A_T_BEP=mpas_noahmp%A_T_BEP, A_Q_BEP=mpas_noahmp%A_Q_BEP,                          & !multi-layer urban
+                     A_E_BEP=mpas_noahmp%A_E_BEP, B_U_BEP=mpas_noahmp%B_U_BEP, B_V_BEP=mpas_noahmp%B_V_BEP,                                               & !multi-layer urban
+                     B_T_BEP=mpas_noahmp%B_T_BEP, B_Q_BEP=mpas_noahmp%B_Q_BEP, B_E_BEP=mpas_noahmp%B_E_BEP, DLG_BEP=mpas_noahmp%DLG_BEP,                          & !multi-layer urban
+                     DL_U_BEP=mpas_noahmp%DL_U_BEP, SF_BEP=mpas_noahmp%SF_BEP, VL_BEP=mpas_noahmp%VL_BEP,                                                & !multi-layer urban
+                     FRC_URB2D=mpas_noahmp%FRC_URB2D, UTYPE_URB2D=mpas_noahmp%UTYPE_URB2D, USE_WUDAPT_LCZ=mpas_noahmp%use_wudapt_lcz)                              !urban
+
+
+      !  if ( mpas_noahmp%SF_URBAN_PHYSICS > 1 ) then  !urban
+      !     do i = 1, mpas_noahmp%num_urban_atmosphere-1
+      !        mpas_noahmp%dz_urban(:,i,:) = mpas_noahmp%urban_atmosphere_thickness  ! thickness of full levels
+      !     enddo
+      !     mpas_noahmp%dz_urban(:,mpas_noahmp%num_urban_atmosphere,:) =                                   &
+      !                  2*(mpas_noahmp%zlvl - mpas_noahmp%urban_atmosphere_thickness*(mpas_noahmp%num_urban_atmosphere-1))
+      !     print*, mpas_noahmp%dz_urban(1,:,1)
+      !  endif
+
+   ! max_landtype2d = maxval(mpas_noahmp%IVGTYP)*1.0
+   ! if ( (mpas_noahmp%use_wudapt_lcz == 0) .and. (max_landtype2d > 50.0) ) then   ! LCZ number: 51~61
+   !    stop "USING 10 WUDAPT LCZ WITHOUT URBPARM_LCZ.TBL. SET USE_WUDAPT_LCZ=1"
+   ! endif
+   ! if ( (mpas_noahmp%use_wudapt_lcz == 1) .and. (max_landtype2d <= 50.0) ) then  ! LCZ number: 51~61
+   !    stop "USING URBPARM_LCZ.TBL WITH OLD 3 URBAN CLASSES. SET USE_WUDAPT_LCZ=0"
+   ! endif
+
+endif ! mpas_noahmp%SF_URBAN_PHYSICS
 
 !call mpas_log_write('--- end subroutine init_lsm_noahmp:')
 !call mpas_log_write(' ')
@@ -148,6 +267,8 @@
                    iopt_inf   , iopt_rad  , iopt_alb  , iopt_snf    , iopt_tksno  , iopt_tbot , iopt_stc  , &
                    iopt_gla   , iopt_rsf  , iopt_soil , iopt_pedo   , iopt_crop   , iopt_irr  , iopt_irrm , &
                    iopt_infdv , iopt_tdrn
+     
+ logical,pointer:: urban_physics
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write(' ')
@@ -177,6 +298,14 @@
  call mpas_pool_get_config(configs,'config_noahmp_iopt_infdv' ,iopt_infdv )
  call mpas_pool_get_config(configs,'config_noahmp_iopt_tdrn'  ,iopt_tdrn  )
 
+ call mpas_pool_get_config(configs,'config_urban_physics',urban_physics) !cye add-urban 22/01/25
+   if ( urban_physics ) then!cye add-urban 22/01/25
+      mpas_noahmp%SF_URBAN_PHYSICS = 1!cye add-urban 22/01/25
+      mpas_noahmp%use_wudapt_lcz = 1!cye add-urban 23/01/25
+   endif
+
+
+      
  mpas_noahmp%iopt_dveg   = iopt_dveg
  mpas_noahmp%iopt_crs    = iopt_crs
  mpas_noahmp%iopt_btr    = iopt_btr
@@ -227,7 +356,8 @@
  type(mpas_pool_type),intent(inout):: sfc_input
 
 !local pointers:
- logical,pointer:: urban_physics
+!  logical,pointer:: urban_physics
+!cye add-urban 22/01/25
 
  integer,pointer:: nsoilcomps
  integer,dimension(:),pointer:: isltyp,ivgtyp
@@ -245,7 +375,8 @@
                                          grainxy,lfmassxy,qrainxy,qsnowxy,rtmassxy,sneqvoxy,stblcpxy,stmassxy, &
                                          tahxy,tgxy,tvxy,xsaixy,waxy,woodxy,wslakexy,wtxy,zwtxy
  real(kind=RKIND),dimension(:),pointer:: irwatsi,ireloss,irrsplh,irwatmi,irmivol,irwatfi,irfivol
- real(kind=RKIND),dimension(:),pointer:: qtdrain,t2mbxy,t2mvxy
+!  real(kind=RKIND),dimension(:),pointer:: qtdrain,t2mbxy,t2mvxy
+real(kind=RKIND),dimension(:),pointer:: qtdrain,t2mbxy,t2mvxy,t2mxy !cye add 2025-02-25
  
  real(kind=RKIND),dimension(:,:),pointer:: dzs,sh2o,smois,tslb
  real(kind=RKIND),dimension(:,:),pointer:: snicexy,snliqxy,tsnoxy,zsnsoxy
@@ -270,13 +401,14 @@
 
 !--- initialization of Noah-MP run parameters:
  call mpas_pool_get_config(configs,'config_do_restart',do_restart)
- call mpas_pool_get_config(configs,'config_urban_physics',urban_physics)
+!  call mpas_pool_get_config(configs,'config_urban_physics',urban_physics)
+! cye
  call mpas_pool_get_config(configs,'config_dt',dt)
 
  mpas_noahmp%restart_flag = do_restart
- mpas_noahmp%sf_urban_physics = 0
- if(urban_physics) mpas_noahmp%sf_urban_physics = 1
-
+!  mpas_noahmp%sf_urban_physics = 0
+!  if(urban_physics) mpas_noahmp%sf_urban_physics = 1
+! cye
  mpas_noahmp%fndsnowh = fndsnowh
  mpas_noahmp%dtbl     = dt
 
@@ -388,6 +520,7 @@
 
  call mpas_pool_get_array(output_noahmp,'t2mbxy',t2mbxy  )
  call mpas_pool_get_array(output_noahmp,'t2mvxy',t2mvxy  )
+  call mpas_pool_get_array(output_noahmp,'t2mxy' ,t2mxy   )!cye add 2025-02-25
  call mpas_pool_get_array(output_noahmp,'qtdrain',qtdrain)
 
 
@@ -418,10 +551,14 @@
     snowc(i)   = 0._RKIND
     if(snow(i) .gt. 0._RKIND) snowc(i) = 1.
 
-    do ns = 1,nsoil
-       mpas_noahmp%sh2o(i,ns)  = sh2o(ns,i)
-       mpas_noahmp%smois(i,ns) = smois(ns,i)
-       mpas_noahmp%tslb(i,ns)  = tslb(ns,i)
+    do ns = 1,nsoil !cye
+      !  mpas_noahmp%sh2o(i,ns)  = sh2o(ns,i)
+      !  mpas_noahmp%smois(i,ns) = smois(ns,i)
+      !  mpas_noahmp%tslb(i,ns)  = tslb(ns,i)
+       sh2o(ns,i) = mpas_noahmp%sh2o(i,ns)  
+       smois(ns,i) = mpas_noahmp%smois(i,ns) 
+       tslb(ns,i) = mpas_noahmp%tslb(i,ns)  
+
    enddo
  enddo
 
@@ -476,6 +613,7 @@
     qtdrain(i)  = mpas_noahmp%qtdrain(i)
     t2mbxy(i)   = mpas_noahmp%t2mbxy(i)
     t2mvxy(i)   = mpas_noahmp%t2mvxy(i)
+       t2mxy(i)    = mpas_noahmp%t2mxy(i) !cye add 2025-02-25
  enddo
 
  do i = its, ite

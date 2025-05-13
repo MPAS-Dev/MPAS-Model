@@ -67,9 +67,14 @@ contains
        ZeroPlaneDispSfc  = ZeroPlaneDispGrd
     endif
 
-    ! special case for urban
+    ! special case for urban !cye 2025-03-21 (why RoughLenMomVeg to urban?)
     if ( FlagUrban .eqv. .true. ) then
-       RoughLenMomGrd    = RoughLenMomVeg
+       RoughLenMomGrd    = RoughLenMomVeg !cye 2025-03-21 (why RoughLenMomVeg to urban?)
+
+         ! open( 30, file= 'output.csv',position="append" )!cye-write
+         !  write(30,*) FlagUrban,RoughLenMomVeg,RoughLenMomGrd,noahmp%config%domain%VegType
+         !  close(30) 
+
        ZeroPlaneDispGrd  = 0.65 * HeightCanopyTop
        RoughLenMomSfc    = RoughLenMomGrd
        ZeroPlaneDispSfc  = ZeroPlaneDispGrd
