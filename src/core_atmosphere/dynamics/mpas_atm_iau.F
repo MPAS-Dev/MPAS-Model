@@ -13,9 +13,20 @@ module mpas_atm_iau
  use mpas_dmpar
  use mpas_constants   
  use mpas_log, only : mpas_log_write
+ use mpas_timer
 
  !public :: atm_compute_iau_coef, atm_add_tend_anal_incr  
       
+
+ #ifdef MPAS_OPENACC
+ #define MPAS_ACC_TIMER_START(X) call mpas_timer_start(X)
+ #define MPAS_ACC_TIMER_STOP(X) call mpas_timer_stop(X)
+ #else
+ #define MPAS_ACC_TIMER_START(X)
+ #define MPAS_ACC_TIMER_STOP(X)
+ #endif
+ 
+
  contains
 
 !==================================================================================================
@@ -137,6 +148,7 @@ module mpas_atm_iau
       call mpas_pool_get_array(state, 'scalars', scalars, 1)
       call mpas_pool_get_array(state, 'rho_zz',   rho_zz, 2) 
       call mpas_pool_get_array(diag , 'rho_edge', rho_edge)
+      !$acc update self(theta_m, scalars, rho_zz, rho_edge)
       
       call mpas_pool_get_dimension(state, 'moist_start', moist_start)
       call mpas_pool_get_dimension(state, 'moist_end', moist_end)
@@ -149,6 +161,8 @@ module mpas_atm_iau
 !      call mpas_pool_get_array(tend, 'rho_zz',  tend_rho)
 !      call mpas_pool_get_array(tend, 'theta_m', tend_theta)
       call mpas_pool_get_array(tend, 'scalars_tend', tend_scalars)
+      !$acc update self(tend_scalars)
+      MPAS_ACC_TIMER_STOP('atm_srk3: physics ACC_data_xfer')
 
       call mpas_pool_get_array(tend_iau, 'theta',     theta_amb)
       call mpas_pool_get_array(tend_iau, 'rho',         rho_amb)

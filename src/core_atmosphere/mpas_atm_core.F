@@ -43,7 +43,8 @@ module atm_core
       use mpas_atm_dimensions, only : mpas_atm_set_dims
       use mpas_atm_diagnostics_manager, only : mpas_atm_diag_setup
       use mpas_atm_threading, only : mpas_atm_threading_init
-      use atm_time_integration, only : mpas_atm_dynamics_init
+      use atm_time_integration, only : mpas_atm_dynamics_init, &
+                              mpas_atm_pre_dynamics_h2d, mpas_atm_post_dynamics_d2h
       use mpas_timer, only : mpas_timer_start, mpas_timer_stop
       use mpas_attlist, only : mpas_modify_att
       use mpas_string_utils, only : mpas_string_replace
@@ -509,6 +510,7 @@ module atm_core
       call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
       call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
 
+      call mpas_atm_pre_computesolvediag_h2d(block)
 !$OMP PARALLEL DO
       do thread=1,nThreads
          if (.not. config_do_restart .or. (config_do_restart .and. config_do_DAcycling)) then
@@ -527,6 +529,7 @@ module atm_core
                                             edgeThreadStart(thread), edgeThreadEnd(thread))
       end do
 !$OMP END PARALLEL DO
+      call mpas_atm_post_computesolvediag_d2h(block)
 
       deallocate(ke_vertex)
       deallocate(ke_edge)

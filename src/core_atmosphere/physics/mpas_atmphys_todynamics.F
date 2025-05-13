@@ -13,10 +13,19 @@
  use mpas_atm_dimensions
 
  use mpas_atmphys_constants, only: R_d,R_v,degrad
+ use mpas_timer
 
  implicit none
  private
  public:: physics_get_tend
+
+#ifdef MPAS_OPENACC
+#define MPAS_ACC_TIMER_START(X) call mpas_timer_start(X)
+#define MPAS_ACC_TIMER_STOP(X) call mpas_timer_stop(X)
+#else
+#define MPAS_ACC_TIMER_START(X)
+#define MPAS_ACC_TIMER_STOP(X)
+#endif
 
 
 !Interface between the physics parameterizations and the non-hydrostatic dynamical core.
@@ -127,12 +136,14 @@
  call mpas_pool_get_config(configs,'config_radt_lw_scheme'   ,radt_lw_scheme   )
  call mpas_pool_get_config(configs,'config_radt_sw_scheme'   ,radt_sw_scheme   )
 
+ MPAS_ACC_TIMER_START('atm_srk3: physics ACC_data_xfer')
  call mpas_pool_get_array(state,'theta_m' ,theta_m,1)
  call mpas_pool_get_array(state,'scalars' ,scalars,1)
  call mpas_pool_get_array(state,'rho_zz'  ,mass,2   )
  call mpas_pool_get_array(diag ,'rho_edge',mass_edge)
  call mpas_pool_get_array(diag ,'tend_u_phys',tend_u_phys)
 
+ !$acc update self(theta_m, scalars, mass, mass_edge) 
  call mpas_pool_get_dimension(state,'index_qv',index_qv)
  call mpas_pool_get_dimension(state,'index_qc',index_qc)
  call mpas_pool_get_dimension(state,'index_qr',index_qr)
@@ -170,6 +181,8 @@
  call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
 
  call mpas_pool_get_array(tend,'scalars_tend',tend_scalars)
+!$acc update self(tend_scalars) ! Probably not needed
+MPAS_ACC_TIMER_STOP('atm_srk3: physics ACC_data_xfer')
 
 
 !initialize the tendency for the potential temperature and all scalars due to PBL, convection,
@@ -218,6 +231,10 @@
               rthratenlw,rthratensw,rublten_Edge,rucuten_Edge,                           &
               tend_th,tend_rtheta_physics,tend_scalars,tend_ru_physics,tend_u_phys,      &
               exchange_halo_group)
+
+MPAS_ACC_TIMER_START('atm_srk3: physics ACC_data_xfer')
+!$acc update device(tend_scalars)
+MPAS_ACC_TIMER_STOP('atm_srk3: physics ACC_data_xfer')
 
 !clean up any pointers that were allocated with zero size before the call to physics_get_tend_work:
  if(size(rucuten) == 0 ) deallocate(rucuten )

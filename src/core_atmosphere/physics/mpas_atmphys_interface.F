@@ -12,6 +12,16 @@
 
  use mpas_atmphys_constants
  use mpas_atmphys_vars
+ use mpas_timer
+
+#ifdef MPAS_OPENACC
+#define MPAS_ACC_TIMER_START(X) call mpas_timer_start(X)
+#define MPAS_ACC_TIMER_STOP(X) call mpas_timer_stop(X)
+#else
+#define MPAS_ACC_TIMER_START(X)
+#define MPAS_ACC_TIMER_STOP(X)
+#endif
+
 
  implicit none
  private
@@ -588,6 +598,7 @@
  call mpas_pool_get_array(mesh,'zgrid',zgrid)
  call mpas_pool_get_array(mesh,'zz'   ,zz   )
 
+ MPAS_ACC_TIMER_START('atm_srk3: physics ACC_data_xfer')
  call mpas_pool_get_array(diag,'exner'        ,exner     )
  call mpas_pool_get_array(diag,'pressure_base',pressure_b)
  call mpas_pool_get_array(diag,'pressure_p'   ,pressure_p)
@@ -595,11 +606,14 @@
  call mpas_pool_get_array(state,'rho_zz' ,rho_zz ,time_lev)
  call mpas_pool_get_array(state,'theta_m',theta_m,time_lev)
  call mpas_pool_get_array(state,'w'      ,w      ,time_lev)
+ !$acc update host(exner, pressure_b, pressure_p, rho_zz, theta_m, w)
 
  call mpas_pool_get_dimension(state,'index_qv',index_qv)
  call mpas_pool_get_dimension(state,'index_qc',index_qc)
  call mpas_pool_get_dimension(state,'index_qr',index_qr)
  call mpas_pool_get_array(state,'scalars',scalars,time_lev)
+ !$acc update host(scalars)
+ MPAS_ACC_TIMER_STOP('atm_srk3: physics ACC_data_xfer')
  qv => scalars(index_qv,:,:)
  qc => scalars(index_qc,:,:)
  qr => scalars(index_qr,:,:)
@@ -1039,6 +1053,12 @@
 
     case default
  end select mp_tend_select
+
+ MPAS_ACC_TIMER_START('atm_srk3: physics ACC_data_xfer')
+ !$acc update device(exner, exner_b, pressure_b, pressure_p, rtheta_b)
+ !$acc update device(rtheta_p, rho_zz, theta_m, scalars)
+ !$acc update device(rt_diabatic_tend)
+ MPAS_ACC_TIMER_STOP('atm_srk3: physics ACC_data_xfer')
 
  end subroutine microphysics_to_MPAS
 
