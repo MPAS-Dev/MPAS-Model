@@ -397,7 +397,7 @@ module atm_core
       type (mpas_pool_type), pointer :: atm_input
       type (mpas_pool_type), pointer :: output_noahmp
 
-      integer :: iCell,iEdge,iVertex
+      integer :: iCell,iEdge,iVertex,k
       
       real (kind=RKIND), dimension(:,:), pointer :: u, uReconstructX, uReconstructY, uReconstructZ, uReconstructZonal, uReconstructMeridional
       real (kind=RKIND), dimension(:), pointer :: meshScalingDel2, meshScalingDel4
@@ -405,7 +405,8 @@ module atm_core
       real (kind=RKIND), dimension(:), pointer :: dvEdge, invDvEdge
       real (kind=RKIND), dimension(:), pointer :: dcEdge, invDcEdge
       real (kind=RKIND), dimension(:), pointer :: areaTriangle, invAreaTriangle
-      integer, pointer :: nCells, nEdges, nVertices, nVertLevels, nEdgesSolve
+      integer, pointer :: nCells_ptr, nEdges_ptr, nVertices_ptr, nVertLevels_ptr, nEdgesSolve
+      integer :: nCells, nEdges, nVertices, nVertLevels
       integer :: thread
       character(len=StrKIND), pointer :: mminlu
 
@@ -444,9 +445,13 @@ module atm_core
       call mpas_pool_get_array(mesh, 'areaTriangle', areaTriangle)
       call mpas_pool_get_array(mesh, 'invAreaTriangle', invAreaTriangle)
       
-      call mpas_pool_get_dimension(mesh, 'nCells', nCells)      
-      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
-      call mpas_pool_get_dimension(mesh, 'nVertices', nVertices)
+      call mpas_pool_get_dimension(mesh, 'nCells', nCells_ptr)      
+      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges_ptr)
+      call mpas_pool_get_dimension(mesh, 'nVertices', nVertices_ptr)
+
+      nCells = nCells_ptr
+      nEdges = nEdges_ptr
+      nVertices = nVertices_ptr
  
       do iCell=1,nCells 
          invAreaCell(iCell) = 1.0_RKIND / areaCell(iCell)
@@ -471,13 +476,21 @@ module atm_core
 
       call atm_couple_coef_3rd_order(mesh, block % configs)
       
-      call mpas_pool_get_dimension(state, 'nVertices', nVertices)
-      call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
+      call mpas_pool_get_dimension(state, 'nVertices', nVertices_ptr)
+      call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels_ptr)
+
+      nVertices = nVertices_ptr
+      nVertLevels = nVertLevels_ptr
 
       allocate(ke_vertex(nVertLevels,nVertices+1))  ! ke_vertex is a module variable defined in mpas_atm_time_integration.F
-      ke_vertex(:,nVertices+1) = 0.0_RKIND
       allocate(ke_edge(nVertLevels,nEdges+1))       ! ke_edge is a module variable defined in mpas_atm_time_integration.F
-      ke_edge(:,nEdges+1) = 0.0_RKIND
+      !$acc parallel default(present)
+      !$acc loop vector
+      do k = 1, nVertLevels
+         ke_vertex(k,nVertices+1) = 0.0_RKIND
+         ke_edge(k,nEdges+1) = 0.0_RKIND
+      end do
+      !$acc end parallel
 
       call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
 
