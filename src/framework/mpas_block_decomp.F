@@ -63,7 +63,8 @@ module mpas_block_decomp
       character (len=*), intent(in) :: blockFilePrefix, & !< Input: File prefix for block decomposition
                                        procFilePrefix !< Input: File prefix for processor decomposition
 
-      integer, dimension(:), pointer :: global_list
+      integer, dimension(:), allocatable, target :: global_list
+      integer, dimension(:), pointer :: global_list_ptr
       integer, dimension(:), pointer :: global_start
 
       integer, dimension(:), allocatable :: local_block_list
@@ -93,7 +94,8 @@ module mpas_block_decomp
         allocate(local_nvertices(dminfo % nprocs))
         allocate(global_start(dminfo % nprocs))
         allocate(global_list(partial_global_graph_info % nVerticesTotal))
-  
+        global_list_ptr => global_list
+
         if (dminfo % my_proc_id == IO_NODE) then
   
            iunit = 50 + dminfo % my_proc_id
@@ -169,7 +171,7 @@ module mpas_block_decomp
            allocate(local_block_list(local_nvertices(dminfo % my_proc_id + 1)))
 
            call mpas_dmpar_scatter_ints(dminfo, dminfo % nprocs, local_nvertices(dminfo % my_proc_id + 1), &
-                                   global_start, local_nvertices, global_list, local_cell_list)
+                                   global_start, local_nvertices, global_list_ptr, local_cell_list)
 
            ! Reset global start for second read of global_block_list
            global_start(1) = 1
@@ -193,7 +195,7 @@ module mpas_block_decomp
            end do
 
            call mpas_dmpar_scatter_ints(dminfo, dminfo % nprocs, local_nvertices(dminfo % my_proc_id + 1), &
-                                   global_start, local_nvertices, global_list, local_block_list)
+                                   global_start, local_nvertices, global_list_ptr, local_block_list)
 
            close(unit=iunit)
 
@@ -204,10 +206,10 @@ module mpas_block_decomp
            allocate(local_block_list(local_nvertices(dminfo % my_proc_id + 1)))
   
            call mpas_dmpar_scatter_ints(dminfo, dminfo % nprocs, local_nvertices(dminfo % my_proc_id + 1), &
-                                   global_start, local_nvertices, global_list, local_cell_list)
+                                   global_start, local_nvertices, global_list_ptr, local_cell_list)
 
            call mpas_dmpar_scatter_ints(dminfo, dminfo % nprocs, local_nvertices(dminfo % my_proc_id + 1), &
-                                   global_start, local_nvertices, global_list, local_block_list)
+                                   global_start, local_nvertices, global_list_ptr, local_block_list)
         end if
 
         if(blocks_per_proc == 0) then
