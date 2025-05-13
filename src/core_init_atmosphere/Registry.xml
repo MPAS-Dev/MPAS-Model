@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<registry model="mpas" core="init_atmosphere" core_abbrev="init_atm" version="8.2.2">
+<registry model="mpas" core="init_atmosphere" core_abbrev="init_atm" version="8.2.3">
 
 <!-- **************************************************************************************** -->
 <!-- ************************************** Dimensions ************************************** -->
@@ -843,16 +843,16 @@
                 <var name="soiltemp" type="real" dimensions="nCells" units="K"
                      description="annual mean deep soil temperature"/>
 
-                <var name="greenfrac" type="real" dimensions="nMonths nCells" units="unitless"
-                     description="monthly-mean climatological greeness fraction"/>
+                <var name="greenfrac" type="real" dimensions="nMonths nCells" units="percent"
+                     description="monthly-mean climatological greenness fraction"/>
 
-                <var name="shdmin" type="real" dimensions="nCells" units="unitless"
+                <var name="shdmin" type="real" dimensions="nCells" units="percent"
                      description="minimum fractional coverage of annual green vegetation fraction"/>
 
-                <var name="shdmax" type="real" dimensions="nCells" units="unitless"
+                <var name="shdmax" type="real" dimensions="nCells" units="percent"
                      description="maximum fractional coverage of annual green vegetation fraction"/>
 
-                <var name="albedo12m" type="real" dimensions="nMonths nCells" units="unitless"
+                <var name="albedo12m" type="real" dimensions="nMonths nCells" units="percent"
                      description="monthly-mean climatological surface albedo"/>
 
                 <var name="isice_lu" type="integer" dimensions="" units="unitless" default_value="24"
@@ -1335,7 +1335,7 @@
                      description="geopotential height vertically interpolated from first guess"
                      packages="met_stage_out"/>
 
-                <var name="vegfra" type="real" dimensions="nCells Time" units="unitless"
+                <var name="vegfra" type="real" dimensions="nCells Time" units="percent"
                      description="vegetation fraction"
                      packages="met_stage_out"/>
 

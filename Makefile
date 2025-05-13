@@ -759,6 +759,10 @@ endif
 	LIBS += $(NCLIB)
 endif
 
+ifneq "$(HDF5)" ""
+        LIBS += -L$(HDF5)/lib
+        LIBS += -lhdf5_hl -lhdf5 -lm -lz
+endif
 
 ifneq "$(PNETCDF)" ""
 ifneq ($(wildcard $(PNETCDF)/lib/libpnetcdf.*), )

@@ -692,6 +692,12 @@
     dt_microp = dt_dyn / n_microp
     if(dt_dyn <= dt_microp) dt_microp = dt_dyn
  endif
+ if(trim(config_microp_scheme)=='mp_nssl2m') then
+    if( dt_dyn > 75._RKIND) then ! max 75s dt
+      n_microp  = max(nint(dt_dyn/60._RKIND),2)
+      dt_microp = dt_dyn / n_microp
+    endif
+ endif
  call mpas_log_write(' ')
  call mpas_log_write('--- specifics on cloud microphysics option microp_scheme = '//trim(config_microp_scheme))
  call mpas_log_write('--- dt_microp = $r', realArgs=(/dt_microp/))
@@ -750,7 +756,8 @@
  if(config_microp_re) then
     if(trim(config_microp_scheme)=='mp_thompson'          .or. &
        trim(config_microp_scheme)=='mp_thompson_aerosols' .or. &
-       trim(config_microp_scheme)=='mp_wsm6') then
+       trim(config_microp_scheme)=='mp_wsm6'              .or. &
+       trim(config_microp_scheme)=='mp_nssl2m') then
        if(trim(config_radt_lw_scheme)=='rrtmg_lw' .and. trim(config_radt_sw_scheme)=='rrtmg_sw') then
           has_reqc = 1
           has_reqi = 1
