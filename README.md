@@ -1,4 +1,4 @@
-MPAS-v8.2.2
+MPAS-Urban
 ====
 
 The Model for Prediction Across Scales (MPAS) is a collaborative project for
