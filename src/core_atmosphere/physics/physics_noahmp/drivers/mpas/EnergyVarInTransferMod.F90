@@ -102,6 +102,12 @@ contains
     noahmp%energy%param%HeightCanopyTop                           = NoahmpIO%HVT_TABLE   (VegType)
     noahmp%energy%param%HeightCanopyBot                           = NoahmpIO%HVB_TABLE   (VegType)
     noahmp%energy%param%RoughLenMomVeg                            = NoahmpIO%Z0MVT_TABLE (VegType)
+
+         ! open( 30, file= 'output.csv',position="append" )!cye-write
+         !  write(30,*) NoahmpIO%Z0MVT_TABLE 
+         !  close(30) 
+
+
     noahmp%energy%param%CanopyWindExtFac                          = NoahmpIO%CWPVT_TABLE (VegType)
     noahmp%energy%param%TreeDensity                               = NoahmpIO%DEN_TABLE   (VegType)
     noahmp%energy%param%CanopyOrientIndex                         = NoahmpIO%XL_TABLE    (VegType)

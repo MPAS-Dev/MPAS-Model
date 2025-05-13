@@ -112,7 +112,14 @@ contains
     CanopyFracSnowBury    = ThicknessCanBury / max(1.0e-06, (HeightCanopyTop-HeightCanopyBot))           ! snow buried fraction
     if ( (HeightCanopyTop > 0.0) .and. (HeightCanopyTop <= 1.0) ) then                                   ! MB: change to 1.0 & 0.2 to reflect changes to HeightCanopyTop in MPTABLE
        SnowDepthVegBury   = HeightCanopyTop * exp(-SnowDepth / 0.2)
-       CanopyFracSnowBury = min(SnowDepth, SnowDepthVegBury) / SnowDepthVegBury
+      !    !  open( 30, file= 'output1.csv',position="append" )!cye-write
+      !    !  write(30,*) HeightCanopyTop, SnowDepth, SnowDepthVegBury
+      !    !  close(30) 
+      ! if (SnowDepth>2.5) then !add for ERA5
+      ! CanopyFracSnowBury = 1.0 !add for ERA5
+      ! else  !add for ERA5
+      !  CanopyFracSnowBury = min(SnowDepth, SnowDepthVegBury) / SnowDepthVegBury
+      ! endif!add for ERA5
     endif
 
     ! adjust LeafAreaIndex and StemAreaIndex bused on snow bury

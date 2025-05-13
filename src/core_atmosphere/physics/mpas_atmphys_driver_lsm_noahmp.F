@@ -14,11 +14,17 @@
 
  use mpas_atmphys_constants,only: R_d,R_v
  use mpas_atmphys_manager,only  : year,curr_julday,month,day
- use mpas_atmphys_vars,only     : mpas_noahmp,xice_threshold
+!  use mpas_atmphys_vars,only     : mpas_noahmp,xice_threshold
+ use mpas_atmphys_vars  !cye add-urban 22/01/25
 
 
  use NoahmpIOVarType
  use NoahmpDriverMainMod,only: NoahmpDriverMain
+
+
+ use NoahmpUrbanDriverMainMod, only : noahmp_urban                     !cye add-urban 22/01/25
+  
+
 
  implicit none
  private
@@ -84,12 +90,16 @@
 
 
 !--- local OUT pointers (with no Noah LSM equivalent as defined in WRF):
- real(kind=RKIND),dimension(:),pointer:: t2mvxy,t2mbxy,q2mvxy,q2mbxy,tradxy,neexy,gppxy,nppxy,fvegxy,runsfxy,  &
-                                         runsbxy,ecanxy,edirxy,etranxy,fsaxy,firaxy,aparxy,psnxy,savxy,sagxy,  &
-                                         rssunxy,rsshaxy,bgapxy,wgapxy,tgvxy,tgbxy,chvxy,chbxy,shgxy,shcxy,    &
-                                         shbxy,evgxy,evbxy,ghvxy,ghbxy,irgxy,ircxy,irbxy,trxy,evcxy,chleafxy,  &
-                                         chucxy,chv2xy,chb2xy,rs,qtdrain
-
+!  real(kind=RKIND),dimension(:),pointer:: t2mvxy,t2mbxy,q2mvxy,q2mbxy,tradxy,neexy,gppxy,nppxy,fvegxy,runsfxy,  & !cye annotate for 2m dianoses 25/02/2025
+!                                          runsbxy,ecanxy,edirxy,etranxy,fsaxy,firaxy,aparxy,psnxy,savxy,sagxy,  &
+!                                          rssunxy,rsshaxy,bgapxy,wgapxy,tgvxy,tgbxy,chvxy,chbxy,shgxy,shcxy,    &
+!                                          shbxy,evgxy,evbxy,ghvxy,ghbxy,irgxy,ircxy,irbxy,trxy,evcxy,chleafxy,  &
+!                                          chucxy,chv2xy,chb2xy,rs,qtdrain
+ real(kind=RKIND),dimension(:),pointer:: t2mvxy,t2mbxy,t2mxy,q2mvxy,q2mbxy,q2mxy,tradxy,neexy,gppxy,nppxy,  &
+                                         fvegxy,runsfxy,runsbxy,ecanxy,edirxy,etranxy,fsaxy,firaxy,aparxy,  &
+                                         psnxy,savxy,sagxy,rssunxy,rsshaxy,bgapxy,wgapxy,tgvxy,tgbxy,chvxy, &
+                                         chbxy,shgxy,shcxy,shbxy,evgxy,evbxy,ghvxy,ghbxy,irgxy,ircxy,irbxy, &
+                                         trxy,evcxy,chleafxy,chucxy,chv2xy,chb2xy,rs,qtdrain
 
 !--- local OUT additional variables:
  real(kind=RKIND),dimension(:),pointer:: pahxy,pahgxy,pahbxy,pahvxy,qintsxy,qintrxy,qdripsxy,qdriprxy,         &
@@ -100,6 +110,38 @@
                                          canhsxy,acc_dwaterxy,acc_prcpxy,acc_ecanxy,acc_etranxy,acc_edirxy
  real(kind=RKIND),dimension(:,:),pointer:: acc_etranixy
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ real(kind=RKIND),dimension(:),pointer:: u10, v10, th2m !cye-add 2025-03-26
+ 
+
+ IF(mpas_noahmp%SF_URBAN_PHYSICS == 1) THEN
+
+ call mpas_pool_get_array(diag_physics,'th2m'  ,th2m  )
+ call mpas_pool_get_array(diag_physics,'u10'   ,u10   )
+ call mpas_pool_get_array(diag_physics,'v10'   ,v10   )
+
+ do i = its,ite !cye-add 2025-03-26
+      mpas_noahmp%u10(i) = u10(i)
+      mpas_noahmp%v10(i) = v10(i)
+      mpas_noahmp%th2m(i) = th2m(i)
+ enddo
+
+ENDIF
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!urban output  cye-add 2025-02-06
+
+! integer, dimension(:)   ,pointer               ::  utype_urb2dxy
+
+!  real(kind=RKIND),dimension(:),pointer :: cmr_sfcdifxy,chr_sfcdifxy,flxhumr_urb2dxy,flxhumb_urb2dxy,flxhumg_urb2dxy,cmr_sfcdifxychr_sfcdifxy,cmc_sfcdifxy,chc_sfcdifxy,cmgr_sfcdifxy,chgr_sfcdifxy,tr_urb2dxy,tb_urb2dxy,tg_urb2dxy,tc_urb2dxy,qc_urb2dxy,&
+!  uc_urb2dxy, xxxr_urb2dxy, xxxb_urb2dxy,xxxg_urb2dxy,xxxc_urb2dxy,sh_urb2dxy,lh_urb2dxy,g_urb2dxy,rn_urb2dxy,ts_urb2dxy,psim_urb2dxy,psih_urb2dxy,u10_urb2dxy, v10_urb2dxy,&
+!  gz1oz0_urb2dxy, akms_urb2dxy, th2_urb2dxy, q2_urb2dxy, ust_urb2dxy, dzrxy, dzbxy, dzgxy, cmcr_urb2dxy, tgr_urb2dxy, drelr_urb2dxy, drelb_urb2dxy, drelg_urb2dxy, flxhumr_urb2dxxy,&
+!  flxhumb_urb2dxxy, flxhumg_urb2dxxy, frc_urb2dxy, chsxy, chs2xy, cqs2xy, sf_ac_urb3dxy, lf_ac_urb3dxy, cm_ac_urb3dxy, sfvent_urb3dxy, lfvent_urb3dxy, lp_urb2dxy, lb_urb2dxy,&
+!  hgt_urb2dxy, mh_urb2dxy, stdh_urb2dxy, ustxy
+
+!  real(kind=RKIND),dimension(:,:),pointer ::trb_urb4dxy, tw1_urb4dxy, tw2_urb4dxy, tgb_urb4dxy, tlev_urb3dxy, qlev_urb3dxy, tw1lev_urb3dxy, tw2lev_urb3dxy, tglev_urb3dxy,&
+!  tflev_urb3dxy, tgrl_urb3dxy, smr_urb3dxy, trl_urb3dxy, tbl_urb3dxy, tgl_urb3dxy, sfwin1_urb3dxy, sfwin2_urb3dxy, sfw1_urb3dxy, sfw2_urb3dxy, sfr_urb3dxy, sfg_urb3dxy,&
+!  hi_urb2dxy, lf_urb2dxy, theta_urbanxy, u_urbanxy, v_urbanxy, dz_urbanxy, rho_urbanxy, p_urbanxy
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('--- enter subroutine lsm_noahmp_fromMPAS: itimestep = $i',intArgs=(/itimestep/))
 
@@ -377,8 +419,10 @@
 !    see lines 242-290 in module NoahmpIOVarType.F90):
  call mpas_pool_get_array(output_noahmp,'t2mvxy'  ,t2mvxy  )
  call mpas_pool_get_array(output_noahmp,'t2mbxy'  ,t2mbxy  )
+  call mpas_pool_get_array(output_noahmp,'t2mxy'   ,t2mxy   ) !cye add 02-25-2025
  call mpas_pool_get_array(output_noahmp,'q2mvxy'  ,q2mvxy  )
  call mpas_pool_get_array(output_noahmp,'q2mbxy'  ,q2mbxy  )
+  call mpas_pool_get_array(output_noahmp,'q2mxy'   ,q2mxy   )!cye add 02-25-2025
  call mpas_pool_get_array(output_noahmp,'tradxy'  ,tradxy  )
  call mpas_pool_get_array(output_noahmp,'neexy'   ,neexy   )
  call mpas_pool_get_array(output_noahmp,'gppxy'   ,gppxy   )
@@ -423,10 +467,16 @@
  call mpas_pool_get_array(output_noahmp,'qtdrain',qtdrain  )
 
  do i = its,ite
-    mpas_noahmp%t2mvxy(i)   = t2mvxy(i)
-    mpas_noahmp%t2mbxy(i)   = t2mbxy(i)
-    mpas_noahmp%q2mvxy(i)   = q2mvxy(i)
-    mpas_noahmp%q2mbxy(i)   = q2mbxy(i)
+   !  mpas_noahmp%t2mvxy(i)   = t2mvxy(i)
+   !  mpas_noahmp%t2mbxy(i)   = t2mbxy(i)
+   !  mpas_noahmp%q2mvxy(i)   = q2mvxy(i)
+   !  mpas_noahmp%q2mbxy(i)   = q2mbxy(i)
+  mpas_noahmp%t2mvxy(i)   = t2mvxy(i)
+  mpas_noahmp%t2mbxy(i)   = t2mbxy(i)
+  mpas_noahmp%t2mxy(i)    = t2mxy(i)
+  mpas_noahmp%q2mvxy(i)   = q2mvxy(i)
+  mpas_noahmp%q2mbxy(i)   = q2mbxy(i)
+  mpas_noahmp%q2mxy(i)    = q2mxy(i)
     mpas_noahmp%tradxy(i)   = tradxy(i)
     mpas_noahmp%neexy(i)    = neexy(i)
     mpas_noahmp%gppxy(i)    = gppxy(i)
@@ -563,6 +613,228 @@
 
 !call mpas_log_write('--- end subroutine lsm_noahmp_fromMPAS.')
 
+
+!add urban output
+! IF (mpas_noahmp%SF_URBAN_PHYSICS > 0) THEN
+
+! call mpas_pool_get_array(output_noahmp, 'utype_urb2dxy', utype_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'cmr_sfcdifxy', cmr_sfcdifxy)
+! call mpas_pool_get_array(output_noahmp, 'chr_sfcdifxy', chr_sfcdifxy)
+! call mpas_pool_get_array(output_noahmp, 'cmc_sfcdifxy', cmc_sfcdifxy)
+! call mpas_pool_get_array(output_noahmp, 'chc_sfcdifxy', chc_sfcdifxy)
+! call mpas_pool_get_array(output_noahmp, 'cmgr_sfcdifxy', cmgr_sfcdifxy)
+! call mpas_pool_get_array(output_noahmp, 'chgr_sfcdifxy', chgr_sfcdifxy)
+! call mpas_pool_get_array(output_noahmp, 'tr_urb2dxy', tr_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'tb_urb2dxy', tb_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'tg_urb2dxy', tg_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'tc_urb2dxy', tc_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'qc_urb2dxy', qc_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'uc_urb2dxy', uc_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'xxxr_urb2dxy', xxxr_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'xxxb_urb2dxy', xxxb_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'xxxg_urb2dxy', xxxg_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'xxxc_urb2dxy', xxxc_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'sh_urb2dxy', sh_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'lh_urb2dxy', lh_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'g_urb2dxy', g_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'rn_urb2dxy', rn_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'ts_urb2dxy', ts_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'psim_urb2dxy', psim_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'psih_urb2dxy', psih_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'u10_urb2dxy', u10_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'v10_urb2dxy', v10_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'gz1oz0_urb2dxy', gz1oz0_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'akms_urb2dxy', akms_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'th2_urb2dxy', th2_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'q2_urb2dxy', q2_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'ust_urb2dxy', ust_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'dzrxy', dzrxy)
+! call mpas_pool_get_array(output_noahmp, 'dzbxy', dzbxy)
+! call mpas_pool_get_array(output_noahmp, 'dzgxy', dzgxy)
+! call mpas_pool_get_array(output_noahmp, 'cmcr_urb2dxy', cmcr_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'tgr_urb2dxy', tgr_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'drelr_urb2dxy', drelr_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'drelb_urb2dxy', drelb_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'drelg_urb2dxy', drelg_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'flxhumr_urb2dxy', flxhumr_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'flxhumb_urb2dxy', flxhumb_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'flxhumg_urb2dxy', flxhumg_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'frc_urb2dxy', frc_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'chsxy', chsxy)
+! call mpas_pool_get_array(output_noahmp, 'chs2xy', chs2xy)
+! call mpas_pool_get_array(output_noahmp, 'cqs2xy', cqs2xy)
+! call mpas_pool_get_array(output_noahmp, 'sf_ac_urb3dxy', sf_ac_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'lf_ac_urb3dxy', lf_ac_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'cm_ac_urb3dxy', cm_ac_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'sfvent_urb3dxy', sfvent_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'lfvent_urb3dxy', lfvent_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'lp_urb2dxy', lp_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'lb_urb2dxy', lb_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'hgt_urb2dxy', hgt_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'mh_urb2dxy', mh_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'stdh_urb2dxy', stdh_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'ustxy', ustxy)
+! call mpas_pool_get_array(output_noahmp, 'sfwin1_urb3dxy', sfwin1_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'sfwin2_urb3dxy', sfwin2_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'sfw1_urb3dxy', sfw1_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'sfw2_urb3dxy', sfw2_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'sfr_urb3dxy', sfr_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'sfg_urb3dxy', sfg_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'hi_urb2dxy', hi_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'lf_urb2dxy', lf_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'theta_urbanxy', theta_urbanxy)
+! call mpas_pool_get_array(output_noahmp, 'u_urbanxy', u_urbanxy)
+! call mpas_pool_get_array(output_noahmp, 'v_urbanxy', v_urbanxy)
+! call mpas_pool_get_array(output_noahmp, 'dz_urbanxy', dz_urbanxy)
+! call mpas_pool_get_array(output_noahmp, 'rho_urbanxy', rho_urbanxy)
+! call mpas_pool_get_array(output_noahmp, 'p_urbanxy', p_urbanxy)
+! call mpas_pool_get_array(output_noahmp, 'trb_urb4dxy', trb_urb4dxy)
+! call mpas_pool_get_array(output_noahmp, 'tw1_urb4dxy', tw1_urb4dxy)
+! call mpas_pool_get_array(output_noahmp, 'tw2_urb4dxy', tw2_urb4dxy)
+! call mpas_pool_get_array(output_noahmp, 'tgb_urb4dxy', tgb_urb4dxy)
+! call mpas_pool_get_array(output_noahmp, 'tlev_urb3dxy', tlev_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'qlev_urb3dxy', qlev_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'tw1lev_urb3dxy', tw1lev_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'tw2lev_urb3dxy', tw2lev_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'tglev_urb3dxy', tglev_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'tflev_urb3dxy', tflev_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'tgrl_urb3dxy', tgrl_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'smr_urb3dxy', smr_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'trl_urb3dxy', trl_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'tbl_urb3dxy', tbl_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'tgl_urb3dxy', tgl_urb3dxy)
+
+
+!  do i = its,ite
+!    mpas_noahmp%utype_urb2d(i)   = utype_urb2dxy(i)
+!    mpas_noahmp%cmr_sfcdif(i)    = cmr_sfcdifxy(i)
+!    mpas_noahmp%chr_sfcdif(i)    = chr_sfcdifxy(i)
+!    mpas_noahmp%cmc_sfcdif(i)    = cmc_sfcdifxy(i)
+!    mpas_noahmp%chc_sfcdif(i)    = chc_sfcdifxy(i)
+!    mpas_noahmp%cmgr_sfcdif(i)   = cmgr_sfcdifxy(i)
+!    mpas_noahmp%chgr_sfcdif(i)   = chgr_sfcdifxy(i)
+!    mpas_noahmp%tr_urb2d(i)      = tr_urb2dxy(i)
+!    mpas_noahmp%tb_urb2d(i)      = tb_urb2dxy(i)
+!    mpas_noahmp%tg_urb2d(i)      = tg_urb2dxy(i)
+!    mpas_noahmp%tc_urb2d(i)      = tc_urb2dxy(i)
+!    mpas_noahmp%qc_urb2d(i)      = qc_urb2dxy(i)
+!    mpas_noahmp%uc_urb2d(i)      = uc_urb2dxy(i)
+!    mpas_noahmp%xxxr_urb2d(i)    = xxxr_urb2dxy(i)
+!    mpas_noahmp%xxxb_urb2d(i)    = xxxb_urb2dxy(i)
+!    mpas_noahmp%xxxg_urb2d(i)    = xxxg_urb2dxy(i)
+!    mpas_noahmp%xxxc_urb2d(i)    = xxxc_urb2dxy(i)
+!    mpas_noahmp%sh_urb2d(i)      = sh_urb2dxy(i)
+!    mpas_noahmp%lh_urb2d(i)      = lh_urb2dxy(i)
+!    mpas_noahmp%g_urb2d(i)       = g_urb2dxy(i)
+!    mpas_noahmp%rn_urb2d(i)      = rn_urb2dxy(i)
+!    mpas_noahmp%ts_urb2d(i)      = ts_urb2dxy(i)
+!    mpas_noahmp%psim_urb2d(i)    = psim_urb2dxy(i)
+!    mpas_noahmp%psih_urb2d(i)    = psih_urb2dxy(i)
+!    mpas_noahmp%u10_urb2d(i)     = u10_urb2dxy(i)
+!    mpas_noahmp%v10_urb2d(i)     = v10_urb2dxy(i)
+!    mpas_noahmp%gz1oz0_urb2d(i)  = gz1oz0_urb2dxy(i)
+!    mpas_noahmp%akms_urb2d(i)    = akms_urb2dxy(i)
+!    mpas_noahmp%th2_urb2d(i)     = th2_urb2dxy(i)
+!    mpas_noahmp%q2_urb2d(i)      = q2_urb2dxy(i)
+!    mpas_noahmp%ust_urb2d(i)     = ust_urb2dxy(i)
+!    mpas_noahmp%dzr(i)           = dzrxy(i)
+!    mpas_noahmp%dzb(i)           = dzbxy(i)
+!    mpas_noahmp%dzg(i)           = dzgxy(i)
+!    mpas_noahmp%cmcr_urb2d(i)    = cmcr_urb2dxy(i)
+!    mpas_noahmp%tgr_urb2d(i)     = tgr_urb2dxy(i)
+!    mpas_noahmp%drelr_urb2d(i)   = drelr_urb2dxy(i)
+!    mpas_noahmp%drelb_urb2d(i)   = drelb_urb2dxy(i)
+!    mpas_noahmp%drelg_urb2d(i)   = drelg_urb2dxy(i)
+!    mpas_noahmp%flxhumr_urb2d(i) = flxhumr_urb2dxy(i)
+!    mpas_noahmp%flxhumb_urb2d(i) = flxhumb_urb2dxy(i)
+!    mpas_noahmp%flxhumg_urb2d(i) = flxhumg_urb2dxy(i)
+!    mpas_noahmp%frc_urb2d(i)     = frc_urb2dxy(i)
+!    mpas_noahmp%chs(i)           = chsxy(i)
+!    mpas_noahmp%chs2(i)          = chs2xy(i)
+!    mpas_noahmp%cqs2(i)          = cqs2xy(i)
+!    mpas_noahmp%sf_ac_urb3d(i)   = sf_ac_urb3dxy(i)
+!    mpas_noahmp%lf_ac_urb3d(i)   = lf_ac_urb3dxy(i)
+!    mpas_noahmp%cm_ac_urb3d(i)   = cm_ac_urb3dxy(i)
+!    mpas_noahmp%sfvent_urb3d(i)  = sfvent_urb3dxy(i)
+!    mpas_noahmp%lfvent_urb3d(i)  = lfvent_urb3dxy(i)
+!    mpas_noahmp%lp_urb2d(i)      = lp_urb2dxy(i)
+!    mpas_noahmp%lb_urb2d(i)      = lb_urb2dxy(i)
+!    mpas_noahmp%hgt_urb2d(i)     = hgt_urb2dxy(i)
+!    mpas_noahmp%mh_urb2d(i)      = mh_urb2dxy(i)
+!    mpas_noahmp%stdh_urb2d(i)    = stdh_urb2dxy(i)
+!    mpas_noahmp%ust(i)           = ustxy(i)
+
+!    mpas_noahmp%sfwin1_urb3d(i,:) = sfwin1_urb3dxy(:,i)
+!    mpas_noahmp%sfwin2_urb3d(i,:) = sfwin2_urb3dxy(:,i)
+!    mpas_noahmp%sfw1_urb3d(i,:)   = sfw1_urb3dxy(:,i)
+!    mpas_noahmp%sfw2_urb3d(i,:)   = sfw2_urb3dxy(:,i)
+!    mpas_noahmp%sfr_urb3d(i,:)    = sfr_urb3dxy(:,i)
+!    mpas_noahmp%sfg_urb3d(i,:)    = sfg_urb3dxy(:,i)
+!    mpas_noahmp%hi_urb2d(i,:)     = hi_urb2dxy(:,i)
+!    mpas_noahmp%lf_urb2d(i,:)     = lf_urb2dxy(:,i)
+!    mpas_noahmp%theta_urban(i,:)  = theta_urbanxy(:,i)
+!    mpas_noahmp%u_urban(i,:)      = u_urbanxy(:,i)
+!    mpas_noahmp%v_urban(i,:)      = v_urbanxy(:,i)
+!    mpas_noahmp%dz_urban(i,:)     = dz_urbanxy(:,i)
+!    mpas_noahmp%rho_urban(i,:)    = rho_urbanxy(:,i)
+!    mpas_noahmp%p_urban(i,:)      = p_urbanxy(:,i)
+!    mpas_noahmp%trb_urb4d(i,:)    = trb_urb4dxy(:,i)
+!    mpas_noahmp%tw1_urb4d(i,:)    = tw1_urb4dxy(:,i)
+!    mpas_noahmp%tw2_urb4d(i,:)    = tw2_urb4dxy(:,i)
+!    mpas_noahmp%tgb_urb4d(i,:)    = tgb_urb4dxy(:,i)
+!    mpas_noahmp%tlev_urb3d(i,:)   = tlev_urb3dxy(:,i)
+!    mpas_noahmp%qlev_urb3d(i,:)   = qlev_urb3dxy(:,i)
+!    mpas_noahmp%tw1lev_urb3d(i,:) = tw1lev_urb3dxy(:,i)
+!    mpas_noahmp%tw2lev_urb3d(i,:) = tw2lev_urb3dxy(:,i)
+!    mpas_noahmp%tglev_urb3d(i,:)  = tglev_urb3dxy(:,i)
+!    mpas_noahmp%tflev_urb3d(i,:)  = tflev_urb3dxy(:,i)
+!    mpas_noahmp%tgrl_urb3d(i,:)   = tgrl_urb3dxy(:,i)
+!    mpas_noahmp%smr_urb3d(i,:)    = smr_urb3dxy(:,i)
+!    mpas_noahmp%trl_urb3d(i,:)    = trl_urb3dxy(:,i)
+!    mpas_noahmp%tbl_urb3d(i,:)    = tbl_urb3dxy(:,i)
+!    mpas_noahmp%tgl_urb3d(i,:)    = tgl_urb3dxy(:,i)
+! enddo
+
+
+! ENDIF
+
+     IF(mpas_noahmp%SF_URBAN_PHYSICS == 2 .or. mpas_noahmp%SF_URBAN_PHYSICS == 3) THEN  ! BEP or BEM urban models cye add urban 25/01/2025
+       where(mpas_noahmp%XLAND < 1.5) mpas_noahmp%p_urban    (:,kde) = mpas_noahmp%p8w(:,1)
+       where(mpas_noahmp%XLAND < 1.5) mpas_noahmp%rho_urban  (:,kde) = mpas_noahmp%p8w(:,1) /287.04/mpas_noahmp%t_phy(:,1)
+       where(mpas_noahmp%XLAND < 1.5) mpas_noahmp%theta_urban(:,kde) = mpas_noahmp%t_phy(:,1)*&
+                                                                          (100000.0/mpas_noahmp%p8w(:,1))**(0.285714)
+       where(mpas_noahmp%XLAND < 1.5) mpas_noahmp%u_urban    (:,kde) = mpas_noahmp%u_phy(:,1)
+       where(mpas_noahmp%XLAND < 1.5) mpas_noahmp%v_urban    (:,kde) = mpas_noahmp%v_phy(:,1)
+
+       ! allow one more dummy layer at the top to be consistent with cell interface array dimension
+       mpas_noahmp%p_urban    (:,kde-1) = mpas_noahmp%p_urban(:,kde)
+       mpas_noahmp%rho_urban  (:,kde-1) = mpas_noahmp%rho_urban(:,kde)
+       mpas_noahmp%theta_urban(:,kde-1) = mpas_noahmp%theta_urban(:,kde)
+       mpas_noahmp%u_urban    (:,kde-1) = mpas_noahmp%u_urban(:,kde)
+       mpas_noahmp%v_urban    (:,kde-1) = mpas_noahmp%v_urban(:,kde)
+
+       mpas_noahmp%height_urban = 0.5*(mpas_noahmp%dz_urban(1,kde-1) + &
+                               mpas_noahmp%dz_urban(1,kde-2))
+       
+       do i = 3, kde
+           where(mpas_noahmp%XLAND < 1.5) mpas_noahmp%QV_CURR(:,i) = mpas_noahmp%QV_CURR(:,1)
+       enddo
+
+       DO I = kde-2, kds, -1
+         where(mpas_noahmp%XLAND < 1.5) mpas_noahmp%p_urban(:,i) = mpas_noahmp%p8w(:,1)* &
+                                                               exp(9.8*mpas_noahmp%height_urban/287.04/mpas_noahmp%t_phy(:,1))
+         where(mpas_noahmp%XLAND < 1.5) mpas_noahmp%rho_urban(:,i) = mpas_noahmp%p_urban(:,i)/287.04/mpas_noahmp%t_phy(:,1)
+         where(mpas_noahmp%XLAND < 1.5) mpas_noahmp%theta_urban(:,i) = mpas_noahmp%t_phy(:,1)* &
+                                                                   (100000.0/mpas_noahmp%p_urban(:,i))**(0.285714)
+         where(mpas_noahmp%XLAND < 1.5) mpas_noahmp%u_urban(:,i) = mpas_noahmp%u_urban(:,kde)* &
+                                                               log(max(mpas_noahmp%zlvl-mpas_noahmp%height_urban,1.001))/log(mpas_noahmp%zlvl)
+         where(mpas_noahmp%XLAND < 1.5) mpas_noahmp%v_urban(:,i) = mpas_noahmp%v_urban(:,kde)* &
+                                                               log(max(mpas_noahmp%zlvl-mpas_noahmp%height_urban,1.001))/log(mpas_noahmp%zlvl)
+         mpas_noahmp%height_urban = mpas_noahmp%height_urban + mpas_noahmp%urban_atmosphere_thickness
+       END DO    
+     ENDIF
+
+
  end subroutine lsm_noahmp_fromMPAS
 
 !=================================================================================================================
@@ -585,6 +857,8 @@
  real(kind=RKIND),dimension(:,:),pointer:: qv,theta_m,u,v
  real(kind=RKIND),dimension(:,:),pointer:: exner,pressure_b,pressure_p
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
+ 
+
 
  real(kind=RKIND):: fzm,fzp,mult,totm,totp
  real(kind=RKIND):: w1,w2,z0,z1,z2
@@ -614,6 +888,7 @@
 
  call mpas_pool_get_dimension(state,'index_qv',index_qv)
  qv => scalars(index_qv,:,:)
+
 
  do i = its,ite
     do k = kts,kte
@@ -685,12 +960,16 @@
 
 
 !--- local OUT pointers (with no Noah LSM equivalent as defined in WRF):
- real(kind=RKIND),dimension(:),pointer:: t2mvxy,t2mbxy,q2mvxy,q2mbxy,tradxy,neexy,gppxy,nppxy,fvegxy,runsfxy,  &
-                                         runsbxy,ecanxy,edirxy,etranxy,fsaxy,firaxy,aparxy,psnxy,savxy,sagxy,  &
-                                         rssunxy,rsshaxy,bgapxy,wgapxy,tgvxy,tgbxy,chvxy,chbxy,shgxy,shcxy,    &
-                                         shbxy,evgxy,evbxy,ghvxy,ghbxy,irgxy,ircxy,irbxy,trxy,evcxy,chleafxy,  &
-                                         chucxy,chv2xy,chb2xy,rs,qtdrain
-
+!  real(kind=RKIND),dimension(:),pointer:: t2mvxy,t2mbxy,q2mvxy,q2mbxy,tradxy,neexy,gppxy,nppxy,fvegxy,runsfxy,  & !cye add 2025-02-25
+!                                          runsbxy,ecanxy,edirxy,etranxy,fsaxy,firaxy,aparxy,psnxy,savxy,sagxy,  &
+!                                          rssunxy,rsshaxy,bgapxy,wgapxy,tgvxy,tgbxy,chvxy,chbxy,shgxy,shcxy,    &
+!                                          shbxy,evgxy,evbxy,ghvxy,ghbxy,irgxy,ircxy,irbxy,trxy,evcxy,chleafxy,  &
+!                                          chucxy,chv2xy,chb2xy,rs,qtdrain
+ real(kind=RKIND),dimension(:),pointer:: t2mvxy,t2mbxy,t2mxy,q2mvxy,q2mbxy,q2mxy,tradxy,neexy,gppxy,nppxy,  &
+                                         fvegxy,runsfxy,runsbxy,ecanxy,edirxy,etranxy,fsaxy,firaxy,aparxy,  &
+                                         psnxy,savxy,sagxy,rssunxy,rsshaxy,bgapxy,wgapxy,tgvxy,tgbxy,chvxy, &
+                                         chbxy,shgxy,shcxy,shbxy,evgxy,evbxy,ghvxy,ghbxy,irgxy,ircxy,irbxy, &
+                                         trxy,evcxy,chleafxy,chucxy,chv2xy,chb2xy,rs,qtdrain
 
 !--- local OUT additional variables:
  real(kind=RKIND),dimension(:),pointer:: pahxy,pahgxy,pahbxy,pahvxy,qintsxy,qintrxy,qdripsxy,qdriprxy,         &
@@ -701,9 +980,41 @@
                                          canhsxy,acc_dwaterxy,acc_prcpxy,acc_ecanxy,acc_etranxy,acc_edirxy
  real(kind=RKIND),dimension(:,:),pointer:: acc_etranixy
 
+!cye add 2025-02-26
+integer, dimension(:)   ,pointer               ::  utype_urb2dxy
+
+ real(kind=RKIND),dimension(:),pointer :: cmr_sfcdifxy,chr_sfcdifxy,flxhumr_urb2dxy,flxhumb_urb2dxy,flxhumg_urb2dxy,cmr_sfcdifxychr_sfcdifxy,cmc_sfcdifxy,chc_sfcdifxy,cmgr_sfcdifxy,chgr_sfcdifxy,tr_urb2dxy,tb_urb2dxy,tg_urb2dxy,tc_urb2dxy,qc_urb2dxy,&
+ uc_urb2dxy, xxxr_urb2dxy, xxxb_urb2dxy,xxxg_urb2dxy,xxxc_urb2dxy,sh_urb2dxy,lh_urb2dxy,g_urb2dxy,rn_urb2dxy,ts_urb2dxy,psim_urb2dxy,psih_urb2dxy,u10_urb2dxy, v10_urb2dxy,&
+ gz1oz0_urb2dxy, akms_urb2dxy, th2_urb2dxy, q2_urb2dxy, ust_urb2dxy, dzrxy, dzbxy, dzgxy, cmcr_urb2dxy, tgr_urb2dxy, drelr_urb2dxy, drelb_urb2dxy, drelg_urb2dxy, flxhumr_urb2dxxy,&
+ flxhumb_urb2dxxy, flxhumg_urb2dxxy, frc_urb2dxy, chsxy, chs2xy, cqs2xy, sf_ac_urb3dxy, lf_ac_urb3dxy, cm_ac_urb3dxy, sfvent_urb3dxy, lfvent_urb3dxy, lp_urb2dxy, lb_urb2dxy,&
+ hgt_urb2dxy, mh_urb2dxy, stdh_urb2dxy, ustxy
+
+ real(kind=RKIND),dimension(:,:),pointer ::trb_urb4dxy, tw1_urb4dxy, tw2_urb4dxy, tgb_urb4dxy, tlev_urb3dxy, qlev_urb3dxy, tw1lev_urb3dxy, tw2lev_urb3dxy, tglev_urb3dxy,&
+ tflev_urb3dxy, tgrl_urb3dxy, smr_urb3dxy, trl_urb3dxy, tbl_urb3dxy, tgl_urb3dxy, sfwin1_urb3dxy, sfwin2_urb3dxy, sfw1_urb3dxy, sfw2_urb3dxy, sfr_urb3dxy, sfg_urb3dxy,&
+ hi_urb2dxy, lf_urb2dxy, theta_urbanxy, u_urbanxy, v_urbanxy, dz_urbanxy, rho_urbanxy, p_urbanxy
+
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('--- enter subroutine lsm_noahmp_toMPAS:')
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ real(kind=RKIND),dimension(:),pointer:: u10, v10, th2m !cye-add 2025-03-26
+ 
+
+ IF(mpas_noahmp%SF_URBAN_PHYSICS == 1) THEN
+
+ call mpas_pool_get_array(diag_physics,'th2m'  ,th2m  )
+ call mpas_pool_get_array(diag_physics,'u10'   ,u10   )
+ call mpas_pool_get_array(diag_physics,'v10'   ,v10   )
+
+ do i = its,ite !cye-add 2025-03-26
+      u10(i) = mpas_noahmp%u10(i)
+      v10(i) = mpas_noahmp%v10(i)
+      th2m(i) = mpas_noahmp%th2m(i)
+ enddo
+
+
+ENDIF
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !--- initialization of local dimensions:
  its   = mpas_noahmp%its
@@ -865,8 +1176,10 @@
 !    lines 242-290 in module NoahmpIOVarType.F90:
  call mpas_pool_get_array(output_noahmp,'t2mvxy'  ,t2mvxy  )
  call mpas_pool_get_array(output_noahmp,'t2mbxy'  ,t2mbxy  )
+  call mpas_pool_get_array(output_noahmp,'t2mxy'   ,t2mxy   )!cye add 2025-02-25
  call mpas_pool_get_array(output_noahmp,'q2mvxy'  ,q2mvxy  )
  call mpas_pool_get_array(output_noahmp,'q2mbxy'  ,q2mbxy  )
+  call mpas_pool_get_array(output_noahmp,'q2mxy'   ,q2mxy   )!cye add 2025-02-25
  call mpas_pool_get_array(output_noahmp,'tradxy'  ,tradxy  )
  call mpas_pool_get_array(output_noahmp,'neexy'   ,neexy   )
  call mpas_pool_get_array(output_noahmp,'gppxy'   ,gppxy   )
@@ -913,8 +1226,10 @@
  do i = its,ite
     t2mvxy(i)   = mpas_noahmp%t2mvxy(i)
     t2mbxy(i)   = mpas_noahmp%t2mbxy(i)
+        t2mxy(i)    = mpas_noahmp%t2mxy(i)!cye add 2025-02-25
     q2mvxy(i)   = mpas_noahmp%q2mvxy(i)
     q2mbxy(i)   = mpas_noahmp%q2mbxy(i)
+        q2mxy(i)    = mpas_noahmp%q2mxy(i)!cye add 2025-02-25
     tradxy(i)   = mpas_noahmp%tradxy(i)
     neexy(i)    = mpas_noahmp%neexy(i)
     gppxy(i)    = mpas_noahmp%gppxy(i)
@@ -1049,6 +1364,191 @@
 !   real(kind=kind_noahmp), allocatable, dimension(:,:)    ::  acc_etranixy
  enddo
 
+
+
+!add urban output
+IF (mpas_noahmp%SF_URBAN_PHYSICS > 0) THEN
+
+call mpas_pool_get_array(output_noahmp, 'utype_urb2dxy', utype_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'cmr_sfcdifxy', cmr_sfcdifxy)
+call mpas_pool_get_array(output_noahmp, 'chr_sfcdifxy', chr_sfcdifxy)
+call mpas_pool_get_array(output_noahmp, 'cmc_sfcdifxy', cmc_sfcdifxy)
+call mpas_pool_get_array(output_noahmp, 'chc_sfcdifxy', chc_sfcdifxy)
+call mpas_pool_get_array(output_noahmp, 'cmgr_sfcdifxy', cmgr_sfcdifxy)
+call mpas_pool_get_array(output_noahmp, 'chgr_sfcdifxy', chgr_sfcdifxy)
+call mpas_pool_get_array(output_noahmp, 'tr_urb2dxy', tr_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'tb_urb2dxy', tb_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'tg_urb2dxy', tg_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'tc_urb2dxy', tc_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'qc_urb2dxy', qc_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'uc_urb2dxy', uc_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'xxxr_urb2dxy', xxxr_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'xxxb_urb2dxy', xxxb_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'xxxg_urb2dxy', xxxg_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'xxxc_urb2dxy', xxxc_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'sh_urb2dxy', sh_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'lh_urb2dxy', lh_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'g_urb2dxy', g_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'rn_urb2dxy', rn_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'ts_urb2dxy', ts_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'psim_urb2dxy', psim_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'psih_urb2dxy', psih_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'u10_urb2dxy', u10_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'v10_urb2dxy', v10_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'gz1oz0_urb2dxy', gz1oz0_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'akms_urb2dxy', akms_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'th2_urb2dxy', th2_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'q2_urb2dxy', q2_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'ust_urb2dxy', ust_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'dzrxy', dzrxy)
+! call mpas_pool_get_array(output_noahmp, 'dzbxy', dzbxy)
+! call mpas_pool_get_array(output_noahmp, 'dzgxy', dzgxy)
+call mpas_pool_get_array(output_noahmp, 'cmcr_urb2dxy', cmcr_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'tgr_urb2dxy', tgr_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'drelr_urb2dxy', drelr_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'drelb_urb2dxy', drelb_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'drelg_urb2dxy', drelg_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'flxhumr_urb2dxy', flxhumr_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'flxhumb_urb2dxy', flxhumb_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'flxhumg_urb2dxy', flxhumg_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'frc_urb2dxy', frc_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'chsxy', chsxy)
+call mpas_pool_get_array(output_noahmp, 'chs2xy', chs2xy)
+call mpas_pool_get_array(output_noahmp, 'cqs2xy', cqs2xy)
+call mpas_pool_get_array(output_noahmp, 'sf_ac_urb3dxy', sf_ac_urb3dxy)
+call mpas_pool_get_array(output_noahmp, 'lf_ac_urb3dxy', lf_ac_urb3dxy)
+call mpas_pool_get_array(output_noahmp, 'cm_ac_urb3dxy', cm_ac_urb3dxy)
+call mpas_pool_get_array(output_noahmp, 'sfvent_urb3dxy', sfvent_urb3dxy)
+call mpas_pool_get_array(output_noahmp, 'lfvent_urb3dxy', lfvent_urb3dxy)
+call mpas_pool_get_array(output_noahmp, 'lp_urb2dxy', lp_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'lb_urb2dxy', lb_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'hgt_urb2dxy', hgt_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'mh_urb2dxy', mh_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'stdh_urb2dxy', stdh_urb2dxy)
+call mpas_pool_get_array(output_noahmp, 'ustxy', ustxy)
+! call mpas_pool_get_array(output_noahmp, 'sfwin1_urb3dxy', sfwin1_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'sfwin2_urb3dxy', sfwin2_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'sfw1_urb3dxy', sfw1_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'sfw2_urb3dxy', sfw2_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'sfr_urb3dxy', sfr_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'sfg_urb3dxy', sfg_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'hi_urb2dxy', hi_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'lf_urb2dxy', lf_urb2dxy)
+! call mpas_pool_get_array(output_noahmp, 'theta_urbanxy', theta_urbanxy)
+! call mpas_pool_get_array(output_noahmp, 'u_urbanxy', u_urbanxy)
+! call mpas_pool_get_array(output_noahmp, 'v_urbanxy', v_urbanxy)
+! call mpas_pool_get_array(output_noahmp, 'dz_urbanxy', dz_urbanxy)
+! call mpas_pool_get_array(output_noahmp, 'rho_urbanxy', rho_urbanxy)
+! call mpas_pool_get_array(output_noahmp, 'p_urbanxy', p_urbanxy)
+! call mpas_pool_get_array(output_noahmp, 'trb_urb4dxy', trb_urb4dxy)
+! call mpas_pool_get_array(output_noahmp, 'tw1_urb4dxy', tw1_urb4dxy)
+! call mpas_pool_get_array(output_noahmp, 'tw2_urb4dxy', tw2_urb4dxy)
+! call mpas_pool_get_array(output_noahmp, 'tgb_urb4dxy', tgb_urb4dxy)
+! call mpas_pool_get_array(output_noahmp, 'tlev_urb3dxy', tlev_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'qlev_urb3dxy', qlev_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'tw1lev_urb3dxy', tw1lev_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'tw2lev_urb3dxy', tw2lev_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'tglev_urb3dxy', tglev_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'tflev_urb3dxy', tflev_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'tgrl_urb3dxy', tgrl_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'smr_urb3dxy', smr_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'trl_urb3dxy', trl_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'tbl_urb3dxy', tbl_urb3dxy)
+! call mpas_pool_get_array(output_noahmp, 'tgl_urb3dxy', tgl_urb3dxy)
+
+
+ do i = its,ite
+   utype_urb2dxy(i) = mpas_noahmp%utype_urb2d(i)  
+   cmr_sfcdifxy(i) = mpas_noahmp%cmr_sfcdif(i)   
+   chr_sfcdifxy(i) = mpas_noahmp%chr_sfcdif(i)   
+   cmc_sfcdifxy(i) = mpas_noahmp%cmc_sfcdif(i)   
+   chc_sfcdifxy(i) = mpas_noahmp%chc_sfcdif(i)   
+   cmgr_sfcdifxy(i) = mpas_noahmp%cmgr_sfcdif(i)  
+   chgr_sfcdifxy(i) = mpas_noahmp%chgr_sfcdif(i)  
+   tr_urb2dxy(i) = mpas_noahmp%tr_urb2d(i)     
+   tb_urb2dxy(i) = mpas_noahmp%tb_urb2d(i)     
+   tg_urb2dxy(i) = mpas_noahmp%tg_urb2d(i)     
+   tc_urb2dxy(i) = mpas_noahmp%tc_urb2d(i)     
+   qc_urb2dxy(i) = mpas_noahmp%qc_urb2d(i)     
+   uc_urb2dxy(i) = mpas_noahmp%uc_urb2d(i)     
+   xxxr_urb2dxy(i) = mpas_noahmp%xxxr_urb2d(i)   
+   xxxb_urb2dxy(i) = mpas_noahmp%xxxb_urb2d(i)   
+   xxxg_urb2dxy(i) = mpas_noahmp%xxxg_urb2d(i)   
+   xxxc_urb2dxy(i) = mpas_noahmp%xxxc_urb2d(i)   
+   sh_urb2dxy(i) = mpas_noahmp%sh_urb2d(i)     
+   lh_urb2dxy(i) = mpas_noahmp%lh_urb2d(i)     
+   g_urb2dxy(i) = mpas_noahmp%g_urb2d(i)      
+   rn_urb2dxy(i) = mpas_noahmp%rn_urb2d(i)     
+   ts_urb2dxy(i) = mpas_noahmp%ts_urb2d(i)     
+   psim_urb2dxy(i) = mpas_noahmp%psim_urb2d(i)   
+   psih_urb2dxy(i) = mpas_noahmp%psih_urb2d(i)   
+   u10_urb2dxy(i) = mpas_noahmp%u10_urb2d(i)    
+   v10_urb2dxy(i) = mpas_noahmp%v10_urb2d(i)    
+   gz1oz0_urb2dxy(i) = mpas_noahmp%gz1oz0_urb2d(i) 
+   akms_urb2dxy(i) = mpas_noahmp%akms_urb2d(i)   
+   th2_urb2dxy(i) = mpas_noahmp%th2_urb2d(i)    
+   q2_urb2dxy(i) = mpas_noahmp%q2_urb2d(i)     
+   ust_urb2dxy(i) = mpas_noahmp%ust_urb2d(i)    
+   ! dzrxy(i) = mpas_noahmp%dzr(i)          
+   ! dzbxy(i) = mpas_noahmp%dzb(i)          
+   ! dzgxy(i) = mpas_noahmp%dzg(i)          
+   cmcr_urb2dxy(i) = mpas_noahmp%cmcr_urb2d(i)   
+   tgr_urb2dxy(i) = mpas_noahmp%tgr_urb2d(i)    
+   drelr_urb2dxy(i) = mpas_noahmp%drelr_urb2d(i)  
+   drelb_urb2dxy(i) = mpas_noahmp%drelb_urb2d(i)  
+   drelg_urb2dxy(i) = mpas_noahmp%drelg_urb2d(i)  
+   flxhumr_urb2dxy(i) = mpas_noahmp%flxhumr_urb2d(i)
+   flxhumb_urb2dxy(i) = mpas_noahmp%flxhumb_urb2d(i)
+   flxhumg_urb2dxy(i) = mpas_noahmp%flxhumg_urb2d(i)
+   frc_urb2dxy(i) = mpas_noahmp%frc_urb2d(i)    
+   chsxy(i) = mpas_noahmp%chs(i)          
+   chs2xy(i) = mpas_noahmp%chs2(i)         
+   cqs2xy(i) = mpas_noahmp%cqs2(i)         
+   sf_ac_urb3dxy(i) = mpas_noahmp%sf_ac_urb3d(i)  
+   lf_ac_urb3dxy(i) = mpas_noahmp%lf_ac_urb3d(i)  
+   cm_ac_urb3dxy(i) = mpas_noahmp%cm_ac_urb3d(i)  
+   sfvent_urb3dxy(i) = mpas_noahmp%sfvent_urb3d(i) 
+   lfvent_urb3dxy(i) = mpas_noahmp%lfvent_urb3d(i) 
+   lp_urb2dxy(i) = mpas_noahmp%lp_urb2d(i)     
+   lb_urb2dxy(i) = mpas_noahmp%lb_urb2d(i)     
+   hgt_urb2dxy(i) = mpas_noahmp%hgt_urb2d(i)    
+   mh_urb2dxy(i) = mpas_noahmp%mh_urb2d(i)     
+   stdh_urb2dxy(i) = mpas_noahmp%stdh_urb2d(i)   
+   ustxy(i) = mpas_noahmp%ust(i)          
+   ! sfwin1_urb3dxy(:,i) = mpas_noahmp%sfwin1_urb3d(i,:)  
+   ! sfwin2_urb3dxy(:,i) = mpas_noahmp%sfwin2_urb3d(i,:)  
+   ! sfw1_urb3dxy(:,i) = mpas_noahmp%sfw1_urb3d(i,:)    
+   ! sfw2_urb3dxy(:,i) = mpas_noahmp%sfw2_urb3d(i,:)    
+   ! sfr_urb3dxy(:,i) = mpas_noahmp%sfr_urb3d(i,:)     
+   ! sfg_urb3dxy(:,i) = mpas_noahmp%sfg_urb3d(i,:)     
+   ! hi_urb2dxy(:,i) = mpas_noahmp%hi_urb2d(i,:)      
+   ! lf_urb2dxy(:,i) = mpas_noahmp%lf_urb2d(i,:)      
+   ! theta_urbanxy(:,i) = mpas_noahmp%theta_urban(i,:)   
+   ! u_urbanxy(:,i) = mpas_noahmp%u_urban(i,:)       
+   ! v_urbanxy(:,i) = mpas_noahmp%v_urban(i,:)       
+   ! dz_urbanxy(:,i) = mpas_noahmp%dz_urban(i,:)      
+   ! rho_urbanxy(:,i) = mpas_noahmp%rho_urban(i,:)     
+   ! p_urbanxy(:,i) = mpas_noahmp%p_urban(i,:)       
+   ! trb_urb4dxy(:,i) = mpas_noahmp%trb_urb4d(i,:)     
+   ! tw1_urb4dxy(:,i) = mpas_noahmp%tw1_urb4d(i,:)     
+   ! tw2_urb4dxy(:,i) = mpas_noahmp%tw2_urb4d(i,:)     
+   ! tgb_urb4dxy(:,i) = mpas_noahmp%tgb_urb4d(i,:)     
+   ! tlev_urb3dxy(:,i) = mpas_noahmp%tlev_urb3d(i,:)    
+   ! qlev_urb3dxy(:,i) = mpas_noahmp%qlev_urb3d(i,:)    
+   ! tw1lev_urb3dxy(:,i) = mpas_noahmp%tw1lev_urb3d(i,:)  
+   ! tw2lev_urb3dxy(:,i) = mpas_noahmp%tw2lev_urb3d(i,:)  
+   ! tglev_urb3dxy(:,i) = mpas_noahmp%tglev_urb3d(i,:)   
+   ! tflev_urb3dxy(:,i) = mpas_noahmp%tflev_urb3d(i,:)   
+   ! tgrl_urb3dxy(:,i) = mpas_noahmp%tgrl_urb3d(i,:)    
+   ! smr_urb3dxy(:,i) = mpas_noahmp%smr_urb3d(i,:)     
+   ! trl_urb3dxy(:,i) = mpas_noahmp%trl_urb3d(i,:)     
+   ! tbl_urb3dxy(:,i) = mpas_noahmp%tbl_urb3d(i,:)     
+   ! tgl_urb3dxy(:,i) = mpas_noahmp%tgl_urb3d(i,:)     
+enddo
+
+
+ENDIF
+
 !call mpas_log_write('--- end subroutine lsm_noahmp_toMPAS:')
 
  end subroutine lsm_noahmp_toMPAS
@@ -1082,6 +1582,80 @@
                           state,time_lev,itimestep)
 
  call NoahmpDriverMain(mpas_noahmp)
+
+
+         IF(mpas_noahmp%SF_URBAN_PHYSICS == 2 .or. mpas_noahmp%SF_URBAN_PHYSICS == 3) THEN  ! BEP or BEM urban models  !cye add urban 25/01/2025
+           mpas_noahmp%dz8w  = mpas_noahmp%dz_urban
+           mpas_noahmp%u_phy = mpas_noahmp%u_urban
+           mpas_noahmp%v_phy = mpas_noahmp%v_urban
+         ENDIF
+
+          IF(mpas_noahmp%SF_URBAN_PHYSICS > 0 ) THEN  !cye add urban 22/01/2025
+          
+            call noahmp_urban(mpas_noahmp, sf_urban_physics=mpas_noahmp%sf_urban_physics, NSOIL=mpas_noahmp%NSOIL, IVGTYP=mpas_noahmp%IVGTYP,                & ! IN : Model configuration 
+                            ITIMESTEP=mpas_noahmp%ITIMESTEP, DT=mpas_noahmp%DTBL, COSZ_URB2D=mpas_noahmp%COSZEN, XLAT_URB2D=mpas_noahmp%XLAT,                     & ! IN : Time/Space-related
+                            T3D=mpas_noahmp%T_PHY, QV3D=mpas_noahmp%QV_CURR, U_PHY=mpas_noahmp%U_PHY, V_PHY=mpas_noahmp%V_PHY, SWDOWN=mpas_noahmp%SWDOWN,  & ! IN : Forcing
+                            SWDDIR=mpas_noahmp%SWDDIR, SWDDIF=mpas_noahmp%SWDDIF,                                                            &
+                            GLW=mpas_noahmp%GLW, P8W3D=mpas_noahmp%P8W, RAINBL=mpas_noahmp%RAINBL, DZ8W=mpas_noahmp%DZ8W, ZNT=mpas_noahmp%ZNT,Z0=mpas_noahmp%Z0,           & ! IN : Forcing
+                            TSK=mpas_noahmp%TSK, HFX=mpas_noahmp%HFX, QFX=mpas_noahmp%QFX, LH=mpas_noahmp%LH, GRDFLX=mpas_noahmp%GRDFLX,             & ! IN/OUT : LSM 
+                            ALBEDO=mpas_noahmp%ALBEDO, EMISS=mpas_noahmp%EMISS, QSFC=mpas_noahmp%QSFC,                                           & ! IN/OUT : LSM 
+                            ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde, &
+                            ims = ims , ime = ime , jms = jms , jme = jme , kms = kds , kme = kme, &
+                            its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte,  &
+                            cmr_sfcdif=mpas_noahmp%cmr_sfcdif, chr_sfcdif=mpas_noahmp%chr_sfcdif, cmc_sfcdif=mpas_noahmp%cmc_sfcdif,                            &
+                            chc_sfcdif=mpas_noahmp%chc_sfcdif, cmgr_sfcdif=mpas_noahmp%cmgr_sfcdif, chgr_sfcdif=mpas_noahmp%chgr_sfcdif,                          &
+                            tr_urb2d=mpas_noahmp%tr_urb2d, tb_urb2d=mpas_noahmp%tb_urb2d, tg_urb2d=mpas_noahmp%tg_urb2d,                                  & !H urban
+                            tc_urb2d=mpas_noahmp%tc_urb2d, qc_urb2d=mpas_noahmp%qc_urb2d, uc_urb2d=mpas_noahmp%uc_urb2d,                                  & !H urban
+                            xxxr_urb2d=mpas_noahmp%xxxr_urb2d, xxxb_urb2d=mpas_noahmp%xxxb_urb2d, xxxg_urb2d=mpas_noahmp%xxxg_urb2d,                            & !H urban
+                           xxxc_urb2d=mpas_noahmp%xxxc_urb2d, trl_urb3d=mpas_noahmp%trl_urb3d, tbl_urb3d=mpas_noahmp%tbl_urb3d, tgl_urb3d=mpas_noahmp%tgl_urb3d,       & !H urban
+                           sh_urb2d=mpas_noahmp%sh_urb2d, lh_urb2d=mpas_noahmp%lh_urb2d, g_urb2d=mpas_noahmp%g_urb2d, rn_urb2d=mpas_noahmp%rn_urb2d,             & !H urban
+                           ts_urb2d=mpas_noahmp%ts_urb2d, psim_urb2d=mpas_noahmp%psim_urb2d,                                                      &
+                           psih_urb2d=mpas_noahmp%psih_urb2d, u10_urb2d=mpas_noahmp%u10_urb2d, v10_urb2d=mpas_noahmp%v10_urb2d,                              & !O urban
+                           GZ1OZ0_urb2d=mpas_noahmp%GZ1OZ0_urb2d, AKMS_URB2D=mpas_noahmp%AKMS_URB2D,                                                  & !O urban
+                           th2_urb2d=mpas_noahmp%th2_urb2d, q2_urb2d=mpas_noahmp%q2_urb2d, ust_urb2d=mpas_noahmp%ust_urb2d,                                & !O urban
+                           declin_urb=mpas_noahmp%declin, omg_urb2d=mpas_noahmp%hrang,                                                             & !I urban
+                           num_roof_layers=mpas_noahmp%num_roof_layers, num_wall_layers=mpas_noahmp%num_wall_layers, num_road_layers=mpas_noahmp%num_road_layers,             & !I urban
+                           dzr=mpas_noahmp%dzr, dzb=mpas_noahmp%dzb, dzg=mpas_noahmp%dzg,                                                 & !I urban
+                           cmcr_urb2d=mpas_noahmp%cmcr_urb2d, tgr_urb2d=mpas_noahmp%tgr_urb2d, tgrl_urb3d=mpas_noahmp%tgrl_urb3d, smr_urb3d=mpas_noahmp%smr_urb3d,      & !H urban
+                           drelr_urb2d=mpas_noahmp%drelr_urb2d, drelb_urb2d=mpas_noahmp%drelb_urb2d, drelg_urb2d=mpas_noahmp%drelg_urb2d,                         & !H urban
+                           flxhumr_urb2d=mpas_noahmp%flxhumr_urb2d, flxhumb_urb2d=mpas_noahmp%flxhumb_urb2d, flxhumg_urb2d=mpas_noahmp%flxhumg_urb2d,                   & !H urban
+                           julian=mpas_noahmp%julday, julyr=mpas_noahmp%yr,                                                                & !H urban
+                           frc_urb2d=mpas_noahmp%FRC_URB2D, utype_urb2d=mpas_noahmp%utype_urb2d,                                                    & !I urban
+                           chs=mpas_noahmp%chs, chs2=mpas_noahmp%chs2, cqs2=mpas_noahmp%cqs2,                                               & !H
+                           num_urban_ndm=mpas_noahmp%num_urban_ndm, urban_map_zrd=mpas_noahmp%urban_map_zrd, urban_map_zwd=mpas_noahmp%urban_map_zwd,                   & !I multi-layer urban
+                           urban_map_gd=mpas_noahmp%urban_map_gd,                                                                          & !I multi-layer urban 
+                           urban_map_zd=mpas_noahmp%urban_map_zd, urban_map_zdf=mpas_noahmp%urban_map_zdf, urban_map_bd=mpas_noahmp%urban_map_bd,                     & !I multi-layer urban
+                           urban_map_wd=mpas_noahmp%urban_map_wd, urban_map_gbd=mpas_noahmp%urban_map_gbd, urban_map_fbd=mpas_noahmp%urban_map_fbd,                    & !I multi-layer urban
+                           urban_map_zgrd=mpas_noahmp%urban_map_zgrd, num_urban_hi=mpas_noahmp%num_urban_hi,                                              & !I multi-layer urban
+                           trb_urb4d=mpas_noahmp%trb_urb4d, tw1_urb4d=mpas_noahmp%tw1_urb4d, tw2_urb4d=mpas_noahmp%tw2_urb4d, tgb_urb4d=mpas_noahmp%tgb_urb4d,        & !H multi-layer urban
+                           tlev_urb3d=mpas_noahmp%tlev_urb3d, qlev_urb3d=mpas_noahmp%qlev_urb3d,                                                    & !H multi-layer urban
+                           tw1lev_urb3d=mpas_noahmp%tw1lev_urb3d, tw2lev_urb3d=mpas_noahmp%tw2lev_urb3d,                                                & !H multi-layer urban
+                           tglev_urb3d=mpas_noahmp%tglev_urb3d, tflev_urb3d=mpas_noahmp%tflev_urb3d,                                                  & !H multi-layer urban
+                           sf_ac_urb3d=mpas_noahmp%sf_ac_urb3d, lf_ac_urb3d=mpas_noahmp%lf_ac_urb3d, cm_ac_urb3d=mpas_noahmp%cm_ac_urb3d,                         & !H multi-layer urban
+                           sfvent_urb3d=mpas_noahmp%sfvent_urb3d, lfvent_urb3d=mpas_noahmp%lfvent_urb3d,                                                & !H multi-layer urban
+                           sfwin1_urb3d=mpas_noahmp%sfwin1_urb3d, sfwin2_urb3d=mpas_noahmp%sfwin2_urb3d,                                                & !H multi-layer urban
+                           sfw1_urb3d=mpas_noahmp%sfw1_urb3d, sfw2_urb3d=mpas_noahmp%sfw2_urb3d, sfr_urb3d=mpas_noahmp%sfr_urb3d, sfg_urb3d=mpas_noahmp%sfg_urb3d,      & !H multi-layer urban
+                           ep_pv_urb3d=mpas_noahmp%ep_pv_urb3d, t_pv_urb3d=mpas_noahmp%t_pv_urb3d,                                                   & !RMS
+                           trv_urb4d=mpas_noahmp%trv_urb4d, qr_urb4d=mpas_noahmp%qr_urb4d, qgr_urb3d=mpas_noahmp%qgr_urb3d, tgr_urb3d=mpas_noahmp%tgr_urb3d,         & !RMS
+                           drain_urb4d=mpas_noahmp%drain_urb4d, draingr_urb3d=mpas_noahmp%draingr_urb3d, sfrv_urb3d=mpas_noahmp%sfrv_urb3d,                        & !RMS 
+                           lfrv_urb3d=mpas_noahmp%lfrv_urb3d,                                                                            & !RMS
+                           dgr_urb3d=mpas_noahmp%dgr_urb3d, dg_urb3d=mpas_noahmp%dg_urb3d, lfr_urb3d=mpas_noahmp%lfr_urb3d, lfg_urb3d=mpas_noahmp%lfg_urb3d,         & !RMS
+                           lp_urb2d=mpas_noahmp%lp_urb2d, hi_urb2d=mpas_noahmp%hi_urb2d, lb_urb2d=mpas_noahmp%lb_urb2d, hgt_urb2d=mpas_noahmp%hgt_urb2d,           & !H multi-layer urban
+                           mh_urb2d=mpas_noahmp%mh_urb2d, stdh_urb2d=mpas_noahmp%stdh_urb2d, lf_urb2d=mpas_noahmp%lf_urb2d,                                & !SLUCM
+                           th_phy=mpas_noahmp%theta_urban, rho=mpas_noahmp%rho_urban, p_phy=mpas_noahmp%p_urban, ust=mpas_noahmp%ust,              & !I multi-layer urban
+                           gmt=mpas_noahmp%gmt, julday=mpas_noahmp%julday, xlong=mpas_noahmp%XLONG, xlat=mpas_noahmp%XLAT,                          & !I multi-layer urban
+                           a_u_bep=mpas_noahmp%a_u_bep, a_v_bep=mpas_noahmp%a_v_bep, a_t_bep=mpas_noahmp%a_t_bep, a_q_bep=mpas_noahmp%a_q_bep,                & !O multi-layer urban
+                           a_e_bep=mpas_noahmp%a_e_bep, b_u_bep=mpas_noahmp%b_u_bep, b_v_bep=mpas_noahmp%b_v_bep,                                     & !O multi-layer urban
+                           b_t_bep=mpas_noahmp%b_t_bep, b_q_bep=mpas_noahmp%b_q_bep, b_e_bep=mpas_noahmp%b_e_bep, dlg_bep=mpas_noahmp%dlg_bep,                & !O multi-layer urban
+                           dl_u_bep=mpas_noahmp%dl_u_bep, sf_bep=mpas_noahmp%sf_bep, vl_bep=mpas_noahmp%vl_bep, &
+                           fvegxy = mpas_noahmp%fvegxy, q2mvxy = mpas_noahmp%q2mvxy, q2mbxy = mpas_noahmp%q2mbxy, t2mvxy =mpas_noahmp%t2mvxy, t2mbxy = mpas_noahmp%t2mbxy, &
+                           Q2 = mpas_noahmp%q2mxy, T2 = mpas_noahmp%t2mxy, TH2 = mpas_noahmp%th2m, u10 = mpas_noahmp%u10, v10 = mpas_noahmp%v10 &
+                           )                                      !O multi-layer urban
+          
+
+                         
+         ENDIF 
+         
 
  call lsm_noahmp_toMPAS(diag_physics,diag_physics_noahmp,output_noahmp,sfc_input)
 

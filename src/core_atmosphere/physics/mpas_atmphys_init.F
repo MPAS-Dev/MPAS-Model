@@ -24,6 +24,8 @@
  use mpas_atmphys_o3climatology
  use mpas_atmphys_lsm_noahmpinit,only: init_lsm_noahmp
 
+
+
  implicit none
  private
  public:: physics_init
@@ -380,6 +382,11 @@
        call init_lsm_noahmp(configs,mesh,diag_physics,diag_physics_noahmp,output_noahmp,sfc_input)
     endif
  endif
+
+
+
+
+
 
 !initialization of shortwave radiation processes:
  init_done = .false.

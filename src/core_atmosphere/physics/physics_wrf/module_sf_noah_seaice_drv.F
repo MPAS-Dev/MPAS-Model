@@ -447,7 +447,7 @@ contains
           ENDDO
 
           ! Intent (OUT) from SFLX_SEAICE
-          ZNT(I,J)    = Z0
+          ZNT(I,J)    = Z0 !cye
           LH(I,J)     = ETA
           HFX(I,J)    = SHEAT
           QFX(I,J)    = ETA_KINEMATIC

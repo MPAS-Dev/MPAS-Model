@@ -1,0 +1,43 @@
+.SUFFIXES: .o .F
+
+# Compiler and flags
+FC = mpiifort
+FFLAGS = -O2
+FFLAGS_NONSTD = $(shell printf "%s" "$(FFLAGS)" | sed -e 's/-std=f2008//g')
+
+# Include directories (adjust paths as necessary)
+INCLUDES = -I. \
+    -I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/core_atmosphere/physics/physics_noahmp/drivers/mpas \
+    -I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/core_atmosphere/physics \
+    -I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/core_atmosphere/physics/physics_noahmp/utility \
+    -I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/core_atmosphere/physics/physics_mmm \
+    -I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/core_atmosphere/physics/physics_wrf \
+    -I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/core_atmosphere/physics/physics_noahmp \
+    -I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/core_atmosphere/physics/physics_noahmp/src \
+    -I/disk/r182/wzhangcy/yeer/cye_MPAS_test/MPAS-Model-master/src/framework \
+    -I..
+
+# List of object files for new code
+OBJS = \
+    module_bep_bem_helper.o \
+    module_sf_urban.o \
+    module_sf_bep.o \
+    module_sf_bem.o \
+    module_sf_bep_bem.o \
+    NoahmpUrbanDriverMainMod.o
+
+all: $(OBJS)
+
+NoahmpUrbanDriverMainMod.o: NoahmpUrbanDriverMainMod.F
+	@echo ""
+	$(FC) $(FFLAGS_NONSTD) -c NoahmpUrbanDriverMainMod.F $(INCLUDES) -o NoahmpUrbanDriverMainMod.o
+	@echo ""
+
+.F.o:
+	@echo ""
+	$(FC) $(FFLAGS_NONSTD) -c $*.F $(INCLUDES) -o $@
+	@echo ""
+
+clean:
+	rm -f *.o *.mod *.stb *~ *.f90
+
