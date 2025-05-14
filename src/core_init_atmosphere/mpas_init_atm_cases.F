@@ -243,7 +243,11 @@ module init_atm_cases
 
             call init_atm_case_gfs(block_ptr, mesh, nCells, nEdges, nVertLevels, fg, state, &
                                    diag, diag_physics, block_ptr % dimensions, block_ptr % configs)
-            
+
+! rkumar_start_chem_add
+            call init_chem(mesh, state)
+! rkumar_end_chem_add
+
             if (config_met_interp) then
                call init_atm_thompson_aerosols(block_ptr, mesh, block_ptr % configs, diag, state)
                call physics_initialize_real(mesh, fg, domain % dminfo, block_ptr % dimensions, block_ptr % configs)
@@ -7139,5 +7143,41 @@ call mpas_log_write('Done with soil consistency check')
 
    end function read_text_array
 
+!rkumar_start_chem_add
+     subroutine init_chem(mesh, state)
+
+       implicit none
+
+       type (mpas_pool_type), intent(in) :: mesh
+       type (mpas_pool_type), intent(inout) :: state
+
+       integer, pointer :: index_o3 
+       integer, pointer :: index_no 
+       integer, pointer :: index_no2 
+       integer, pointer :: nCells
+       integer, pointer :: nVertLevels 
+
+       integer :: k, iCell
+
+       real (kind=RKIND), dimension(:,:,:), pointer :: scalars
+
+       call mpas_log_write('====== Handling Chemistry initialization ======')
+
+       call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+       call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+
+       call mpas_pool_get_dimension(state, 'index_o3', index_o3)
+       call mpas_pool_get_dimension(state, 'index_no', index_no)
+       call mpas_pool_get_dimension(state, 'index_no2', index_no2)
+
+       call mpas_pool_get_array(state, 'scalars', scalars) 
+        
+       scalars(index_o3,:,:) = 0.1
+       scalars(index_no,:,:) = 0.01
+       scalars(index_no2,:,:) = 0.03
+        
+     end subroutine init_chem
+
+!rkumar_end_chem_add
 
 end module init_atm_cases
