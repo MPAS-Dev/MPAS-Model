@@ -7209,7 +7209,8 @@ module atm_time_integration
 !DIR$ IVDEP
             !$acc loop vector
             do k = 2, nVertLevels
-              w(k,iCell) = w(k,nearestRelaxationCell(iCell))
+               ! w(k,iCell) = w(k,nearestRelaxationCell(iCell))
+               w(k,iCell) = 0.0  ! WCS fix for instabilities caused by zero-gradient condition on inflow, 20240806
             end do
          end if  
       end do
