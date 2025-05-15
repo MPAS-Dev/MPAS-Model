@@ -847,7 +847,6 @@ module atm_time_integration
       logical, pointer :: config_scalar_advection
       logical, pointer :: config_positive_definite
       logical, pointer :: config_monotonic
-      real (kind=RKIND), pointer :: config_dt
       character (len=StrKIND), pointer :: config_microp_scheme
       character (len=StrKIND), pointer :: config_convection_scheme
 
@@ -890,7 +889,6 @@ module atm_time_integration
       call mpas_pool_get_config(block % configs, 'config_scalar_advection', config_scalar_advection)
       call mpas_pool_get_config(block % configs, 'config_positive_definite', config_positive_definite)
       call mpas_pool_get_config(block % configs, 'config_monotonic', config_monotonic)
-      call mpas_pool_get_config(block % configs, 'config_dt', config_dt)
       call mpas_pool_get_config(block % configs, 'config_IAU_option', config_IAU_option)
       !  config variables for dynamics-transport splitting, WCS 18 November 2014
       call mpas_pool_get_config(block % configs, 'config_split_dynamics_transport', config_split_dynamics_transport)
@@ -1632,7 +1630,7 @@ module atm_time_integration
          !requires that the subroutine atm_advance_scalars_mono was called on the third Runge Kutta step, so that a halo
          !update for the scalars at time_levs(1) is applied. A halo update for the scalars at time_levs(2) is done above. 
          if (config_monotonic) then
-            rqvdynten(:,:) = ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt
+            rqvdynten(:,:) = ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / dt
          else
             rqvdynten(:,:) = 0._RKIND
          end if

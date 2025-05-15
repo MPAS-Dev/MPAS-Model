@@ -617,7 +617,7 @@ module atm_core
       type (domain_type), intent(inout) :: domain
       integer :: ierr
    
-      real (kind=RKIND), pointer :: dt
+      real (kind=RKIND) :: dt
       logical, pointer :: config_do_restart
       logical, pointer :: config_apply_lbcs
       type (block_type), pointer :: block_ptr
@@ -644,8 +644,7 @@ module atm_core
       clock => domain % clock
       mpas_log_info => domain % logInfo
       
-      ! Eventually, dt should be domain specific
-      call mpas_pool_get_config(domain % blocklist % configs, 'config_dt', dt)
+      call mpas_get_timeInterval(mpas_get_clock_timestep(clock, ierr), dt=dt)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_do_restart', config_do_restart)
       call mpas_pool_get_config(domain % blocklist % configs, 'config_restart_timestamp_name', config_restart_timestamp_name)
 
