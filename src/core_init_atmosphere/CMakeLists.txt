@@ -23,12 +23,15 @@ set(init_atm_core_srcs
         mpas_atmphys_initialize_real.F
         mpas_atmphys_utilities.F
         mpas_geotile_manager.F
+        mpas_gsl_oro_data_sm_scale.F
+        mpas_gsl_oro_data_lg_scale.F
         mpas_init_atm_bitarray.F
         mpas_init_atm_cases.F
         mpas_init_atm_core.F
         mpas_init_atm_core_interface.F
-	mpas_init_atm_thompson_aerosols.F
+        mpas_init_atm_thompson_aerosols.F
         mpas_init_atm_gwd.F
+        mpas_init_atm_gwd_gsl.F
         mpas_init_atm_hinterp.F
         mpas_init_atm_llxy.F
         mpas_init_atm_queue.F
