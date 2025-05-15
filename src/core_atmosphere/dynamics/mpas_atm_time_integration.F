@@ -65,9 +65,13 @@ module atm_time_integration
 !   real (kind=RKIND), allocatable, dimension(:,:) :: delsq_circulation    ! no longer used -> removed 
    real (kind=RKIND), allocatable, dimension(:,:) :: delsq_vorticity
    real (kind=RKIND), allocatable, dimension(:,:) :: dpdz
+   !$acc declare create(qtot)
+   !$acc declare create(delsq_theta, delsq_w, delsq_divergence)
+   !$acc declare create(delsq_u, delsq_vorticity, dpdz)
 
    ! Used in atm_advance_scalars
    real (kind=RKIND), dimension(:,:,:), allocatable :: horiz_flux_array
+   !$acc declare create(horiz_flux_array)
 
    ! Used in atm_advance_scalars_mono
    real (kind=RKIND), dimension(:,:), allocatable :: scalar_old_arr, scalar_new_arr
@@ -77,6 +81,10 @@ module atm_time_integration
    real (kind=RKIND), dimension(:,:), allocatable :: flux_tmp_arr
    real (kind=RKIND), dimension(:,:), allocatable :: wdtn_arr
    real (kind=RKIND), dimension(:,:), allocatable :: rho_zz_int
+   !$acc declare create(scalar_old_arr, scalar_new_arr)
+   !$acc declare create(s_max_arr, s_min_arr)
+   !$acc declare create(flux_array, flux_upwind_tmp_arr)
+   !$acc declare create(flux_tmp_arr, wdtn_arr)
 
    real (kind=RKIND), dimension(:,:), allocatable :: ru_driving_tend ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: rt_driving_tend ! regional_MPAS addition 
@@ -100,6 +108,7 @@ module atm_time_integration
    ! Used in compute_solve_diagnostics
    real (kind=RKIND), allocatable, dimension(:,:) :: ke_vertex
    real (kind=RKIND), allocatable, dimension(:,:) :: ke_edge
+   !$acc declare create(ke_vertex, ke_edge)
 
    type (MPAS_Clock_type), pointer, private :: clock
    type (block_type), pointer, private :: block
@@ -842,9 +851,10 @@ module atm_time_integration
       character (len=StrKIND), pointer :: config_microp_scheme
       character (len=StrKIND), pointer :: config_convection_scheme
 
-      integer, pointer :: num_scalars, index_qv, nCells, nCellsSolve, nVertices, nVerticesSolve
-      integer, pointer :: nEdges_ptr, nEdgesSolve_ptr, nVertLevels_ptr
-      integer :: nEdges, nEdgesSolve, nVertLevels
+      integer, pointer :: index_qv, nCellsSolve, nVertices_ptr, nVerticesSolve
+      integer, pointer :: nCells_ptr, nEdges_ptr, nEdgesSolve_ptr
+      integer, pointer :: nVertLevels_ptr, num_scalars_ptr
+      integer :: nCells, nEdges, nVertices, nEdgesSolve, nVertLevels, num_scalars
 
       character(len=StrKIND), pointer :: config_IAU_option
 
@@ -907,10 +917,10 @@ module atm_time_integration
       ! Retrieve dimensions
       ! Note: nCellsSolve and nVerticesSolve are not currently used in this function
       !
-      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+      call mpas_pool_get_dimension(mesh, 'nCells', nCells_ptr)
       call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
       call mpas_pool_get_dimension(mesh, 'nEdges', nEdges_ptr)
-      call mpas_pool_get_dimension(mesh, 'nVertices', nVertices)
+      call mpas_pool_get_dimension(mesh, 'nVertices', nVertices_ptr)
       call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels_ptr)
 
       !call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
@@ -921,6 +931,8 @@ module atm_time_integration
       ! bounds rather than pointers to integers, as the former are implicitly
       ! copied to the device
       nEdges = nEdges_ptr
+      nCells = nCells_ptr
+      nVertices = nVertices_ptr
       nEdgesSolve = nEdgesSolve_ptr
       nVertLevels = nVertLevels_ptr
 
@@ -945,13 +957,19 @@ module atm_time_integration
 #ifdef DO_PHYSICS
       call mpas_pool_get_dimension(state, 'index_qv', index_qv)
 #endif
-      call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
+      call mpas_pool_get_dimension(state, 'num_scalars', num_scalars_ptr)
+      num_scalars = num_scalars_ptr
 
       !
       ! allocate storage for physics tendency save
       !
       allocate(qtot(nVertLevels,nCells+1))
-      qtot(:,nCells+1) = 0.0_RKIND
+      !$acc parallel default(present)
+      !$acc loop vector
+      do k = 1, nVertLevels
+         qtot(k,nCells+1) = 0.0_RKIND
+      end do
+      !$acc end parallel
 
 #ifndef MPAS_CAM_DYCORE
       call mpas_pool_get_field(tend_physics, 'tend_rtheta_physics', tend_rtheta_physicsField)
@@ -1130,19 +1148,25 @@ module atm_time_integration
             call mpas_timer_start('atm_compute_dyn_tend')
    
             allocate(delsq_theta(nVertLevels,nCells+1))
-            delsq_theta(:,nCells+1) = 0.0_RKIND
             allocate(delsq_w(nVertLevels,nCells+1))
-            delsq_w(:,nCells+1) = 0.0_RKIND
-!!            allocate(qtot(nVertLevels,nCells+1))  ! initializing this earlier in solution sequence
+            !!  allocate(qtot(nVertLevels,nCells+1))  ! initializing this earlier in solution sequence
             allocate(delsq_divergence(nVertLevels,nCells+1))
-            delsq_divergence(:,nCells+1) = 0.0_RKIND
             allocate(delsq_u(nVertLevels,nEdges+1))
-            delsq_u(:,nEdges+1) = 0.0_RKIND
-!!            allocate(delsq_circulation(nVertLevels,nVertices+1))  ! no longer used -> removed 
+            !!  allocate(delsq_circulation(nVertLevels,nVertices+1))  ! no longer used -> removed
             allocate(delsq_vorticity(nVertLevels,nVertices+1))
-            delsq_vorticity(:,nVertices+1) = 0.0_RKIND
             allocate(dpdz(nVertLevels,nCells+1))
-            dpdz(:,nCells+1) = 0.0_RKIND
+
+            !$acc parallel default(present)
+            !$acc loop vector
+            do k = 1, nVertLevels
+               delsq_theta(k,nCells+1) = 0.0_RKIND
+               delsq_w(k,nCells+1) = 0.0_RKIND
+               delsq_divergence(k,nCells+1) = 0.0_RKIND
+               delsq_u(k,nEdges+1) = 0.0_RKIND
+               delsq_vorticity(k,nVertices+1) = 0.0_RKIND
+               dpdz(k,nCells+1) = 0.0_RKIND
+            end do
+            !$acc end parallel
 
 !$OMP PARALLEL DO
             do thread=1,nThreads
@@ -1411,9 +1435,15 @@ module atm_time_integration
             call mpas_timer_start('atm_compute_solve_diagnostics')
 
             allocate(ke_vertex(nVertLevels,nVertices+1))
-            ke_vertex(:,nVertices+1) = 0.0_RKIND
             allocate(ke_edge(nVertLevels,nEdges+1))
-            ke_edge(:,nEdges+1) = 0.0_RKIND
+
+            !$acc parallel default(present)
+            !$acc loop vector
+            do k = 1, nVertLevels
+               ke_vertex(k,nVertices+1) = 0.0_RKIND
+               ke_edge(k,nEdges+1) = 0.0_RKIND
+            end do
+            !$acc end parallel
    
 !$OMP PARALLEL DO
             do thread=1,nThreads
@@ -1745,10 +1775,12 @@ module atm_time_integration
       type (mpas_pool_type), pointer :: mesh
       type (mpas_pool_type), pointer :: halo_scratch
 
-      integer, pointer :: nCells
-      integer, pointer :: nEdges
-      integer, pointer :: nVertLevels
-      integer, pointer :: num_scalars
+      integer, pointer :: nCells_ptr
+      integer, pointer :: nEdges_ptr
+      integer, pointer :: nVertLevels_ptr
+      integer, pointer :: num_scalars_ptr
+      integer :: nCells, nEdges, nVertLevels, num_scalars
+      integer :: iScalar, k
 
       integer, pointer :: nThreads
       integer, dimension(:), pointer :: cellThreadStart
@@ -1771,10 +1803,10 @@ module atm_time_integration
       call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
       call mpas_pool_get_subpool(block % structs, 'halo_scratch', halo_scratch)
 
-      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
-      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-      call mpas_pool_get_dimension(state, 'num_'//trim(field_name), num_scalars)
+      call mpas_pool_get_dimension(mesh, 'nCells', nCells_ptr)
+      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges_ptr)
+      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels_ptr)
+      call mpas_pool_get_dimension(state, 'num_'//trim(field_name), num_scalars_ptr)
 
       call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
 
@@ -1786,18 +1818,35 @@ module atm_time_integration
       call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
       call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
 
+      nCells = nCells_ptr
+      nEdges = nEdges_ptr
+      nVertLevels = nVertLevels_ptr
+      num_scalars = num_scalars_ptr
+
       allocate(scalar_old_arr(nVertLevels,nCells+1))
-      scalar_old_arr(:,nCells+1) = 0.0_RKIND
       allocate(scalar_new_arr(nVertLevels,nCells+1))
-      scalar_new_arr(:,nCells+1) = 0.0_RKIND
       allocate(s_max_arr(nVertLevels,nCells+1))
-      s_max_arr(:,nCells+1) = 0.0_RKIND
       allocate(s_min_arr(nVertLevels,nCells+1))
-      s_min_arr(:,nCells+1) = 0.0_RKIND
       allocate(flux_array(nVertLevels,nEdges+1))
-      flux_array(:,nEdges+1) = 0.0_RKIND
+      !$acc parallel default(present)
+      !$acc loop vector
+      do k = 1, nVertLevels
+         scalar_old_arr(k,nCells+1) = 0.0_RKIND
+         scalar_new_arr(k,nCells+1) = 0.0_RKIND
+         s_max_arr(k,nCells+1) = 0.0_RKIND
+         s_min_arr(k,nCells+1) = 0.0_RKIND
+         flux_array(k,nEdges+1) = 0.0_RKIND
+      end do
+      !$acc end parallel
+
       allocate(wdtn_arr(nVertLevels+1,nCells+1))
-      wdtn_arr(:,nCells+1) = 0.0_RKIND
+      !$acc parallel default(present)
+      !$acc loop vector
+      do k = 1, nVertLevels+1
+         wdtn_arr(k,nCells+1) = 0.0_RKIND
+      end do
+      !$acc end parallel
+
       if (config_split_dynamics_transport) then
          allocate(rho_zz_int(nVertLevels,nCells+1))
          rho_zz_int(:,nCells+1) = 0.0_RKIND
@@ -1806,12 +1855,24 @@ module atm_time_integration
       end if
       if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
          allocate(horiz_flux_array(num_scalars,nVertLevels,nEdges+1))
-         horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
+         !$acc parallel default(present)
+         !$acc loop gang vector collapse(2)
+         do k = 1, nVertLevels
+            do iScalar = 1, num_scalars
+               horiz_flux_array(iScalar,k,nEdges+1) = 0.0_RKIND
+            end do
+         end do
+         !$acc end parallel
       else
          allocate(flux_upwind_tmp_arr(nVertLevels,nEdges+1))
-         flux_upwind_tmp_arr(:,nEdges+1) = 0.0_RKIND
          allocate(flux_tmp_arr(nVertLevels,nEdges+1))
-         flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
+         !$acc parallel default(present)
+         !$acc loop vector
+         do k = 1, nVertLevels
+            flux_upwind_tmp_arr(k,nEdges+1) = 0.0_RKIND
+            flux_tmp_arr(k,nEdges+1) = 0.0_RKIND
+         end do
+         !$acc end parallel
       end if
 
       !
@@ -2024,7 +2085,7 @@ module atm_time_integration
       moist_end = moist_end_ptr
 
       MPAS_ACC_TIMER_START('atm_compute_moist_coefficients [ACC_data_xfer]')
-      !$acc enter data create(qtot, cqw, cqu) & 
+      !$acc enter data create(cqw, cqu) & 
       !$acc            copyin(scalars)
       MPAS_ACC_TIMER_STOP('atm_compute_moist_coefficients [ACC_data_xfer]')
 
@@ -2077,7 +2138,7 @@ module atm_time_integration
       !$acc end parallel
 
       MPAS_ACC_TIMER_START('atm_compute_moist_coefficients [ACC_data_xfer]')
-      !$acc exit data copyout(cqw, cqu, qtot) &
+      !$acc exit data copyout(cqw, cqu) &
       !$acc           delete(scalars)
       MPAS_ACC_TIMER_STOP('atm_compute_moist_coefficients [ACC_data_xfer]')
 
@@ -2212,7 +2273,7 @@ module atm_time_integration
       real (kind=RKIND), dimension( nVertLevels ) :: b_tri, c_tri
 
       MPAS_ACC_TIMER_START('atm_compute_vert_imp_coefs_work [ACC_data_xfer]')
-      !$acc enter data copyin(cqw, p, t, qtot, rb, rtb, rt, pb)
+      !$acc enter data copyin(cqw, p, t, rb, rtb, rt, pb)
       !$acc enter data create(cofrz, cofwr, cofwz, coftz, cofwt, a_tri, b_tri, &
       !$acc                   c_tri, alpha_tri, gamma_tri)
       MPAS_ACC_TIMER_STOP('atm_compute_vert_imp_coefs_work [ACC_data_xfer]')
@@ -2298,7 +2359,7 @@ module atm_time_integration
       MPAS_ACC_TIMER_START('atm_compute_vert_imp_coefs_work [ACC_data_xfer]')
       !$acc exit data copyout(cofrz, cofwr, cofwz, coftz, cofwt, a_tri, b_tri, &
       !$acc                   c_tri, alpha_tri, gamma_tri)
-      !$acc exit data delete(cqw, p, t, qtot, rb, rtb, rt, pb)
+      !$acc exit data delete(cqw, p, t, rb, rtb, rt, pb)
       MPAS_ACC_TIMER_STOP('atm_compute_vert_imp_coefs_work [ACC_data_xfer]')
 
    end subroutine atm_compute_vert_imp_coefs_work
@@ -3600,7 +3661,6 @@ module atm_time_integration
 
 
       MPAS_ACC_TIMER_START('atm_advance_scalars [ACC_data_xfer]')
-      !$acc enter data create(horiz_flux_arr)
       !$acc enter data copyin(uhAvg, scalar_new)
       MPAS_ACC_TIMER_STOP('atm_advance_scalars [ACC_data_xfer]')
 
@@ -3704,7 +3764,7 @@ module atm_time_integration
       !$acc enter data copyin(scalar_tend_save)
 #endif
       !$acc enter data copyin(scalar_old, fnm, fnp, rdnw, wwAvg, rho_zz_old, rho_zz_new)
-      !$acc enter data create(scalar_tend_column, wdtn)
+      !$acc enter data create(scalar_tend_column)
       MPAS_ACC_TIMER_STOP('atm_advance_scalars [ACC_data_xfer]')
 
       !$acc parallel wait
@@ -3787,8 +3847,8 @@ module atm_time_integration
 
       MPAS_ACC_TIMER_START('atm_advance_scalars [ACC_data_xfer]')
       !$acc exit data copyout(scalar_new)
-      !$acc exit data delete(scalar_tend_column, wdtn, uhAvg, wwAvg, scalar_old, fnm, fnp, &
-      !$acc                  rdnw, rho_zz_old, rho_zz_new, horiz_flux_arr, scalar_tend_save)
+      !$acc exit data delete(scalar_tend_column, uhAvg, wwAvg, scalar_old, fnm, fnp, &
+      !$acc                  rdnw, rho_zz_old, rho_zz_new, scalar_tend_save)
       MPAS_ACC_TIMER_STOP('atm_advance_scalars [ACC_data_xfer]')
 
    end subroutine atm_advance_scalars_work
@@ -4153,8 +4213,7 @@ module atm_time_integration
          !$acc enter data copyin(rho_zz_new)
       end if
       !$acc enter data copyin(scalars_new, fnm, fnp)
-      !$acc enter data create(scalar_old, scalar_new, scale_arr, s_min, s_max, &
-      !$acc                   flux_arr, flux_tmp, flux_upwind_tmp, wdtn)
+      !$acc enter data create(scale_arr)
       MPAS_ACC_TIMER_STOP('atm_advance_scalars_mono [ACC_data_xfer]')
 
       do iScalar = 1, num_scalars
@@ -4665,8 +4724,7 @@ module atm_time_integration
          !$acc exit data delete(rho_zz_new)
       end if
       !$acc exit data copyout(scalars_new)
-      !$acc exit data delete(scalars_old, scalar_old, scalar_new, scale_arr, s_min, s_max, &
-      !$acc                  rho_zz_old, flux_arr, flux_tmp, flux_upwind_tmp, wdtn, wwAvg, &
+      !$acc exit data delete(scalars_old, scale_arr, rho_zz_old, wwAvg, &
       !$acc                  uhAvg, fnm, fnp, rdnw)
 
       !$acc end data
@@ -5111,20 +5169,16 @@ module atm_time_integration
 
          !$acc enter data create(kdiff)
          !$acc enter data copyin(tend_rho_physics)
-         !$acc enter data copyin(rb, qtot, rr_save)
+         !$acc enter data copyin(rb, rr_save)
          !$acc enter data copyin(divergence, vorticity)
-         !$acc enter data create(delsq_u)
          !$acc enter data copyin(v)
-         !$acc enter data create(delsq_vorticity, delsq_divergence)
          !$acc enter data copyin(u_init, v_init)
-         !$acc enter data create(delsq_w)
       else
          !$acc enter data copyin(tend_w_euler)
          !$acc enter data copyin(tend_u_euler)
          !$acc enter data copyin(tend_theta_euler)
          !$acc enter data copyin(tend_rho)
       end if
-      !$acc enter data create(dpdz)
       !$acc enter data create(tend_u)
       !$acc enter data copyin(cqu, pp, u, w, pv_edge, rho_edge, ke)
       !$acc enter data create(h_divergence)
@@ -5136,7 +5190,6 @@ module atm_time_integration
       !$acc enter data create(tend_theta)
       !$acc enter data copyin(theta_m)
       !$acc enter data copyin(ru_save, theta_m_save)
-      !$acc enter data create(delsq_theta)
       !$acc enter data copyin(cqw)
       !$acc enter data copyin(tend_rtheta_physics)
       !$acc enter data copyin(rw_save, rt_diabatic_tend)
@@ -6152,20 +6205,16 @@ module atm_time_integration
 
          !$acc exit data delete(kdiff)
          !$acc exit data delete(tend_rho_physics)
-         !$acc exit data delete(rb, qtot, rr_save)
+         !$acc exit data delete(rb, rr_save)
          !$acc exit data delete(divergence, vorticity)
-         !$acc exit data copyout(delsq_u)
          !$acc exit data delete(v)
-         !$acc exit data delete(delsq_vorticity, delsq_divergence)
          !$acc exit data delete(u_init, v_init)
-         !$acc exit data copyout(delsq_w)
       else
          !$acc exit data delete(tend_w_euler)
          !$acc exit data delete(tend_u_euler)
          !$acc exit data delete(tend_theta_euler)
          !$acc exit data delete(tend_rho)
       end if
-      !$acc exit data delete(dpdz)
       !$acc exit data copyout(tend_u)
       !$acc exit data delete(cqu, pp, u, w, pv_edge, rho_edge, ke)
       !$acc exit data copyout(h_divergence)
@@ -6177,7 +6226,6 @@ module atm_time_integration
       !$acc exit data copyout(tend_theta)
       !$acc exit data delete(theta_m)
       !$acc exit data delete(ru_save, theta_m_save)
-      !$acc exit data delete(delsq_theta)
       !$acc exit data delete(cqw)
       !$acc exit data delete(tend_rtheta_physics)
       !$acc exit data delete(rw_save, rt_diabatic_tend)
@@ -6372,7 +6420,7 @@ module atm_time_integration
       ! Compute height on cell edges at velocity locations
       !
       MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
-      !$acc enter data create(h_edge,ke_edge,vorticity,divergence)
+      !$acc enter data create(h_edge,vorticity,divergence)
       MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
       !$acc parallel default(present)
       !$acc loop gang
@@ -6487,9 +6535,6 @@ module atm_time_integration
 
 
       if (hollingsworth) then
-         MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
-         !$acc enter data create(ke_vertex)
-         MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
 
          ! Compute ke at cell vertices - AG's new KE construction, part 1
          ! *** approximation here because we don't have inner triangle areas
@@ -6547,9 +6592,6 @@ module atm_time_integration
          end do
          !$acc end parallel
 
-         MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
-         !$acc exit data delete(ke_vertex)
-         MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
       end if
 
       !
@@ -6720,7 +6762,7 @@ module atm_time_integration
       !$acc                  verticesOnEdge, &
       !$acc                  fVertex,invDvEdge,invDcEdge)
       !$acc exit data delete(u,h)
-      !$acc exit data copyout(h_edge,ke_edge,vorticity,divergence, &
+      !$acc exit data copyout(h_edge,vorticity,divergence, &
       !$acc                   ke, &
       !$acc                   v, &
       !$acc                   pv_vertex, &
