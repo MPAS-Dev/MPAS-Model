@@ -23,6 +23,7 @@
  use mpas_atmphys_driver_oml
  use mpas_atmphys_constants
  use mpas_atmphys_interface
+ use mpas_atmphys_sfc_diagnostics,only: atmphys_sfc_diagnostics
  use mpas_atmphys_update
  use mpas_atmphys_vars, only: l_camlw,l_conv,l_radtlw,l_radtsw
  use mpas_timer
@@ -296,14 +297,21 @@
           enddo
        endif
 
-       call allocate_seaice
+       call allocate_seaice(block%configs)
 !$OMP PARALLEL DO
        do thread=1,nThreads
           call driver_seaice(block%configs,diag_physics,sfc_input, &
                              cellSolveThreadStart(thread),cellSolveThreadEnd(thread))
        enddo
 !$OMP END PARALLEL DO
-       call deallocate_seaice
+       call deallocate_seaice(block%configs)
+
+!$OMP PARALLEL DO
+       do thread=1,nThreads
+          call atmphys_sfc_diagnostics(block%configs,mesh,diag,diag_physics,sfc_input,output_noahmp, &
+                           cellSolveThreadStart(thread),cellSolveThreadEnd(thread))
+       enddo
+!$OMP END PARALLEL DO
     endif
 
     !call to pbl schemes:

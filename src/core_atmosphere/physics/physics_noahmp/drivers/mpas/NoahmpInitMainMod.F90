@@ -127,9 +127,11 @@
        NoahmpIO%tahxy(i)    = NoahmpIO%tsk(i)
        NoahmpIO%t2mvxy(i)   = NoahmpIO%tsk(i)
        NoahmpIO%t2mbxy(i)   = NoahmpIO%tsk(i)
+       NoahmpIO%t2mxy(i)    = NoahmpIO%tsk(i)
        if ( (NoahmpIO%snow(i) > 0.0) .and. (NoahmpIO%tsk(i) > t0) ) NoahmpIO%tahxy(i)  = t0
        if ( (NoahmpIO%snow(i) > 0.0) .and. (NoahmpIO%tsk(i) > t0) ) NoahmpIO%t2mvxy(i) = t0
        if ( (NoahmpIO%snow(i) > 0.0) .and. (NoahmpIO%tsk(i) > t0) ) NoahmpIO%t2mbxy(i) = t0
+       if ( (NoahmpIO%snow(i) > 0.0) .and. (NoahmpIO%tsk(i) > t0) ) NoahmpIO%t2mxy(i)  = t0
 
        NoahmpIO%cmxy(i)     = 0.0
        NoahmpIO%chxy(i)     = 0.0
