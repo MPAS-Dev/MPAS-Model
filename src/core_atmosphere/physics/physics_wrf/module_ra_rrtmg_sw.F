@@ -1382,7 +1382,7 @@
 
       use parkind, only : im => kind_im, rb => kind_rb
       use parrrsw, only : nbndsw, ngptsw
-      use rrsw_con, only: grav
+      use rrsw_con, only: grav, pi
       use rrsw_wvn, only: ngb
       use rrsw_vsn
 
@@ -1397,8 +1397,12 @@
 ! Public subroutines
 !------------------------------------------------------------------
 
+! mji - Add height needed for exponential and exponential-random cloud overlap methods 
+!       (icld=4 and 5, respectively) along with idcor, juldat and lat used to specify
+!       the decorrelation length for these methods
       subroutine mcica_subcol_sw(iplon, ncol, nlay, icld, permuteseed, irng, play, &
                        cldfrac, ciwp, clwp, cswp, rei, rel, res, tauc, ssac, asmc, fsfc, &
+                       hgt, idcor, juldat, lat, &
                        cldfmcl, ciwpmcl, clwpmcl, cswpmcl, reicmcl, relqmcl, resnmcl, &
                        taucmcl, ssacmcl, asmcmcl, fsfcmcl)
 
@@ -1419,7 +1423,9 @@
 ! Atmosphere
       real(kind=rb), intent(in) :: play(:,:)          ! layer pressures (mb) 
                                                       !    Dimensions: (ncol,nlay)
-
+! mji - Add height
+      real(kind=rb), intent(in) :: hgt(:,:)           ! layer height (m)
+                                                      !    Dimensions: (ncol,nlay)
 ! Atmosphere/clouds - cldprop
       real(kind=rb), intent(in) :: cldfrac(:,:)       ! layer cloud fraction
                                                       !    Dimensions: (ncol,nlay)
@@ -1443,6 +1449,9 @@
                                                       !    Dimensions: (ncol,nlay)
       real(kind=rb), intent(in) :: res(:,:)           ! cloud snow particle size
                                                       !    Dimensions: (ncol,nlay)
+      integer(kind=im), intent(in) :: idcor           ! Decorrelation length type
+      integer(kind=im), intent(in) :: juldat          ! Julian date (day of year, 1-365)
+      real(kind=rb),    intent(in) :: lat             ! latitude (degrees, -90 to 90)
 
 ! ----- Output -----
 ! Atmosphere/clouds - cldprmc [mcica]
@@ -1480,12 +1489,17 @@
 !      real(kind=rb) :: qi(ncol,nlay)                 ! ice water (specific humidity)
 !      real(kind=rb) :: ql(ncol,nlay)                 ! liq water (specific humidity)
 
+! MJI - For latitude dependent decorrelation length
+       real(kind=rb), parameter :: am1 = 1.4315_rb
+       real(kind=rb), parameter :: am2 = 2.1219_rb
+       real(kind=rb), parameter :: am4 = -25.584_rb
+       real(kind=rb), parameter :: amr = 7._rb
+       real(kind=rb) :: am3
+       real(kind=rb) :: decorr_len(ncol)              ! decorrelation length (meters)
+       real(kind=rb), parameter :: Zo_default = 2500._rb  ! default constant decorrelation length (m)
 
-! Return if clear sky; or stop if icld out of range
+! Return if clear sky
       if (icld.eq.0) return
-      if (icld.lt.0.or.icld.gt.3) then 
-         stop 'MCICA_SUBCOL: INVALID ICLD'
-      endif 
 
 ! NOTE: For GCM mode, permuteseed must be offset between LW and SW by at least number of subcolumns
 
@@ -1513,9 +1527,29 @@
 !         ql(ilev) = (clwp(ilev) * grav) / (pdel(ilev) * 1000._rb)
 !      enddo
 
+! MJI - Latitude and day of year dependent decorrelation length
+      if (idcor .eq. 1) then
+! Derive decorrelation length based on day of year and latitude (from NASA GMAO method)
+! Result is in meters
+         if (juldat .gt. 181) then
+            am3 = -4._rb * amr / 365._rb * (juldat-272)
+         else
+            am3 = 4._rb * amr / 365._rb * (juldat-91)
+         endif
+! Latitude in radians, decorrelation length in meters
+!         decorr_len(:) = ( am1 + am2 * exp(-(lat*180._rb/pi - am3)**2 / (am4*am4)) ) * 1.e3_rb
+! Latitude in degrees, decorrelation length in meters
+         decorr_len(:) = ( am1 + am2 * exp(-(lat - am3)**2 / (am4*am4)) ) * 1.e3_rb
+      else
+! Spatially and temporally constant decorrelation length
+         decorr_len(:) = Zo_default
+      endif
+
 !  Generate the stochastic subcolumns of cloud optical properties for the shortwave;
       call generate_stochastic_clouds_sw (ncol, nlay, nsubcsw, icld, irng, pmid, cldfrac, clwp, ciwp, cswp, &
-                               tauc, ssac, asmc, fsfc, cldfmcl, clwpmcl, ciwpmcl, cswpmcl, &
+                               tauc, ssac, asmc, fsfc, &
+                               hgt, decorr_len, &
+                               cldfmcl, clwpmcl, ciwpmcl, cswpmcl, &
                                taucmcl, ssacmcl, asmcmcl, fsfcmcl, permuteseed)
 
       end subroutine mcica_subcol_sw
@@ -1523,7 +1557,9 @@
 
 !-------------------------------------------------------------------------------------------------
       subroutine generate_stochastic_clouds_sw(ncol, nlay, nsubcol, icld, irng, pmid, cld, clwp, ciwp, cswp, &
-                               tauc, ssac, asmc, fsfc, cld_stoch, clwp_stoch, ciwp_stoch, cswp_stoch,        &
+                               tauc, ssac, asmc, fsfc, &
+                               hgt, decorr_len, &
+                               cld_stoch, clwp_stoch, ciwp_stoch, cswp_stoch,        &
                                tauc_stoch, ssac_stoch, asmc_stoch, fsfc_stoch, changeSeed) 
 !-------------------------------------------------------------------------------------------------
 
@@ -1602,6 +1638,8 @@
 ! Column state (cloud fraction, cloud water, cloud ice) + variables needed to read physics state 
       real(kind=rb), intent(in) :: pmid(:,:)          ! layer pressure (Pa)
                                                       !    Dimensions: (ncol,nlay)
+      real(kind=rb), intent(in) :: hgt(:,:)           ! layer height (m)
+                                                      !    Dimensions: (ncol,nlay)
       real(kind=rb), intent(in) :: cld(:,:)           ! cloud fraction 
                                                       !    Dimensions: (ncol,nlay)
       real(kind=rb), intent(in) :: clwp(:,:)          ! in-cloud liquid water path (g/m2)
@@ -1618,6 +1656,8 @@
                                                       !    Dimensions: (nbndsw,ncol,nlay)
       real(kind=rb), intent(in) :: fsfc(:,:,:)        ! in-cloud forward scattering fraction (non-delta scaled)
                                                       !    Dimensions: (nbndsw,ncol,nlay)
+      real(kind=rb), intent(in) :: decorr_len(:)      ! decorrelation length (meters)
+                                                      !    Dimensions: (ncol)
 
       real(kind=rb), intent(out) :: cld_stoch(:,:,:)  ! subcolumn cloud fraction 
                                                       !    Dimensions: (ngptsw,ncol,nlay)
@@ -1650,11 +1690,11 @@
 !      real(kind=rb) :: mean_fsfc_stoch(ncol,nlay)    ! cloud forward scattering fraction
 
 ! Set overlap
-      integer(kind=im) :: overlap                     ! 1 = random overlap, 2 = maximum/random,
-                                                      ! 3 = maximum overlap, 
-!      real(kind=rb), parameter  :: Zo = 2500._rb        ! length scale (m) 
-!      real(kind=rb) :: zm(ncon,nlay)                    ! Height of midpoints (above surface)
-!      real(kind=rb), dimension(nlay) :: alpha=0.0_rb    ! overlap parameter  
+      integer(kind=im) :: overlap                     ! 1 = random overlap, 2 = maximum-random,
+                                                      ! 3 = maximum overlap, 4 = exponential,
+                                                      ! 5 = exponential-random
+      real(kind=rb)                   :: Zo_inv(ncol) ! inverse of decorrelation length scale (m)
+      real(kind=rb), dimension(ncol,nlay) :: alpha    ! overlap parameter
 
 ! Constants (min value for cloud fraction and cloud water and ice)
       real(kind=rb), parameter :: cldmin = 1.0e-20_rb ! min cloud fraction
@@ -1680,6 +1720,7 @@
 
 ! Pass input cloud overlap setting to local variable
       overlap = icld
+      Zo_inv(:) = 1._rb / decorr_len(:)
 
 ! Ensure that cloud fractions are in bounds 
       do ilev = 1, nlay
@@ -1801,39 +1842,106 @@
              enddo
          endif
 
-!    case(4)  - inactive
-!       ! Exponential overlap: weighting between maximum and random overlap increases with the distance. 
-!       ! The random numbers for exponential overlap verify:
-!       ! j=1   RAN(j)=RND1
-!       ! j>1   if RND1 < alpha(j,j-1) => RAN(j) = RAN(j-1)
-!       !                                 RAN(j) = RND2
-!       ! alpha is obtained from the equation
-!       ! alpha = exp(- (Zi-Zj-1)/Zo) where Zo is a characteristic length scale    
+! mji - Activate exponential cloud overlap option
+         case(4)
+            ! Exponential overlap: transition from maximum to random cloud overlap increases 
+            ! exponentially with layer thickness and distance through layers
+            ! j=1   RAN(j)=RND1
+            ! j>1   if RND1 < alpha(j,j-1) => RAN(j) = RAN(j-1)
+            !                                 RAN(j) = RND2
+            ! alpha is obtained from the equation
+            ! alpha = exp(-(Z(j)-Z(j-1))/Zo) where Zo is a characteristic length scale
 
+            ! compute alpha
+            ! permute this loop
+            do i = 1, ncol
+               alpha(i, 1) = 0._rb
+               do ilev = 2,nlay
+                  alpha(i, ilev) = exp( -(hgt(i,ilev) - hgt(i,ilev-1)) * Zo_inv(i))
+               enddo
+            enddo
 
-!       ! compute alpha
-!       zm    = state%zm     
-!       alpha(:, 1) = 0._rb
-!       do ilev = 2,nlay
-!          alpha(:, ilev) = exp( -( zm (:, ilev-1) -  zm (:, ilev)) / Zo)
-!       end do
+            ! generate 2 streams of random numbers
+            if (irng.eq.0) then
+               do isubcol = 1,nsubcol
+                  do ilev = 1,nlay
+                     call kissvec(seed1, seed2, seed3, seed4, rand_num)
+                     CDF(isubcol, :, ilev) = rand_num
+                     call kissvec(seed1, seed2, seed3, seed4, rand_num)
+                     CDF2(isubcol, :, ilev) = rand_num
+                  enddo
+               enddo
+            elseif (irng.eq.1) then
+            do isubcol = 1, nsubcol
+               do i = 1, ncol
+                  do ilev = 1, nlay
+                     rand_num_mt = getRandomReal(randomNumbers)
+                     CDF(isubcol,i,ilev) = rand_num_mt
+                     rand_num_mt = getRandomReal(randomNumbers)
+                     CDF2(isubcol,i,ilev) = rand_num_mt
+                  enddo
+               enddo
+            enddo
+         endif
+
+         ! generate random numbers
+         do ilev = 2,nlay
+            where (CDF2(:, :, ilev) < spread(alpha (:,ilev), dim=1, nCopies=nsubcol) )
+               CDF(:,:,ilev) = CDF(:,:,ilev-1)
+            end where
+         end do
+
+! mji - Exponential-random cloud overlap option
+         case(5)
+       ! Exponential_Random overlap: transition from maximum to random cloud overlap increases 
+       ! exponentially with layer thickness and with distance through adjacent cloudy layers. 
+       ! Non-adjacent blocks of clouds are treated randomly, and each block begins a new 
+       ! exponential transition from maximum to random. 
+       !
+       ! compute alpha: bottom to top
+       ! - set alpha to 0 in bottom layer (no layer below for correlation)
+       do i = 1, ncol
+          alpha(i, 1) = 0._rb
+          do ilev = 2,nlay
+             alpha(i, ilev) = exp( -(hgt(i,ilev) - hgt(i,ilev-1) ) * Zo_inv(i))
+          ! Decorrelate layers when clear layer follows a cloudy layer to enforce
+          ! random correlation between non-adjacent cloudy layers
+             if (cldf(i,ilev) .eq. 0.0_rb .and. cldf(i,ilev-1) .gt. 0.0_rb) then 
+                alpha(i,ilev) = 0.0_rb
+             endif
+          end do
+       end do
        
-!       ! generate 2 streams of random numbers
-!       do isubcol = 1,nsubcol
-!          do ilev = 1,nlay
-!             call kissvec(seed1, seed2, seed3, seed4, rand_num)
-!             CDF(isubcol, :, ilev) = rand_num
-!             call kissvec(seed1, seed2, seed3, seed4, rand_num)
-!             CDF2(isubcol, :, ilev) = rand_num
-!          end do
-!       end do
-
-!       ! generate random numbers
-!       do ilev = 2,nlay
-!          where (CDF2(:, :, ilev) < spread(alpha (:,ilev), dim=1, nCopies=nsubcol) )
-!             CDF(:,:,ilev) = CDF(:,:,ilev-1) 
-!          end where
-!       end do
+       ! generate 2 streams of random numbers
+       ! CDF2 is used to select which sub-columns are vertically correlated relative to alpha
+       ! CDF  is used to select which sub-columns are treated as cloudy relative to cloud fraction
+       if (irng.eq.0) then 
+          do isubcol = 1,nsubcol
+             do ilev = 1,nlay
+                call kissvec(seed1, seed2, seed3, seed4, rand_num)
+                CDF(isubcol, :, ilev) = rand_num
+                call kissvec(seed1, seed2, seed3, seed4, rand_num)
+                CDF2(isubcol, :, ilev) = rand_num
+             end do
+          end do
+       elseif (irng.eq.1) then
+          do isubcol = 1, nsubcol
+             do i = 1, ncol
+                do ilev = 1,nlay
+                   rand_num_mt = getRandomReal(randomNumbers)
+                   CDF(isubcol,i,ilev) = rand_num_mt
+                   rand_num_mt = getRandomReal(randomNumbers)
+                   CDF2(isubcol,i,ilev) = rand_num_mt
+                enddo
+             enddo
+          enddo
+       endif
+       ! generate vertical correlations in random number arrays - bottom to top
+       do ilev = 2,nlay
+          where (CDF2(:, :, ilev) < spread(alpha (:,ilev), dim=1, nCopies=nsubcol) )
+             CDF(:,:,ilev) = CDF(:,:,ilev-1) 
+          end where
+       end do
 
       end select
 
@@ -1948,13 +2056,8 @@
 
       module rrtmg_sw_cldprmc
 
-#if defined(mpas)
  use mpas_atmphys_utilities,only: physics_error_fatal
 #define FATAL_ERROR(M) call physics_error_fatal( M )
-#else
-use module_wrf_error
-#define FATAL_ERROR(M) call wrf_error_fatal( M )
-#endif
 
 !  --------------------------------------------------------------------------
 ! |                                                                          |
@@ -2569,9 +2672,10 @@ use module_wrf_error
             zgamma4= 1._rb - zgamma3
     
 ! Recompute original s.s.a. to test for conservative solution
-            !Balwinder.Singh@pnnl.gov: Code added to avoid 'divide by zero' error in zwo computation
-            denom = max((1._rb - (1._rb - zw) * (zg / (1._rb - zg))**2),1.0E-30_rb)
-            zwo= zw / denom
+            zwo = 0._rb
+            denom = 1._rb
+            if (zg .ne. 1._rb) denom = (1._rb - (1._rb - zw) * (zg / (1._rb - zg))**2)
+            if (zw .gt. 0._rb .and. denom .ne. 0._rb) zwo = zw / denom
 
             if (zwo >= zwcrit) then
 ! Conservative scattering
@@ -3283,6 +3387,10 @@ use module_wrf_error
                                                          !   Dimensions: (nlayers,ngptsw)
 
 !jm not thread safe      hvrtau = '$Revision: 1.3 $'
+
+! Initialize sfluxzen to 0.0 to prevent junk values when nlayers = laytrop
+
+      sfluxzen(:) = 0.0
 
 ! Calculate gaseous optical depth and planck fractions for each spectral band.
 
@@ -8501,27 +8609,36 @@ use module_wrf_error
                zdbt_nodel(jk) = zclear*zdbtmc + zcloud*zdbtmo
                ztdbt_nodel(jk+1) = zdbt_nodel(jk) * ztdbt_nodel(jk)
 !   /\/\/\ Above code only needed for direct beam calculation
+            enddo
 
-
+! to vectorize the following loop
+            do jk=1, klev
 ! Delta scaling - clear   
                zf = zgcc(jk) * zgcc(jk)
                zwf = zomcc(jk) * zf
                ztauc(jk) = (1.0_rb - zwf) * ztauc(jk)
                zomcc(jk) = (zomcc(jk) - zwf) / (1.0_rb - zwf)
                zgcc (jk) = (zgcc(jk) - zf) / (1.0_rb - zf)
+            enddo
+
 
 ! Total sky optical parameters (cloud properties already delta-scaled)
 !   Use this code if cloud properties are derived in rrtmg_sw_cldprop       
                if (icpr .ge. 1) then
+            do jk=1,klev
+                  ikl=klev+1-jk
                   ztauo(jk) = ztauc(jk) + ptaucmc(ikl,iw)
                   zomco(jk) = ztauc(jk) * zomcc(jk) + ptaucmc(ikl,iw) * pomgcmc(ikl,iw) 
                   zgco (jk) = (ptaucmc(ikl,iw) * pomgcmc(ikl,iw) * pasycmc(ikl,iw) + &
                               ztauc(jk) * zomcc(jk) * zgcc(jk)) / zomco(jk)
                   zomco(jk) = zomco(jk) / ztauo(jk)
+            enddo
 
 ! Total sky optical parameters (if cloud properties not delta scaled)
 !   Use this code if cloud properties are not derived in rrtmg_sw_cldprop       
                elseif (icpr .eq. 0) then
+            do jk=1,klev
+                  ikl=klev+1-jk
                   ztauo(jk) = ztaur(ikl,iw) + ztaug(ikl,iw) + ptaua(ikl,ibm) + ptaucmc(ikl,iw)
                   zomco(jk) = ptaua(ikl,ibm) * pomga(ikl,ibm) + ptaucmc(ikl,iw) * pomgcmc(ikl,iw) + &
                               ztaur(ikl,iw) * 1.0_rb
@@ -8536,10 +8653,10 @@ use module_wrf_error
                   ztauo(jk) = (1._rb - zwf) * ztauo(jk)
                   zomco(jk) = (zomco(jk) - zwf) / (1.0_rb - zwf)
                   zgco (jk) = (zgco(jk) - zf) / (1.0_rb - zf)
+            enddo
                endif 
 
 ! End of layer loop
-            enddo    
 
 ! Clear sky reflectivities
             call reftra_sw (klev, &
@@ -8637,22 +8754,27 @@ use module_wrf_error
                pbbcd(ikl) = pbbcd(ikl) + zincflx(iw)*zcd(jk,iw)
                pbbfddir(ikl) = pbbfddir(ikl) + zincflx(iw)*ztdbt_nodel(jk)
                pbbcddir(ikl) = pbbcddir(ikl) + zincflx(iw)*ztdbtc_nodel(jk)
+            enddo
 
 ! Accumulate direct fluxes for UV/visible bands
                if (ibm >= 10 .and. ibm <= 13) then
+            do jk=1,klev+1
+               ikl=klev+2-jk
                   puvcd(ikl) = puvcd(ikl) + zincflx(iw)*zcd(jk,iw)
                   puvfd(ikl) = puvfd(ikl) + zincflx(iw)*zfd(jk,iw)
                   puvcddir(ikl) = puvcddir(ikl) + zincflx(iw)*ztdbtc_nodel(jk)
                   puvfddir(ikl) = puvfddir(ikl) + zincflx(iw)*ztdbt_nodel(jk)
+            enddo
 ! Accumulate direct fluxes for near-IR bands
                else if (ibm == 14 .or. ibm <= 9) then  
+            do jk=1,klev+1
+               ikl=klev+2-jk
                   pnicd(ikl) = pnicd(ikl) + zincflx(iw)*zcd(jk,iw)
                   pnifd(ikl) = pnifd(ikl) + zincflx(iw)*zfd(jk,iw)
                   pnicddir(ikl) = pnicddir(ikl) + zincflx(iw)*ztdbtc_nodel(jk)
                   pnifddir(ikl) = pnifddir(ikl) + zincflx(iw)*ztdbt_nodel(jk)
-               endif
-
             enddo
+               endif
 
 ! End loop on jg, g-point interval
          enddo             
@@ -8752,12 +8874,14 @@ use module_wrf_error
              taucmcl ,ssacmcl ,asmcmcl ,fsfcmcl , &
              ciwpmcl ,clwpmcl ,cswpmcl ,reicmcl ,relqmcl ,resnmcl, &
              tauaer  ,ssaaer  ,asmaer  ,ecaer   , &
-             swuflx  ,swdflx  ,swhr    ,swuflxc ,swdflxc ,swhrc, aer_opt,  &
+             swuflx  ,swdflx  ,swhr    ,swuflxc ,swdflxc ,swhrc, swuflxcln ,swdflxcln , aer_opt,  &
 ! --------- Add the following four compenants for ssib shortwave down radiation ---!
 ! -------------------      by Zhenxin 2011-06-20      --------------------------------!
              sibvisdir, sibvisdif, sibnirdir, sibnirdif,         &
 ! ----------------------  End,  Zhenxin 2011-06-20    --------------------------------!
-             swdkdir,swdkdif                                & ! jararias, 2013/08/10
+             swdkdir,swdkdif,                               & ! jararias, 2013/08/10
+             swdkdirc,                                      & ! PAJ
+             calc_clean_atm_diag                            &
                                                                 )
 
 
@@ -8868,7 +8992,8 @@ use module_wrf_error
                                                       !    1: Random
                                                       !    2: Maximum/random
                                                       !    3: Maximum
-
+                                                      !    4: Exponential
+                                                      !    5: Exponential/random
       real(kind=rb), intent(in) :: play(:,:)          ! Layer pressures (hPa, mb)
                                                       !    Dimensions: (ncol,nlay)
       real(kind=rb), intent(in) :: plev(:,:)          ! Interface pressures (hPa, mb)
@@ -8955,6 +9080,7 @@ use module_wrf_error
       real(kind=rb), intent(in) :: ecaer(:,:,:)       ! Aerosol optical depth at 0.55 micron (iaer=6 only)
                                                       !    Dimensions: (ncol,nlay,naerec)
                                                       ! (non-delta scaled)      
+      integer, intent(in)       :: calc_clean_atm_diag! Control for clean air diagnositic calls for WRF-Chem
 
 ! ----- Output -----
 
@@ -8978,12 +9104,16 @@ use module_wrf_error
                                                       !    Dimensions: (ncol,nlay+1)
       real(kind=rb), intent(out) :: swhrc(:,:)        ! Clear sky shortwave radiative heating rate (K/d)
                                                       !    Dimensions: (ncol,nlay)
+      real(kind=rb), intent(out) :: swuflxcln(:,:)    ! Clean sky shortwave upward flux (W/m2)
+                                                      !    Dimensions: (ncol,nlay+1)
+      real(kind=rb), intent(out) :: swdflxcln(:,:)    ! Clean sky shortwave downward flux (W/m2)
+                                                      !    Dimensions: (ncol,nlay+1)
 
       integer, intent(in)        :: aer_opt
       real(kind=rb), intent(out) :: &
         swdkdir(:,:), & ! Total shortwave downward direct flux (W/m2),  Dimensions: (ncol,nlay) jararias, 2013/08/10
-        swdkdif(:,:)    ! Total shortwave downward diffuse flux (W/m2), Dimensions: (ncol,nlay) jararias, 2013/08/10
-
+        swdkdif(:,:), & ! Total shortwave downward diffuse flux (W/m2), Dimensions: (ncol,nlay) jararias, 2013/08/10
+        swdkdirc(:,:)   ! Total shortwave downward direct flux clear sky (W/m2),  Dimensions: (ncol,nlay)
 
 
 
@@ -9102,6 +9232,7 @@ use module_wrf_error
                                                 !  (first moment of phase function)
       real(kind=rb) :: zomgc(nlay+1,nbndsw)     ! cloud single scattering albedo
       real(kind=rb) :: ztaua(nlay+1,nbndsw)     ! total aerosol optical depth
+      real(kind=rb) :: ztauacln(nlay+1,nbndsw)  ! dummy total aerosol optical depth for clean case (=zero)
       real(kind=rb) :: zasya(nlay+1,nbndsw)     ! total aerosol asymmetry parameter 
       real(kind=rb) :: zomga(nlay+1,nbndsw)     ! total aerosol single scattering albedo
 
@@ -9125,6 +9256,13 @@ use module_wrf_error
       real(kind=rb) :: znicd(nlay+2)          ! temporary clear sky near-IR downward shortwave flux (w/m2)
       real(kind=rb) :: znifddir(nlay+2)       ! temporary near-IR downward direct shortwave flux (w/m2)
       real(kind=rb) :: znicddir(nlay+2)       ! temporary clear sky near-IR downward direct shortwave flux (w/m2)
+      real(kind=rb) :: zbbclnu(nlay+2)        ! temporary clean sky upward shortwave flux (w/m2)
+      real(kind=rb) :: zbbclnd(nlay+2)        ! temporary clean sky downward shortwave flux (w/m2)
+      real(kind=rb) :: zbbclnddir(nlay+2)     ! temporary clean sky downward direct shortwave flux (w/m2)
+      real(kind=rb) :: zuvclnd(nlay+2)        ! temporary clean sky UV downward shortwave flux (w/m2)
+      real(kind=rb) :: zuvclnddir(nlay+2)     ! temporary clean sky UV downward direct shortwave flux (w/m2)
+      real(kind=rb) :: zniclnd(nlay+2)        ! temporary clean sky near-IR downward shortwave flux (w/m2)
+      real(kind=rb) :: zniclnddir(nlay+2)     ! temporary clean sky near-IR downward direct shortwave flux (w/m2)
 
 ! Optional output fields 
       real(kind=rb) :: swnflx(nlay+2)         ! Total sky shortwave net flux (W/m2)
@@ -9181,7 +9319,8 @@ use module_wrf_error
 ! icld = 1, with clouds using random cloud overlap (McICA only)
 ! icld = 2, with clouds using maximum/random cloud overlap (McICA only)
 ! icld = 3, with clouds using maximum cloud overlap (McICA only)
-      if (icld.lt.0.or.icld.gt.3) icld = 2
+! icld = 4, with clouds using exponential cloud overlap (McICA only)
+! icld = 5, with clouds using exponential/random cloud overlap (McICA only)
 
 ! Set iaer to select aerosol option
 ! iaer = 0, no aerosols
@@ -9309,8 +9448,8 @@ use module_wrf_error
 !               enddo
 !            enddo
 
-            do i = 1, nlayers
-               do ib = 1, nbndsw
+            do ib = 1, nbndsw
+               do i = 1, nlayers
                   ztaua(i,ib) = 0._rb
                   zasya(i,ib) = 0._rb
                   zomga(i,ib) = 0._rb
@@ -9333,9 +9472,10 @@ use module_wrf_error
 ! IAER=10: Direct specification of aerosol optical properties from GCM
          elseif (iaer.eq.10) then
 
-            do i = 1 ,nlayers
-               do ib = 1 ,nbndsw
+            do ib = 1 ,nbndsw
+               do i = 1 ,nlayers
                   ztaua(i,ib) = taua(i,ib)
+                  ztauacln(i,ib) = 0.0
                   zasya(i,ib) = asma(i,ib)
                   zomga(i,ib) = ssaa(i,ib)
                enddo
@@ -9391,6 +9531,7 @@ use module_wrf_error
             difdflux(i) = swdflx(iplon,i) - dirdflux(i)
             swdkdir(iplon,i) = dirdflux(i) ! all-sky direct flux   jararias, 2013/08/10
             swdkdif(iplon,i) = difdflux(i) ! all-sky diffuse flux  jararias, 2013/08/10
+            swdkdirc(iplon,i) = zbbcddir(i) ! PAJ: clear-sky direct flux
 
 !  UV/visible direct/diffuse fluxes
             dirdnuv(i) = zuvfddir(i)
@@ -9423,8 +9564,60 @@ use module_wrf_error
          swhrc(iplon,nlayers) = 0._rb
          swhr(iplon,nlayers) = 0._rb
 
+#if (WRF_CHEM == 1)
+         !  Repeat call to 2-stream radiation model using "clean sky"
+         !  variables and aerosol tau set to 0
+         if(calc_clean_atm_diag .gt. 0)then
+            do i=1,nlayers+1
+                zbbcu(i) = 0._rb
+                zbbcd(i) = 0._rb
+                zbbclnu(i) = 0._rb
+                zbbclnd(i) = 0._rb
+                zbbcddir(i) = 0._rb
+                zbbclnddir(i) = 0._rb
+                zuvcd(i) = 0._rb
+                zuvclnd(i) = 0._rb
+                zuvcddir(i) = 0._rb
+                zuvclnddir(i) = 0._rb
+                znicd(i) = 0._rb
+                zniclnd(i) = 0._rb
+                znicddir(i) = 0._rb
+                zniclnddir(i) = 0._rb
+             enddo
+
+             call spcvmc_sw &
+                 (nlayers, istart, iend, icpr, iout, &
+                  pavel, tavel, pz, tz, tbound, albdif, albdir, &
+                  zcldfmc, ztaucmc, zasycmc, zomgcmc, ztaormc, &
+                  ztauacln, zasya, zomga, cossza, coldry, wkl, adjflux, &
+                  laytrop, layswtch, laylow, jp, jt, jt1, &
+                  co2mult, colch4, colco2, colh2o, colmol, coln2o, colo2, colo3, &
+                  fac00, fac01, fac10, fac11, &
+                  selffac, selffrac, indself, forfac, forfrac, indfor, &
+                  zbbclnd, zbbclnu, zbbcd, zbbcu, zuvclnd, zuvcd, zniclnd, znicd, &
+                  zbbclnddir, zbbcddir, zuvclnddir, zuvcddir, zniclnddir, znicddir)
+
+            do i = 1, nlayers+1
+               swuflxcln(iplon,i) = zbbclnu(i)
+               swdflxcln(iplon,i) = zbbclnd(i)
+            enddo
+         else
+            do i = 1, nlayers+1
+               swuflxcln(iplon,i) = 0.0
+               swdflxcln(iplon,i) = 0.0
+            enddo
+         end if
+
+#else
+         do i = 1, nlayers+1
+            swuflxcln(iplon,i) = 0.0
+            swdflxcln(iplon,i) = 0.0
+         enddo
+
+#endif
 ! End longitude loop
       enddo
+
 
       end subroutine rrtmg_sw
 
@@ -9755,8 +9948,8 @@ use module_wrf_error
 ! modify to reverse layer indexing here if necessary.
 
       if (iaer .ge. 1) then 
-         do l = 1, nlayers
-            do ib = 1, nbndsw
+         do ib = 1, nbndsw
+            do l = 1, nlayers
                taua(l,ib) = tauaer(iplon,l,ib)
                ssaa(l,ib) = ssaaer(iplon,l,ib)
                asma(l,ib) = asmaer(iplon,l,ib)
@@ -9815,50 +10008,8 @@ use module_wrf_error
 
 !------------------------------------------------------------------
 MODULE module_ra_rrtmg_sw
-
-#if defined(mpas)
-!MPAS specific (Laura D. Fowler):
 use mpas_atmphys_constants,only : cp,g=>gravity
 use module_ra_rrtmg_vinterp,only: vinterp_ozn
-
-!> add-ons and modifications to sourcecode:
-!> ----------------------------------------
-!>   * updated the sourcecode to WRF revision 3.5, except for the implementation
-!>     of time-varying trace gases: added option to use the ozone climatology
-!>     from the CAM radiation codes.
-!>     Laura D. Fowler (birch.mmm.ucar.edu) / 2013-07-08.
-!>   * cleaned-up the subroutine rrtmg_swrad in preparation for the implementation of the calculation of the
-!>     cloud optical properties when the effective radii for cloud water, cloud ice, and snow are provided by
-!>     the cloud microphysics schemes (note that for now, only the Thompson cloud microphysics scheme has the
-!>     option to calculate cloud radii). With the -g option, results are exactly the same as the original
-!>     subroutine.
-!>     Laura D. Fowler (laura@ucar.edu) / 2016-07-05.
-!>   * updated module_ra_rrtmg_sw.F using module_ra_rrtmg_sw.F from WRF version 3.8, namely to update the
-!>     calculation of the cloud optical properties to include the radiative effect of snow.
-!>     Laura D. Fowler (laura@ucar.edu / 2016-07-05).
-!>   * added the effective radii for cloud water, cloud ice, and snow calculated in the Thompson cloud
-!>     microphysics scheme as inputs to the subroutine rrtmg_swrad. revised the initialization of arrays rel,
-!>     rei, and res, accordingly.
-!>     Laura D. Fowler (laura@ucar.edu) / 2016-07-07.
-!>   * added the optional arguments, tauaer3d, ssaaer3d, and asyaer3d to include the optical depth, single
-!>     scattering albedo, and asymmetry factor of aerosols. to date, the only kind of aerosols included in MPAS
-!>     are the "water-friendly" and "ice-friendly" aerosols used in the Thompson cloud microphysics scheme.
-!>     Laura D. Fowler (laura@ucar.edu) / 2024-05-16.
-!>   * added the option aer_opt in the argument list. revised the initialization of arrays tauaer,ssaaer, and
-!>     asmaer to include the optical properties of aerosols.
-!>     Laura D. Fowler (laura@ucar.edu) / 2024-05-16.
-!MPAS specfic end.
-
-#else
-use module_model_constants,only : cp
-USE module_wrf_error
-#if (HWRF == 1)
-USE module_state_description, ONLY : FER_MP_HIRES, FER_MP_HIRES_ADVECT, ETAMP_HWRF 
-#else
-USE module_state_description, ONLY : FER_MP_HIRES, FER_MP_HIRES_ADVECT
-#endif
-!USE module_dm
-#endif
 
 use parrrsw, only : nbndsw, ngptsw, naerec
 use rrtmg_sw_init, only: rrtmg_sw_ini
@@ -9876,7 +10027,8 @@ CONTAINS
                        p3d,p8w,pi3d,t3d,t8w,dz8w,qv3d,qc3d,qr3d,       &
                        qi3d,qs3d,qg3d,cldfra3d,o33d,tsk,albedo,        &
                        xland,xice,snow,coszr,xtime,gmt,julday,radt,    &
-                       degrad,declin,solcon,xlat,xlong,icloud,o3input, &
+                       degrad,declin,solcon,xlat,xlong,icloud,         &
+                       cldovrlp,idcor,o3input, &
                        noznlevels,pin,o3clim,gsw,swcf,rthratensw,      &
                        has_reqc,has_reqi,has_reqs,re_cloud,            &
                        re_ice,re_snow,                                 &
@@ -9898,8 +10050,9 @@ CONTAINS
  integer,intent(in):: ids,ide, jds,jde, kds,kde, &
                       ims,ime, jms,jme, kms,kme, &
                       its,ite, jts,jte, kts,kte
- integer,intent(in):: icloud,has_reqc,has_reqi,has_reqs
  integer,intent(in):: julday
+ integer,intent(in):: icloud,cldovrlp,idcor
+ integer,intent(in):: has_reqc,has_reqi,has_reqs
  integer,intent(in),optional:: o3input
 
  real,intent(in):: radt,degrad,xtime,declin,solcon,gmt
@@ -9939,6 +10092,7 @@ CONTAINS
 !local variables and arrays:
  logical:: dorrsw
 
+ integer:: calc_clean_atm_diag
  integer:: na,nb,ncol,nlay,icld,inflgsw,iceflgsw,liqflgsw
  integer:: dyofyr
  integer:: iplon,irng,permuteseed
@@ -9951,6 +10105,7 @@ CONTAINS
  real:: corr
  real:: gliqwp,gicewp,gsnowp,gravmks
  real:: snow_mass_factor
+ real:: dzsum,lat
  real,dimension(1):: tsfc,landfrac,landm,snowh,icefrac
  real,dimension(1):: asdir,asdif,aldir,aldif,coszen
  real,dimension(1,1:kte-kts+1):: pdel,cicewp,cliqwp,csnowp,reliq,reice,resnow
@@ -9961,14 +10116,15 @@ CONTAINS
 
 !--- additional local variables and arrays needed to include additional layers between the model top
 !    and the top of the atmosphere:
- real,dimension(1,kts:kte+1):: play,tlay,h2ovmr,o3vmr,co2vmr,o2vmr,ch4vmr,n2ovmr
+ real,dimension(1,kts:kte+1):: play,hlay,tlay,h2ovmr,o3vmr,co2vmr,o2vmr,ch4vmr,n2ovmr
  real,dimension(1,kts:kte+1):: clwpth,ciwpth,cswpth,rel,rei,res,cldfrac,relqmcl,reicmcl,resnmcl
  real,dimension(1,kts:kte+1):: swhr,swhrc
 
  real,dimension(1,kts:kte+2):: plev,tlev
  real,dimension(1,kts:kte+2):: swuflx,swdflx,swuflxc,swdflxc
+ real,dimension(1,kts:kte+2):: swuflxcln,swdflxcln
  real,dimension(1,kts:kte+2):: sibvisdir,sibvisdif,sibnirdir,sibnirdif
- real,dimension(1,kts:kte+2):: swdkdir,swdkdif
+ real,dimension(1,kts:kte+2):: swdkdir,swdkdif,swdkdirc
 
  real,dimension(1,kts:kte+1,nbndsw):: tauaer,ssaaer,asmaer
 
@@ -10021,11 +10177,17 @@ CONTAINS
 !--- all fields are ordered vertically from bottom to top (pressures are in mb):
  ncol = 1
 
+!--- select cloud overlap asumption (1=random, 2=maximum-random, 3=maximum, 4=exponential, 5=exponential-random).
+!    assign namlist variable cldovrlp to existing icld:
+ icld = cldovrlp
+
 !--- initialize option for the calculation of the cloud optical properties:
- icld     = 2 ! with clouds using maximum/random cloud overlap in subroutine mcica_subcol_lw. 
  inflgsw  = 2
  iceflgsw = 3
  liqflgsw = 1
+
+!--- initialize option for the calculation of clean air upward and downward fluxes:
+ calc_clean_atm_diag = 0
 
 !--- latitude loop:
  j_loop: do j = jts,jte
@@ -10047,6 +10209,9 @@ CONTAINS
        if (coszrs.le.0.0) dorrsw = .false.
        
        if(dorrsw) then
+
+          !--- initialize local latitude:
+          lat = xlat(i,j)
 
           !--- INITIALIZE COLUMN SOUNDING (the call to the short wave radiation code is done one column
           !     at a time):
@@ -10103,22 +10268,24 @@ CONTAINS
              enddo
 
              do k = 1, nlay
-                clwpth(n,k)  = 0.
-                ciwpth(n,k)  = 0.
-                cswpth(n,k)  = 0.
-                rel(n,k)     = 0.
-                rei(n,k)     = 0.
-                res(n,k)     = 0.
-                cldfrac(n,k) = 0.
-                relqmcl(n,k) = 0.
-                reicmcl(n,k) = 0.
-                resnmcl(n,k) = 0.
-                swuflx(n,k)  = 0.
-                swuflxc(n,k) = 0.
-                swdflx(n,k)  = 0.
-                swdflxc(n,k) = 0.
-                swhr(n,k)    = 0.
-                swhrc(n,k)   = 0.
+                clwpth(n,k)    = 0.
+                ciwpth(n,k)    = 0.
+                cswpth(n,k)    = 0.
+                rel(n,k)       = 0.
+                rei(n,k)       = 0.
+                res(n,k)       = 0.
+                cldfrac(n,k)   = 0.
+                relqmcl(n,k)   = 0.
+                reicmcl(n,k)   = 0.
+                resnmcl(n,k)   = 0.
+                swuflx(n,k)    = 0.
+                swuflxc(n,k)   = 0.
+                swuflxcln(n,k) = 0.
+                swdflx(n,k)    = 0.
+                swdflxc(n,k)   = 0.
+                swdflxcln(n,k) = 0.
+                swhr(n,k)      = 0.
+                swhrc(n,k)     = 0.
                 taucld(1:nbndsw,n,k)  = 0.
                 tauaer(n,k,1:nbndsw)  = 0.
                 ssaaer(n,k,1:nbndsw)  = 0.
@@ -10136,11 +10303,14 @@ CONTAINS
                 sibnirdif(ncol,k) = 0.                
                 swdkdir(n,k)      = 0.
                 swdkdif(n,k)      = 0.
+                swdkdirc(n,k)     = 0.
              enddo
-             swuflx(n,nlay+1)  = 0.
-             swuflxc(n,nlay+1) = 0.
-             swdflx(n,nlay+1)  = 0.
-             swdflxc(n,nlay+1) = 0.
+             swuflx(n,nlay+1)    = 0.
+             swuflxc(n,nlay+1)   = 0.
+             swuflxcln(n,nlay+1) = 0.
+             swdflx(n,nlay+1)    = 0.
+             swdflxc(n,nlay+1)   = 0.
+             swdflxcln(n,nlay+1) = 0.
           enddo
 
           !--- initialization of aerosol optical properties:
@@ -10179,7 +10349,17 @@ CONTAINS
           ch4vmr(ncol,kte+1) = ch4vmr(ncol,kte) 
           n2ovmr(ncol,kte+1) = n2ovmr(ncol,kte) 
 
-          !--- initialize the ozone voume mixing ratio:
+          !--- compute height of each layer mid-point from layer thickness needed for icl=4 (exponential) and
+          !    icld=5 (exponential-random) overlap. fill in height array above model top using dz1d from top
+          !    layer:
+          dzsum = 0.
+          do k = kts, kte
+             hlay(ncol,k) = dzsum + 0.5*dz1d(k)
+             dzsum = dzsum + dz1d(k) 
+          enddo
+          hlay(ncol,kte+1) = dzsum + 0.5*dz1d(kte)
+
+          !--- initialize the ozone volume mixing ratio:
           call inirad(o3mmr,plev,kts,kte)
           if(o3input .eq. 2) then
              do k = 1, noznlevels
@@ -10374,9 +10554,9 @@ CONTAINS
           call mcica_subcol_sw &
                      (iplon   , ncol    , nlay    , icld    , permuteseed , irng    , play    , &
                       cldfrac , ciwpth  , clwpth  , cswpth  , rei         , rel     , res     , &
-                      taucld  , ssacld  , asmcld  , fsfcld  , cldfmcl     , ciwpmcl , clwpmcl , &
-                      cswpmcl , reicmcl , relqmcl , resnmcl , taucmcl     , ssacmcl , asmcmcl , &
-                      fsfcmcl)
+                      taucld  , ssacld  , asmcld  , fsfcld  , hlay        , idcor   , julday  , &
+                      lat     , cldfmcl , ciwpmcl , clwpmcl , cswpmcl     , reicmcl , relqmcl , &
+                      resnmcl , taucmcl , ssacmcl , asmcmcl , fsfcmcl)
 
           !--- initialization of aerosol optical properties:
           if(present(tauaer3d) .and. present(ssaaer3d) .and. present(asyaer3d)) then
@@ -10411,17 +10591,16 @@ CONTAINS
 
           !--- CALL TO THE RRTMG SHORT WAVE RADIATION MODEL:
           call rrtmg_sw &
-                     (ncol      , nlay      , icld      , play      , plev    , tlay     , &
-                      tlev      , tsfc      , h2ovmr    , o3vmr     , co2vmr  , ch4vmr   , &
-                      n2ovmr    , o2vmr     , asdir     , asdif     , aldir   , aldif    , &
-                      coszen    , adjes     , dyofyr    , scon      , inflgsw , iceflgsw , &
-                      liqflgsw  , cldfmcl   , taucmcl   , ssacmcl   , asmcmcl , fsfcmcl  , &
-                      ciwpmcl   , clwpmcl   , cswpmcl   , reicmcl   , relqmcl , resnmcl  , &
-                      tauaer    , ssaaer    , asmaer    , ecaer     , swuflx  , swdflx   , &
-                      swhr      , swuflxc   , swdflxc   , swhrc     ,                      &
-                      aer_opt   ,                                                          &
-                      sibvisdir , sibvisdif , sibnirdir , sibnirdif , & !added for ssib coupling.
-                      swdkdir   , swdkdif)
+                     (ncol      , nlay      , icld      , play      , plev      , tlay      , &
+                      tlev      , tsfc      , h2ovmr    , o3vmr     , co2vmr    , ch4vmr    , &
+                      n2ovmr    , o2vmr     , asdir     , asdif     , aldir     , aldif     , &
+                      coszen    , adjes     , dyofyr    , scon      , inflgsw   , iceflgsw  , &
+                      liqflgsw  , cldfmcl   , taucmcl   , ssacmcl   , asmcmcl   , fsfcmcl   , &
+                      ciwpmcl   , clwpmcl   , cswpmcl   , reicmcl   , relqmcl   , resnmcl   , &
+                      tauaer    , ssaaer    , asmaer    , ecaer     , swuflx    , swdflx    , &
+                      swhr      , swuflxc   , swdflxc   , swhrc     , swuflxcln , swdflxcln , &
+                      aer_opt   , sibvisdir , sibvisdif , sibnirdir , sibnirdif , swdkdir   , &
+                      swdkdif   , swdkdirc  , calc_clean_atm_diag)
 
           !--- OUTPUTS:
           gsw(i,j)  = swdflx(1,1) - swuflx(1,1)
@@ -10484,1193 +10663,7 @@ CONTAINS
 
  end subroutine rrtmg_swrad
 
-!-----------------------------------------------------------------------------------------------------------------
-
-!ldf (2013-03-11): This section of the module is moved to module_physics_rrtmg_swinit.F in
-!./../core_physics to accomodate differences in the mpi calls between WRF and MPAS.I thought
-!that it would be cleaner to do this instead of adding a lot of #ifdef statements throughout
-!the initialization of the shortwave radiation code. Initialization is handled the same way
-!for the longwave radiation code.
-
-#if !(defined(mpas))
- 
-!====================================================================
-   SUBROUTINE rrtmg_swinit(                                         &
-                       allowed_to_read ,                            &
-                       ids, ide, jds, jde, kds, kde,                &
-                       ims, ime, jms, jme, kms, kme,                &
-                       its, ite, jts, jte, kts, kte                 )
-!--------------------------------------------------------------------
-   IMPLICIT NONE
-!--------------------------------------------------------------------
-
-   LOGICAL , INTENT(IN)           :: allowed_to_read
-   INTEGER , INTENT(IN)           :: ids, ide, jds, jde, kds, kde,  &
-                                     ims, ime, jms, jme, kms, kme,  &
-                                     its, ite, jts, jte, kts, kte
-
-! Read in absorption coefficients and other data
-   IF ( allowed_to_read ) THEN
-     CALL rrtmg_swlookuptable
-   ENDIF
-
-! Perform g-point reduction and other initializations
-! Specific heat of dry air (cp) used in flux to heating rate conversion factor.
-   call rrtmg_sw_ini(cp)
-
-   END SUBROUTINE rrtmg_swinit
-
-
-! **************************************************************************     
-      SUBROUTINE rrtmg_swlookuptable
-! **************************************************************************     
-
-IMPLICIT NONE
-
-! Local                                    
-      INTEGER :: i
-      LOGICAL                 :: opened
-      LOGICAL , EXTERNAL      :: wrf_dm_on_monitor
-
-      CHARACTER*80 errmess
-      INTEGER rrtmg_unit
-
-      IF ( wrf_dm_on_monitor() ) THEN
-        DO i = 10,99
-          INQUIRE ( i , OPENED = opened )
-          IF ( .NOT. opened ) THEN
-            rrtmg_unit = i
-            GOTO 2010
-          ENDIF
-        ENDDO
-        rrtmg_unit = -1
- 2010   CONTINUE
-      ENDIF
-      CALL wrf_dm_bcast_bytes ( rrtmg_unit , IWORDSIZE )
-      IF ( rrtmg_unit < 0 ) THEN
-        CALL wrf_error_fatal ( 'module_ra_rrtmg_sw: rrtm_swlookuptable: Can not '// &
-                               'find unused fortran unit to read in lookup table.' )
-      ENDIF
-
-      IF ( wrf_dm_on_monitor() ) THEN
-        OPEN(rrtmg_unit,FILE='RRTMG_SW_DATA',                  &
-             FORM='UNFORMATTED',STATUS='OLD',ERR=9009)
-      ENDIF
-
-      call sw_kgb16(rrtmg_unit)
-      call sw_kgb17(rrtmg_unit)
-      call sw_kgb18(rrtmg_unit)
-      call sw_kgb19(rrtmg_unit)
-      call sw_kgb20(rrtmg_unit)
-      call sw_kgb21(rrtmg_unit)
-      call sw_kgb22(rrtmg_unit)
-      call sw_kgb23(rrtmg_unit)
-      call sw_kgb24(rrtmg_unit)
-      call sw_kgb25(rrtmg_unit)
-      call sw_kgb26(rrtmg_unit)
-      call sw_kgb27(rrtmg_unit)
-      call sw_kgb28(rrtmg_unit)
-      call sw_kgb29(rrtmg_unit)
-
-     IF ( wrf_dm_on_monitor() ) CLOSE (rrtmg_unit)
-
-     RETURN
-9009 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_sw: error opening RRTMG_SW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-     END SUBROUTINE rrtmg_swlookuptable
-
-! **************************************************************************
-!  RRTMG Shortwave Radiative Transfer Model
-!  Atmospheric and Environmental Research, Inc., Cambridge, MA
-!
-!  Original by J.Delamere, Atmospheric & Environmental Research.
-!  Reformatted for F90: JJMorcrette, ECMWF
-!  Revision for GCMs:  Michael J. Iacono, AER, July 2002
-!  Further F90 reformatting:  Michael J. Iacono, AER, June 2006
-!
-!  This file contains 14 READ statements that include the 
-!  absorption coefficients and other data for each of the 14 shortwave
-!  spectral bands used in RRTMG_SW.  Here, the data are defined for 16
-!  g-points, or sub-intervals, per band.  These data are combined and
-!  weighted using a mapping procedure in module RRTMG_SW_INIT to reduce
-!  the total number of g-points from 224 to 112 for use in the GCM.
-! **************************************************************************
-
-! **************************************************************************
-      subroutine sw_kgb16(rrtmg_unit)
-! **************************************************************************
-
-      use rrsw_kg16, only : kao, kbo, selfrefo, forrefo, sfluxrefo, &
-                            rayl, strrat1, layreffr
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Array sfluxrefo contains the Kurucz solar source function for this band. 
-
-!     Array rayl contains the Rayleigh extinction coefficient at v = 2925 cm-1.
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels> ~100mb, temperatures, and binary
-!     species parameters (see taumol.f for definition).  The first 
-!     index in the array, JS, runs from 1 to 9, and corresponds to 
-!     different values of the binary species parameter.  For instance, 
-!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8, 
-!     JS = 3 corresponds to the parameter value 2/8, etc.  The second index
-!     in the array, JT, which runs from 1 to 5, corresponds to different
-!     temperatures.  More specifically, JT = 3 means that the data are for
-!     the reference temperature TREF for this  pressure level, JT = 2 refers
-!     to TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the JPth reference pressure level (see taumol.f for these levels
-!     in mb).  The fourth index, IG, goes from 1 to 16, and indicates
-!     which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-#define DM_BCAST_REAL(A) CALL wrf_dm_bcast_real ( A , 1 )
-#define DM_BCAST_INTEGER(A) CALL wrf_dm_bcast_integer ( A , 1 )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         rayl, strrat1, layreffr, kao, kbo, selfrefo, forrefo, sfluxrefo
-      DM_BCAST_REAL(rayl)
-      DM_BCAST_REAL(strrat1)
-      DM_BCAST_INTEGER(layreffr)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-      DM_BCAST_MACRO(sfluxrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_sw: error reading RRTMG_SW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine sw_kgb16
-
-! **************************************************************************
-      subroutine sw_kgb17(rrtmg_unit)
-! **************************************************************************
-
-      use rrsw_kg17, only : kao, kbo, selfrefo, forrefo, sfluxrefo, &
-                            rayl, strrat, layreffr
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Array sfluxrefo contains the Kurucz solar source function for this band. 
-
-!     Array rayl contains the Rayleigh extinction coefficient at v = 3625 cm-1.
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels> ~100mb, temperatures, and binary
-!     species parameters (see taumol.f for definition).  The first 
-!     index in the array, JS, runs from 1 to 9, and corresponds to 
-!     different values of the binary species parameter.  For instance, 
-!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8, 
-!     JS = 3 corresponds to the parameter value 2/8, etc.  The second index
-!     in the array, JT, which runs from 1 to 5, corresponds to different
-!     temperatures.  More specifically, JT = 3 means that the data are for
-!     the reference temperature TREF for this  pressure level, JT = 2 refers
-!     to TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the JPth reference pressure level (see taumol.f for these levels
-!     in mb).  The fourth index, IG, goes from 1 to 16, and indicates
-!     which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-#define DM_BCAST_REAL(A) CALL wrf_dm_bcast_real ( A , 1 )
-#define DM_BCAST_INTEGER(A) CALL wrf_dm_bcast_integer ( A , 1 )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         rayl, strrat, layreffr, kao, kbo, selfrefo, forrefo, sfluxrefo
-      DM_BCAST_REAL(rayl)
-      DM_BCAST_REAL(strrat)
-      DM_BCAST_INTEGER(layreffr)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-      DM_BCAST_MACRO(sfluxrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_sw: error reading RRTMG_SW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine sw_kgb17
-
-! **************************************************************************
-      subroutine sw_kgb18(rrtmg_unit)
-! **************************************************************************
-
-      use rrsw_kg18, only : kao, kbo, selfrefo, forrefo, sfluxrefo, &
-                            rayl, strrat, layreffr
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Array sfluxrefo contains the Kurucz solar source function for this band. 
-
-!     Array rayl contains the Rayleigh extinction coefficient at v = 4325 cm-1.
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels> ~100mb, temperatures, and binary
-!     species parameters (see taumol.f for definition).  The first 
-!     index in the array, JS, runs from 1 to 9, and corresponds to 
-!     different values of the binary species parameter.  For instance, 
-!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8, 
-!     JS = 3 corresponds to the parameter value 2/8, etc.  The second index
-!     in the array, JT, which runs from 1 to 5, corresponds to different
-!     temperatures.  More specifically, JT = 3 means that the data are for
-!     the reference temperature TREF for this  pressure level, JT = 2 refers
-!     to TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the JPth reference pressure level (see taumol.f for these levels
-!     in mb).  The fourth index, IG, goes from 1 to 16, and indicates
-!     which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-#define DM_BCAST_REAL(A) CALL wrf_dm_bcast_real ( A , 1 )
-#define DM_BCAST_INTEGER(A) CALL wrf_dm_bcast_integer ( A , 1 )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         rayl, strrat, layreffr, kao, kbo, selfrefo, forrefo, sfluxrefo
-      DM_BCAST_REAL(rayl)
-      DM_BCAST_REAL(strrat)
-      DM_BCAST_INTEGER(layreffr)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-      DM_BCAST_MACRO(sfluxrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_sw: error reading RRTMG_SW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine sw_kgb18 
-
-! **************************************************************************
-      subroutine sw_kgb19(rrtmg_unit)
-! **************************************************************************
-
-      use rrsw_kg19, only : kao, kbo, selfrefo, forrefo, sfluxrefo, &
-                            rayl, strrat, layreffr
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Array sfluxrefo contains the Kurucz solar source function for this band. 
-
-!     Array rayl contains the Rayleigh extinction coefficient at v = 4900 cm-1.
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels> ~100mb, temperatures, and binary
-!     species parameters (see taumol.f for definition).  The first 
-!     index in the array, JS, runs from 1 to 9, and corresponds to 
-!     different values of the binary species parameter.  For instance, 
-!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8, 
-!     JS = 3 corresponds to the parameter value 2/8, etc.  The second index
-!     in the array, JT, which runs from 1 to 5, corresponds to different
-!     temperatures.  More specifically, JT = 3 means that the data are for
-!     the reference temperature TREF for this  pressure level, JT = 2 refers
-!     to TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the JPth reference pressure level (see taumol.f for these levels
-!     in mb).  The fourth index, IG, goes from 1 to 16, and indicates
-!     which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-#define DM_BCAST_REAL(A) CALL wrf_dm_bcast_real ( A , 1 )
-#define DM_BCAST_INTEGER(A) CALL wrf_dm_bcast_integer ( A , 1 )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         rayl, strrat, layreffr, kao, kbo, selfrefo, forrefo, sfluxrefo
-      DM_BCAST_REAL(rayl)
-      DM_BCAST_REAL(strrat)
-      DM_BCAST_INTEGER(layreffr)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-      DM_BCAST_MACRO(sfluxrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_sw: error reading RRTMG_SW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine sw_kgb19
-
-! **************************************************************************
-      subroutine sw_kgb20(rrtmg_unit)
-! **************************************************************************
-
-      use rrsw_kg20, only : kao, kbo, selfrefo, forrefo, sfluxrefo, &
-                            absch4o, rayl, layreffr
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Array sfluxrefo contains the Kurucz solar source function for this band. 
-
-!     Array rayl contains the Rayleigh extinction coefficient at v = 5670 cm-1.
-
-!     Array absch4o contains the absorption coefficients for methane.
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels> ~100mb, temperatures, and binary
-!     species parameters (see taumol.f for definition).  The first 
-!     index in the array, JS, runs from 1 to 9, and corresponds to 
-!     different values of the binary species parameter.  For instance, 
-!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8, 
-!     JS = 3 corresponds to the parameter value 2/8, etc.  The second index
-!     in the array, JT, which runs from 1 to 5, corresponds to different
-!     temperatures.  More specifically, JT = 3 means that the data are for
-!     the reference temperature TREF for this  pressure level, JT = 2 refers
-!     to TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the JPth reference pressure level (see taumol.f for these levels
-!     in mb).  The fourth index, IG, goes from 1 to 16, and indicates
-!     which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-#define DM_BCAST_REAL(A) CALL wrf_dm_bcast_real ( A , 1 )
-#define DM_BCAST_INTEGER(A) CALL wrf_dm_bcast_integer ( A , 1 )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         rayl, layreffr, absch4o, kao, kbo, selfrefo, forrefo, sfluxrefo
-      DM_BCAST_REAL(rayl)
-      DM_BCAST_INTEGER(layreffr)
-      DM_BCAST_MACRO(absch4o)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-      DM_BCAST_MACRO(sfluxrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_sw: error reading RRTMG_SW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine sw_kgb20
-
-! **************************************************************************
-      subroutine sw_kgb21(rrtmg_unit)
-! **************************************************************************
-
-      use rrsw_kg21, only : kao, kbo, selfrefo, forrefo, sfluxrefo, &
-                            rayl, strrat, layreffr
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Array sfluxrefo contains the Kurucz solar source function for this band. 
-
-!     Array rayl contains the Rayleigh extinction coefficient at v = 6925 cm-1.
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels> ~100mb, temperatures, and binary
-!     species parameters (see taumol.f for definition).  The first 
-!     index in the array, JS, runs from 1 to 9, and corresponds to 
-!     different values of the binary species parameter.  For instance, 
-!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8, 
-!     JS = 3 corresponds to the parameter value 2/8, etc.  The second index
-!     in the array, JT, which runs from 1 to 5, corresponds to different
-!     temperatures.  More specifically, JT = 3 means that the data are for
-!     the reference temperature TREF for this  pressure level, JT = 2 refers
-!     to TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the JPth reference pressure level (see taumol.f for these levels
-!     in mb).  The fourth index, IG, goes from 1 to 16, and indicates
-!     which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-#define DM_BCAST_REAL(A) CALL wrf_dm_bcast_real ( A , 1 )
-#define DM_BCAST_INTEGER(A) CALL wrf_dm_bcast_integer ( A , 1 )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         rayl, strrat, layreffr, kao, kbo, selfrefo, forrefo, sfluxrefo
-      DM_BCAST_REAL(rayl)
-      DM_BCAST_REAL(strrat)
-      DM_BCAST_INTEGER(layreffr)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-      DM_BCAST_MACRO(sfluxrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_sw: error reading RRTMG_SW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine sw_kgb21
-
-! **************************************************************************
-      subroutine sw_kgb22(rrtmg_unit)
-! **************************************************************************
-
-      use rrsw_kg22, only : kao, kbo, selfrefo, forrefo, sfluxrefo, &
-                            rayl, strrat, layreffr
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Array sfluxrefo contains the Kurucz solar source function for this band. 
-
-!     Array rayl contains the Rayleigh extinction coefficient at v = 8000 cm-1.
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels> ~100mb, temperatures, and binary
-!     species parameters (see taumol.f for definition).  The first 
-!     index in the array, JS, runs from 1 to 9, and corresponds to 
-!     different values of the binary species parameter.  For instance, 
-!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8, 
-!     JS = 3 corresponds to the parameter value 2/8, etc.  The second index
-!     in the array, JT, which runs from 1 to 5, corresponds to different
-!     temperatures.  More specifically, JT = 3 means that the data are for
-!     the reference temperature TREF for this  pressure level, JT = 2 refers
-!     to TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the JPth reference pressure level (see taumol.f for these levels
-!     in mb).  The fourth index, IG, goes from 1 to 16, and indicates
-!     which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296_rb,260_rb,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-#define DM_BCAST_REAL(A) CALL wrf_dm_bcast_real ( A , 1 )
-#define DM_BCAST_INTEGER(A) CALL wrf_dm_bcast_integer ( A , 1 )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         rayl, strrat, layreffr, kao, kbo, selfrefo, forrefo, sfluxrefo
-      DM_BCAST_REAL(rayl)
-      DM_BCAST_REAL(strrat)
-      DM_BCAST_INTEGER(layreffr)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-      DM_BCAST_MACRO(sfluxrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_sw: error reading RRTMG_SW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine sw_kgb22
-
-! **************************************************************************
-      subroutine sw_kgb23(rrtmg_unit)
-! **************************************************************************
-
-      use rrsw_kg23, only : kao, selfrefo, forrefo, sfluxrefo, &
-                            raylo, givfac, layreffr
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Array sfluxrefo contains the Kurucz solar source function for this band. 
-
-!     Array raylo contains the Rayleigh extinction coefficient at all v for this band
-
-!     Array givfac is the average Giver et al. correction factor for this band. 
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels> ~100mb, temperatures, and binary
-!     species parameters (see taumol.f for definition).  The first 
-!     index in the array, JS, runs from 1 to 9, and corresponds to 
-!     different values of the binary species parameter.  For instance, 
-!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8, 
-!     JS = 3 corresponds to the parameter value 2/8, etc.  The second index
-!     in the array, JT, which runs from 1 to 5, corresponds to different
-!     temperatures.  More specifically, JT = 3 means that the data are for
-!     the reference temperature TREF for this  pressure level, JT = 2 refers
-!     to TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the JPth reference pressure level (see taumol.f for these levels
-!     in mb).  The fourth index, IG, goes from 1 to 16, and indicates
-!     which g-interval the absorption coefficients are for.
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-#define DM_BCAST_REAL(A) CALL wrf_dm_bcast_real ( A , 1 )
-#define DM_BCAST_INTEGER(A) CALL wrf_dm_bcast_integer ( A , 1 )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         raylo, givfac, layreffr, kao, selfrefo, forrefo, sfluxrefo
-      DM_BCAST_MACRO(raylo)
-      DM_BCAST_REAL(givfac)
-      DM_BCAST_INTEGER(layreffr)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-      DM_BCAST_MACRO(sfluxrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_sw: error reading RRTMG_SW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine sw_kgb23
-
-! **************************************************************************
-      subroutine sw_kgb24(rrtmg_unit)
-! **************************************************************************
-
-      use rrsw_kg24, only : kao, kbo, selfrefo, forrefo, sfluxrefo, &
-                            raylao, raylbo, abso3ao, abso3bo, strrat, layreffr
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Array sfluxrefo contains the Kurucz solar source function for this band. 
-
-!     Arrays raylao and raylbo contain the Rayleigh extinction coefficient at 
-!     all v for this band for the upper and lower atmosphere.
-
-!     Arrays abso3ao and abso3bo contain the ozone absorption coefficient at 
-!     all v for this band for the upper and lower atmosphere.
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels> ~100mb, temperatures, and binary
-!     species parameters (see taumol.f for definition).  The first 
-!     index in the array, JS, runs from 1 to 9, and corresponds to 
-!     different values of the binary species parameter.  For instance, 
-!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8, 
-!     JS = 3 corresponds to the parameter value 2/8, etc.  The second index
-!     in the array, JT, which runs from 1 to 5, corresponds to different
-!     temperatures.  More specifically, JT = 3 means that the data are for
-!     the reference temperature TREF for this  pressure level, JT = 2 refers
-!     to TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the JPth reference pressure level (see taumol.f for these levels
-!     in mb).  The fourth index, IG, goes from 1 to 16, and indicates
-!     which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-#define DM_BCAST_REAL(A) CALL wrf_dm_bcast_real ( A , 1 )
-#define DM_BCAST_INTEGER(A) CALL wrf_dm_bcast_integer ( A , 1 )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         raylao, raylbo, strrat, layreffr, abso3ao, abso3bo, kao, kbo, selfrefo, &
-         forrefo, sfluxrefo
-      DM_BCAST_MACRO(raylao)
-      DM_BCAST_MACRO(raylbo)
-      DM_BCAST_REAL(strrat)
-      DM_BCAST_INTEGER(layreffr)
-      DM_BCAST_MACRO(abso3ao)
-      DM_BCAST_MACRO(abso3bo)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-      DM_BCAST_MACRO(sfluxrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_sw: error reading RRTMG_SW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine sw_kgb24
-
-! **************************************************************************
-      subroutine sw_kgb25(rrtmg_unit)
-! **************************************************************************
-
-      use rrsw_kg25, only : kao, sfluxrefo, &
-                            raylo, abso3ao, abso3bo, layreffr
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Array sfluxrefo contains the Kurucz solar source function for this band. 
-
-!     Array raylo contains the Rayleigh extinction coefficient at all v = 2925 cm-1.
-
-!     Arrays abso3ao and abso3bo contain the ozone absorption coefficient at 
-!     all v for this band for the upper and lower atmosphere.
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels> ~100mb, temperatures, and binary
-!     species parameters (see taumol.f for definition).  The first 
-!     index in the array, JS, runs from 1 to 9, and corresponds to 
-!     different values of the binary species parameter.  For instance, 
-!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8, 
-!     JS = 3 corresponds to the parameter value 2/8, etc.  The second index
-!     in the array, JT, which runs from 1 to 5, corresponds to different
-!     temperatures.  More specifically, JT = 3 means that the data are for
-!     the reference temperature TREF for this  pressure level, JT = 2 refers
-!     to TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the JPth reference pressure level (see taumol.f for these levels
-!     in mb).  The fourth index, IG, goes from 1 to 16, and indicates
-!     which g-interval the absorption coefficients are for.
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-#define DM_BCAST_INTEGER(A) CALL wrf_dm_bcast_integer ( A , 1 )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         raylo, layreffr, abso3ao, abso3bo, kao, sfluxrefo
-      DM_BCAST_MACRO(raylo)
-      DM_BCAST_INTEGER(layreffr)
-      DM_BCAST_MACRO(abso3ao)
-      DM_BCAST_MACRO(abso3bo)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(sfluxrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_sw: error reading RRTMG_SW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine sw_kgb25
-
-! **************************************************************************
-      subroutine sw_kgb26(rrtmg_unit)
-! **************************************************************************
-
-      use rrsw_kg26, only : sfluxrefo, raylo
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Array sfluxrefo contains the Kurucz solar source function for this band. 
-
-!     Array raylo contains the Rayleigh extinction coefficient at all v for this band.
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         raylo, sfluxrefo
-      DM_BCAST_MACRO(raylo)
-      DM_BCAST_MACRO(sfluxrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_sw: error reading RRTMG_SW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine sw_kgb26
-
-! **************************************************************************
-      subroutine sw_kgb27(rrtmg_unit)
-! **************************************************************************
-
-      use rrsw_kg27, only : kao, kbo, sfluxrefo, raylo, &
-                            scalekur, layreffr
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Array sfluxrefo contains the Kurucz solar source function for this band. 
-!     The values in array sfluxrefo were obtained using the "low resolution"
-!     version of the Kurucz solar source function.  For unknown reasons,
-!     the total irradiance in this band differs from the corresponding
-!     total in the "high-resolution" version of the Kurucz function.
-!     Therefore, these values are scaled by the factor SCALEKUR.
-
-!     Array raylo contains the Rayleigh extinction coefficient at all v = 2925 cm-1.
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels> ~100mb, temperatures, and binary
-!     species parameters (see taumol.f for definition).  The first 
-!     index in the array, JS, runs from 1 to 9, and corresponds to 
-!     different values of the binary species parameter.  For instance, 
-!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8, 
-!     JS = 3 corresponds to the parameter value 2/8, etc.  The second index
-!     in the array, JT, which runs from 1 to 5, corresponds to different
-!     temperatures.  More specifically, JT = 3 means that the data are for
-!     the reference temperature TREF for this  pressure level, JT = 2 refers
-!     to TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the JPth reference pressure level (see taumol.f for these levels
-!     in mb).  The fourth index, IG, goes from 1 to 16, and indicates
-!     which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-#define DM_BCAST_REAL(A) CALL wrf_dm_bcast_real ( A , 1 )
-#define DM_BCAST_INTEGER(A) CALL wrf_dm_bcast_integer ( A , 1 )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         raylo, scalekur, layreffr, kao, kbo, sfluxrefo
-      DM_BCAST_MACRO(raylo)
-      DM_BCAST_REAL(scalekur)
-      DM_BCAST_INTEGER(layreffr)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(sfluxrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_sw: error reading RRTMG_SW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine sw_kgb27
-
-! **************************************************************************
-      subroutine sw_kgb28(rrtmg_unit)
-! **************************************************************************
-
-      use rrsw_kg28, only : kao, kbo, sfluxrefo, &
-                            rayl, strrat, layreffr
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Array sfluxrefo contains the Kurucz solar source function for this band. 
-
-!     Array raylo contains the Rayleigh extinction coefficient at all v = ???? cm-1.
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels> ~100mb, temperatures, and binary
-!     species parameters (see taumol.f for definition).  The first 
-!     index in the array, JS, runs from 1 to 9, and corresponds to 
-!     different values of the binary species parameter.  For instance, 
-!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8, 
-!     JS = 3 corresponds to the parameter value 2/8, etc.  The second index
-!     in the array, JT, which runs from 1 to 5, corresponds to different
-!     temperatures.  More specifically, JT = 3 means that the data are for
-!     the reference temperature TREF for this  pressure level, JT = 2 refers
-!     to TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the JPth reference pressure level (see taumol.f for these levels
-!     in mb).  The fourth index, IG, goes from 1 to 16, and indicates
-!     which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-#define DM_BCAST_REAL(A) CALL wrf_dm_bcast_real ( A , 1 )
-#define DM_BCAST_INTEGER(A) CALL wrf_dm_bcast_integer ( A , 1 )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         rayl, strrat, layreffr, kao, kbo, sfluxrefo
-      DM_BCAST_REAL(rayl)
-      DM_BCAST_REAL(strrat)
-      DM_BCAST_INTEGER(layreffr)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(sfluxrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_sw: error reading RRTMG_SW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine sw_kgb28
-
-! **************************************************************************
-      subroutine sw_kgb29(rrtmg_unit)
-! **************************************************************************
-
-      use rrsw_kg29, only : kao, kbo, selfrefo, forrefo, sfluxrefo, &
-                            absh2oo, absco2o, rayl, layreffr
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Array sfluxrefo contains the Kurucz solar source function for this band. 
-
-!     Array rayl contains the Rayleigh extinction coefficient at all v = 2200 cm-1.
-
-!     Array absh2oo contains the water vapor absorption coefficient for this band.
-
-!     Array absco2o contains the carbon dioxide absorption coefficient for this band.
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels> ~100mb, temperatures, and binary
-!     species parameters (see taumol.f for definition).  The first 
-!     index in the array, JS, runs from 1 to 9, and corresponds to 
-!     different values of the binary species parameter.  For instance, 
-!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8, 
-!     JS = 3 corresponds to the parameter value 2/8, etc.  The second index
-!     in the array, JT, which runs from 1 to 5, corresponds to different
-!     temperatures.  More specifically, JT = 3 means that the data are for
-!     the reference temperature TREF for this  pressure level, JT = 2 refers
-!     to TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the JPth reference pressure level (see taumol.f for these levels
-!     in mb).  The fourth index, IG, goes from 1 to 16, and indicates
-!     which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-#define DM_BCAST_REAL(A) CALL wrf_dm_bcast_real ( A , 1 )
-#define DM_BCAST_INTEGER(A) CALL wrf_dm_bcast_integer ( A , 1 )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         rayl, layreffr, absh2oo, absco2o, kao, kbo, selfrefo, forrefo, sfluxrefo
-      DM_BCAST_REAL(rayl)
-      DM_BCAST_INTEGER(layreffr)
-      DM_BCAST_MACRO(absh2oo)
-      DM_BCAST_MACRO(absco2o)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-      DM_BCAST_MACRO(sfluxrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_sw: error reading RRTMG_SW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine sw_kgb29
-
 !------------------------------------------------------------------
 
-#endif
-!ldf end (2013-03-11).
-
 END MODULE module_ra_rrtmg_sw
+!***********************************************************************
