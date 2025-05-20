@@ -228,6 +228,18 @@ module test_core
 #endif
       call mpas_log_write('')
 
+      !
+      ! Test functionality of adjustments to alarm reference time
+      !
+      call mpas_log_write('')
+      call mpas_log_write('Testing mpas_adjust_alarm_to_reference_time:')
+      call mpas_adjust_alarm_tests(domain, iErr)
+      if (iErr == 0) then
+         call mpas_log_write('* mpas_adjust_alarm_tests tests - all tests passed: SUCCESS')
+      else
+         call mpas_log_write('* mpas_adjust_alarm_tests tests - $i failed tests: FAILURE', intArgs=[iErr])
+      end if
+      call mpas_log_write('')
 
       deallocate(threadErrs)
 
