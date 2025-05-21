@@ -42,7 +42,7 @@
     tsk_sea(i,j) = tsk(i,j)
     tsk_ice(i,j) = tsk(i,j)
 
-    if(xice(i,j).ge.xice_thresh .and. xice(i,j).le.1._RKIND) then
+    if(xice(i,j).ge.xice_thresh .and. xice(i,j).lt.1._RKIND) then
        !over sea-ice grid cells, limit sea-surface temperatures to temperatures warmer than 271.4:
        tsk_sea(i,j) = max(tsk_sea(i,j),271.4_RKIND)
 

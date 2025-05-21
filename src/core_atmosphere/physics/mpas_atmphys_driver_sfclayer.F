@@ -517,7 +517,7 @@
        v10_sea(i,j)     = 0._RKIND
 
        !overwrite some local variables for sea-ice cells:
-       if(xice_p(i,j).ge.xice_threshold .and. xice_p(i,j).le.1._RKIND) then
+       if(xice_p(i,j).ge.xice_threshold .and. xice_p(i,j).lt.1._RKIND) then
           xland_sea(i,j)  = 2._RKIND
           mavail_sea(i,j) = 1._RKIND
           znt_sea(i,j)    = 0.0001_RKIND
@@ -716,7 +716,7 @@
     call mpas_pool_get_array(sfc_input,'xice',xice)
     do j = jts,jte
     do i = its,ite
-       if(xice(i).ge.xice_threshold .and. xice(i).le.1._RKIND) then
+       if(xice(i).ge.xice_threshold .and. xice(i).lt.1._RKIND) then
           br(i)     = br_p(i,j)*xice(i)     + (1._RKIND-xice(i))*br_sea(i,j)
           flhc(i)   = flhc_p(i,j)*xice(i)   + (1._RKIND-xice(i))*flhc_sea(i,j)
           flqc(i)   = flqc_p(i,j)*xice(i)   + (1._RKIND-xice(i))*flqc_sea(i,j)
@@ -762,7 +762,7 @@
           call mpas_pool_get_array(sfc_input,'xice',xice)
           do j = jts,jte
           do i = its,ite
-             if(xice(i).ge.xice_threshold .and. xice(i).le.1._RKIND) then
+             if(xice(i).ge.xice_threshold .and. xice(i).lt.1._RKIND) then
                 fh(i) = fh_p(i,j)*xice(i) + (1._RKIND-xice(i))*fh_sea(i,j)
                 fm(i) = fm_p(i,j)*xice(i) + (1._RKIND-xice(i))*fm_sea(i,j)
              endif
@@ -782,7 +782,7 @@
           call mpas_pool_get_array(sfc_input,'xice',xice)
           do j = jts,jte
           do i = its,ite
-             if(xice(i).ge.xice_threshold .and. xice(i).le.1._RKIND) then
+             if(xice(i).ge.xice_threshold .and. xice(i).lt.1._RKIND) then
                 ch(i) = ch_p(i,j)*xice(i) + (1._RKIND-xice(i))*ch_sea(i,j)
              endif
           enddo
