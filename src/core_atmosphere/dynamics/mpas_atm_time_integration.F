@@ -1281,7 +1281,7 @@ module atm_time_integration
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_1, 1)
       !$acc exit data copyout(rho_zz_1)
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_2, 2)
-      !$acc exit data delete(rho_zz_2)
+      !$acc exit data copyout(rho_zz_2)
       call mpas_pool_get_array(state, 'scalars', scalars_1, 1)
       !$acc exit data copyout(scalars_1)
       call mpas_pool_get_array(state, 'scalars', scalars_2, 2)
