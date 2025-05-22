@@ -2654,6 +2654,7 @@ int generate_package_logic(ezxml_t registry)/*{{{*/
 	fortprintf(fd, "   function %s_setup_packages_when(configPool, packagePool) result(ierr)\n", corename);
 	fortprintf(fd, "\n");
 	fortprintf(fd, "      use mpas_derived_types, only : mpas_pool_type\n");
+	fortprintf(fd, "      use mpas_log, only : mpas_log_write\n");
 	fortprintf(fd, "\n");
 	fortprintf(fd, "      implicit none\n");
 	fortprintf(fd, "\n");
@@ -2664,6 +2665,9 @@ int generate_package_logic(ezxml_t registry)/*{{{*/
 	fortprintf(fd, "\n");
 	fortprintf(fd, "\n");
 	fortprintf(fd, "      ierr = 0\n");
+	fortprintf(fd, "\n");
+	fortprintf(fd, "      call mpas_log_write('')\n");
+	fortprintf(fd, "      call mpas_log_write('Configuring registry-specified packages...')\n");
 	fortprintf(fd, "\n");
 
 	for (packages_xml = ezxml_child(registry, "packages"); packages_xml; packages_xml = packages_xml->next) {
@@ -2679,6 +2683,9 @@ int generate_package_logic(ezxml_t registry)/*{{{*/
 		}
 	}
 
+	fortprintf(fd, "\n");
+	fortprintf(fd, "      call mpas_log_write('----- done configuring registry-specified packages -----')\n");
+	fortprintf(fd, "      call mpas_log_write('')\n");
 	fortprintf(fd, "\n");
 	fortprintf(fd, "   end function %s_setup_packages_when\n", corename);
 	fortprintf(fd, "\n");
@@ -2751,6 +2758,7 @@ int package_logic_routine(FILE *fd, regex_t *preg, const char *corename,
 	fortprintf(fd, "\n");
 	fortprintf(fd, "      use mpas_kind_types, only : RKIND, StrKIND\n");
 	fortprintf(fd, "      use mpas_derived_types, only : mpas_pool_type\n");
+	fortprintf(fd, "      use mpas_log, only : mpas_log_write\n");
 	fortprintf(fd, "\n");
 	fortprintf(fd, "      implicit none\n");
 	fortprintf(fd, "\n");
@@ -2805,6 +2813,7 @@ int package_logic_routine(FILE *fd, regex_t *preg, const char *corename,
 	fortprintf(fd, "      call mpas_pool_get_package(packagePool, '%sActive', %sActive)\n", packagename, packagename);
 	fortprintf(fd, "\n");
 	fortprintf(fd, "      %sActive = ( %s )\n", packagename, packagewhen);
+	fortprintf(fd, "      call mpas_log_write('  %s : $l', logicArgs=[%sActive])\n", packagename, packagename);
 	fortprintf(fd, "\n");
 	fortprintf(fd, "   end subroutine %s_setup_%s_package\n", corename, packagename);
 	fortprintf(fd, "\n");
