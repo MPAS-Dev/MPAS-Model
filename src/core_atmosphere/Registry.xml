@@ -1449,10 +1449,10 @@
                 <var name="deriv_two" type="real" dimensions="FIFTEEN TWO nEdges" units="unitless"
                      description="weights for cell-centered second derivative, normal to edge, for transport scheme"/>
 
-                <var name="adv_coefs" type="real" dimensions="FIFTEEN nEdges" units="unitless"
+                <var name="adv_coefs" type="real" dimensions="FIFTEEN nEdges" units="m^{3}"
                      description="Weighting coefficients used for reconstructing cell-based fields at edges"/>
 
-                <var name="adv_coefs_3rd" type="real" dimensions="FIFTEEN nEdges" units="unitless"
+                <var name="adv_coefs_3rd" type="real" dimensions="FIFTEEN nEdges" units="m^{3}"
                      description="Weighting coefficients used for reconstructing cell-based fields at edges"/>
 
                 <var name="advCellsForEdge" type="integer" dimensions="FIFTEEN nEdges" units="-"
