@@ -4692,7 +4692,7 @@ module atm_time_integration
                do k = nVertLevels-config_number_cam_damping_levels + 1, nVertLevels
                   visc2cam = 4.0*2.0833*config_len_disp*config_mpas_cam_coef
                   visc2cam = visc2cam*(1.0-real(nVertLevels-k)/real(config_number_cam_damping_levels))
-                  kdiff(k  ,iCell) = max(kdiff(nVertLevels  ,iCell),visc2cam)
+                  kdiff(k  ,iCell) = max(kdiff(k  ,iCell),visc2cam)
                end do
             end do
 
