@@ -166,6 +166,11 @@
                      description="The land use classification to use (case 7 only)"
                      possible_values="`USGS' or `MODIFIED_IGBP_MODIS_NOAH'"/>
 
+                <nml_option name="config_soilcat_data"          type="character"     default_value="STATSGO"
+                     units="-"
+                     description="The soil category classification to use"
+                     possible_values="`STATSGO' or `BNU'"/>
+
                 <nml_option name="config_topo_data"             type="character"     default_value="GMTED2010"
                      units="-"
                      description="The topography dataset to use for the model terrain and for GWDO static fields (case 7 only)"
@@ -191,9 +196,14 @@
                      description="The supersampling factor to be used for MODIS maximum snow albedo and monthly albedo datasets (case 7 only)"
                      possible_values="Positive integer values"/>
 
+	        <nml_option name="config_lu_supersample_factor" type="integer"       default_value="1"
+                     units="-"
+                     description="The supersampling factor to be used for 30s or 15s MODIS land use (case 7 only)"
+                     possible_values="Positive integer values"/>
+
                 <nml_option name="config_30s_supersample_factor"    type="integer"       default_value="1"
                      units="-"
-                     description="The supersampling factor to be used for 30s terrain, MODIS land use, soil category, and MODIS FPAR monthly vegetation fraction (case 7 only)"
+                     description="The supersampling factor to be used for 30s terrain, soil category, and MODIS FPAR monthly vegetation fraction (case 7 only)"
                      possible_values="Positive integer values"/>
 
                 <nml_option name="config_noahmp_static" type="logical" default_value="true" in_defaults="false"
