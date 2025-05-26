@@ -149,6 +149,9 @@
        if(.not.allocated(rainprod_p)) allocate(rainprod_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(evapprod_p)) allocate(evapprod_p(ims:ime,kms:kme,jms:jme))
 
+       !3D radar reflectivity
+       if(.not.allocated(refl10cm_p)) allocate(refl10cm_p(ims:ime,kms:kme,jms:jme))
+
     microp2_select: select case(trim(microp_scheme))
        case("mp_thompson","mp_thompson_aerosols")
           if(.not.allocated(ntc_p)) allocate(ntc_p(ims:ime,jms:jme))
@@ -229,6 +232,9 @@
        !precipitation flux:
        if(allocated(rainprod_p)) deallocate(rainprod_p)
        if(allocated(evapprod_p)) deallocate(evapprod_p)
+
+       ! 3D radar reflectivity
+       if(allocated(refl10cm_p)) deallocate(refl10cm_p)
 
     microp2_select: select case(trim(microp_scheme))
        case("mp_thompson","mp_thompson_aerosols")
@@ -713,6 +719,7 @@
           kp = 1
           do k = kts,kte
              dBZ1d(k) = max(-35._RKIND,dBZ1d(k))
+             refl10cm_p(i,k,j) = dBZ1d(k)
              if(zp(k) .lt. 1000.) kp = k
           enddo
           refl10cm_max(i) = maxval(dBZ1d(:))
@@ -764,6 +771,7 @@
           kp = 1
           do k = kts,kte
              dBZ1d(k) = max(-35._RKIND,dBZ1d(k))
+             refl10cm_p(i,k,j) = dBZ1d(k)
              if(zp(k) .lt. 1000.) kp = k
           enddo
           refl10cm_max(i) = maxval(dBZ1d(:))
