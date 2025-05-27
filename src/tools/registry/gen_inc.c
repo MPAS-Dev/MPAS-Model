@@ -27,6 +27,8 @@ const char * nmlopt_type(ezxml_t registry, const char *nmlopt);
 int package_logic_routine(FILE *fd, regex_t *preg, const char *corename,
                           const char *packagename, const char *packagewhen,
                           ezxml_t registry);
+void gen_pkg_debug_info(FILE *fd, regex_t *preg, ezxml_t registry,
+                        const char *packagename, const char *packagewhen);
 
 #define NUM_MODIFIED_ATTRS 2
 #define NUM_IGNORED_ATTRS 9
@@ -2647,6 +2649,13 @@ int generate_package_logic(ezxml_t registry)/*{{{*/
 
 	fd = fopen("setup_packages.inc", "w+");
 
+	fortprintf(fd, "#ifdef MPAS_DEBUG\n");
+	fortprintf(fd, "#define COMMA ,\n");
+	fortprintf(fd, "#define PACKAGE_LOGIC_PRINT(M) call mpas_log_write(M)\n");
+	fortprintf(fd, "#else\n");
+	fortprintf(fd, "#define PACKAGE_LOGIC_PRINT(M) ! M\n");
+	fortprintf(fd, "#endif\n\n");
+
 	fortprintf(fd, "   !\n");
 	fortprintf(fd, "   ! WARNING: This function is automatically generated at compile time.\n");
         fortprintf(fd, "   !          Any modifications to this code will be lost when MPAS is recompiled.\n");
@@ -2812,6 +2821,9 @@ int package_logic_routine(FILE *fd, regex_t *preg, const char *corename,
 	fortprintf(fd, "      nullify(%sActive)\n", packagename);
 	fortprintf(fd, "      call mpas_pool_get_package(packagePool, '%sActive', %sActive)\n", packagename, packagename);
 	fortprintf(fd, "\n");
+
+	gen_pkg_debug_info(fd, preg, registry, packagename, packagewhen);
+
 	fortprintf(fd, "      %sActive = ( %s )\n", packagename, packagewhen);
 	fortprintf(fd, "      call mpas_log_write('  %s : $l', logicArgs=[%sActive])\n", packagename, packagename);
 	fortprintf(fd, "\n");
@@ -2898,4 +2910,56 @@ const char * nmlopt_type(ezxml_t registry, const char *nmlopt)/*{{{*/
 	}
 
 	return NULL;
+}/*}}}*/
+
+
+/******************************************************************************
+ *
+ * gen_pkg_debug_info
+ *
+ * Adds debugging statements to generated package logic code. The debugging
+ * statements consist of PACKAGE_LOGIC_PRINT macros, which are expected to
+ * expand either to comments or to calls to mpas_log_write at compile-time.
+ *
+ * Inputs:
+ *   fd - an open file descriptor, to which the debugging statements will be
+ *        written
+ *   preg - a compiled regular-expression that matches namelist options
+ *   registry - an XML tree containing the complete Registry file
+ *   packagename - the name of the package for which code is being generated
+ *   packagewhen - the string containing the logical condition under which the
+ *                 package is active
+ *
+ ******************************************************************************/
+void gen_pkg_debug_info(FILE *fd, regex_t *preg, ezxml_t registry,
+                        const char *packagename, const char *packagewhen)/*{{{*/
+{
+	char *match;
+	regoff_t next = 0;
+
+	fortprintf(fd, "      PACKAGE_LOGIC_PRINT('')\n");
+	fortprintf(fd, "      PACKAGE_LOGIC_PRINT(\"  %s is active when (%s)\")\n", packagename, packagewhen);
+	fortprintf(fd, "      PACKAGE_LOGIC_PRINT('    namelist settings:')\n");
+	fortprintf(fd, "      PACKAGE_LOGIC_PRINT('    ------------------')\n");
+
+	while ((match = nmlopt_from_str(preg, packagewhen, &next)) != NULL) {
+		const char *nmltype;
+
+		nmltype =  nmlopt_type(registry, match);
+
+		if (nmltype != NULL) {
+			if (strcmp(nmltype, "integer") == 0) {
+				fortprintf(fd, "      PACKAGE_LOGIC_PRINT('    %s = $i' COMMA intArgs=[%s])\n", match, match);
+			} else if (strcmp(nmltype, "real") == 0) {
+				fortprintf(fd, "      PACKAGE_LOGIC_PRINT('    %s = $r' COMMA realArgs=[%s])\n", match, match);
+			} else if (strcmp(nmltype, "logical") == 0) {
+				fortprintf(fd, "      PACKAGE_LOGIC_PRINT('    %s = $l' COMMA logicArgs=[%s])\n", match, match);
+			} else if (strcmp(nmltype, "character") == 0) {
+				fortprintf(fd, "      PACKAGE_LOGIC_PRINT('    %s = '//trim(%s))\n", match, match);
+			}
+		}
+
+		free(match);
+	}
+	fortprintf(fd, "\n");
 }/*}}}*/
