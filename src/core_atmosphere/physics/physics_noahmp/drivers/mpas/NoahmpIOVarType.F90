@@ -233,10 +233,12 @@ module NoahmpIOVarType
     real(kind=kind_noahmp), allocatable, dimension(:)      :: loctim               ! local time
  
     ! OUT (with no Noah LSM equivalent) (as defined in WRF)
-    real(kind=kind_noahmp), allocatable, dimension(:)      ::  t2mvxy              ! 2m temperature of vegetation part
-    real(kind=kind_noahmp), allocatable, dimension(:)      ::  t2mbxy              ! 2m temperature of bare ground part
-    real(kind=kind_noahmp), allocatable, dimension(:)      ::  q2mvxy              ! 2m mixing ratio of vegetation part
-    real(kind=kind_noahmp), allocatable, dimension(:)      ::  q2mbxy              ! 2m mixing ratio of bare ground part
+    real(kind=kind_noahmp), allocatable, dimension(:)      ::  t2mvxy              ! 2m temperature of vegetation part [K]
+    real(kind=kind_noahmp), allocatable, dimension(:)      ::  t2mbxy              ! 2m temperature of bare ground part [K]
+    real(kind=kind_noahmp), allocatable, dimension(:)      ::  t2mxy               ! 2m grid-mean temperature [K]
+    real(kind=kind_noahmp), allocatable, dimension(:)      ::  q2mvxy              ! 2m mixing ratio of vegetation part [kg/kg]
+    real(kind=kind_noahmp), allocatable, dimension(:)      ::  q2mbxy              ! 2m mixing ratio of bare ground part [kg/kg]
+    real(kind=kind_noahmp), allocatable, dimension(:)      ::  q2mxy               ! 2m grid-mean mixing ratio [kg/kg]
     real(kind=kind_noahmp), allocatable, dimension(:)      ::  tradxy              ! surface radiative temperature (K)
     real(kind=kind_noahmp), allocatable, dimension(:)      ::  neexy               ! net ecosys exchange (g/m2/s CO2)
     real(kind=kind_noahmp), allocatable, dimension(:)      ::  gppxy               ! gross primary assimilation [g/m2/s C]

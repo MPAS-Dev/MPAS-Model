@@ -5,6 +5,9 @@
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
+
+#define MPAS_ADJUST_ALARM_VERBOSE( M ) ! M
+
 module test_core_timekeeping_tests
 
    use mpas_derived_types
@@ -19,7 +22,8 @@ module test_core_timekeeping_tests
    implicit none
    private
 
-   public :: test_core_test_intervals
+   public :: test_core_test_intervals, &
+             mpas_adjust_alarm_tests
 
    contains
 
@@ -177,5 +181,284 @@ module test_core_timekeeping_tests
 
 
    end subroutine test_core_interval_test!}}}
+
+   !***********************************************************************
+   !
+   !  routine mpas_adjust_alarm_tests
+   !
+   !> \brief   Tests functionality of mpas_adjust_alarm_to_reference_time
+   !> \author  Michael Duda
+   !> \date    25 Feb 2025
+   !> \details
+   !>  This routine tests the functionality of the
+   !>  mpas_adjust_alarm_to_reference_time routine for combinations of the
+   !>  following possibilities:
+   !>
+   !>  - The current time is aligned with the new alarm time grid
+   !>  - The current time is not aligned with the new alarm time grid
+   !>
+   !>  - The reference time is before the current time on the clock
+   !>  - The reference time is the same as the current time on the clock
+   !>  - The reference time is after the current time on the clock
+   !>
+   !>  - The clock is running forwards
+   !>  - The clock is running backwards
+   !>
+   !>  Upon return, the ierr arugment is set to the number of failed tests.
+   !
+   !-----------------------------------------------------------------------
+   subroutine mpas_adjust_alarm_tests(domain, ierr)
+
+      use mpas_derived_types, only : domain_type, MPAS_Clock_type, MPAS_Time_type, MPAS_TimeInterval_type
+      use mpas_kind_types, only : StrKIND
+      use mpas_log, only : mpas_log_write
+      use mpas_timekeeping, only : mpas_set_time, mpas_set_timeInterval, mpas_create_clock, &
+              mpas_add_clock_alarm, mpas_is_alarm_ringing, mpas_reset_clock_alarm
+
+      implicit none
+
+      type (domain_type), intent(inout) :: domain
+      integer, intent(out) :: ierr
+
+      integer :: istep
+      integer :: ierr_local
+      character(len=StrKIND) :: test_mesg
+      type (MPAS_Clock_type) :: test_clock
+      type (MPAS_Time_type) :: test_startTime
+      type (MPAS_Time_type) :: test_stopTime
+      type (MPAS_Time_type) :: test_currTime
+      type (MPAS_Time_type) :: test_alarmTime
+      type (MPAS_Time_type) :: test_refTime
+      type (MPAS_TimeInterval_type) :: test_timeStep
+      type (MPAS_TimeInterval_type) :: test_alarmTimeInterval
+      MPAS_ADJUST_ALARM_VERBOSE( character(len=StrKIND) :: timeStamp )
+
+      ierr = 0
+
+      !
+      ! Create a clock with an initial time of 2000-01-01_00 and with a 1-hour 'tick' length
+      ! (The stopping time is set to 2100-01-01_00.)
+      !
+      call mpas_set_time(test_startTime, YYYY=2000, MM=01, DD=01, H=0, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
+      call mpas_set_time(test_stopTime, YYYY=2100, MM=01, DD=01, H=0, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
+      call mpas_set_timeInterval(test_timeStep, dt=3600.0_RKIND, ierr=ierr_local)
+
+      call mpas_create_clock(test_clock, test_startTime, test_timeStep, test_stopTime, ierr=ierr_local)
+
+      !
+      ! Add a recurring alarm to the clock with an initial reference time of 2000-01-01_00 and
+      ! a ringing interval of 1 day.
+      !
+      call mpas_set_time(test_alarmTime, YYYY=2000, MM=01, DD=01, H=0, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
+      call mpas_set_timeInterval(test_alarmTimeInterval, dt=86400.0_RKIND, ierr=ierr_local)
+
+      call mpas_add_clock_alarm(test_clock, 'foobar', test_alarmTime, test_alarmTimeInterval, ierr_local)
+
+#ifdef MPAS_ADVANCE_TEST_CLOCK
+      do istep = 1, 24*365
+          if (mpas_is_alarm_ringing(test_clock, 'foobar', ierr=ierr_local)) then
+              call mpas_reset_clock_alarm(test_clock, 'foobar', ierr=ierr_local)
+              test_currTime = mpas_get_clock_time(test_clock, MPAS_NOW, iErr)
+              call mpas_get_time(test_currTime, dateTimeString=timeStamp)
+              call mpas_log_write('**ALARM** '//trim(timeStamp))
+          end if
+          call mpas_advance_clock(test_clock, ierr=ierr_local)
+      end do
+#endif
+
+      MPAS_ADJUST_ALARM_VERBOSE( test_currTime = mpas_get_clock_time(test_clock, MPAS_NOW, iErr) )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_get_time(test_currTime, dateTimeString=timeStamp) )
+
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('Now it is '//trim(timeStamp)) )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('') )
+
+
+      write(test_mesg, '(a)') '  forward clock, ref_time < now, now is on new alarm time grid: '
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('=================================') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('Setting ref time to 1999-06-15_00') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('---------------------------------') )
+      call mpas_set_time(test_refTime, YYYY=1999, MM=6, DD=15, H=0, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
+      call mpas_adjust_alarm_to_reference_time(test_clock, 'foobar', test_refTime, ierr_local)
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_print_alarm(test_clock, 'foobar', ierr_local) )
+      if (mpas_is_alarm_ringing(test_clock, 'foobar', ierr=ierr_local)) then
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is RINGING') )
+          test_mesg = trim(test_mesg)//' SUCCESS'
+      else
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is NOT ringing') )
+          test_mesg = trim(test_mesg)//' FAILURE'
+          ierr = ierr + 1
+      end if
+      call mpas_log_write(trim(test_mesg))
+      call mpas_reset_clock_alarm(test_clock, 'foobar', ierr=ierr_local)
+
+      write(test_mesg, '(a)') '  forward clock, ref_time > now, now is on new alarm time grid: '
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('=================================') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('Setting ref time to 2010-02-01_00') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('---------------------------------') )
+      call mpas_set_time(test_refTime, YYYY=2010, MM=2, DD=1, H=0, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
+      call mpas_adjust_alarm_to_reference_time(test_clock, 'foobar', test_refTime, ierr_local)
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_print_alarm(test_clock, 'foobar', ierr_local) )
+      if (mpas_is_alarm_ringing(test_clock, 'foobar', ierr=ierr_local)) then
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is RINGING') )
+          test_mesg = trim(test_mesg)//' SUCCESS'
+      else
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is NOT ringing') )
+          test_mesg = trim(test_mesg)//' FAILURE'
+          ierr = ierr + 1
+      end if
+      call mpas_log_write(trim(test_mesg))
+      call mpas_reset_clock_alarm(test_clock, 'foobar', ierr=ierr_local)
+
+      write(test_mesg, '(a)') '  forward clock, ref_time = now, now is on new alarm time grid: '
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('=================================') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('Setting ref time to 2000-01-01_00') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('---------------------------------') )
+      call mpas_set_time(test_refTime, YYYY=2000, MM=1, DD=1, H=0, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
+      call mpas_adjust_alarm_to_reference_time(test_clock, 'foobar', test_refTime, ierr_local)
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_print_alarm(test_clock, 'foobar', ierr_local) )
+      if (mpas_is_alarm_ringing(test_clock, 'foobar', ierr=ierr_local)) then
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is RINGING') )
+          test_mesg = trim(test_mesg)//' SUCCESS'
+      else
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is NOT ringing') )
+          test_mesg = trim(test_mesg)//' FAILURE'
+          ierr = ierr + 1
+      end if
+      call mpas_log_write(trim(test_mesg))
+      call mpas_reset_clock_alarm(test_clock, 'foobar', ierr=ierr_local)
+
+      write(test_mesg, '(a)') '  forward clock, ref_time < now, now is NOT on new alarm time grid: '
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('=================================') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('Setting ref time to 1999-06-15_08') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('---------------------------------') )
+      call mpas_set_time(test_refTime, YYYY=1999, MM=6, DD=15, H=8, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
+      call mpas_adjust_alarm_to_reference_time(test_clock, 'foobar', test_refTime, ierr_local)
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_print_alarm(test_clock, 'foobar', ierr_local) )
+      if (mpas_is_alarm_ringing(test_clock, 'foobar', ierr=ierr_local)) then
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is RINGING') )
+          test_mesg = trim(test_mesg)//' SUCCESS'
+      else
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is NOT ringing') )
+          test_mesg = trim(test_mesg)//' FAILURE'
+          ierr = ierr + 1
+      end if
+      call mpas_log_write(trim(test_mesg))
+      call mpas_reset_clock_alarm(test_clock, 'foobar', ierr=ierr_local)
+
+      write(test_mesg, '(a)') '  forward clock, ref_time > now, now is NOT on new alarm time grid: '
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('=================================') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('Setting ref time to 2010-02-01_18') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('---------------------------------') )
+      call mpas_set_time(test_refTime, YYYY=2010, MM=2, DD=1, H=18, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
+      call mpas_adjust_alarm_to_reference_time(test_clock, 'foobar', test_refTime, ierr_local)
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_print_alarm(test_clock, 'foobar', ierr_local) )
+      if (mpas_is_alarm_ringing(test_clock, 'foobar', ierr=ierr_local)) then
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is RINGING') )
+          test_mesg = trim(test_mesg)//' SUCCESS'
+      else
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is NOT ringing') )
+          test_mesg = trim(test_mesg)//' FAILURE'
+          ierr = ierr + 1
+      end if
+      call mpas_log_write(trim(test_mesg))
+      call mpas_reset_clock_alarm(test_clock, 'foobar', ierr=ierr_local)
+
+      !
+      ! Set clock to run backwards in time
+      !
+      call mpas_set_clock_direction(test_clock, MPAS_BACKWARD, ierr_local)
+
+      write(test_mesg, '(a)') '  backward clock, ref_time < now, now is on new alarm time grid: '
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('=================================') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('Setting ref time to 1999-06-15_00') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('---------------------------------') )
+      call mpas_set_time(test_refTime, YYYY=1999, MM=6, DD=15, H=0, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
+      call mpas_adjust_alarm_to_reference_time(test_clock, 'foobar', test_refTime, ierr_local)
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_print_alarm(test_clock, 'foobar', ierr_local) )
+      if (mpas_is_alarm_ringing(test_clock, 'foobar', ierr=ierr_local)) then
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is RINGING') )
+          test_mesg = trim(test_mesg)//' SUCCESS'
+      else
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is NOT ringing') )
+          test_mesg = trim(test_mesg)//' FAILURE'
+          ierr = ierr + 1
+      end if
+      call mpas_log_write(trim(test_mesg))
+      call mpas_reset_clock_alarm(test_clock, 'foobar', ierr=ierr_local)
+
+      write(test_mesg, '(a)') '  backward clock, ref_time > now, now is on new alarm time grid: '
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('=================================') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('Setting ref time to 2010-02-01_00') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('---------------------------------') )
+      call mpas_set_time(test_refTime, YYYY=2010, MM=2, DD=1, H=0, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
+      call mpas_adjust_alarm_to_reference_time(test_clock, 'foobar', test_refTime, ierr_local)
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_print_alarm(test_clock, 'foobar', ierr_local) )
+      if (mpas_is_alarm_ringing(test_clock, 'foobar', ierr=ierr_local)) then
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is RINGING') )
+          test_mesg = trim(test_mesg)//' SUCCESS'
+      else
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is NOT ringing') )
+          test_mesg = trim(test_mesg)//' FAILURE'
+          ierr = ierr + 1
+      end if
+      call mpas_log_write(trim(test_mesg))
+      call mpas_reset_clock_alarm(test_clock, 'foobar', ierr=ierr_local)
+
+      write(test_mesg, '(a)') '  backward clock, ref_time = now, now is on new alarm time grid: '
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('=================================') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('Setting ref time to 2000-01-01_00') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('---------------------------------') )
+      call mpas_set_time(test_refTime, YYYY=2000, MM=1, DD=1, H=0, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
+      call mpas_adjust_alarm_to_reference_time(test_clock, 'foobar', test_refTime, ierr_local)
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_print_alarm(test_clock, 'foobar', ierr_local) )
+      if (mpas_is_alarm_ringing(test_clock, 'foobar', ierr=ierr_local)) then
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is RINGING') )
+          test_mesg = trim(test_mesg)//' SUCCESS'
+      else
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is NOT ringing') )
+          test_mesg = trim(test_mesg)//' FAILURE'
+          ierr = ierr + 1
+      end if
+      call mpas_log_write(trim(test_mesg))
+      call mpas_reset_clock_alarm(test_clock, 'foobar', ierr=ierr_local)
+
+      write(test_mesg, '(a)') '  backward clock, ref_time < now, now is NOT on new alarm time grid: '
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('=================================') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('Setting ref time to 1999-06-15_08') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('---------------------------------') )
+      call mpas_set_time(test_refTime, YYYY=1999, MM=6, DD=15, H=8, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
+      call mpas_adjust_alarm_to_reference_time(test_clock, 'foobar', test_refTime, ierr_local)
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_print_alarm(test_clock, 'foobar', ierr_local) )
+      if (mpas_is_alarm_ringing(test_clock, 'foobar', ierr=ierr_local)) then
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is RINGING') )
+          test_mesg = trim(test_mesg)//' SUCCESS'
+      else
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is NOT ringing') )
+          test_mesg = trim(test_mesg)//' FAILURE'
+          ierr = ierr + 1
+      end if
+      call mpas_log_write(trim(test_mesg))
+      call mpas_reset_clock_alarm(test_clock, 'foobar', ierr=ierr_local)
+
+      write(test_mesg, '(a)') '  backward clock, ref_time > now, now is NOT on new alarm time grid: '
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('=================================') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('Setting ref time to 2010-02-01_18') )
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('---------------------------------') )
+      call mpas_set_time(test_refTime, YYYY=2010, MM=2, DD=1, H=18, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
+      call mpas_adjust_alarm_to_reference_time(test_clock, 'foobar', test_refTime, ierr_local)
+      MPAS_ADJUST_ALARM_VERBOSE( call mpas_print_alarm(test_clock, 'foobar', ierr_local) )
+      if (mpas_is_alarm_ringing(test_clock, 'foobar', ierr=ierr_local)) then
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is RINGING') )
+          test_mesg = trim(test_mesg)//' SUCCESS'
+      else
+          MPAS_ADJUST_ALARM_VERBOSE( call mpas_log_write('-> Alarm is NOT ringing') )
+          test_mesg = trim(test_mesg)//' FAILURE'
+          ierr = ierr + 1
+      end if
+      call mpas_log_write(trim(test_mesg))
+      call mpas_reset_clock_alarm(test_clock, 'foobar', ierr=ierr_local)
+
+   end subroutine mpas_adjust_alarm_tests
 
 end module test_core_timekeeping_tests
