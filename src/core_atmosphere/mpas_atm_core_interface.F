@@ -133,7 +133,11 @@ module atm_core_interface
       character(len=StrKIND) :: attvalue
       integer :: local_ierr
 
-      ierr = 0
+
+      ierr = atm_setup_packages_when(configs, packages)
+      if (ierr /= 0) then
+         return
+      end if
 
       !
       ! Incremental analysis update
@@ -632,6 +636,8 @@ module atm_core_interface
 #include "block_dimension_routines.inc"
 
 #include "define_packages.inc"
+
+#include "setup_packages.inc"
 
 #include "structs_and_variables.inc"
 
