@@ -2079,7 +2079,7 @@
                      description="logical for configuration of fractional sea-ice"
                      possible_values=".true. for sea-ice between 0 or 1; .false. for sea-ice equal to 0 or 1 (flag)."/>
 
-                <nml_option name="config_sfc_albedo" type="logical" default_value="true" in_defaults="false"
+                <nml_option name="config_sfc_albedo" type="logical" default_value="false" in_defaults="false"
                      units="-"
                      description="logical for configuration of surface albedo"
                      possible_values=".true. for climatologically varying surface albedo; .false. for fixed input data"/>
@@ -2109,12 +2109,12 @@
                      description="logical for configuration of input ozone data in RRMTG long- and short-wave radiation"
                      possible_values=".true. for using monthly-varying ozone data; .false. for using fixed vertical profile"/>
 
-                <nml_option name="config_microp_re" type="logical" default_value="false" in_defaults="false"
+                <nml_option name="config_microp_re" type="logical" default_value="true" in_defaults="false"
                      units="-"
                      description="logical for calculation of the effective radii for cloud water, cloud ice, and snow"
                      possible_values=".true. for calculating effective radii; .false. for using defaults in RRTMG radiation"/>
 
-                <nml_option name="config_ysu_pblmix" type="logical" default_value="false" in_defaults="false"
+                <nml_option name="config_ysu_pblmix" type="logical" default_value="true" in_defaults="false"
                      units="-"
                      description="logical for turning on/off top-down, radiation_driven mixing"
                      possible_values=".true. to turn on top-down radiation_driven mixing; .false. otherwise"/>
