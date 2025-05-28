@@ -20,6 +20,7 @@ set(ATMOSPHERE_CORE_PHYSICS_SOURCES
     mpas_atmphys_o3climatology.F
     mpas_atmphys_rrtmg_lwinit.F
     mpas_atmphys_rrtmg_swinit.F
+    mpas_atmphys_sfc_diagnostics.F
     mpas_atmphys_update.F
     mpas_atmphys_update_surface.F
     mpas_atmphys_utilities.F
