@@ -78,7 +78,7 @@ module atm_time_integration
    real (kind=RKIND), dimension(:,:), allocatable :: rt_driving_values ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: rho_driving_values ! regional_MPAS addition 
    integer, dimension(:), pointer :: bdyMaskEdge ! regional_MPAS addition
-   logical, pointer :: config_apply_lbcs
+   logical :: config_apply_lbcs
    
    ! Used in compute_solve_diagnostics
    real (kind=RKIND), allocatable, dimension(:,:) :: ke_vertex
@@ -402,13 +402,16 @@ module atm_time_integration
       real (kind=RKIND) :: Time_new
       type (mpas_pool_type), pointer :: state
       character (len=StrKIND), pointer :: config_time_integration
+      logical, pointer :: config_apply_lbcs_ptr
 
 
       clock => domain % clock
       block => domain % blocklist
 
       call mpas_pool_get_config(block % configs, 'config_time_integration', config_time_integration)
-      call mpas_pool_get_config(block % configs, 'config_apply_lbcs', config_apply_lbcs)
+      call mpas_pool_get_config(block % configs, 'config_apply_lbcs', config_apply_lbcs_ptr)
+
+      config_apply_lbcs = config_apply_lbcs_ptr
 
       if (trim(config_time_integration) == 'SRK3') then
          call atm_srk3(domain, dt, itimestep, exchange_halo_group)
