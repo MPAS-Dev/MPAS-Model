@@ -928,8 +928,6 @@
           re_cloud(k,i) = recloud_p(i,k,j)
           re_ice(k,i)   = reice_p(i,k,j)
           re_snow(k,i)  = resnow_p(i,k,j)
-
-          refl10cm(k,i) = refl10cm_p(i,k,j)
        enddo
        enddo
        enddo
