@@ -959,6 +959,8 @@
 			<var name="q2"/>
 			<var name="t2m"/>
 			<var name="th2m"/>
+			<var name="ctt"/>
+			<var name="ctpres"/>
 			<var name="gsw"/>
 			<var name="glw"/>
 			<var name="acsnow"/>
