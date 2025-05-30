@@ -3483,7 +3483,7 @@ module atm_time_integration
       integer, intent(in) :: cellSolveStart, cellSolveEnd
       procedure (halo_exchange_routine) :: exchange_halo_group
       logical, intent(in), optional :: advance_density
-      real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout), optional :: rho_zz_int
+      real (kind=RKIND), dimension(:,:), intent(inout), optional :: rho_zz_int
 
       integer :: ii,jj
       integer, dimension(10) :: ica
