@@ -198,7 +198,7 @@
 
 	        <nml_option name="config_lu_supersample_factor" type="integer"       default_value="1"
                      units="-"
-                     description="The supersampling factor to be used for 30s or 15s MODIS land use (case 7 only)"
+                     description="The supersampling factor to be used for 30s or 15s MODIS land use, or for 30s USGS land use, as selected by `config_landuse_data' (case 7 only)"
                      possible_values="Positive integer values"/>
 
                 <nml_option name="config_30s_supersample_factor"    type="integer"       default_value="1"
