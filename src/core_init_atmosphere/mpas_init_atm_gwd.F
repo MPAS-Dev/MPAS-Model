@@ -19,6 +19,22 @@ module mpas_init_atm_gwd
 
    private
 
+   integer, parameter :: I1KIND = selected_int_kind(2)
+
+   ! A derived type to hold contents of a tile (both topo and landuse)
+   type :: mpas_gwd_tile_type
+
+      real (kind=R4KIND), dimension(:,:), pointer :: topo_array => null()
+      integer (kind=I1KIND), dimension(:,:), pointer :: landuse_array => null()
+      ! coordinates of the tile to be read. 
+      ! NB: tile_start_x can be used as is to read landuse tiles, but need an 
+      ! adjustment to account for the shifting of topo array start_lon to -180.0.
+      integer :: tile_start_x = -1, tile_start_y = -1
+      ! linked list next pointer
+      type (mpas_gwd_tile_type), pointer :: next => null()
+
+   end type mpas_gwd_tile_type
+
    interface
       subroutine read_geogrid(fname, rarray, nx, ny, nz, isigned, endian, &
                               wordsize, status) bind(C)
@@ -35,14 +51,15 @@ module mpas_init_atm_gwd
       end subroutine read_geogrid
    end interface
 
-   integer, parameter :: I1KIND = selected_int_kind(2)
-
    real (kind=RKIND), parameter :: Re = 6371229.0_RKIND        ! Earth radius in MPAS-Atmosphere
    real (kind=RKIND), parameter :: Pi = 2.0_RKIND * asin(1.0_RKIND)
    real (kind=RKIND), parameter :: rad2deg = 180.0_RKIND / Pi
 
    integer, parameter :: topo_x = 43200            ! x-dimension of global 30-arc-second topography array
    integer, parameter :: topo_y = 21600            ! y-dimension of global 30-arc-second topography array
+   integer, parameter :: tile_x = 1200             ! x-dimension of each tile of global 30-arc-second topography
+   integer, parameter :: tile_y = 1200             ! y-dimension of each tile of global 30-arc-second topography
+
    real (kind=RKIND), parameter :: pts_per_degree = real(topo_x,RKIND) / 360.0_RKIND
 
    ! The following are set at the beginning of the compute_gwd_fields routine depending
@@ -50,16 +67,11 @@ module mpas_init_atm_gwd
    real (kind=RKIND) :: start_lat
    real (kind=RKIND) :: start_lon
 
+   ! To introduce an offset in the x-coordinate in the case of GMTED2010 topo data, as the dataset starts at 0.0 longitude
+   integer :: topo_shift = 0
+
    ! Nominal delta-x (in meters) for sub-grid topography cells
    real (kind=RKIND), parameter ::  sg_delta = 2.0 * Pi * Re / (360.0_RKIND * real(pts_per_degree,RKIND))
-
-   real (kind=R4KIND), dimension(:,:), pointer :: topo ! Global 30-arc-second topography
-   real (kind=RKIND), dimension(:,:), pointer :: box   ! Subset of topography covering a grid cell
-   real (kind=RKIND), dimension(:,:), pointer :: dxm   ! Size (meters) in zonal direction of a grid cell
-   real (kind=RKIND) :: box_mean                       ! Mean value of topography in box
-   integer :: nx, ny                                   ! Dimensions of box covering grid cell
-   integer (kind=I1KIND), dimension(:,:), pointer :: landuse         ! Global 30-arc-second landuse
-   integer (kind=I1KIND), dimension(:,:), pointer :: box_landuse     ! Subset of landuse covering a grid cell
 
    ! NB: At present, only the USGS GLCC land cover dataset is supported, so we can assume 16 == water 
    !     See the read_global_30s_landuse function 
@@ -117,14 +129,23 @@ module mpas_init_atm_gwd
       character(len=StrKIND) :: geog_sub_path
       character(len=StrKIND+1) :: geog_data_path      ! same as config_geog_data_path, but guaranteed to have a trailing slash
 
+      type(mpas_gwd_tile_type), pointer :: tilesHead  ! Pointer to linked list of tiles
+
       ! Variables for smoothing variance
       integer, dimension(:,:), pointer:: cellsOnCell
       integer (kind=I1KIND) :: sum_landuse
       real (kind=RKIND) :: sum_var
 
+      real (kind=RKIND), dimension(:,:), pointer :: box ! Subset of topography covering a grid cell
+      real (kind=RKIND), dimension(:,:), pointer :: dxm ! Size (meters) in zonal direction of a grid cell
+      real (kind=RKIND) :: box_mean                     ! Mean value of topography in box
+      integer (kind=I1KIND), dimension(:,:), pointer :: box_landuse ! Subset of landuse covering a grid cell
+      integer :: nx, ny
 
-      allocate(topo(topo_x,topo_y))
-      allocate(landuse(topo_x,topo_y))
+      box => null()
+      dxm => null()
+      box_landuse => null()
+      tilesHead => null()
 
       call mpas_pool_get_subpool(domain % blocklist % structs, 'mesh', mesh)
       call mpas_pool_get_subpool(domain % blocklist % structs, 'state', state)
@@ -155,6 +176,8 @@ module mpas_init_atm_gwd
             !     by the rest of this code is -180.0.
             start_lat =  -90.0_RKIND
             start_lon = -180.0_RKIND
+            ! so we introduce an offset in the x-coordinate of topo_x/2
+            topo_shift = topo_x / 2
          case('default')
             call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
             call mpas_log_write('Invalid topography dataset '''//trim(config_topo_data) &
@@ -187,24 +210,12 @@ module mpas_init_atm_gwd
       call mpas_pool_get_array(mesh, 'oa2', oa2)
       call mpas_pool_get_array(mesh, 'oa3', oa3)
       call mpas_pool_get_array(mesh, 'oa4', oa4)
-!      call mpas_pool_get_array(mesh, 'elvmax', elvmax)
-!      call mpas_pool_get_array(mesh, 'theta', htheta)
-!      call mpas_pool_get_array(mesh, 'gamma', hgamma)
-!      call mpas_pool_get_array(mesh, 'sigma', hsigma)
+      ! call mpas_pool_get_array(mesh, 'elvmax', elvmax)
+      ! call mpas_pool_get_array(mesh, 'theta', htheta)
+      ! call mpas_pool_get_array(mesh, 'gamma', hgamma)
+      ! call mpas_pool_get_array(mesh, 'sigma', hsigma)
 
       allocate(hlanduse(nCells+1))    ! +1, since we access hlanduse(cellsOnCell(i,iCell)) later on for iCell=1,nCells
-
-      iErr = read_global_30s_topo(geog_data_path, geog_sub_path)
-      if (iErr /= 0) then
-         call mpas_log_write('Error reading global 30-arc-sec topography for GWD statistics', messageType=MPAS_LOG_ERR)
-         return
-      end if
-
-      iErr = read_global_30s_landuse(geog_data_path)
-      if (iErr /= 0) then
-         call mpas_log_write('Error reading global 30-arc-sec landuse for GWD statistics', messageType=MPAS_LOG_ERR)
-         return
-      end if
 
       !
       ! It is possible that this code is called before the mesh fields have been scaled
@@ -247,43 +258,49 @@ module mpas_init_atm_gwd
 
          !
          ! Cut out a rectangular piece of the global 30-arc-second topography
-         ! data that is centered at the lat/lon of the current cell being
+         ! data that is centered at the lat/lon (in radians) of the current cell being
          ! processed and that is just large enough to cover the cell. The
-         ! rectangular array of topography data is stored in the module
-         ! variable 'box', and the dimensions of this array are given by the
-         ! module variables 'nx' and 'ny'. The get_box() routine also
+         ! rectangular array of topography data is stored in the local
+         ! variable 'box', and the dimensions of this array are obtained from 
+         ! the routine get_box_size_from_lat() and stored in the
+         ! local variables 'nx' and 'ny'. The get_box() routine also
          ! computes the mean elevation in the array and stores that value in
-         ! the module variable 'box_mean'.
+         ! the local variable 'box_mean'. 'tilesHead' points to the head of the linked
+         ! list of tiles, which is used by get_box() and its internal subroutines to search
+         ! for tile data and add new tiles to the head of this list as necessary. 
          !
-         call get_box(latCell(iCell)*rad2deg, lonCell(iCell)*rad2deg, dc)
+         call get_box_size_from_lat(latCell(iCell), dc, nx, ny)
+ 
+         call get_box(latCell(iCell)*rad2deg,lonCell(iCell)*rad2deg, nx, ny, &
+                      geog_data_path, geog_sub_path, tilesHead, box, box_landuse, dxm, box_mean)
 
          !
          ! With a box of 30-arc-second data for the current grid cell, call
          ! subroutines to compute each sub-grid orography statistic
          !
-         var2d(iCell) = get_var()
-         con(iCell) = get_con()
-         oa1(iCell) = get_oa1()
-         oa2(iCell) = get_oa2()
-         oa3(iCell) = get_oa3()
-         oa4(iCell) = get_oa4()
+         var2d(iCell) = get_var(box, box_mean, nx, ny)
+         con(iCell) = get_con(box, box_landuse, box_mean, nx, ny)
+         oa1(iCell) = get_oa1(box, box_mean, nx, ny)
+         oa2(iCell) = get_oa2(box, box_mean, nx, ny)
+         oa3(iCell) = get_oa3(box, box_mean, nx, ny)
+         oa4(iCell) = get_oa4(box, box_mean, nx, ny)
 
          ! Critical height, to be used in OL computation
          ! See Appendix of Kim, Y-J, 1996: Representation of Sub-Grid Scale Orographic Effects
          ! in a General Circulation Model. J. Climate, 9, 2698-2717.
          hc = 1116.2_RKIND - 0.878_RKIND * var2d(iCell)
 
-         ol1(iCell) = get_ol1()
-         ol2(iCell) = get_ol2()
-         ol3(iCell) = get_ol3()
-         ol4(iCell) = get_ol4()
+         ol1(iCell) = get_ol1(box, nx, ny)
+         ol2(iCell) = get_ol2(box, nx, ny)
+         ol3(iCell) = get_ol3(box, nx, ny)
+         ol4(iCell) = get_ol4(box, nx, ny)
 
-         hlanduse(iCell) = get_dom_landmask()  ! get dominant land mask in cell
+         hlanduse(iCell) = get_dom_landmask(box_landuse, nx, ny)  ! get dominant land mask in cell
 
-!         elvmax(iCell) = get_elvmax()
-!         htheta(iCell) = get_htheta()
-!         hgamma(iCell) = get_hgamma()
-!         hsigma(iCell) = get_hsigma()
+         ! elvmax(iCell) = get_elvmax(box, nx, ny)
+         ! htheta(iCell) = get_htheta(box, dxm, nx, ny)
+         ! hgamma(iCell) = get_hgamma(box, dxm, nx, ny)
+         ! hsigma(iCell) = get_hsigma(box, dxm, nx, ny)
       end do
 
 
@@ -305,43 +322,233 @@ module mpas_init_atm_gwd
          end if
       end do
 
-
-      deallocate(topo)
-      deallocate(landuse)
+      if (associated(box)) deallocate(box)
+      if (associated(box_landuse)) deallocate(box_landuse)
+      if (associated(dxm)) deallocate(dxm)
       deallocate(hlanduse)
 
-      iErr = 0
+      iErr = free_tile_list(tilesHead)
 
    end function compute_gwd_fields
 
 
    !***********************************************************************
    !
-   !  function read_global_30s_topo
+   !  subroutine get_box_size_from_lat
    !
-   !> \brief   Reads global 30-arc-second topography into 'topo' module variable
+   !> \brief   Routine to obtain box size given the mean diameter (meters), lat, lon (radians)
+   !> \author  Abishek Gopal
+   !> \date    05 Sep 2024
+   !> \details 
+   !>  Routine to obtain box size (nx, ny) given the mean diameter of the grid cell (meters),
+   !     and the latitude (radians)
+   !
+   !-----------------------------------------------------------------------
+   subroutine get_box_size_from_lat(lat, dx, nx, ny)
+      
+      implicit none
+
+      real (kind=RKIND), intent(in) :: lat
+      real (kind=RKIND), intent(in) :: dx
+      integer, intent(out) :: nx
+      integer, intent(out) :: ny
+
+      !
+      ! Get number of points to extract in the zonal direction
+      !
+      if (cos(lat) > (2.0 * pts_per_degree * dx * 180.0) / (real(topo_x,RKIND) * Pi * Re)) then
+         nx = ceiling((180.0 * dx * pts_per_degree) / (Pi * Re * cos(lat)))
+      else
+         nx = topo_x / 2
+      end if
+
+      !
+      ! Get number of points to extract in the meridional direction
+      !
+      ny = ceiling((180.0 * dx * pts_per_degree) / (Pi * Re))
+
+   end subroutine get_box_size_from_lat
+
+
+   !***********************************************************************
+   !
+   !  function get_tile_from_box_point
+   !
+   !> \brief   Routine to obtain a tile given a box pixel
+   !> \author  Abishek Gopal
+   !> \date    05 Sep 2024
+   !> \details 
+   !>  Routine to obtain a tile of type mpas_gwd_tile_type, given the linked 
+   !    list of tiles tilesHead, box coordinates box_x, box_y, and path to 
+   !    static dataset. The function first searches the linked list to locate
+   !    the tile, and if search fails, adds the target tile to the linked list
+   !    after reading in the data for the tile from disk 
+   !-----------------------------------------------------------------------
+   function get_tile_from_box_point(tilesHead, box_x, box_y, path, sub_path, last_tile) result(thisTile)
+
+      implicit none
+
+      type(mpas_gwd_tile_type), pointer, intent(inout) :: tilesHead
+      integer, intent(in) :: box_x, box_y
+      character(len=*), intent(in) :: path
+      character(len=*), intent(in) :: sub_path
+      type(mpas_gwd_tile_type), pointer, intent(in) :: last_tile
+
+      type(mpas_gwd_tile_type), pointer :: thisTile
+
+      integer :: tile_start_x, tile_start_y, tile_start_x_topo
+      
+      ! Need special handling for the x-coordinates of topo tiles, due to the shift by topo_shift
+      ! in certain datasets. We use tile_start_x, tile_start_y to search for tiles and open landmask tiles,
+      ! whereas tile_start_x_topo is only required to open the correct topo tiles from disk
+      if (box_x > topo_shift) then
+         tile_start_x_topo = floor( real(box_x - topo_shift - 1) / real(tile_x)) * tile_x + 1
+      else
+         tile_start_x_topo = floor( real(box_x + topo_shift - 1) / real(tile_x)) * tile_x + 1
+      end if
+      tile_start_x = floor( real(box_x - 1) / real(tile_x)) * tile_x + 1
+      tile_start_y = floor( real(box_y - 1) / real(tile_y)) * tile_y + 1
+      
+      ! First check if the last tile contains the requested pixel
+      if (associated(last_tile)) then
+         if (last_tile%tile_start_x==tile_start_x .and. last_tile%tile_start_y==tile_start_y) then
+            thisTile => last_tile
+            return
+         end if
+      end if
+
+      thisTile => tilesHead
+      ! Loop over all tiles in the list
+      do while (associated(thisTile))
+
+         if (thisTile%tile_start_x==tile_start_x .and. thisTile%tile_start_y==tile_start_y) then 
+            exit
+         end if
+
+         thisTile => thisTile % next
+
+      end do   ! associated(thisTile)
+
+      ! Could not find such a tile, so we add the tile to the front of the linked list
+      if (.not. associated(thisTile)) then 
+         thisTile => add_tile(tilesHead, tile_start_x, tile_start_y, tile_start_x_topo, path, sub_path)
+      end if
+
+   end function get_tile_from_box_point
+
+
+   !***********************************************************************
+   !
+   !  function add_tile
+   !
+   !> \brief   Routine to read in a new topo and landuse tile, and add 
+   !>           these tiles to the head of the linked list tilesHead
+   !> \author  Abishek Gopal
+   !> \date    05 Sep 2024
+   !> \details 
+   !>  Routine to read in a new topo and landuse tile, given the tile 
+   !    coordinates
+   !-----------------------------------------------------------------------
+   function add_tile(tilesHead, tile_start_x, tile_start_y, tile_start_x_topo, path, sub_path) result(newTile)
+
+      implicit none
+
+      type(mpas_gwd_tile_type), pointer, intent(inout) :: tilesHead
+      integer, intent(in) :: tile_start_x, tile_start_y, tile_start_x_topo
+      character(len=*), intent(in) :: path
+      character(len=*), intent(in) :: sub_path
+
+      type(mpas_gwd_tile_type), pointer :: newTile
+
+      integer :: iErr
+
+      allocate(newTile)
+      allocate(newTile%topo_array(tile_x,tile_y))
+      allocate(newTile%landuse_array(tile_x,tile_y))
+      newTile%tile_start_x = tile_start_x
+      newTile%tile_start_y = tile_start_y
+      newTile%next => tilesHead
+
+      iErr = read_30s_topo_tile(path, sub_path, newTile%topo_array, tile_start_x_topo, newTile%tile_start_y)
+      if (iErr /= 0) then
+         call mpas_log_write('Error reading global 30-arc-sec topography for GWD statistics', messageType=MPAS_LOG_ERR)
+         return
+      end if
+
+      iErr = read_30s_landuse_tile(path, newTile%landuse_array, newTile%tile_start_x, newTile%tile_start_y)
+      if (iErr /= 0) then
+         call mpas_log_write('Error reading global 30-arc-sec landuse for GWD statistics', messageType=MPAS_LOG_ERR)
+         return
+      end if
+
+      tilesHead => newTile
+
+   end function add_tile
+
+
+   !***********************************************************************
+   !
+   !  function free_tile_list
+   !
+   !> \brief   Routine to deallocate all tiles in the list
+   !> \author  Abishek Gopal
+   !> \date    05 Sep 2024
+   !> \details 
+   !>  Routine to deallocate all tiles in the list
+   !
+   !-----------------------------------------------------------------------
+   function free_tile_list(tilesHead) result(iErr)
+
+      implicit none
+
+      type(mpas_gwd_tile_type), pointer, intent(inout) :: tilesHead
+
+      integer :: iErr
+      
+      type(mpas_gwd_tile_type), pointer :: thisTile
+
+      ! loop over tiles
+      do while (associated(tilesHead))
+         thisTile => tilesHead
+         tilesHead => thisTile % next
+         deallocate(thisTile%topo_array)
+         deallocate(thisTile%landuse_array)
+         deallocate(thisTile)
+      end do   ! associated(thisTile)
+      
+      iErr = 0
+
+   end function free_tile_list
+
+
+   !***********************************************************************
+   !
+   !  function read_30s_topo_tile
+   !
+   !> \brief   Reads a single tile of the global 30-arc-second topography into memory
    !> \author  Michael Duda
    !> \date    28 August 2017
    !> \details 
-   !>  This subroutine reads the global 30-arc-second topography from the subdirectory 
+   !>  This subroutine reads a single tile of the global 30-arc-second topography from the subdirectory 
    !>  identified by the 'sub_path' argument within the 'path' provided as the first argument.
    !
    !-----------------------------------------------------------------------
-   function read_global_30s_topo(path, sub_path) result(iErr)
+   function read_30s_topo_tile(path, sub_path, topo, tile_start_x, tile_start_y) result(iErr)
 
       implicit none
 
       character(len=*), intent(in) :: path
       character(len=*), intent(in) :: sub_path
+      real(kind=R4KIND), dimension(:,:), pointer, intent(inout) :: topo
+      integer, intent(in) :: tile_start_x
+      integer, intent(in) :: tile_start_y
 
       integer :: iErr
-
       integer, parameter :: tile_x = 1200       ! x-dimension of each tile of global 30-arc-second topography
       integer, parameter :: tile_y = 1200       ! y-dimension of each tile of global 30-arc-second topography
       integer, parameter :: tile_bdr = 3        ! number of layers of border/halo points surrounding each tile
-
       integer (c_int) :: istatus
-      integer :: ix, iy, ishift, ix_shift
+      integer :: ix, iy
       integer (c_int) :: isigned, endian, wordsize, nx, ny, nz
       real (c_float) :: scalefactor
       real (c_float), dimension(:,:,:), pointer, contiguous :: tile
@@ -360,68 +567,53 @@ module mpas_init_atm_gwd
       ny = tile_y + 2*tile_bdr
       nz = 1
 
-      ishift = 0
+      iy = tile_start_y
+      ix = tile_start_x
 
-      !
-      ! For GMTED2010 data, the dataset starts at 0.0 longitude, but we need to shift the starting location
-      ! in the topo array to -180.0, so we introduce an offset in the x-coordinate of topo_x/2
-      !
-      if (trim(sub_path) == 'topo_gmted2010_30s/') then
-         ishift = topo_x / 2
+      write(filename,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(path)//trim(sub_path), ix, '-', (ix+tile_x-1), '.', &
+                                                         iy, '-', (iy+tile_y-1)
+      call mpas_f_to_c_string(filename, c_filename)
+      call read_geogrid(c_filename, tile_ptr, nx, ny, nz, isigned, endian, &
+                        wordsize, istatus)
+      tile(:,:,:) = tile(:,:,:) * scalefactor
+      if (istatus /= 0) then
+         call mpas_log_write('Error reading topography tile '//trim(filename), messageType=MPAS_LOG_ERR)
+         iErr = 1
+         return
       end if
-
-      do iy=1,topo_y,tile_y
-      do ix=1,topo_x,tile_x
-         write(filename,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(path)//trim(sub_path), ix, '-', (ix+tile_x-1), '.', &
-                                                                                      iy, '-', (iy+tile_y-1)
-         call mpas_f_to_c_string(filename, c_filename)
-         call read_geogrid(c_filename, tile_ptr, nx, ny, nz, isigned, endian, &
-                           wordsize, istatus)
-         tile(:,:,:) = tile(:,:,:) * scalefactor
-         if (istatus /= 0) then
-            call mpas_log_write('Error reading topography tile '//trim(filename), messageType=MPAS_LOG_ERR)
-            iErr = 1
-            return
-         end if
-
-         ix_shift = mod((ix-1) + ishift, topo_x) + 1
-         topo(ix_shift:(ix_shift+tile_x-1),iy:(iy+tile_y-1)) = tile((tile_bdr+1):(tile_x+tile_bdr),(tile_bdr+1):(tile_y+tile_bdr),1)
-
-      end do
-      end do
+      
+      topo = tile((tile_bdr+1):(tile_x+tile_bdr),(tile_bdr+1):(tile_y+tile_bdr),1)
 
       deallocate(tile)
 
       iErr = 0
 
-   end function read_global_30s_topo
+   end function read_30s_topo_tile
 
 
    !***********************************************************************
    !
-   !  function read_global_30s_landuse
+   !  function read_30s_landuse_tile
    !
-   !> \brief   Reads global 30-arc-second landuse into 'landuse' module variable
+   !> \brief   Reads a single tile of the global 30-arc-second landuse into memory
    !> \author  Michael Duda
    !> \date    14 March 2017
    !> \details 
-   !>  This subroutine reads the global 30-arc-second USGS landuse from
-   !>   the subdirectory 'landuse_30s' of the path provided as an argument.
+   !>  This subroutine reads the a single tile of global 30-arc-second USGS landuse
+   !>   from the subdirectory 'landuse_30s' of the path provided as an argument.
    !
    !-----------------------------------------------------------------------
-   function read_global_30s_landuse(path) result(iErr)
+   function read_30s_landuse_tile(path, landuse, tile_start_x, tile_start_y) result(iErr)
 
       implicit none
 
       character(len=*), intent(in) :: path
-
+      integer (kind=I1KIND), dimension(:,:), pointer, intent(inout) :: landuse
+      integer, intent(in) :: tile_start_x
+      integer, intent(in) :: tile_start_y
+      
       integer :: iErr
-
-      integer, parameter :: tile_x = 1200       ! x-dimension of each tile of global 30-arc-second landuse
-      integer, parameter :: tile_y = 1200       ! y-dimension of each tile of global 30-arc-second landuse
-
       integer (c_int) :: istatus
-      integer :: ix, iy
       integer (c_int) :: isigned, endian, wordsize, nx, ny, nz
       real (c_float) :: scalefactor
       real (c_float), dimension(:,:,:), pointer, contiguous :: tile
@@ -440,30 +632,25 @@ module mpas_init_atm_gwd
       ny = tile_y
       nz = 1
 
-      do iy=1,topo_y,tile_y
-      do ix=1,topo_x,tile_x
-         write(filename,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(path)//'/landuse_30s/', ix, '-', (ix+tile_x-1), '.', &
-                                                                                      iy, '-', (iy+tile_y-1)
-         call mpas_f_to_c_string(filename, c_filename)
-         call read_geogrid(c_filename, tile_ptr, nx, ny, nz, isigned, endian, &
-                           wordsize, istatus)
-         tile(:,:,:) = tile(:,:,:) * scalefactor
-         if (istatus /= 0) then
-            call mpas_log_write('Error reading landuse tile '//trim(filename))
-            iErr = 1
-            return
-         end if
-
-         landuse(ix:(ix+tile_x-1),iy:(iy+tile_y-1)) = int(tile(1:tile_x,1:tile_y,1), kind=I1KIND)
-
-      end do
-      end do
+      write(filename,'(a,i5.5,a1,i5.5,a1,i5.5,a1,i5.5)') trim(path)//'/landuse_30s/', tile_start_x, '-', (tile_start_x+tile_x-1), '.', &
+                                                         tile_start_y, '-', (tile_start_y+tile_y-1)
+      call mpas_f_to_c_string(filename, c_filename)
+      call read_geogrid(c_filename, tile_ptr, nx, ny, nz, isigned, endian, &
+                        wordsize, istatus)
+      tile(:,:,:) = tile(:,:,:) * scalefactor
+      if (istatus /= 0) then
+         call mpas_log_write('Error reading landuse tile '//trim(filename))
+         iErr = 1
+         return
+      end if
+      
+      landuse = int(tile(:,:,1), kind=I1KIND)
 
       deallocate(tile)
 
       iErr = 0
 
-   end function read_global_30s_landuse
+   end function read_30s_landuse_tile
 
 
    !***********************************************************************
@@ -476,9 +663,12 @@ module mpas_init_atm_gwd
    !> \details 1 = land, 0 = water
    !
    !-----------------------------------------------------------------------
-   integer (kind=I1KIND) function get_dom_landmask( )
+   integer (kind=I1KIND) function get_dom_landmask(box_landuse, nx, ny)
 
       implicit none
+
+      integer (kind=I1KIND), dimension(:,:), pointer, intent(in) :: box_landuse     ! Subset of landuse covering a grid cell
+      integer, intent(in) :: nx, ny
 
       integer :: i, j      
       real (kind=RKIND) :: xland
@@ -508,8 +698,8 @@ module mpas_init_atm_gwd
    !  subroutine get_box
    !
    !> \brief   Cuts out a rectangular box of data centered at a given (lat,lon)
-   !> \author  Michael Duda
-   !> \date    29 May 2015
+   !> \author  Michael Duda, Abishek Gopal
+   !> \date    Sep 2024
    !> \details 
    !>  This subroutine extracts a rectangular sub-array of the 30-arc-second
    !>  global topography dataset, stored in the module variable 'topo'; the
@@ -523,30 +713,37 @@ module mpas_init_atm_gwd
    !>  this subroutine and stored in the module variable 'box_mean'.
    !
    !-----------------------------------------------------------------------
-   subroutine get_box(lat, lon, dx)
+   subroutine get_box(lat, lon, nx, ny, path, sub_path, tilesHead, box, box_landuse, dxm, box_mean)
 
       implicit none
 
-      real (kind=RKIND), intent(in) :: lat, lon, dx
-
-      integer :: i, j, ii, jj, ic, jc
+      real (kind=RKIND), intent(in) :: lat, lon
+      integer, intent(in) :: nx, ny
+      character(len=*), intent(in) :: path
+      character(len=*), intent(in) :: sub_path
+      type(mpas_gwd_tile_type), pointer, intent(inout) :: tilesHead
+      real (kind=RKIND), dimension(:,:), pointer :: box               ! Subset of topography covering a grid cell
+      integer (kind=I1KIND), dimension(:,:), pointer :: box_landuse   ! Subset of landuse covering a grid cell
+      real (kind=RKIND), dimension(:,:), pointer :: dxm               ! Size (meters) in zonal direction of a grid cell
+      real (kind=RKIND), intent(inout) :: box_mean                    ! Mean value of topography in box
+      
+      type(mpas_gwd_tile_type), pointer :: thisTile
+      type(mpas_gwd_tile_type), pointer :: lastTile
+      integer :: i, j, ii, jj, ic, jc, ix, jx
       real (kind=RKIND) :: sg_lat
 
+      thisTile => null()
+      lastTile => null()
 
-      !
-      ! Get number of points to extract in the zonal direction
-      !
-      if (cos(lat/rad2deg) > (2.0 * pts_per_degree * dx * 180.0) / (real(topo_x,RKIND) * Pi * Re)) then
-         nx = ceiling((180.0 * dx * pts_per_degree) / (Pi * Re * cos(lat/rad2deg)))
-      else
-         nx = topo_x / 2
-      end if
+      if (associated(box)) deallocate(box)
+      allocate(box(nx,ny))
+      
+      if (associated(box_landuse)) deallocate(box_landuse)
+      allocate(box_landuse(nx,ny))
 
+      if (associated(dxm)) deallocate(dxm)
+      allocate(dxm(nx,ny))
       !
-      ! Get number of points to extract in the meridional direction
-      !
-      ny = ceiling((180.0 * dx * pts_per_degree) / (Pi * Re))
-
       !
       ! Find coordinates in global topography array of the box center
       !
@@ -555,16 +752,6 @@ module mpas_init_atm_gwd
 
       if (ic <= 0) ic = ic + topo_x
       if (ic > topo_x) ic = ic - topo_x
-
-
-      if (associated(box)) deallocate(box)
-      allocate(box(nx,ny))
-
-      if (associated(box_landuse)) deallocate(box_landuse)
-      allocate(box_landuse(nx,ny))
-
-      if (associated(dxm)) deallocate(dxm)
-      allocate(dxm(nx,ny))
 
       !
       ! Extract sub-array (box) from global array; must properly account for 
@@ -591,9 +778,17 @@ module mpas_init_atm_gwd
          do while (ii > topo_x)
             ii = ii - topo_x
          end do
- 
-         box(i,j) = topo(ii,jj)
-         box_landuse(i,j) = landuse(ii,jj)
+      
+         ! Obtain tile for given box pixel from the linked list of tiles (tilesHead),
+         ! which would involve reading in the data from disk if said tile is not already in memory
+         thisTile => get_tile_from_box_point(tilesHead, ii, jj, path, sub_path, lastTile)
+         ! Save the current tile to possibly speed up the next lookup
+         lastTile => thisTile
+         
+         ix = (ii - thisTile%tile_start_x) + 1
+         jx = (jj - thisTile%tile_start_y) + 1
+         box(i,j) = thisTile%topo_array(ix, jx)
+         box_landuse(i,j) = thisTile%landuse_array(ix, jx)
          sg_lat = (start_lat + (real(jj-1,RKIND) + 0.5) / pts_per_degree) / rad2deg  ! Add 0.5 for cell center
          dxm(i,j) = sg_delta * cos(sg_lat)
          box_mean = box_mean + box(i,j)
@@ -620,9 +815,13 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_var()
+   real (kind=RKIND) function get_var(box, box_mean, nx, ny)
 
       implicit none
+
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
+      real (kind=RKIND), intent(in) :: box_mean
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       real (kind=RKIND) :: s2
@@ -650,9 +849,14 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_con()
+   real (kind=RKIND) function get_con(box, box_landuse, box_mean, nx, ny)
 
       implicit none
+
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box              ! Subset of topography covering a grid cell
+      integer (kind=I1KIND), dimension(:,:), pointer, intent(in) :: box_landuse  ! Subset of landuse covering a grid cell
+      real (kind=RKIND), intent(in) :: box_mean
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       real (kind=RKIND) :: s2, s4, var, xland, mean_land, mean_water, oro
@@ -727,9 +931,13 @@ module mpas_init_atm_gwd
    !>  the comment from N. Wood in the footnote of Kim and Doyle (QRJMS, 2005).
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_oa1()
+   real (kind=RKIND) function get_oa1(box, box_mean, nx, ny)
 
       implicit none
+
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
+      real (kind=RKIND), intent(in) :: box_mean
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       integer :: nu, nd
@@ -766,9 +974,13 @@ module mpas_init_atm_gwd
    !>  the comment from N. Wood in the footnote of Kim and Doyle (QRJMS, 2005).
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_oa2()
+   real (kind=RKIND) function get_oa2(box, box_mean, nx, ny)
 
       implicit none
+
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
+      real (kind=RKIND), intent(in) :: box_mean
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       integer :: nu, nd
@@ -807,9 +1019,13 @@ module mpas_init_atm_gwd
    !>  the comment from N. Wood in the footnote of Kim and Doyle (QRJMS, 2005).
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_oa3()
+   real (kind=RKIND) function get_oa3(box, box_mean, nx, ny)
 
       implicit none
+
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
+      real (kind=RKIND), intent(in) :: box_mean
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       integer :: nu, nd
@@ -849,9 +1065,13 @@ module mpas_init_atm_gwd
    !>  the comment from N. Wood in the footnote of Kim and Doyle (QRJMS, 2005).
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_oa4()
+   real (kind=RKIND) function get_oa4(box, box_mean, nx, ny)
 
       implicit none
+
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
+      real (kind=RKIND), intent(in) :: box_mean
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       integer :: nu, nd
@@ -889,9 +1109,12 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_ol1()
+   real (kind=RKIND) function get_ol1(box, nx, ny)
 
       implicit none
+
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       integer :: nw
@@ -922,9 +1145,12 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_ol2()
+   real (kind=RKIND) function get_ol2(box, nx, ny)
 
       implicit none
+
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       integer :: nw
@@ -955,9 +1181,12 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_ol3()
+   real (kind=RKIND) function get_ol3(box, nx, ny)
 
       implicit none
+
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       integer :: nw
@@ -994,9 +1223,12 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_ol4()
+   real (kind=RKIND) function get_ol4(box, nx, ny)
 
       implicit none
+
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       integer :: nw
@@ -1033,9 +1265,12 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_elvmax()
+   real (kind=RKIND) function get_elvmax(box, nx, ny)
 
       implicit none
+
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
 
@@ -1062,9 +1297,13 @@ module mpas_init_atm_gwd
    !> \details Computation following Lott and Miller (QJRMS 1997)
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_htheta()
+   real (kind=RKIND) function get_htheta(box, dxm, nx, ny)
 
       implicit none
+
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: dxm   ! Size (meters) in zonal direction of a grid cell
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       real (kind=RKIND) :: dx, dy
@@ -1110,9 +1349,13 @@ module mpas_init_atm_gwd
    !> \details Computation following Lott and Miller (QJRMS 1997)
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_hgamma()
+   real (kind=RKIND) function get_hgamma(box, dxm, nx, ny)
 
       implicit none
+
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: dxm   ! Size (meters) in zonal direction of a grid cell
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       real (kind=RKIND) :: dx, dy
@@ -1163,9 +1406,13 @@ module mpas_init_atm_gwd
    !> \details Computation following Lott and Miller (QJRMS 1997)
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_hsigma()
+   real (kind=RKIND) function get_hsigma(box, dxm, nx, ny)
 
       implicit none
+
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
+      real (kind=RKIND), dimension(:,:), pointer, intent(in) :: dxm   ! Size (meters) in zonal direction of a grid cell
+      integer, intent(in) :: nx, ny
 
       integer :: i, j
       real (kind=RKIND) :: dx, dy

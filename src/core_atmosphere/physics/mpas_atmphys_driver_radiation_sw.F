@@ -838,16 +838,20 @@
 !local pointers:
  logical,pointer:: config_o3climatology
  character(len=StrKIND),pointer:: radt_sw_scheme
+ character(len=StrKIND),pointer:: radt_cld_overlap,radt_cld_dcorrlen
 
 !local variables:
  integer:: o3input
+ integer:: cldovrlp,idcor
  real(kind=RKIND):: radt,xtime_m
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write(' --- enter subroutine driver_radiation_sw: $i',intArgs=(/itimestep/))
 
- call mpas_pool_get_config(configs,'config_o3climatology' ,config_o3climatology)
- call mpas_pool_get_config(configs,'config_radt_sw_scheme',radt_sw_scheme      )
+ call mpas_pool_get_config(configs,'config_o3climatology' ,config_o3climatology   )
+ call mpas_pool_get_config(configs,'config_radt_sw_scheme',radt_sw_scheme         )
+ call mpas_pool_get_config(configs,'config_radt_cld_overlap' ,radt_cld_overlap    )
+ call mpas_pool_get_config(configs,'config_radt_cld_dcorrlen',radt_cld_dcorrlen   )
 
  xtime_m = xtime_s/60.
 
@@ -879,32 +883,46 @@
        o3input = 0
        if(config_o3climatology) o3input = 2
 
+       !initialization of cloud overlap option:
+       if(trim(radt_cld_overlap) == "none"              ) cldovrlp = 0
+       if(trim(radt_cld_overlap) == "random"            ) cldovrlp = 1
+       if(trim(radt_cld_overlap) == "maximum_random"    ) cldovrlp = 2
+       if(trim(radt_cld_overlap) == "maximum"           ) cldovrlp = 3
+       if(trim(radt_cld_overlap) == "exponential"       ) cldovrlp = 4
+       if(trim(radt_cld_overlap) == "exponential_random") cldovrlp = 5
+
+       idcor = 0
+       if(trim(radt_cld_overlap)=="exponential" .or. trim(radt_cld_overlap)=="exponential_random") then
+          if(trim(radt_cld_dcorrlen) == "constant"        ) idcor = 0
+          if(trim(radt_cld_dcorrlen) == "latitude_varying") idcor = 1
+       endif
+
        call mpas_timer_start('rrtmg_swrad')
        call rrtmg_swrad( &
-              p3d        = pres_hyd_p   , p8w        = pres2_hyd_p   , pi3d     = pi_p     , &
-              t3d        = t_p          , t8w        = t2_p          , dz8w     = dz_p     , &
-!             qv3d       = qv_p         , qc3d       = qc_p          , qi3d     = qi_p     , &
-!             qs3d       = qs_p         , cldfra3d   = cldfrac_p     , tsk      = tsk_p    , &
-              qv3d       = qvrad_p      , qc3d       = qcrad_p       , qi3d     = qirad_p  , &
-              qs3d       = qsrad_p      , cldfra3d   = cldfrac_p     , tsk      = tsk_p    , &
-              albedo     = sfc_albedo_p , xland      = xland_p       , xice     = xice_p   , &
-              snow       = snow_p       , coszr      = coszr_p       , xtime    = xtime_m  , &
-              gmt        = gmt          , julday     = julday        , radt     = radt     , &
-              degrad     = degrad       , declin     = declin        , solcon   = solcon   , &
-              xlat       = xlat_p       , xlong      = xlon_p        , icloud   = icloud   , &
-              o3input    = o3input      , noznlevels = num_oznlevels , pin      = pin_p    , &
-              o3clim     = o3clim_p     , gsw        = gsw_p         , swcf     = swcf_p   , &
-              rthratensw = rthratensw_p , has_reqc   = has_reqc      , has_reqi = has_reqi , &
-              has_reqs   = has_reqs     , re_cloud   = recloud_p     , re_ice   = reice_p  , &
-              re_snow    = resnow_p     , aer_opt    = aer_opt       , tauaer3d = tauaer_p , &
-              ssaaer3d   = ssaaer_p     , asyaer3d   = asyaer_p      , swupt    = swupt_p  , &
-              swuptc     = swuptc_p     , swdnt      = swdnt_p       , swdntc   = swdntc_p , &
-              swupb      = swupb_p      , swupbc     = swupbc_p      , swdnb    = swdnb_p  , &
-              swdnbc     = swdnbc_p     , swddir     = swddir_p      , swddni   = swddni_p , &
-              swddif     = swddif_p     ,                                                    &
-              ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,        &
-              ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,        &
-              its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte          &
+              p3d        = pres_hyd_p    , p8w      = pres2_hyd_p , pi3d     = pi_p           , &
+              t3d        = t_p           , t8w      = t2_p        , dz8w     = dz_p           , &
+!             qv3d       = qv_p          , qc3d     = qc_p        , qi3d     = qi_p           , &
+!             qs3d       = qs_p          , cldfra3d = cldfrac_p   , tsk      = tsk_p          , &
+              qv3d       = qvrad_p       , qc3d     = qcrad_p     , qi3d     = qirad_p        , &
+              qs3d       = qsrad_p       , cldfra3d = cldfrac_p   , tsk      = tsk_p          , &
+              albedo     = sfc_albedo_p  , xland    = xland_p     , xice     = xice_p         , &
+              snow       = snow_p        , coszr    = coszr_p     , xtime    = xtime_m        , &
+              gmt        = gmt           , julday   = julday      , radt     = radt           , &
+              degrad     = degrad        , declin   = declin      , solcon   = solcon         , &
+              xlat       = xlat_p        , xlong    = xlon_p      , icloud   = icloud         , &
+              cldovrlp   = cldovrlp      , idcor    = idcor       , o3input  = o3input        , &
+              noznlevels = num_oznlevels , pin      = pin_p       , o3clim   = o3clim_p       , &
+              gsw        = gsw_p         , swcf     = swcf_p      , rthratensw = rthratensw_p , &
+              has_reqc   = has_reqc      , has_reqi = has_reqi    , has_reqs   = has_reqs     , &
+              re_cloud   = recloud_p     , re_ice   = reice_p     , re_snow    = resnow_p     , &
+              aer_opt    = aer_opt       , tauaer3d = tauaer_p    , ssaaer3d   = ssaaer_p     , &
+              asyaer3d   = asyaer_p      , swupt    = swupt_p     , swuptc     = swuptc_p     , &
+              swdnt      = swdnt_p       , swdntc   = swdntc_p    , swupb      = swupb_p      , &
+              swupbc     = swupbc_p      , swdnb    = swdnb_p     , swdnbc     = swdnbc_p     , &
+              swddir     = swddir_p      , swddni   = swddni_p    , swddif     = swddif_p     , &
+              ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,           &
+              ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,           &
+              its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
                        )
        call mpas_timer_stop('rrtmg_swrad')
 
