@@ -148,6 +148,7 @@ if __name__ == '__main__':
     init_files_to_copy = ['default_inputs/' + f
         for f in [
             'namelist.init_atmosphere',
+            'streams.init_atmosphere',
             ]
         ]
 
