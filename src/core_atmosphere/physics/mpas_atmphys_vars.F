@@ -219,6 +219,7 @@
 !... arrays used for calculating the hydrostatic pressure and exner function:
  real(kind=RKIND),dimension(:,:),allocatable:: &
     psfc_hyd_p,       &!surface pressure                                                       [Pa]
+    mut_p     ,       &!total mu : Psfc - Ptop                                                 [Pa]
     psfc_hydd_p        !"dry" surface pressure                                                 [Pa]
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     pres_hyd_p,       &!pressure located at theta levels                                       [Pa]
@@ -228,7 +229,7 @@
     znu_hyd_p          !(pres_hyd_p / P0) needed in the Tiedtke convection scheme              [Pa]
 
 !=================================================================================================================
-!... variables related to ozone climatlogy:
+!... variables related to ozone climatology:
 !=================================================================================================================
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
@@ -316,7 +317,7 @@
     rqccuten_p,       &!
     rqicuten_p         !
 
-!... kain fritsch specific arrays:
+!... kain-fritsch specific arrays:
  real(kind=RKIND),dimension(:,:),allocatable::   &
     cubot_p,          &!lowest convective level                                                 [-]
     cutop_p,          &!highest convective level                                                [-]

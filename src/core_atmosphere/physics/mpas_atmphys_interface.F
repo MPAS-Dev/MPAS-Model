@@ -141,6 +141,7 @@
  if(.not.allocated(pres2_hyd_p) ) allocate(pres2_hyd_p(ims:ime,kms:kme,jms:jme) )
  if(.not.allocated(pres2_hydd_p)) allocate(pres2_hydd_p(ims:ime,kms:kme,jms:jme))
  if(.not.allocated(znu_hyd_p)   ) allocate(znu_hyd_p(ims:ime,kms:kme,jms:jme)   )
+ if(.not.allocated(mut_p)       ) allocate(mut_p(ims:ime,jms:jme)               )
  
  end subroutine allocate_forall_physics
 
@@ -215,7 +216,8 @@
  if(allocated(pres2_hyd_p) ) deallocate(pres2_hyd_p )
  if(allocated(pres2_hydd_p)) deallocate(pres2_hydd_p)
  if(allocated(znu_hyd_p)   ) deallocate(znu_hyd_p   )
- 
+ if(allocated(mut_p)       ) deallocate(mut_p       )
+
  end subroutine deallocate_forall_physics
 
 !=================================================================================================================
@@ -540,6 +542,7 @@
  do j = jts,jte
  do i = its,ite
     plrad(i) = pres2_p(i,kte+1,j) 
+    mut_p(i,j) = psfc_hydd_p(i,j) - pres2_p(i,kte+1,j)
  enddo
  enddo
 
