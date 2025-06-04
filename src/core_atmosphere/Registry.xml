@@ -2313,7 +2313,7 @@
                 <nml_option name="config_sfclayer_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration for surface layer-scheme"
-                     possible_values="`suite',`sf_monin_obukhov',`sf_mynn',`off'"/>
+                     possible_values="`suite',`sf_monin_obukhov',`sf_mynn',`sf_pxsfclay',`off'"/>
 
                 <nml_option name="config_radt_cld_overlap" type="character" default_value="maximum_random" in_defaults="false"
                      description="cloud overlapping option in the RRTMG lw and sw radiation schemes"
