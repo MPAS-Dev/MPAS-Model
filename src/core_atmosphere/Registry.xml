@@ -1851,6 +1851,9 @@
                 <var name="pressure" type="real" dimensions="nVertLevels nCells Time" units="Pa"
                      description="Pressure"/>
 
+                <var name="temperature_k" type="real" dimensions="nVertLevels nCells Time" units="K"
+                     description="Temperature"/>
+
                 <var name="pressure_base" type="real" dimensions="nVertLevels nCells Time" units="Pa"
                      description="Base state pressure"/>
 
