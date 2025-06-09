@@ -3645,6 +3645,16 @@ module init_atm_cases
                             lat1 = real(field % startlat,RKIND), &
                             lon1 = real(field % startlon,RKIND))
 !                            nxmax = nint(360.0 / field % deltalon), &
+            else if(field % iproj == PROJ_LC) then
+               call map_set(PROJ_LC, proj, &
+                            dx = real(field % dx,RKIND), &
+                            truelat1 = real(field % truelat1,RKIND), &
+                            truelat2 = real(field % truelat2,RKIND), &
+                            stdlon = real(field % xlonc,RKIND), &
+                            knowni = real(field % nx / 2.0,RKIND), &
+                            knownj = real(field % ny / 2.0,RKIND), &
+                            lat1 = real(field % startlat,RKIND), &
+                            lon1 = real(field % startlon,RKIND))
             end if
 
 
@@ -5402,7 +5412,7 @@ call mpas_log_write('Done with soil consistency check')
 
       use mpas_dmpar, only : mpas_dmpar_min_real, mpas_dmpar_max_real
       use init_atm_read_met, only : met_data, read_met_init, read_met_close, read_next_met_field
-      use init_atm_llxy, only : proj_info, map_init, map_set, latlon_to_ij, PROJ_LATLON, PROJ_GAUSS, DEG_PER_RAD
+      use init_atm_llxy, only : proj_info, map_init, map_set, latlon_to_ij, PROJ_LATLON, PROJ_LC, PROJ_GAUSS, DEG_PER_RAD
       use init_atm_hinterp, only : interp_sequence, FOUR_POINT, SIXTEEN_POINT, W_AVERAGE4, SEARCH
       use mpas_hash, only : hashtable, mpas_hash_init, mpas_hash_destroy, mpas_hash_search, mpas_hash_size, mpas_hash_insert
 
@@ -5708,6 +5718,16 @@ call mpas_log_write('Done with soil consistency check')
                call map_set(PROJ_GAUSS, proj, &
                             nlat = nint(field % deltalat), &
                             loninc = 360.0_RKIND / real(field % nx,RKIND), &
+                            lat1 = real(field % startlat,RKIND), &
+                            lon1 = real(field % startlon,RKIND))
+            else if(field % iproj == PROJ_LC) then
+               call map_set(PROJ_LC, proj, &
+                            dx = real(field % dx,RKIND), &
+                            truelat1 = real(field % truelat1,RKIND), &
+                            truelat2 = real(field % truelat2,RKIND), &
+                            stdlon = real(field % xlonc,RKIND), &
+                            knowni = real(field % nx / 2.0,RKIND), &
+                            knownj = real(field % ny / 2.0,RKIND), &
                             lat1 = real(field % startlat,RKIND), &
                             lon1 = real(field % startlon,RKIND))
             end if
@@ -7174,7 +7194,7 @@ call mpas_log_write('Done with soil consistency check')
    subroutine blend_bdy_terrain(config_met_prefix, config_start_time, nCells, latCell, lonCell, bdyMaskCell, ter, dryrun, ierr)
 
       use init_atm_read_met, only : read_met_init, read_met_close, read_next_met_field, met_data
-      use init_atm_llxy, only : map_init, map_set, proj_info, latlon_to_ij, PROJ_LATLON, PROJ_GAUSS, DEG_PER_RAD
+      use init_atm_llxy, only : map_init, map_set, proj_info, latlon_to_ij, PROJ_LATLON, PROJ_LC, PROJ_GAUSS, DEG_PER_RAD
       use init_atm_hinterp, only : interp_sequence, FOUR_POINT
 
       implicit none
@@ -7252,6 +7272,16 @@ call mpas_log_write('Done with soil consistency check')
                                loninc = 360.0_RKIND / real(field % nx,RKIND), &
                                lat1 = real(field % startlat,RKIND), &
                                lon1 = real(field % startlon,RKIND))
+               else if(field % iproj == PROJ_LC) then
+                 call map_set(PROJ_LC, proj, &
+                              dx = real(field % dx,RKIND), &
+                              truelat1 = real(field % truelat1,RKIND), &
+                              truelat2 = real(field % truelat2,RKIND), &
+                              stdlon = real(field % xlonc,RKIND), &
+                              knowni = real(field % nx / 2.0,RKIND), &
+                              knownj = real(field % ny / 2.0,RKIND), &
+                              lat1 = real(field % startlat,RKIND), &
+                              lon1 = real(field % startlon,RKIND))
                end if
 
                !
