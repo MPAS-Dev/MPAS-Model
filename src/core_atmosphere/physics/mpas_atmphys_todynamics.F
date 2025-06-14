@@ -6,6 +6,15 @@
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
 !=================================================================================================================
+
+#ifdef MPAS_OPENACC
+#define MPAS_ACC_TIMER_START(X) call mpas_timer_start(X)
+#define MPAS_ACC_TIMER_STOP(X) call mpas_timer_stop(X)
+#else
+#define MPAS_ACC_TIMER_START(X)
+#define MPAS_ACC_TIMER_STOP(X)
+#endif
+
  module mpas_atmphys_todynamics
  use mpas_kind_types
  use mpas_pool_routines
@@ -17,15 +26,7 @@
 
  implicit none
  private
- public:: physics_get_tend
-
-#ifdef MPAS_OPENACC
-#define MPAS_ACC_TIMER_START(X) call mpas_timer_start(X)
-#define MPAS_ACC_TIMER_STOP(X) call mpas_timer_stop(X)
-#else
-#define MPAS_ACC_TIMER_START(X)
-#define MPAS_ACC_TIMER_STOP(X)
-#endif
+ public:: physics_get_tend, update_d2h_pre_physics_get_tend, update_h2d_post_physics_get_tend
 
 
 !Interface between the physics parameterizations and the non-hydrostatic dynamical core.
@@ -69,6 +70,40 @@
 
  contains
 
+
+!=================================================================================================================
+ subroutine update_d2h_pre_physics_get_tend(configs,state,diag,tend)
+!=================================================================================================================
+
+!input variables:
+ type(mpas_pool_type),intent(in):: configs
+ type(mpas_pool_type),intent(in):: state
+ type(mpas_pool_type),intent(in):: diag
+ type(mpas_pool_type),intent(in):: tend
+
+!local variables:
+ real(kind=RKIND),dimension(:,:),pointer:: mass          ! time level 2 rho_zz
+ real(kind=RKIND),dimension(:,:),pointer:: mass_edge     ! diag rho_edge
+ real(kind=RKIND),dimension(:,:),pointer:: theta_m       ! time level 1
+ real(kind=RKIND),dimension(:,:,:),pointer:: scalars
+ 
+ real(kind=RKIND),dimension(:,:),pointer:: tend_u_phys
+ real(kind=RKIND),dimension(:,:,:),pointer:: tend_scalars
+
+ MPAS_ACC_TIMER_START('atm_srk3: physics ACC_data_xfer')
+ call mpas_pool_get_array(state,'theta_m' ,theta_m,1)
+ call mpas_pool_get_array(state,'scalars' ,scalars,1)
+ call mpas_pool_get_array(state,'rho_zz'  ,mass,2   )
+ call mpas_pool_get_array(diag ,'rho_edge',mass_edge)
+ call mpas_pool_get_array(diag ,'tend_u_phys',tend_u_phys)
+
+ !$acc update self(theta_m, scalars, mass, mass_edge)
+ 
+ call mpas_pool_get_array(tend,'scalars_tend',tend_scalars)
+ !$acc update self(tend_scalars) ! Probably not needed
+ MPAS_ACC_TIMER_STOP('atm_srk3: physics ACC_data_xfer')
+
+ end subroutine update_d2h_pre_physics_get_tend
  
 !=================================================================================================================
  subroutine physics_get_tend(block,mesh,state,diag,tend,tend_physics,configs,rk_step,dynamics_substep, &
@@ -136,14 +171,12 @@
  call mpas_pool_get_config(configs,'config_radt_lw_scheme'   ,radt_lw_scheme   )
  call mpas_pool_get_config(configs,'config_radt_sw_scheme'   ,radt_sw_scheme   )
 
- MPAS_ACC_TIMER_START('atm_srk3: physics ACC_data_xfer')
  call mpas_pool_get_array(state,'theta_m' ,theta_m,1)
  call mpas_pool_get_array(state,'scalars' ,scalars,1)
  call mpas_pool_get_array(state,'rho_zz'  ,mass,2   )
  call mpas_pool_get_array(diag ,'rho_edge',mass_edge)
  call mpas_pool_get_array(diag ,'tend_u_phys',tend_u_phys)
 
- !$acc update self(theta_m, scalars, mass, mass_edge) 
  call mpas_pool_get_dimension(state,'index_qv',index_qv)
  call mpas_pool_get_dimension(state,'index_qc',index_qc)
  call mpas_pool_get_dimension(state,'index_qr',index_qr)
@@ -181,8 +214,6 @@
  call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
 
  call mpas_pool_get_array(tend,'scalars_tend',tend_scalars)
-!$acc update self(tend_scalars) ! Probably not needed
-MPAS_ACC_TIMER_STOP('atm_srk3: physics ACC_data_xfer')
 
 
 !initialize the tendency for the potential temperature and all scalars due to PBL, convection,
@@ -232,10 +263,6 @@ MPAS_ACC_TIMER_STOP('atm_srk3: physics ACC_data_xfer')
               tend_th,tend_rtheta_physics,tend_scalars,tend_ru_physics,tend_u_phys,      &
               exchange_halo_group)
 
-MPAS_ACC_TIMER_START('atm_srk3: physics ACC_data_xfer')
-!$acc update device(tend_scalars)
-MPAS_ACC_TIMER_STOP('atm_srk3: physics ACC_data_xfer')
-
 !clean up any pointers that were allocated with zero size before the call to physics_get_tend_work:
  if(size(rucuten) == 0 ) deallocate(rucuten )
  if(size(rvcuten) == 0 ) deallocate(rvcuten )
@@ -262,6 +289,26 @@ MPAS_ACC_TIMER_STOP('atm_srk3: physics ACC_data_xfer')
 
  end subroutine physics_get_tend
 
+ !=================================================================================================================
+ subroutine update_h2d_post_physics_get_tend(configs,state,diag,tend)
+!=================================================================================================================
+
+!input variables:
+ type(mpas_pool_type),intent(in):: configs
+ type(mpas_pool_type),intent(in):: state
+ type(mpas_pool_type),intent(in):: diag
+ type(mpas_pool_type),intent(in):: tend
+
+!local variables:
+ real(kind=RKIND),dimension(:,:,:),pointer:: tend_scalars
+
+ MPAS_ACC_TIMER_START('atm_srk3: physics ACC_data_xfer')
+ call mpas_pool_get_array(tend,'scalars_tend',tend_scalars)
+ !$acc update device(tend_scalars)
+ MPAS_ACC_TIMER_STOP('atm_srk3: physics ACC_data_xfer')
+
+ end subroutine update_h2d_post_physics_get_tend
+ 
 !=================================================================================================================
  subroutine physics_get_tend_work( &
                     block,mesh,nCells,nEdges,nCellsSolve,nEdgesSolve,rk_step,dynamics_substep, &

@@ -29,6 +29,7 @@ module atm_time_integration
 
 #ifdef DO_PHYSICS
    use mpas_atmphys_driver_microphysics
+   use mpas_atmphys_interface, only: update_d2h_pre_microphysics, update_h2d_post_microphysics
    use mpas_atmphys_todynamics
    use mpas_atmphys_utilities
 #endif
@@ -1985,6 +1986,7 @@ module atm_time_integration
       call mpas_timer_stop('atm_compute_moist_coefficients')
 
 #ifdef DO_PHYSICS
+      call update_d2h_pre_physics_get_tend(block % configs, state, diag, tend)
       call mpas_timer_start('physics_get_tend')
       rk_step = 1
       dynamics_substep = 1
@@ -1993,6 +1995,7 @@ module atm_time_integration
                              tend_ru_physics, tend_rtheta_physics, tend_rho_physics, &
                              exchange_halo_group )
       call mpas_timer_stop('physics_get_tend')
+      call update_h2d_post_physics_get_tend(block % configs, state, diag, tend)
 #else
 #ifndef MPAS_CAM_DYCORE
       !
@@ -2008,6 +2011,7 @@ module atm_time_integration
       ! IAU - Incremental Analysis Update
       !
       if (trim(config_IAU_option) /= 'off') then
+         call update_d2h_pre_add_tend_anal_incr(block % configs, block % structs)
          call atm_add_tend_anal_incr(block % configs, block % structs, itimestep, dt, &
                                      tend_ru_physics, tend_rtheta_physics, tend_rho_physics)
       end if
@@ -2614,7 +2618,6 @@ module atm_time_integration
          !$acc update self(rthdynten)
          MPAS_ACC_TIMER_STOP('atm_srk3: physics ACC_data_xfer')
 
-
          !NOTE: The calculation of the tendency due to horizontal and vertical advection for the water vapor mixing ratio
          !requires that the subroutine atm_advance_scalars_mono was called on the third Runge Kutta step, so that a halo
          !update for the scalars at time_levs(1) is applied. A halo update for the scalars at time_levs(2) is done above. 
@@ -2643,6 +2646,7 @@ module atm_time_integration
       MPAS_ACC_TIMER_STOP('atm_srk3: physics ACC_data_xfer')
       !call microphysics schemes:
       if (trim(config_microp_scheme) /= 'off')  then
+        call update_d2h_pre_microphysics( block % configs, state, diag, 2)
         call mpas_timer_start('microphysics')
 !$OMP PARALLEL DO
         do thread=1,nThreads
@@ -2651,6 +2655,7 @@ module atm_time_integration
         end do
 !$OMP END PARALLEL DO
         call mpas_timer_stop('microphysics')
+        call update_h2d_post_microphysics( block % configs, state, diag, tend, 2)
       end if
 
       !
