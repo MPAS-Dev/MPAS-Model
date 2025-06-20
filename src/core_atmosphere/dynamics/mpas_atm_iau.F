@@ -5,6 +5,15 @@
 ! Additional copyright and license information can be found in the LICENSE file
 ! distributed with this code, or at http://mpas-dev.github.com/license.html
 !
+
+ #ifdef MPAS_OPENACC
+ #define MPAS_ACC_TIMER_START(X) call mpas_timer_start(X)
+ #define MPAS_ACC_TIMER_STOP(X) call mpas_timer_stop(X)
+ #else
+ #define MPAS_ACC_TIMER_START(X)
+ #define MPAS_ACC_TIMER_STOP(X)
+ #endif
+
 module mpas_atm_iau
 
  use mpas_derived_types
@@ -13,9 +22,10 @@ module mpas_atm_iau
  use mpas_dmpar
  use mpas_constants   
  use mpas_log, only : mpas_log_write
+ use mpas_timer
 
- !public :: atm_compute_iau_coef, atm_add_tend_anal_incr  
-      
+ !public :: atm_compute_iau_coef, atm_add_tend_anal_incr    
+
  contains
 
 !==================================================================================================
@@ -76,6 +86,39 @@ module mpas_atm_iau
       end if  
 
  end function atm_iau_coef
+
+!==================================================================================================
+ subroutine update_d2h_pre_add_tend_anal_incr(configs,structs)
+!==================================================================================================
+  
+      implicit none
+
+      type (mpas_pool_type), intent(in) :: configs
+      type (mpas_pool_type), intent(inout) :: structs
+
+      type (mpas_pool_type), pointer :: tend
+      type (mpas_pool_type), pointer :: state
+      type (mpas_pool_type), pointer :: diag
+          
+      real (kind=RKIND), dimension(:,:), pointer :: rho_edge, rho_zz, theta_m
+      real(kind=RKIND),dimension(:,:,:), pointer :: scalars, tend_scalars
+
+      call mpas_pool_get_subpool(structs, 'tend', tend)
+      call mpas_pool_get_subpool(structs, 'state', state)
+      call mpas_pool_get_subpool(structs, 'diag', diag)
+
+      MPAS_ACC_TIMER_START('atm_srk3: physics ACC_data_xfer')
+      call mpas_pool_get_array(state, 'theta_m', theta_m, 1)
+      call mpas_pool_get_array(state, 'scalars', scalars, 1)
+      call mpas_pool_get_array(state, 'rho_zz',   rho_zz, 2) 
+      call mpas_pool_get_array(diag , 'rho_edge', rho_edge)
+      !$acc update self(theta_m, scalars, rho_zz, rho_edge)
+
+      call mpas_pool_get_array(tend, 'scalars_tend', tend_scalars)
+      !$acc update self(tend_scalars)
+      MPAS_ACC_TIMER_STOP('atm_srk3: physics ACC_data_xfer')
+
+ end subroutine update_d2h_pre_add_tend_anal_incr
       
 !==================================================================================================
  subroutine atm_add_tend_anal_incr (configs, structs, itimestep, dt, tend_ru, tend_rtheta, tend_rho)
