@@ -110,6 +110,10 @@ module atm_core_interface
       use mpas_atmphys_packages
 #endif
 
+#ifdef DO_CHEMISTRY
+      use mpas_atmchem_control, only : chemistry_setup_packages
+#endif
+
       implicit none
 
       type (mpas_pool_type), intent(inout) :: configs
@@ -257,6 +261,10 @@ module atm_core_interface
                              messageType=MPAS_LOG_ERR)
       end if
 
+#endif
+
+#ifdef DO_CHEMISTRY
+      call chemistry_setup_packages()
 #endif
 
    end function atm_setup_packages

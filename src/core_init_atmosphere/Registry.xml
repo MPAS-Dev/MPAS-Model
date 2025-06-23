@@ -1171,6 +1171,15 @@
                         <var name="nwfa" array_group="number" units="nb kg^{-1}"
                              description="Gocart water-friendly aerosol number concentration"
                              packages="mp_thompson_aers_in"/>
+
+                        <var name="o3" array_group="chem" units="ppmv"
+                             description="ozone mixing ratio"/>
+
+                        <var name="no" array_group="chem" units="ppmv"
+                             description="no mixing ratio"/>
+
+                        <var name="no2" array_group="chem" units="ppmv"
+                             description="no2 mixing ratio"/>
                 </var_array>
 
                 <!-- Climatology for ocean mixed-layer depth -->

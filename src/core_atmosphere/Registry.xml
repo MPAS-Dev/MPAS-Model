@@ -1672,7 +1672,18 @@
 
                         <var name="nwfa" array_group="number" units="nb kg^{-1}"
                              description="Water-friendly aerosol number concentration"
-                             packages="mp_thompson_aers_in"/>
+				packages="mp_thompson_aers_in"/>
+
+		<!-- rkumar_chem_start -->
+			<var name="o3" array_group="chem" units="ppmv"
+			     description="ozone mixing ratio"/>
+
+			<var name="no" array_group="chem" units="ppmv"
+			     description="NO mixing ratio"/>
+
+			<var name="no2" array_group="chem" units="ppmv"
+			     description="NO2 mixing ratio"/>
+		<!-- rkumar_chem_end -->
                 </var_array>
 #endif
 
@@ -2023,7 +2034,18 @@
 
                         <var name="tend_nwfa" name_in_code="nwfa" array_group="number" units="nb m^{-3} s^{-1}"
                              description="Tendency of water-friendly aerosol number concentration multiplied by dry air density divided by d(zeta)/dz"
-                             packages="mp_thompson_aers_in"/>
+			     packages="mp_thompson_aers_in"/>
+
+		<!-- rkumar_chem_start -->
+                        <var name="tend_o3" name_in_code="o3" array_group="chem" units="ppmv s^{-1}"
+				description="Tendency of o3 mixing ratios"/>
+
+                        <var name="tend_no" name_in_code="no" array_group="chem" units="ppmv s^{-1}"
+				description="Tendency of no mixing ratios"/>
+
+                        <var name="tend_no2" name_in_code="no2" array_group="chem" units="ppmv s^{-1}"
+				description="Tendency of no2 mixing ratios"/>
+		<!-- rkumar_chem_end -->
                 </var_array>
 #endif
         </var_struct>

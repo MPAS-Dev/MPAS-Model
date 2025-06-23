@@ -2,17 +2,23 @@
 
 #
 # To build a dycore-only MPAS-Atmosphere model, comment-out or delete
-# the definition of PHYSICS, below
+# the definition of PHYSICS and CHEMISTRY, below
 #
-# If MPAS_CAM_DYCORE is found in CPPFLAGS, PHYSICS will become undefined automatically
+# If MPAS_CAM_DYCORE is found in CPPFLAGS, PHYSICS and CHEMISTRY will become undefined automatically
 #
 ifeq ($(findstring MPAS_CAM_DYCORE,$(CPPFLAGS)),)
     PHYSICS = -DDO_PHYSICS
+    CHEMISTRY = -DDO_CHEMISTRY
 endif
 
 ifdef PHYSICS
     PHYSCORE = physcore
     PHYS_OBJS = libphys/*.o
+endif
+
+ifdef CHEMISTRY
+    CHEMCORE = chemcore
+    CHEM_OBJS = libchem/*.o
 endif
 
 OBJS = mpas_atm_core.o \
@@ -21,10 +27,10 @@ OBJS = mpas_atm_core.o \
        mpas_atm_threading.o \
        mpas_atm_halos.o
 
-all: $(PHYSCORE) dycore diagcore atmcore utilities
+all: $(PHYSCORE) $(CHEMCORE) dycore diagcore atmcore utilities
 
 core_reg:
-	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) $(PHYSICS) Registry.xml > Registry_processed.xml
+	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) $(PHYSICS) $(CHEMISTRY) Registry.xml > Registry_processed.xml
 
 core_input_gen:
 	if [ ! -e default_inputs ]; then  mkdir default_inputs; fi
@@ -47,17 +53,21 @@ physcore: mpas_atm_dimensions.o
 	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_wrf/files/*DATA* .)
 	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_noahmp/parameters/*TBL .)
 
-dycore: mpas_atm_dimensions.o $(PHYSCORE)
-	( cd dynamics; $(MAKE) all PHYSICS="$(PHYSICS)" )
+chemcore: mpas_atm_dimensions.o
+	( cd chemistry; $(MAKE) all )
+	( mkdir libchem; cd libchem; ar -x ../chemistry/libchem.a )
 
-diagcore: $(PHYSCORE) dycore
-	( cd diagnostics; $(MAKE) all PHYSICS="$(PHYSICS)" )
+dycore: mpas_atm_dimensions.o $(PHYSCORE) $(CHEMCORE)
+	( cd dynamics; $(MAKE) all PHYSICS="$(PHYSICS)"; $(MAKE) all CHEMISTRY="$(CHEMISTRY)" )
 
-utilities: $(PHYSCORE)
-	( cd utils; $(MAKE) all PHYSICS="$(PHYSICS)" )
+diagcore: $(PHYSCORE) $(CHEMCORE) dycore
+	( cd diagnostics; $(MAKE) all PHYSICS="$(PHYSICS)"; $(MAKE) all CHEMISTRY="$(CHEMISTRY)" )
 
-atmcore: $(PHYSCORE) dycore diagcore $(OBJS)
-	ar -ru libdycore.a $(OBJS) dynamics/*.o $(PHYS_OBJS) diagnostics/*.o
+utilities: $(PHYSCORE) $(CHEMCORE)
+	( cd utils; $(MAKE) all PHYSICS="$(PHYSICS)"; $(MAKE) all CHEMISTRY="$(CHEMISTRY)" )
+
+atmcore: $(PHYSCORE) $(CHEMCORE) dycore diagcore $(OBJS)
+	ar -ru libdycore.a $(OBJS) dynamics/*.o $(PHYS_OBJS) $(CHEM_OBJS) diagnostics/*.o
 
 mpas_atm_core_interface.o: mpas_atm_core.o
 
@@ -67,6 +77,7 @@ mpas_atm_dimensions.o:
 
 clean:
 	( cd physics; $(MAKE) clean )
+	( cd chemistry; $(MAKE) clean )
 	( cd dynamics; $(MAKE) clean )
 	( cd diagnostics; $(MAKE) clean )
 	( cd utils; $(MAKE) clean )
