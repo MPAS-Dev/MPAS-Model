@@ -759,11 +759,14 @@ endif
 	LIBS += $(NCLIB)
 endif
 
-export SCOTCH_ROOT=/glade/derecho/scratch/agopal/scotch/build
-
-FCINCLUDES += -I$(SCOTCH_ROOT)/src/include
-
-LIBS +=  -L$(SCOTCH_ROOT)/lib -lscotch -lscotcherr
+ifneq "$(SCOTCH)" ""
+	override CPPFLAGS += "-DMPAS_SCOTCH"
+	FCINCLUDES += -I$(SCOTCH)/src/include
+	LIBS +=  -L$(SCOTCH)/lib -lscotch -lscotcherr
+        SCOTCH_MESSAGE = "MPAS has been linked with the Scotch Graph Paritioning library."
+else
+        SCOTCH_MESSAGE = "MPAS was NOT linked with the Scotch Graph Paritioning library."
+endif
 
 ifneq "$(PNETCDF)" ""
 ifneq ($(wildcard $(PNETCDF)/lib/libpnetcdf.*), )
@@ -1513,6 +1516,7 @@ mpas_main: $(MAIN_DEPS)
 	@echo $(OPENMP_OFFLOAD_MESSAGE)
 	@echo $(OPENACC_MESSAGE)
 	@echo $(MUSICA_MESSAGE)
+	@echo $(SCOTCH_MESSAGE)
 	@echo $(SHAREDLIB_MESSAGE)
 ifeq "$(AUTOCLEAN)" "true"
 	@echo $(AUTOCLEAN_MESSAGE)
