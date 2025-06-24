@@ -760,12 +760,13 @@ endif
 endif
 
 ifneq "$(SCOTCH)" ""
-	override CPPFLAGS += "-DMPAS_SCOTCH"
-	FCINCLUDES += -I$(SCOTCH)/src/include
-	LIBS +=  -L$(SCOTCH)/lib -lscotch -lscotcherr
-        SCOTCH_MESSAGE = "MPAS has been linked with the Scotch Graph Paritioning library."
-else
-        SCOTCH_MESSAGE = "MPAS was NOT linked with the Scotch Graph Paritioning library."
+	SCOTCH_FCINCLUDES += -I$(SCOTCH)/src/include
+	SCOTCH_LIBS += -L$(SCOTCH)/lib -lscotch -lscotcherr
+	SCOTCH_FFLAGS = -DMPAS_SCOTCH
+
+	FCINCLUDES += $(SCOTCH_FCINCLUDES)
+	LIBS += $(SCOTCH_LIBS)
+	override CPPFLAGS += $(SCOTCH_FFLAGS)
 endif
 
 ifneq "$(PNETCDF)" ""
@@ -1423,6 +1424,33 @@ musica_fortran_test:
 	$(eval MUSICA_FORTRAN_VERSION := $(shell pkg-config --modversion musica-fortran))
 	$(if $(findstring 1,$(MUSICA_FORTRAN_TEST)), $(info Built a simple test program with MUSICA-Fortran version $(MUSICA_FORTRAN_VERSION)), )
 
+scotch_fortran_test:
+	@#
+	@# Create a Fortran test program that will link against the SCOTCH library
+	@#
+	$(info Checking for a working MUSICA-Fortran library...)
+	$(eval SCOTCH_FORTRAN_TEST := $(shell $\
+		printf "program test_scotch_fortran\n$\
+		&   include \"scotchf.h\"\n$\
+    	&   doubleprecision :: scotchgraph (scotch_graphdim)\n$\
+		&   integer :: ierr\n$\
+		&   ierr = 0\n$\
+		&   call scotchfgraphinit(scotchgraph (1), ierr)\n$\
+		&   call scotchfgraphexit(scotchgraph(1))\n$\
+		end program test_scotch_fortran\n" | sed 's/&/ /' > test_scotch_fortran.f90; $\
+		$\
+		$(FC) $(SCOTCH_FCINCLUDES) $(SCOTCH_FFLAGS) test_scotch_fortran.f90 -o test_scotch_fortran.x $(SCOTCH_LIBS) > /dev/null 2>&1; $\
+		scotch_fortran_status=$$?; $\
+		rm -f test_scotch_fortran.f90 test_scotch_fortran.x; $\
+		if [ $$scotch_fortran_status -eq 0 ]; then $\
+			printf "1"; $\
+		else $\
+			printf "0"; $\
+		fi $\
+	))
+	$(if $(findstring 0,$(SCOTCH_FORTRAN_TEST)), $(error Could not build a simple test program with Scotch))
+	$(if $(findstring 1,$(SCOTCH_FORTRAN_TEST)), $(info Built a simple test program with Scotch ))
+
 pnetcdf_test:
 	@#
 	@# Create test C programs that look for PNetCDF header file and some symbols in it
@@ -1477,6 +1505,13 @@ MAIN_DEPS += musica_fortran_test
 MUSICA_MESSAGE = "MPAS was linked with the MUSICA-Fortran library version $(MUSICA_FORTRAN_VERSION)."
 else
 MUSICA_MESSAGE = "MPAS was not linked with the MUSICA-Fortran library."
+endif
+
+ifneq "$(SCOTCH_FFLAGS)" ""
+MAIN_DEPS += scotch_fortran_test
+SCOTCH_MESSAGE = "MPAS has been linked with the Scotch graph partitioning library."
+else
+SCOTCH_MESSAGE = "MPAS was NOT linked with the Scotch graph partitioning library."
 endif
 
 mpas_main: $(MAIN_DEPS)
