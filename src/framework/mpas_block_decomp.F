@@ -25,7 +25,10 @@ module mpas_block_decomp
    use mpas_derived_types
    use mpas_io_units
    use mpas_log
+   
+   #ifdef MPAS_SCOTCH
    include "scotchf.h"
+   #endif
 
    type graph
       integer :: nVerticesTotal
@@ -75,7 +78,7 @@ module mpas_block_decomp
       integer, dimension(:,:), allocatable :: sorted_local_cell_list
 
       integer, dimension(:), allocatable :: global_block_id_arr, owning_proc_arr
-      integer :: i, global_block_id, local_block_id, owning_proc, iunit, istatus, j, k
+      integer :: i, global_block_id, local_block_id, owning_proc, iunit, ounit, istatus, ostatus, j, k
       integer :: blocks_per_proc, err, ierr
       integer, dimension(:), pointer :: local_nvertices
       character (len=StrKIND) :: filename, msg
@@ -84,9 +87,11 @@ module mpas_block_decomp
       integer :: nTotalEdgesGraph = 0
       integer, dimension(:), allocatable :: edgetab, verttab, parttab
 
-      doubleprecision :: stradat (SCOTCH_STRATDIM)
-      doubleprecision :: SCOTCHGRAPH (SCOTCH_GRAPHDIM)
-      integer :: n_size      
+      logical :: useScotch
+#ifdef MPAS_SCOTCH
+      doubleprecision :: stradat (scotch_stratdim)
+      doubleprecision :: scotchgraph (scotch_graphdim)
+#endif
 
       no_blocks = .false.
 
@@ -109,8 +114,50 @@ module mpas_block_decomp
         allocate(owning_proc_arr(partial_global_graph_info % nVerticesTotal))
 
         if (dminfo % my_proc_id == IO_NODE) then
+         useScotch = .false.
          if ( trim(blockFilePrefix) == '' ) then
-               call mpas_log_write('blockFilePrefix is not set: Using LibScotch for graph partitioning')
+            call mpas_log_write('Namelist option config_block_decomp_file_prefix is set to \'\' ', MPAS_LOG_ERR)
+#ifdef MPAS_SCOTCH
+            useScotch = .true.
+#else
+            call mpas_log_write('Either build MPAS with the Scotch library or provide a valid file prefix for config_block_decomp_file_prefix', MPAS_LOG_CRIT)
+#endif
+         else
+            if (dminfo % total_blocks < 10) then
+               write(filename,'(a,i1)') trim(blockFilePrefix), dminfo % total_blocks
+            else if (dminfo % total_blocks < 100) then
+               write(filename,'(a,i2)') trim(blockFilePrefix), dminfo % total_blocks
+            else if (dminfo % total_blocks < 1000) then
+               write(filename,'(a,i3)') trim(blockFilePrefix), dminfo % total_blocks
+            else if (dminfo % total_blocks < 10000) then
+               write(filename,'(a,i4)') trim(blockFilePrefix), dminfo % total_blocks
+            else if (dminfo % total_blocks < 100000) then
+               write(filename,'(a,i5)') trim(blockFilePrefix), dminfo % total_blocks
+            else if (dminfo % total_blocks < 1000000) then
+               write(filename,'(a,i6)') trim(blockFilePrefix), dminfo % total_blocks
+            else if (dminfo % total_blocks < 10000000) then
+               write(filename,'(a,i7)') trim(blockFilePrefix), dminfo % total_blocks
+            else if (dminfo % total_blocks < 100000000) then
+               write(filename,'(a,i8)') trim(blockFilePrefix), dminfo % total_blocks
+            end if
+
+            call mpas_new_unit(iunit)
+            open(unit=iunit, file=trim(filename), form='formatted', status='old', iostat=istatus)
+            
+            if (istatus /= 0) then
+               call mpas_log_write('Could not open block decomposition file for $i blocks.', MPAS_LOG_WARN, intArgs=(/dminfo % total_blocks/) )
+               call mpas_log_write('Filename: '//trim(filename),MPAS_LOG_WARN)
+#ifdef MPAS_SCOTCH
+               useScotch = .true.
+#else             
+               call mpas_log_write('Either build MPAS with Scotch library or provide a valid file prefix for config_block_decomp_file_prefix', MPAS_LOG_CRIT)
+#endif
+            end if
+         end if
+
+         if (useScotch) then
+#ifdef MPAS_SCOTCH
+               call mpas_log_write('Using LibScotch for graph partitioning')
                do i=1,partial_global_graph_info % nVerticesTotal
                   do j=1,nEdgesOnCellFull% array(i)
                      
@@ -149,33 +196,28 @@ module mpas_block_decomp
       
                !call mpas_log_write('nvertices =$i  nTotalEdgesGraph= $i', intArgs=(/partial_global_graph_info % nVerticesTotal, nTotalEdgesGraph/))
   
-               CALL scotchfstratinit (stradat (1), IERR)
-               CALL SCOTCHFGRAPHINIT (SCOTCHGRAPH (1), IERR)
-               IF (IERR .NE. 0) THEN
-               call mpas_log_write('Cannot initialize Scotch Graph', MPAS_LOG_CRIT)
-               ENDIF
+               call scotchfstratinit (stradat (1), ierr)
+               call scotchfgraphinit (scotchgraph (1), ierr)
+
+               if (ierr .ne. 0) then
+                  call mpas_log_write('Cannot initialize Scotch Graph', MPAS_LOG_CRIT)
+               endif
   
-               CALL SCOTCHFGRAPHBUILD (SCOTCHGRAPH (1), 1, partial_global_graph_info % nVerticesTotal, &
+               CALL scotchfgraphbuild (scotchgraph (1), 1, partial_global_graph_info % nVerticesTotal, &
                                        verttab (1), verttab (2), &
                                        verttab (1), verttab (1), &
-                                       nTotalEdgesGraph, edgetab (1), edgetab (1), IERR)
-               IF (IERR .NE. 0) THEN
-                     call mpas_log_write('Cannot build Scotch Graph', MPAS_LOG_CRIT)
-               ENDIF
+                                       nTotalEdgesGraph, edgetab (1), edgetab (1), ierr)
+               if (ierr .ne. 0) then
+                  call mpas_log_write('Cannot build Scotch Graph', MPAS_LOG_CRIT)
+               endif
 
-               ! CALL SCOTCHFGRAPHSAVE (SCOTCHGRAPH (1), 1, IERR)
-               ! IF (IERR .NE. 0) THEN
-               !    PRINT *, 'ERROR : MAIN : Invalid graph output'
-               !    STOP
-               ! ENDIF
+               ! Only needed during development/debugging. 
+               !call scotchfgraphcheck (scotchgraph (1), ierr)
+               !if (ierr .ne. 0) then
+               !   call mpas_log_write('Cannot check Scotch Graph', MPAS_LOG_CRIT)
+               !endif
   
-               CALL SCOTCHFGRAPHCHECK (SCOTCHGRAPH (1), IERR)
-               IF (IERR .NE. 0) THEN
-               call mpas_log_write('Cannot check Scotch Graph', MPAS_LOG_CRIT)
-               ENDIF
-  
-               !CALL scotchfgraphpart( SCOTCHGRAPH (1), dminfo % total_blocks, stradat (1) ,parttab(1),  IERR)
-               CALL scotchfgraphpart( SCOTCHGRAPH (1), dminfo % total_blocks, stradat (1) ,global_block_id_arr(1),  IERR)
+               call scotchfgraphpart( scotchgraph (1), dminfo % total_blocks, stradat (1) ,global_block_id_arr(1),  IERR)
   
                call scotchfgraphexit (SCOTCHGRAPH (1))
                call scotchfstratexit (stradat (1))
@@ -188,34 +230,20 @@ module mpas_block_decomp
                   !call mpas_log_write('vert: $i, global_block_id: $i, owning_proc: $i ', intArgs=(/i,global_block_id_arr(i),owning_proc/) )
                   local_nvertices(owning_proc+1) = local_nvertices(owning_proc+1) + 1
                end do
-  
-           else
 
-               if (dminfo % total_blocks < 10) then
-                  write(filename,'(a,i1)') trim(blockFilePrefix), dminfo % total_blocks
-               else if (dminfo % total_blocks < 100) then
-                  write(filename,'(a,i2)') trim(blockFilePrefix), dminfo % total_blocks
-               else if (dminfo % total_blocks < 1000) then
-                  write(filename,'(a,i3)') trim(blockFilePrefix), dminfo % total_blocks
-               else if (dminfo % total_blocks < 10000) then
-                  write(filename,'(a,i4)') trim(blockFilePrefix), dminfo % total_blocks
-               else if (dminfo % total_blocks < 100000) then
-                  write(filename,'(a,i5)') trim(blockFilePrefix), dminfo % total_blocks
-               else if (dminfo % total_blocks < 1000000) then
-                  write(filename,'(a,i6)') trim(blockFilePrefix), dminfo % total_blocks
-               else if (dminfo % total_blocks < 10000000) then
-                  write(filename,'(a,i7)') trim(blockFilePrefix), dminfo % total_blocks
-               else if (dminfo % total_blocks < 100000000) then
-                  write(filename,'(a,i8)') trim(blockFilePrefix), dminfo % total_blocks
-               end if
-
-               call mpas_new_unit(iunit)
-               open(unit=iunit, file=trim(filename), form='formatted', status='old', iostat=istatus)
-               
                if (istatus /= 0) then
-                  call mpas_log_write('Could not open block decomposition file for $i blocks.', MPAS_LOG_ERR, intArgs=(/dminfo % total_blocks/) )
-                  call mpas_log_write('Filename: '//trim(filename), MPAS_LOG_CRIT)
+                  call mpas_log_write('Writing out Scotch Graph paritioning data to '//trim(filename))
+                  call mpas_new_unit(ounit)
+                  open(unit=ounit, file=trim(filename), form='formatted', status='new', action="write", iostat=ostatus)
+                  do i=1,partial_global_graph_info % nVerticesTotal
+                     write(unit=ounit, fmt='(i0)', iostat=err) global_block_id_arr(i)
+                     !write(unit=ounit, fmt='(*(i0,1x))', iostat=err) global_block_id_arr(i)
+                  end do
+                  close(unit=ounit)
+                  call mpas_release_unit(ounit)
                end if
+  #endif
+           else
 
                call mpas_log_write('Using block decomposition file: '//trim(filename))
 
