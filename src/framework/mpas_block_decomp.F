@@ -26,9 +26,9 @@ module mpas_block_decomp
    use mpas_io_units
    use mpas_log
    
-   #ifdef MPAS_SCOTCH
-   include "scotchf.h"
-   #endif
+#ifdef MPAS_SCOTCH
+#include "scotchf.h"
+#endif
 
    type graph
       integer :: nVerticesTotal
@@ -116,7 +116,7 @@ module mpas_block_decomp
         if (dminfo % my_proc_id == IO_NODE) then
          useScotch = .false.
          if ( trim(blockFilePrefix) == '' ) then
-            call mpas_log_write('Namelist option config_block_decomp_file_prefix is set to \'\' ', MPAS_LOG_ERR)
+            call mpas_log_write("Namelist option config_block_decomp_file_prefix is set to ''", MPAS_LOG_ERR)
 #ifdef MPAS_SCOTCH
             useScotch = .true.
 #else
@@ -242,7 +242,7 @@ module mpas_block_decomp
                   close(unit=ounit)
                   call mpas_release_unit(ounit)
                end if
-  #endif
+#endif
            else
 
                call mpas_log_write('Using block decomposition file: '//trim(filename))
