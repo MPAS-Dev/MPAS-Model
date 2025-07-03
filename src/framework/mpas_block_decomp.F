@@ -55,6 +55,8 @@ module mpas_block_decomp
    subroutine mpas_block_decomp_cells_for_proc(dminfo, partial_global_graph_info, local_cell_list, block_id, block_start, &
                                                block_count, cellsOnCellFull, nEdgesOnCellFull, numBlocks, explicitProcDecomp, blockFilePrefix, procFilePrefix)!{{{
 
+      use mpas_timer, only : mpas_timer_start, mpas_timer_stop
+
       implicit none
 
       type (dm_info), intent(inout) :: dminfo !< Input: domain information
@@ -94,6 +96,8 @@ module mpas_block_decomp
 #endif
 
       no_blocks = .false.
+
+      call mpas_timer_start('mpas_block_decomp_cells_for_proc')
 
       if (numBlocks == 0) then
         dminfo % total_blocks = dminfo % nProcs
@@ -157,6 +161,7 @@ module mpas_block_decomp
 
          if (useScotch) then
 #ifdef MPAS_SCOTCH
+               call mpas_timer_start('scotch_graph_partitioning')
                call mpas_log_write('Using LibScotch for graph partitioning')
                do i=1,partial_global_graph_info % nVerticesTotal
                   do j=1,nEdgesOnCellFull% array(i)
@@ -231,17 +236,18 @@ module mpas_block_decomp
                   local_nvertices(owning_proc+1) = local_nvertices(owning_proc+1) + 1
                end do
 
-               if (istatus /= 0) then
-                  call mpas_log_write('Writing out Scotch Graph paritioning data to '//trim(filename))
-                  call mpas_new_unit(ounit)
-                  open(unit=ounit, file=trim(filename), form='formatted', status='new', action="write", iostat=ostatus)
-                  do i=1,partial_global_graph_info % nVerticesTotal
-                     write(unit=ounit, fmt='(i0)', iostat=err) global_block_id_arr(i)
-                     !write(unit=ounit, fmt='(*(i0,1x))', iostat=err) global_block_id_arr(i)
-                  end do
-                  close(unit=ounit)
-                  call mpas_release_unit(ounit)
-               end if
+               ! if (istatus /= 0) then
+               !    call mpas_log_write('Writing out Scotch Graph paritioning data to '//trim(filename))
+               !    call mpas_new_unit(ounit)
+               !    open(unit=ounit, file=trim(filename), form='formatted', status='new', action="write", iostat=ostatus)
+               !    do i=1,partial_global_graph_info % nVerticesTotal
+               !       write(unit=ounit, fmt='(i0)', iostat=err) global_block_id_arr(i)
+               !       !write(unit=ounit, fmt='(*(i0,1x))', iostat=err) global_block_id_arr(i)
+               !    end do
+               !    close(unit=ounit)
+               !    call mpas_release_unit(ounit)
+               ! end if
+               call mpas_timer_stop('scotch_graph_partitioning')
 #endif
            else
 
@@ -429,6 +435,8 @@ module mpas_block_decomp
            block_count(1) = 0
         end if
       end if
+
+      call mpas_timer_stop('mpas_block_decomp_cells_for_proc')
 
    end subroutine mpas_block_decomp_cells_for_proc!}}}
 
