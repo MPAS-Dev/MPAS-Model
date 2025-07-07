@@ -760,8 +760,8 @@ endif
 endif
 
 ifneq "$(SCOTCH)" ""
-	SCOTCH_FCINCLUDES += -I$(SCOTCH)/src/include
-	SCOTCH_LIBS += -L$(SCOTCH)/lib -lscotch -lscotcherr
+	SCOTCH_FCINCLUDES += -I$(SCOTCH)/include
+	SCOTCH_LIBS += -L$(SCOTCH)/lib64 -lptscotch -lscotch  -lptscotcherr -lm
 	SCOTCH_FFLAGS = -DMPAS_SCOTCH
 
 	FCINCLUDES += $(SCOTCH_FCINCLUDES)
@@ -1431,7 +1431,7 @@ scotch_fortran_test:
 	$(info Checking for a working MUSICA-Fortran library...)
 	$(eval SCOTCH_FORTRAN_TEST := $(shell $\
 		printf "program test_scotch_fortran\n$\
-		&   include \"scotchf.h\"\n$\
+		&   include \"ptscotchf.h\"\n$\
     	&   doubleprecision :: scotchgraph (scotch_graphdim)\n$\
 		&   integer :: ierr\n$\
 		&   ierr = 0\n$\

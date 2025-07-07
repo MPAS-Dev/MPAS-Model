@@ -247,7 +247,7 @@ module mpas_bootstrapping
       !    file, but in principle it could call some online, distributed mesh partitioning library.
       !
       call mpas_block_decomp_cells_for_proc(domain % dminfo, partial_global_graph_info, local_cell_list, block_id, block_start, &
-                                            block_count, cellsOnCellFull, nEdgesOnCellFull, config_number_of_blocks, config_explicit_proc_decomp, &
+                                            block_count, config_number_of_blocks, config_explicit_proc_decomp, &
                                             config_block_decomp_file_prefix, config_proc_decomp_file_prefix)
 
       deallocate(partial_global_graph_info % vertexID)
