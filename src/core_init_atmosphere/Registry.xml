@@ -366,6 +366,7 @@
                 <package name="initial_conds" description="Used by test cases that produce initial conditions."/>
                 <package name="sfc_update" description="Used by test cases that produce surface updates."/>
                 <package name="lbcs" description="Active when lateral boundary conditions are interpolated and written."/>
+                <package name="fdda" description="Active when FDDA input are interpolated from intermediate files and written."/>
                 <package name="gwd_stage_in" description="Active only if GWD static fields are be generated and other static fields are not being generated"/>
                 <package name="gwd_stage_out" description="Active only if GWD static fields are be generated and other static fields are not being generated"/>
                 <package name="gwd_gsl_stage_out" description="Active only if GSL GWD static fields are be generated"/>
@@ -685,6 +686,20 @@
 			<var name="Time"/>
 			<var_struct name="lbc_state"/>
 		</stream>
+
+		<stream name="fdda"
+                        type="output"
+                        filename_template="fdda.$Y-$M-$D_$h.$m.$s.nc"
+                        output_interval="6:00:00"
+                        filename_interval="output_interval"
+                        packages="fdda"
+                        immutable="true">
+
+			<var name="xtime"/>
+			<var_struct name="fdda_state"/>
+		</stream>
+
+
 
 	</streams>
 
@@ -1218,6 +1233,52 @@
                              packages="mp_thompson_aers_in"/>
                 </var_array>
 
+        </var_struct>
+
+        <var_struct name="fdda_state" time_levs="1">
+
+                <var name="u_fdda_new" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="Zonal component of reconstructed horizontal velocity at cell centers"
+                     packages="fdda"/>
+
+                <var name="v_fdda_new" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="Meridional component of reconstructed horizontal velocity at cell centers"
+                     packages="fdda"/>
+
+                <var name="th_fdda_new" type="real" dimensions="nVertLevels nCells Time" packages="fdda"
+                     units="K"
+                     description="Potential temperature input for FDDA nudging"/> 
+
+                <var_array name="scalars_fdda_new" type="real" dimensions="nVertLevels nCells Time" packages="fdda">
+                        <var name="qv_fdda_new" array_group="moist" units="kg kg^{-1}"
+                             description="Water vapor mixing ratio input for FDDA nudging"/>
+
+                        <var name="qc_fdda_new" array_group="moist" units="kg kg^{-1}"
+                             description="Cloud water mixing ratio input for FDDA nudging"/>
+
+                        <var name="qr_fdda_new" array_group="moist" units="kg kg^{-1}"
+                             description="Rain water mixing ratio input for FDDA nudging"/>
+                </var_array>
+
+                <var name="uEdge_fdda_new" type="real" dimensions="nVertLevels nEdges Time" packages="fdda"
+                     units="m s^{-1}"
+                     description="Horizontal normal velocity input for FDDA nudging"/>
+
+                <var name="rho_fdda_new" type="real" dimensions="nVertLevels nCells Time" packages="fdda"
+                     units="kg m^{-3}"
+                     description="Dry air density input for FDDA nudging"/>
+
+                <var name="uReconstructX_fdda_new" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="Cartesian x-component of reconstructed horizontal velocity at cell centers"
+                     packages="fdda"/>
+
+                <var name="uReconstructY_fdda_new" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="Cartesian y-component of reconstructed horizontal velocity at cell centers"
+                     packages="fdda"/>
+
+                <var name="uReconstructZ_fdda_new" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="Cartesian z-component of reconstructed horizontal velocity at cell centers"
+                     packages="fdda"/>
         </var_struct>
 
         <var_struct name="fg" time_levs="1">
