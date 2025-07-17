@@ -1237,46 +1237,46 @@
 
         <var_struct name="fdda_state" time_levs="1">
 
-                <var name="u_fdda_new" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                <var name="u_fdda" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
                      description="Zonal component of reconstructed horizontal velocity at cell centers"
                      packages="fdda"/>
 
-                <var name="v_fdda_new" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                <var name="v_fdda" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
                      description="Meridional component of reconstructed horizontal velocity at cell centers"
                      packages="fdda"/>
 
-                <var name="th_fdda_new" type="real" dimensions="nVertLevels nCells Time" packages="fdda"
+                <var name="th_fdda" type="real" dimensions="nVertLevels nCells Time" packages="fdda"
                      units="K"
                      description="Potential temperature input for FDDA nudging"/> 
 
-                <var_array name="scalars_fdda_new" type="real" dimensions="nVertLevels nCells Time" packages="fdda">
-                        <var name="qv_fdda_new" array_group="moist" units="kg kg^{-1}"
+                <var_array name="scalars_fdda" type="real" dimensions="nVertLevels nCells Time" packages="fdda">
+                        <var name="qv_fdda" array_group="moist" units="kg kg^{-1}"
                              description="Water vapor mixing ratio input for FDDA nudging"/>
 
-                        <var name="qc_fdda_new" array_group="moist" units="kg kg^{-1}"
+                        <var name="qc_fdda" array_group="moist" units="kg kg^{-1}"
                              description="Cloud water mixing ratio input for FDDA nudging"/>
 
-                        <var name="qr_fdda_new" array_group="moist" units="kg kg^{-1}"
+                        <var name="qr_fdda" array_group="moist" units="kg kg^{-1}"
                              description="Rain water mixing ratio input for FDDA nudging"/>
                 </var_array>
 
-                <var name="uEdge_fdda_new" type="real" dimensions="nVertLevels nEdges Time" packages="fdda"
+                <var name="uEdge_fdda" type="real" dimensions="nVertLevels nEdges Time" packages="fdda"
                      units="m s^{-1}"
                      description="Horizontal normal velocity input for FDDA nudging"/>
 
-                <var name="rho_fdda_new" type="real" dimensions="nVertLevels nCells Time" packages="fdda"
+                <var name="rho_fdda" type="real" dimensions="nVertLevels nCells Time" packages="fdda"
                      units="kg m^{-3}"
                      description="Dry air density input for FDDA nudging"/>
 
-                <var name="uReconstructX_fdda_new" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                <var name="uReconstructX_fdda" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
                      description="Cartesian x-component of reconstructed horizontal velocity at cell centers"
                      packages="fdda"/>
 
-                <var name="uReconstructY_fdda_new" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                <var name="uReconstructY_fdda" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
                      description="Cartesian y-component of reconstructed horizontal velocity at cell centers"
                      packages="fdda"/>
 
-                <var name="uReconstructZ_fdda_new" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                <var name="uReconstructZ_fdda" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
                      description="Cartesian z-component of reconstructed horizontal velocity at cell centers"
                      packages="fdda"/>
         </var_struct>

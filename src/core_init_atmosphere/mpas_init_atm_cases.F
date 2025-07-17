@@ -6253,7 +6253,7 @@ call mpas_log_write('Done with soil consistency check')
    !-----------------------------------------------------------------------
    !  routine init_atm_case_fdda
    !
-   !> \brief Computes th_fdda_new, qv_fdda_new, u_fdda_new, v_fdda_new fields for FDDA nudging 
+   !> \brief Computes th_fdda, qv_fdda, u_fdda, v_fdda fields for FDDA nudging 
    !> \details
    !>  This routine is similar to the init_atm_case_lbc routine in that it reads
    !>  atmospheric fields from "intermediate" files and horizontally and vertically
@@ -6438,15 +6438,15 @@ call mpas_log_write('Done with soil consistency check')
       call mpas_pool_get_array(diag, 'rho_p', rr)
       call mpas_pool_get_array(state, 'theta_m', t)
       call mpas_pool_get_array(diag, 'rtheta_p', rt)
-      call mpas_pool_get_array(fdda_state, 'scalars_fdda_new', scalars)
-      call mpas_pool_get_array(fdda_state, 'uEdge_fdda_new', u)
-      call mpas_pool_get_array(fdda_state, 'th_fdda_new', theta)
-      call mpas_pool_get_array(fdda_state, 'rho_fdda_new', rho)
-      call mpas_pool_get_array(fdda_state, 'uReconstructX_fdda_new', uReconstructX)
-      call mpas_pool_get_array(fdda_state, 'uReconstructY_fdda_new', uReconstructY)
-      call mpas_pool_get_array(fdda_state, 'uReconstructZ_fdda_new', uReconstructZ)
-      call mpas_pool_get_array(fdda_state, 'u_fdda_new', uReconstructZonal)
-      call mpas_pool_get_array(fdda_state, 'v_fdda_new', uReconstructMeridional)
+      call mpas_pool_get_array(fdda_state, 'scalars_fdda', scalars)
+      call mpas_pool_get_array(fdda_state, 'uEdge_fdda', u)
+      call mpas_pool_get_array(fdda_state, 'th_fdda', theta)
+      call mpas_pool_get_array(fdda_state, 'rho_fdda', rho)
+      call mpas_pool_get_array(fdda_state, 'uReconstructX_fdda', uReconstructX)
+      call mpas_pool_get_array(fdda_state, 'uReconstructY_fdda', uReconstructY)
+      call mpas_pool_get_array(fdda_state, 'uReconstructZ_fdda', uReconstructZ)
+      call mpas_pool_get_array(fdda_state, 'u_fdda', uReconstructZonal)
+      call mpas_pool_get_array(fdda_state, 'v_fdda', uReconstructMeridional)
 
       call mpas_pool_get_array(mesh, 'latCell', latCell)
       call mpas_pool_get_array(mesh, 'lonCell', lonCell)
