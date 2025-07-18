@@ -823,16 +823,20 @@
 !local pointers:
  logical,pointer:: config_o3climatology
  character(len=StrKIND),pointer:: radt_lw_scheme
+ character(len=StrKIND),pointer:: radt_cld_overlap,radt_cld_dcorrlen
 
 !local variables:
  integer:: o3input
+ integer:: cldovrlp,idcor
  real(kind=RKIND):: radt,xtime_m
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write(' --- enter subroutine driver_radiation_lw: ')
 
- call mpas_pool_get_config(configs,'config_o3climatology' ,config_o3climatology)
- call mpas_pool_get_config(configs,'config_radt_lw_scheme',radt_lw_scheme      )
+ call mpas_pool_get_config(configs,'config_o3climatology'    ,config_o3climatology)
+ call mpas_pool_get_config(configs,'config_radt_lw_scheme'   ,radt_lw_scheme      )
+ call mpas_pool_get_config(configs,'config_radt_cld_overlap' ,radt_cld_overlap    )
+ call mpas_pool_get_config(configs,'config_radt_cld_dcorrlen',radt_cld_dcorrlen   )
 
 !copy MPAS arrays to local arrays:
  call radiation_lw_from_MPAS(xtime_s,configs,mesh,state,time_lev,diag_physics,atm_input,sfc_input,its,ite)
@@ -843,27 +847,41 @@
        o3input = 0
        if(config_o3climatology) o3input = 2
 
+       !initialization of cloud overlap option:
+       if(trim(radt_cld_overlap) == "none"              ) cldovrlp = 0
+       if(trim(radt_cld_overlap) == "random"            ) cldovrlp = 1
+       if(trim(radt_cld_overlap) == "maximum_random"    ) cldovrlp = 2
+       if(trim(radt_cld_overlap) == "maximum"           ) cldovrlp = 3
+       if(trim(radt_cld_overlap) == "exponential"       ) cldovrlp = 4
+       if(trim(radt_cld_overlap) == "exponential_random") cldovrlp = 5
+
+       idcor = 0
+       if(trim(radt_cld_overlap)=="exponential" .or. trim(radt_cld_overlap)=="exponential_random") then
+          if(trim(radt_cld_dcorrlen) == "constant"        ) idcor = 0
+          if(trim(radt_cld_dcorrlen) == "latitude_varying") idcor = 1
+       endif
+
        call mpas_timer_start('rrtmg_lwrad')
        call rrtmg_lwrad( &
-            p3d        = pres_hyd_p    , p8w       = pres2_hyd_p , pi3d     = pi_p     , &
-            t3d        = t_p           , t8w       = t2_p        , dz8w     = dz_p     , &
-!           qv3d       = qv_p          , qc3d      = qc_p        , qi3d     = qi_p     , &
-!           qs3d       = qs_p          , cldfra3d  = cldfrac_p   , tsk      = tsk_p    , &
-            qv3d       = qvrad_p       , qc3d      = qcrad_p     , qi3d     = qirad_p  , &
-            qs3d       = qsrad_p       , cldfra3d  = cldfrac_p   , tsk      = tsk_p    , &
-            emiss      = sfc_emiss_p   , xland     = xland_p     , xice     = xice_p   , &
-            snow       = snow_p        , icloud    = icloud      , o3input  = o3input  , &
-            noznlevels = num_oznlevels , pin       = pin_p       , o3clim   = o3clim_p , &
-            glw        = glw_p         , olr       = olrtoa_p    , lwcf     = lwcf_p   , &
-            rthratenlw = rthratenlw_p  , has_reqc  = has_reqc    , has_reqi = has_reqi , &
-            has_reqs   = has_reqs      , re_cloud  = recloud_p   , re_ice   = reice_p  , &
-            re_snow    = resnow_p      , rre_cloud = rrecloud_p  , rre_ice  = rreice_p , &
-            rre_snow   = rresnow_p     , lwupt     = lwupt_p     , lwuptc   = lwuptc_p , &
-            lwdnt      = lwdnt_p       , lwdntc    = lwdntc_p    , lwupb    = lwupb_p  , &
-            lwupbc     = lwupbc_p      , lwdnb     = lwdnb_p     , lwdnbc   = lwdnbc_p , &
-            ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,      &
-            ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,      &
-            its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte        &
+            p3d      = pres_hyd_p  , p8w        = pres2_hyd_p   , pi3d      = pi_p       , &
+            t3d      = t_p         , t8w        = t2_p          , dz8w      = dz_p       , &
+            qv3d     = qvrad_p     , qc3d       = qcrad_p       , qi3d      = qirad_p    , &
+            qs3d     = qsrad_p     , cldfra3d   = cldfrac_p     , tsk       = tsk_p      , &
+            emiss    = sfc_emiss_p , xland      = xland_p       , xice      = xice_p     , &
+            snow     = snow_p      , xlat       = xlat_p        , julday    = julday     , &
+            icloud   = icloud      , cldovrlp   = cldovrlp      , idcor     = idcor      , &
+            o3input  = o3input     , noznlevels = num_oznlevels , pin       = pin_p      , &
+            o3clim   = o3clim_p    , glw        = glw_p         , olr       = olrtoa_p   , &
+            lwcf     = lwcf_p      , rthratenlw = rthratenlw_p  , has_reqc  = has_reqc   , &
+            has_reqi = has_reqi    , has_reqs   = has_reqs      , re_cloud  = recloud_p  , &
+            re_ice   = reice_p     , re_snow    = resnow_p      , rre_cloud = rrecloud_p , &
+            rre_ice  = rreice_p    , rre_snow   = rresnow_p     , lwupt     = lwupt_p    , &
+            lwuptc   = lwuptc_p    , lwdnt      = lwdnt_p       , lwdntc    = lwdntc_p   , &
+            lwupb    = lwupb_p     , lwupbc     = lwupbc_p      , lwdnb     = lwdnb_p    , &
+            lwdnbc   = lwdnbc_p    ,                                                       &
+            ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,        &
+            ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,        &
+            its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte          &
                        )
        call mpas_timer_stop('rrtmg_lwrad')
 

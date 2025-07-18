@@ -119,6 +119,7 @@ contains
     NoahmpIO%ZNT     (I) = noahmp%energy%state%RoughLenMomSfcToAtm
     NoahmpIO%T2MVXY  (I) = noahmp%energy%state%TemperatureAir2mVeg
     NoahmpIO%T2MBXY  (I) = noahmp%energy%state%TemperatureAir2mBare
+    NoahmpIO%T2MXY   (I) = noahmp%energy%state%TemperatureAir2m
     NoahmpIO%TRADXY  (I) = noahmp%energy%state%TemperatureRadSfc
     NoahmpIO%FVEGXY  (I) = noahmp%energy%state%VegFrac
     NoahmpIO%RSSUNXY (I) = noahmp%energy%state%ResistanceStomataSunlit
@@ -135,6 +136,7 @@ contains
     NoahmpIO%CHB2XY  (I) = noahmp%energy%state%ExchCoeffSh2mBare
     NoahmpIO%Q2MVXY  (I) = noahmp%energy%state%SpecHumidity2mVeg /(1.0-noahmp%energy%state%SpecHumidity2mVeg)  ! spec humidity to mixing ratio
     NoahmpIO%Q2MBXY  (I) = noahmp%energy%state%SpecHumidity2mBare/(1.0-noahmp%energy%state%SpecHumidity2mBare)
+    NoahmpIO%Q2MXY   (I) = noahmp%energy%state%SpecHumidity2m/(1.0-noahmp%energy%state%SpecHumidity2m)
     NoahmpIO%IRRSPLH (I) = NoahmpIO%IRRSPLH(I) + &
                              (noahmp%energy%flux%HeatLatentIrriEvap * noahmp%config%domain%MainTimeStep)
     NoahmpIO%TSLB    (I,1:NumSoilLayer)       = noahmp%energy%state%TemperatureSoilSnow(1:NumSoilLayer)

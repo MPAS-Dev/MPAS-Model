@@ -211,7 +211,8 @@
 
 !gravity wave drag over orography scheme:
  if(.not. (config_gwdo_scheme .eq. 'off' .or. &
-           config_gwdo_scheme .eq. 'bl_ysu_gwdo')) then
+           config_gwdo_scheme .eq. 'bl_ysu_gwdo' .or. &
+           config_gwdo_scheme .eq. 'bl_ugwp_gwdo')) then
 
     write(mpas_err_message,'(A,A20)') 'illegal value for gwdo_scheme: ', &
           trim(config_gwdo_scheme)
@@ -480,7 +481,7 @@
 
  call mpas_pool_get_config(blocklist % configs, 'config_gwdo_scheme', gwdo_scheme)
 
- if (trim(gwdo_scheme) /= 'off') then
+ if (trim(gwdo_scheme) == 'bl_ysu_gwdo') then
      maxvar2d_local = -huge(maxvar2d_local)
      block => blockList
      do while (associated(block))
@@ -514,7 +515,7 @@
      if (maxvar2d_global <= 0.0_RKIND .and. iall_water /= 1) then
          call mpas_log_write('*******************************************************************************', &
                              messageType=MPAS_LOG_ERR)
-         call mpas_log_write('The GWDO scheme requires valid var2d, con, oa{1,2,3,4}, and ol{1,2,3,4} fields,', &
+         call mpas_log_write('The YSU GWDO scheme requires valid var2d, con, oa{1,2,3,4}, and ol{1,2,3,4} fields,', &
                              messageType=MPAS_LOG_ERR)
          call mpas_log_write('but these fields appear to be zero everywhere in the model input.', &
                              messageType=MPAS_LOG_ERR)

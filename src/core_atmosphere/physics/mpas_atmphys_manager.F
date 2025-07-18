@@ -410,7 +410,7 @@
  integer,pointer:: nAerosols,nAerLevels,nOznLevels
  integer,pointer:: nCellsSolve,nSoilLevels,nVertLevels
 
- real(kind=RKIND),pointer:: config_dt
+ real(kind=RKIND):: dt
 
 !local variables:
  type(MPAS_Time_Type):: startTime,alarmStartTime
@@ -439,7 +439,7 @@
  call mpas_pool_get_config(configs,'config_frac_seaice'      ,config_frac_seaice      )
  call mpas_pool_get_config(configs,'config_microp_re'        ,config_microp_re        )
 
- call mpas_pool_get_config(configs,'config_dt',config_dt)
+ call mpas_get_timeInterval(mpas_get_clock_timestep(clock, ierr), dt=dt)
 
 
  call mpas_pool_get_dimension(mesh,'cam_dim1'   ,cam_dim1   )
@@ -482,7 +482,7 @@
        call physics_error_fatal('subroutine physics_run_init: error defining dt_radtlw')
 
  elseif(trim(config_radtlw_interval) == "none") then
-    dt_radtlw = config_dt
+    dt_radtlw = dt
 
  else
     call physics_error_fatal('subroutine physics_run_init: dt_radtlw is not defined')
@@ -501,7 +501,7 @@
        call physics_error_fatal('subroutine physics_run_init: error defining radtswAlarmID')
 
  elseif(trim(config_radtsw_interval) == "none") then
-    dt_radtsw = config_dt
+    dt_radtsw = dt
 
  else
     call physics_error_fatal('subroutine physics_run_init: dt_radtsw is not defined')
@@ -520,7 +520,7 @@
        call physics_error_fatal('subroutine physics_run_init: error defining dt_cu')
 
  elseif(trim(config_conv_interval) == "none") then
-    dt_cu = config_dt
+    dt_cu = dt
 
  else
     call physics_error_fatal('subroutine physics_run_init: dt_cu is not defined')
@@ -539,7 +539,7 @@
        call physics_error_fatal('subroutine physics_run_init: error defining dt_pbl')
 
  elseif(trim(config_pbl_interval) == "none") then
-    dt_pbl = config_dt
+    dt_pbl = dt
 
  else
     call physics_error_fatal('subroutine physics_run_init: dt_pbl is not defined')
@@ -578,7 +578,7 @@
 !set alarm to write the "CAM" local arrays absnst_p, absnxt_p, and emstot_p to the MPAS arrays
 !for writing to the restart file at the bottom of the time-step:
  if(trim(config_radt_lw_scheme) .eq. "cam_lw" ) then
-    call mpas_set_timeInterval(camlwTimeStep,dt=config_dt,ierr=ierr)
+    call mpas_set_timeInterval(camlwTimeStep,dt=dt,ierr=ierr)
     call MPAS_stream_mgr_get_property(stream_manager, 'restart', MPAS_STREAM_PROPERTY_RECORD_INTV, stream_interval, &
                                       direction=MPAS_STREAM_OUTPUT, ierr=ierr)
     if(trim(stream_interval) /= 'none') then
@@ -593,7 +593,7 @@
 !set alarm to check if the accumulated rain due to cloud microphysics and convection is
 !greater than its maximum allowed value:
  if(config_bucket_update /= "none") then
-    call mpas_set_timeInterval(acrainTimeStep,dt=config_dt,ierr=ierr)
+    call mpas_set_timeInterval(acrainTimeStep,dt=dt,ierr=ierr)
     call mpas_set_timeInterval(alarmTimeStep,timeString=config_bucket_update,ierr=ierr)
     alarmStartTime = startTime + alarmTimeStep
     call mpas_add_clock_alarm(clock,acrainAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
@@ -604,7 +604,7 @@
 !set alarm to check if the accumulated radiation diagnostics due to long- and short-wave radiation
 !is greater than its maximum allowed value:
  if(config_bucket_update /= "none") then
-    call mpas_set_timeInterval(acradtTimeStep,dt=config_dt,ierr=ierr)
+    call mpas_set_timeInterval(acradtTimeStep,dt=dt,ierr=ierr)
     call mpas_set_timeInterval(alarmTimeStep,timeString=config_bucket_update,ierr=ierr)
     alarmStartTime = startTime + alarmTimeStep
     call mpas_add_clock_alarm(clock,acradtAlarmID,alarmStartTime,alarmTimeStep,ierr=ierr)
@@ -681,7 +681,7 @@
 
 !initialization of local physics time-steps:
 !... dynamics:
- dt_dyn    = config_dt
+ dt_dyn    = dt
 !... cloud microphysics:
  dt_microp = dt_dyn
  n_microp  = 1

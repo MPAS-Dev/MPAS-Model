@@ -1001,12 +1001,16 @@ module mpas_timekeeping
       ! Local variables
       type (MPAS_Alarm_type), pointer :: alarmPtr
       type (MPAS_TimeInterval_type) :: searchInterval, searchRemainder
+      type (MPAS_TimeInterval_type) :: zeroInterval
       integer (kind=I8KIND) :: nDivs
       integer :: threadNum
       integer :: ierr_tmp
 
+
       ierr = 0
       ierr_tmp = 0
+
+      call mpas_set_timeInterval(zeroInterval, S=0)
 
       threadNum = mpas_threading_get_thread_num()
 
@@ -1024,22 +1028,26 @@ module mpas_timekeeping
                      if (now > referenceTime) then
                         searchInterval = now - referenceTime
                         call mpas_interval_division(referenceTime, searchInterval, alarmPtr % ringTimeInterval, nDivs, searchRemainder)
-                        alarmPtr % prevRingTime = now - searchRemainder
                      else
                         searchInterval = referenceTime - now
                         call mpas_interval_division(referenceTime, searchInterval, alarmPtr % ringTimeInterval, nDivs, searchRemainder)
-                        alarmPtr % prevRingTime = now - (alarmPtr % ringTimeInterval - searchRemainder)
+                        if (searchRemainder /= zeroInterval) then
+                            searchRemainder = alarmPtr % ringTimeInterval - searchRemainder
+                        end if
                      endif
-                  else ! MPAS_REVERSE
+                     alarmPtr % prevRingTime = now - alarmPtr % ringTimeInterval - searchRemainder
+                  else ! MPAS_BACKWARD
                      if (now < referenceTime) then
+                        searchInterval = referenceTime - now
+                        call mpas_interval_division(referenceTime, searchInterval, alarmPtr % ringTimeInterval, nDivs, searchRemainder)
+                     else
                         searchInterval = now - referenceTime
                         call mpas_interval_division(referenceTime, searchInterval, alarmPtr % ringTimeInterval, nDivs, searchRemainder)
-                        alarmPtr % prevRingTime = now - searchRemainder
-                     else
-                        searchInterval = referenceTime - now
-                        call mpas_interval_division(referenceTime, searchInterval, alarmPtr % ringTimeInterval, nDivs, searchRemainder)
-                        alarmPtr % prevRingTime = now - (alarmPtr % ringTimeInterval - searchRemainder)
+                        if (searchRemainder /= zeroInterval) then
+                            searchRemainder = alarmPtr % ringTimeInterval - searchRemainder
+                        end if
                      endif
+                     alarmPtr % prevRingTime = now + alarmPtr % ringTimeInterval + searchRemainder
                   end if  ! forward direction
                   !call mpas_print_alarm(clock, alarmID, ierr_tmp)
                end if  ! isRecurring

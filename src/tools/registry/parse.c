@@ -751,18 +751,45 @@ int parse_reg_xml(ezxml_t registry)/*{{{*/
 
 	// Parse Packages
 	err = parse_packages_from_registry(registry);
+	if (err) {
+		fprintf(stderr, "Error in parse_packages_from_registry\n");
+		return err;
+	}
 
 	// Parse namelist records
 	err = parse_namelist_records_from_registry(registry);
+	if (err) {
+		fprintf(stderr, "Error in parse_namelist_records_from_registry\n");
+		return err;
+	}
 
 	// Parse dimensions
 	err = parse_dimensions_from_registry(registry);
+	if (err) {
+		fprintf(stderr, "Error in parse_dimensions_from_registry\n");
+		return err;
+	}
 
 	// Parse variable structures
 	err = parse_structs_from_registry(registry);
+	if (err) {
+		fprintf(stderr, "Error in parse_structs_from_registry\n");
+		return err;
+	}
 
 	// Generate code to read and write fields
 	err = generate_immutable_streams(registry);
+	if (err) {
+		fprintf(stderr, "Error in generate_immutable_streams\n");
+		return err;
+	}
+
+	// Generate logic to set packages with the 'active_when' attribute
+	err = generate_package_logic(registry);
+	if (err) {
+		fprintf(stderr, "Error in generate_package_logic\n");
+		return err;
+	}
 
 	return 0;
 }/*}}}*/

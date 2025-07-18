@@ -24,6 +24,8 @@
  use mpas_atmphys_o3climatology
  use mpas_atmphys_lsm_noahmpinit,only: init_lsm_noahmp
 
+ use bl_ugwpv1_ngw, only: ugwpv1_ngw_init
+
  implicit none
  private
  public:: physics_init
@@ -77,12 +79,15 @@
 
 
 !=================================================================================================================
- subroutine physics_init(dminfo,clock,configs,mesh,diag,tend,state,time_lev,diag_physics,diag_physics_noahmp, &
-                         atm_input,sfc_input,output_noahmp)
+ subroutine physics_init(dminfo,stream_manager,clock,configs,mesh,diag,tend,state,time_lev,diag_physics,     &
+                         diag_physics_noahmp,ngw_input,atm_input,sfc_input,output_noahmp)
 !=================================================================================================================
+
+use mpas_stream_manager
 
 !input arguments:
  type(dm_info),intent(in):: dminfo
+ type(MPAS_streamManager_type),intent(inout):: stream_manager
  type(mpas_pool_type),intent(in):: mesh
  type(mpas_pool_type),intent(in):: configs
  type(MPAS_Clock_type),intent(in):: clock
@@ -95,6 +100,7 @@
  type(mpas_pool_type),intent(inout):: tend
  type(mpas_pool_type),intent(inout):: diag_physics
  type(mpas_pool_type),intent(inout):: diag_physics_noahmp
+ type(mpas_pool_type),intent(inout):: ngw_input
  type(mpas_pool_type),intent(inout):: atm_input
  type(mpas_pool_type),intent(inout):: sfc_input
  type(mpas_pool_type),intent(inout):: output_noahmp
@@ -132,6 +138,17 @@
  real(kind=RKIND),pointer:: config_oml_hml0
  real(kind=RKIND),dimension(:),pointer:: t_oml,t_oml_initial,t_oml_200m_initial
  real(kind=RKIND),dimension(:),pointer:: h_oml,h_oml_initial,hu_oml,hv_oml
+ real(kind=RKIND),dimension(:),pointer:: rdzw,dzu
+ real(kind=RKIND),pointer:: config_dt
+ integer,pointer:: nCells,nVertLevels
+ character(len=StrKIND),pointer:: gwdo_scheme
+ logical,pointer:: ngw_scheme
+ integer,pointer:: ntau_d1y
+ real(kind=RKIND),pointer:: knob_ugwp_tauamp
+ real(kind=RKIND),dimension(:),pointer:: ugwp_taulat
+ integer,dimension(:),pointer:: jindx1_tau, jindx2_tau
+ real(kind=RKIND),dimension(:),pointer:: ddy_j1tau, ddy_j2tau
+ real(kind=RKIND),dimension(:),pointer:: latCell
 
 !local variables and arrays:
  type(MPAS_Time_Type):: currTime
@@ -213,6 +230,13 @@
  call mpas_pool_get_array(diag_physics,'hv_oml'            ,hv_oml)
  call mpas_pool_get_config(configs,'config_oml1d'          ,config_oml1d  )
  call mpas_pool_get_config(configs,'config_oml_hml0'       ,config_oml_hml0  )
+ call mpas_pool_get_config(configs,'config_gwdo_scheme'    ,gwdo_scheme )
+ call mpas_pool_get_config(configs,'config_ngw_scheme'     ,ngw_scheme  )
+ call mpas_pool_get_config(configs,'config_dt'             ,config_dt  )
+ call mpas_pool_get_dimension(mesh,'nCells',nCells)
+ call mpas_pool_get_dimension(mesh,'nVertLevels',nVertLevels  )
+ call mpas_pool_get_array(mesh,'rdzw'   ,rdzw   )
+ call mpas_pool_get_array(mesh,'dzu'    ,dzu    )
 
  currTime = mpas_get_clock_time(clock,MPAS_NOW,ierr)
  call mpas_get_time(curr_time=currTime,DoY=julday,ierr=ierr)
@@ -377,7 +401,7 @@
     if(config_lsm_scheme .eq. 'sf_noah') then
        call init_lsm(dminfo,mesh,configs,diag_physics,sfc_input)
     elseif(config_lsm_scheme .eq. 'sf_noahmp') then
-       call init_lsm_noahmp(configs,mesh,diag_physics,diag_physics_noahmp,output_noahmp,sfc_input)
+       call init_lsm_noahmp(configs,mesh,clock,diag_physics,diag_physics_noahmp,output_noahmp,sfc_input)
     endif
  endif
 
@@ -405,6 +429,30 @@
        endif
     else
        call init_radiation_lw(dminfo,configs)
+    endif
+ endif
+
+!initialization of non-stationary gravity wave drag
+ if(trim(gwdo_scheme).eq.'bl_ugwp_gwdo') then
+    ! Read in ugwp_oro_data
+    call MPAS_stream_mgr_read(stream_manager, streamID='ugwp_oro_data_in', whence=MPAS_STREAM_NEAREST, ierr=ierr)
+    call MPAS_stream_mgr_reset_alarms(stream_manager, streamID='ugwp_oro_data_in', direction=MPAS_STREAM_INPUT, ierr=ierr)
+    if (ngw_scheme) then
+       call mpas_log_write('Initializing non-stationary GWD scheme',masterOnly=.true.)
+       call MPAS_stream_mgr_read(stream_manager, streamID='ugwp_ngw_in', whence=MPAS_STREAM_NEAREST, ierr=ierr)
+       call MPAS_stream_mgr_reset_alarms(stream_manager, streamID='ugwp_ngw_in', direction=MPAS_STREAM_INPUT, ierr=ierr)
+       call mpas_pool_get_config(configs,'config_knob_ugwp_tauamp', knob_ugwp_tauamp)
+       call mpas_pool_get_dimension(mesh,'lat',ntau_d1y)
+       call mpas_pool_get_array(ngw_input,'LATS',ugwp_taulat)
+       call mpas_pool_get_array(ngw_input,'jindx1_tau'  ,jindx1_tau  )
+       call mpas_pool_get_array(ngw_input,'jindx2_tau'  ,jindx2_tau  )
+       call mpas_pool_get_array(ngw_input,'ddy_j1tau'   ,ddy_j1tau   )
+       call mpas_pool_get_array(ngw_input,'ddy_j2tau'   ,ddy_j2tau   )
+       call mpas_pool_get_array(mesh,'latCell',latCell)
+       call mpas_log_write('--- Initializing UGWP non-stationary GWD parameters ---',masterOnly=.true.)
+       call ugwpv1_ngw_init(latCell,nVertLevels,config_dt,rdzw,dzu,ntau_d1y,          &
+               knob_ugwp_tauamp,ugwp_taulat,jindx1_tau,jindx2_tau,ddy_j1tau,ddy_j2tau)
+       call mpas_log_write('--- UGWP non-stationary GWD parameters initialized ---',masterOnly=.true.)
     endif
  endif
 

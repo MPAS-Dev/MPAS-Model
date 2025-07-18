@@ -23,6 +23,7 @@
  use mpas_atmphys_driver_oml
  use mpas_atmphys_constants
  use mpas_atmphys_interface
+ use mpas_atmphys_sfc_diagnostics,only: atmphys_sfc_diagnostics
  use mpas_atmphys_update
  use mpas_atmphys_vars, only: l_camlw,l_conv,l_radtlw,l_radtsw
  use mpas_timer
@@ -127,6 +128,7 @@
                                  output_noahmp,       &
                                  tend_physics,        &
                                  atm_input,           &
+                                 ngw_input,           &
                                  sfc_input
 
  logical,pointer:: config_frac_seaice
@@ -188,6 +190,7 @@
     call mpas_pool_get_subpool(block%structs,'output_noahmp'      ,output_noahmp      )
     call mpas_pool_get_subpool(block%structs,'atm_input'          ,atm_input          )
     call mpas_pool_get_subpool(block%structs,'sfc_input'          ,sfc_input          )
+    call mpas_pool_get_subpool(block%structs,'ngw_input'          ,ngw_input          )
     call mpas_pool_get_subpool(block%structs,'tend_physics'       ,tend_physics       )
 
     call mpas_pool_get_dimension(block%dimensions,'nThreads',nThreads)
@@ -296,14 +299,21 @@
           enddo
        endif
 
-       call allocate_seaice
+       call allocate_seaice(block%configs)
 !$OMP PARALLEL DO
        do thread=1,nThreads
           call driver_seaice(block%configs,diag_physics,sfc_input, &
                              cellSolveThreadStart(thread),cellSolveThreadEnd(thread))
        enddo
 !$OMP END PARALLEL DO
-       call deallocate_seaice
+       call deallocate_seaice(block%configs)
+
+!$OMP PARALLEL DO
+       do thread=1,nThreads
+          call atmphys_sfc_diagnostics(block%configs,mesh,diag,diag_physics,sfc_input,output_noahmp, &
+                           cellSolveThreadStart(thread),cellSolveThreadEnd(thread))
+       enddo
+!$OMP END PARALLEL DO
     endif
 
     !call to pbl schemes:
@@ -321,14 +331,14 @@
 
     !call to gravity wave drag over orography scheme:
     if(config_gwdo_scheme .ne. 'off') then
-       call allocate_gwdo
+       call allocate_gwdo(block%configs)
 !$OMP PARALLEL DO
        do thread=1,nThreads
-          call driver_gwdo(itimestep,block%configs,mesh,sfc_input,diag_physics,tend_physics, &
-                           cellSolveThreadStart(thread),cellSolveThreadEnd(thread))
+          call driver_gwdo(itimestep,block%configs,mesh,sfc_input,ngw_input,diag_physics,       &
+                           tend_physics,cellSolveThreadStart(thread),cellSolveThreadEnd(thread))
        end do
 !$OMP END PARALLEL DO
-       call deallocate_gwdo
+       call deallocate_gwdo(block%configs)
     endif
 
     !call to convection scheme:

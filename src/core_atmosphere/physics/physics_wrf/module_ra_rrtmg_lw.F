@@ -2079,7 +2079,7 @@ contains
 
       use parkind, only : im => kind_im, rb => kind_rb
       use parrrtm, only : nbndlw, ngptlw
-      use rrlw_con, only: grav
+      use rrlw_con, only: grav, pi
       use rrlw_wvn, only: ngb
       use rrlw_vsn
 
@@ -2093,10 +2093,13 @@ contains
 !------------------------------------------------------------------
 ! Public subroutines
 !------------------------------------------------------------------
-
+! mji - Add height needed for exponential and exponential-random cloud overlap methods
+!       (icld=4 and 5, respectively) along with idcor, juldat and lat used to specify
+!       the decorrelation length for these methods
       subroutine mcica_subcol_lw(iplon, ncol, nlay, icld, permuteseed, irng, play, &
-                       cldfrac, ciwp, clwp, cswp, rei, rel, res, tauc, cldfmcl, &
-                       ciwpmcl, clwpmcl, cswpmcl, reicmcl, relqmcl, resnmcl, taucmcl)
+                       cldfrac, ciwp, clwp, cswp, rei, rel, res, tauc, &
+                       hgt, idcor, juldat, lat, &
+                       cldfmcl, ciwpmcl, clwpmcl, cswpmcl, reicmcl, relqmcl, resnmcl, taucmcl)
 
 ! ----- Input -----
 ! Control
@@ -2114,6 +2117,9 @@ contains
 
 ! Atmosphere
       real(kind=rb), intent(in) :: play(:,:)          ! layer pressures (mb) 
+                                                      !    Dimensions: (ncol,nlay)
+
+      real(kind=rb), intent(in) :: hgt(:,:)           ! layer height (m)
                                                       !    Dimensions: (ncol,nlay)
 
 ! Atmosphere/clouds - cldprop
@@ -2137,6 +2143,9 @@ contains
                                                       !    Dimensions: (ncol,nlay)
       real(kind=rb), intent(in) :: res(:,:)           ! snow particle size
                                                       !    Dimensions: (ncol,nlay)
+      integer(kind=im), intent(in) :: idcor           ! Decorrelation length type
+      integer(kind=im), intent(in) :: juldat          ! Julian date (day of year, 1-365)
+      real(kind=rb),    intent(in) :: lat             ! latitude (degrees, -90 to 90)
 
 ! ----- Output -----
 ! Atmosphere/clouds - cldprmc [mcica]
@@ -2172,10 +2181,18 @@ contains
 !      real(kind=rb) :: qi(ncol, nlay)                ! ice water (specific humidity)
 !      real(kind=rb) :: ql(ncol, nlay)                ! liq water (specific humidity)
 
+! MJI - For latitude dependent decorrelation length
+       real(kind=rb), parameter :: am1 = 1.4315_rb
+       real(kind=rb), parameter :: am2 = 2.1219_rb
+       real(kind=rb), parameter :: am4 = -25.584_rb
+       real(kind=rb), parameter :: amr = 7._rb
+       real(kind=rb) :: am3
+       real(kind=rb) :: decorr_len(ncol)                  ! decorrelation length (meters)
+       real(kind=rb), parameter :: Zo_default = 2500._rb  ! default constant decorrelation length (m)
 
 ! Return if clear sky; or stop if icld out of range
       if (icld.eq.0) return
-      if (icld.lt.0.or.icld.gt.3) then 
+      if (icld.lt.0.or.icld.gt.5) then
          stop 'MCICA_SUBCOL: INVALID ICLD'
       endif 
 
@@ -2205,8 +2222,27 @@ contains
 !         ql(ilev) = (clwp(ilev) * grav) / (pdel(ilev) * 1000._rb)
 !      enddo
 
+! MJI - Latitude and day of year dependent decorrelation length
+      if (idcor .eq. 1) then
+! Derive decorrelation length based on day of year and latitude (from NASA GMAO method)
+! Result is in meters
+         if (juldat .gt. 181) then
+            am3 = -4._rb * amr / 365._rb * (juldat-272)
+         else
+            am3 = 4._rb * amr / 365._rb * (juldat-91)
+         endif
+! Latitude in radians, decorrelation length in meters
+!         decorr_len(:) = ( am1 + am2 * exp(-(lat*180._rb/pi - am3)**2 / (am4*am4)) ) * 1.e3_rb
+! Latitude in degrees, decorrelation length in meters
+         decorr_len(:) = ( am1 + am2 * exp(-(lat - am3)**2 / (am4*am4)) ) * 1.e3_rb
+      else
+! Spatially and temporally constant decorrelation length
+         decorr_len(:) = Zo_default
+      endif
+
 !  Generate the stochastic subcolumns of cloud optical properties for the longwave;
       call generate_stochastic_clouds (ncol, nlay, nsubclw, icld, irng, pmid, cldfrac, clwp, ciwp, cswp, tauc, &
+                               hgt, decorr_len, &
                                cldfmcl, clwpmcl, ciwpmcl, cswpmcl, taucmcl, permuteseed)
 
       end subroutine mcica_subcol_lw
@@ -2214,6 +2250,7 @@ contains
 
 !-------------------------------------------------------------------------------------------------
       subroutine generate_stochastic_clouds(ncol, nlay, nsubcol, icld, irng, pmid, cld, clwp, ciwp, cswp, tauc, &
+                                   hgt, decorr_len, &
                                    cld_stoch, clwp_stoch, ciwp_stoch, cswp_stoch, tauc_stoch, changeSeed) 
 !-------------------------------------------------------------------------------------------------
 
@@ -2223,10 +2260,13 @@ contains
   ! 
   ! Original code: Based on Raisanen et al., QJRMS, 2004.
   ! 
-  ! Modifications: Generalized for use with RRTMG and added Mersenne Twister as the default
+  ! Modifications:
+  !   1) Generalized for use with RRTMG and added Mersenne Twister as the default
   !   random number generator, which can be changed to the optional kissvec random number generator
   !   with flag 'irng'. Some extra functionality has been commented or removed.  
   !   Michael J. Iacono, AER, Inc., February 2007
+  !   2) Activated exponential and exponential/random cloud overlap method
+  !   Michael J. Iacono, AER, November 2017
   !
   ! Given a profile of cloud fraction, cloud water and cloud ice, we produce a set of subcolumns.
   ! Each layer within each subcolumn is homogeneous, with cloud fraction equal to zero or one 
@@ -2235,12 +2275,11 @@ contains
   ! and obeys an overlap assumption in the vertical.   
   ! 
   ! Overlap assumption:
-  !  The cloud are consistent with 4 overlap assumptions: random, maximum, maximum-random and exponential. 
-  !  The default option is maximum-random (option 3)
-  !  The options are: 1=random overlap, 2=max/random, 3=maximum overlap, 4=exponential overlap
-  !  This is set with the variable "overlap" 
-  !mji - Exponential overlap option (overlap=4) has been deactivated in this version
-  !  The exponential overlap uses also a length scale, Zo. (real,    parameter  :: Zo = 2500. ) 
+  !  The cloud are consistent with 5 overlap assumptions: random, maximum, maximum-random, exponential and exponential random.
+  !  The default option is maximum-random (option 2)
+  !  The options are: 1=random overlap, 2=max/random, 3=maximum overlap, 4=exponential overlap, 5=exp/random
+  !  This is set with the variable "overlap"
+  !  The exponential overlap uses also a length scale, Zo. (real,    parameter  :: Zo = 2500. )
   ! 
   ! Seed:
   !  If the stochastic cloud generator is called several times during the same timestep, 
@@ -2292,6 +2331,8 @@ contains
 ! Column state (cloud fraction, cloud water, cloud ice) + variables needed to read physics state 
       real(kind=rb), intent(in) :: pmid(:,:)          ! layer pressure (Pa)
                                                       !    Dimensions: (ncol,nlay)
+      real(kind=rb), intent(in) :: hgt(:,:)           ! layer height (m)
+                                                      !    Dimensions: (ncol,nlay)
       real(kind=rb), intent(in) :: cld(:,:)           ! cloud fraction 
                                                       !    Dimensions: (ncol,nlay)
       real(kind=rb), intent(in) :: clwp(:,:)          ! in-cloud liquid water path
@@ -2308,6 +2349,8 @@ contains
 !      real(kind=rb), intent(in) :: asmc(:,:,:)       ! in-cloud asymmetry parameter
                                                       !    Dimensions: (nbndlw,ncol,nlay)
                                                       !   inactive - for future expansion
+      real(kind=rb), intent(in) :: decorr_len(:)      ! decorrelation length (meters)
+                                                      !    Dimensions: (ncol)
 
       real(kind=rb), intent(out) :: cld_stoch(:,:,:)  ! subcolumn cloud fraction 
                                                       !    Dimensions: (ngptlw,ncol,nlay)
@@ -2338,11 +2381,11 @@ contains
 !      real(kind=rb) :: mean_asmc_stoch(ncol, nlay)   ! cloud asymmetry parameter
 
 ! Set overlap
-      integer(kind=im) :: overlap                     ! 1 = random overlap, 2 = maximum/random,
-                                                      ! 3 = maximum overlap, 
-!      real(kind=rb), parameter  :: Zo = 2500._rb        ! length scale (m) 
-!      real(kind=rb) :: zm(ncol,nlay)                 ! Height of midpoints (above surface)
-!      real(kind=rb), dimension(nlay) :: alpha=0.0_rb    ! overlap parameter  
+      integer(kind=im) :: overlap                     ! 1 = random overlap, 2 = maximum-random,
+                                                      ! 3 = maximum overlap, 4 = exponential,
+                                                      ! 5 = exponential-random
+      real(kind=rb)                   :: Zo_inv(ncol) ! inverse of decorrelation length scale (m)
+      real(kind=rb), dimension(ncol,nlay) :: alpha    ! overlap parameter
 
 ! Constants (min value for cloud fraction and cloud water and ice)
       real(kind=rb), parameter :: cldmin = 1.0e-20_rb ! min cloud fraction
@@ -2368,6 +2411,7 @@ contains
 
 ! Pass input cloud overlap setting to local variable
       overlap = icld
+      Zo_inv(:) = 1._rb / decorr_len(:)
 
 ! Ensure that cloud fractions are in bounds 
       do ilev = 1, nlay
@@ -2489,39 +2533,106 @@ contains
              enddo
          endif
 
-!    case(4) - inactive
-!       ! Exponential overlap: weighting between maximum and random overlap increases with the distance. 
-!       ! The random numbers for exponential overlap verify:
-!       ! j=1   RAN(j)=RND1
-!       ! j>1   if RND1 < alpha(j,j-1) => RAN(j) = RAN(j-1)
-!       !                                 RAN(j) = RND2
-!       ! alpha is obtained from the equation
-!       ! alpha = exp(- (Zi-Zj-1)/Zo) where Zo is a characteristic length scale    
+        case(4)
+            ! Exponential overlap: transition from maximum to random cloud overlap increases
+            ! exponentially with layer thickness and distance through layers
+            !
+            ! The random numbers for exponential overlap verify:
+            ! j=1   RAN(j)=RND1
+            ! j>1   if RND1 < alpha(j,j-1) => RAN(j) = RAN(j-1)
+            !                                 RAN(j) = RND2
+            ! alpha is obtained from the equation
+            ! alpha = exp(-(Z(j)-Z(j-1))/Zo) where Zo is a characteristic length scale
 
+            ! compute alpha
+            ! todo - need to permute this loop after adding vectorized expf() function
+            do i = 1, ncol
+               alpha(i, 1) = 0._rb
+               do ilev = 2,nlay
+                  alpha(i, ilev) = exp( -(hgt(i,ilev) - hgt(i,ilev-1)) * Zo_inv(i))
+               enddo
+            enddo
 
-!       ! compute alpha
-!       zm    = state%zm     
-!       alpha(:, 1) = 0.
-!       do ilev = 2,nlay
-!          alpha(:, ilev) = exp( -( zm (:, ilev-1) -  zm (:, ilev)) / Zo)
-!       end do
+            ! generate 2 streams of random numbers
+            if (irng.eq.0) then
+               do isubcol = 1,nsubcol
+                  do ilev = 1,nlay
+                     call kissvec(seed1, seed2, seed3, seed4, rand_num)
+                     CDF(isubcol, :, ilev) = rand_num
+                     call kissvec(seed1, seed2, seed3, seed4, rand_num)
+                     CDF2(isubcol, :, ilev) = rand_num
+                  enddo
+               enddo
+            elseif (irng.eq.1) then
+               do isubcol = 1, nsubcol
+                  do i = 1, ncol
+                     do ilev = 1, nlay
+                        rand_num_mt = getRandomReal(randomNumbers)
+                        CDF(isubcol,i,ilev) = rand_num_mt
+                        rand_num_mt = getRandomReal(randomNumbers)
+                        CDF2(isubcol,i,ilev) = rand_num_mt
+                     enddo
+                  enddo
+               enddo
+            endif
+
+            ! generate random numbers
+            do ilev = 2,nlay
+               where (CDF2(:, :, ilev) < spread(alpha (:,ilev), dim=1, nCopies=nsubcol) )
+                  CDF(:,:,ilev) = CDF(:,:,ilev-1)
+               end where
+            end do
+
+         case(5)
+       ! Exponential_Random overlap: transition from maximum to random cloud overlap increases
+       ! exponentially with layer thickness and with distance through adjacent cloudy layers.
+       ! Non-adjacent blocks of clouds are treated randomly, and each block begins a new
+       ! exponential transition from maximum to random.
+       !
+       ! compute alpha: bottom to top
+       ! - set alpha to 0 in bottom layer (no layer below for correlation)
+       do i = 1, ncol
+          alpha(i, 1) = 0._rb
+          do ilev = 2,nlay
+             alpha(i, ilev) = exp( -(hgt(i,ilev) - hgt(i,ilev-1) ) * Zo_inv(i))
+          ! Decorrelate layers when clear layer follows a cloudy layer to enforce
+          ! random correlation between non-adjacent cloudy layers
+             if (cldf(i,ilev) .eq. 0.0_rb .and. cldf(i,ilev-1) .gt. 0.0_rb) then
+                alpha(i,ilev) = 0.0_rb
+             endif
+          end do
+       end do
        
-!       ! generate 2 streams of random numbers
-!       do isubcol = 1,nsubcol
-!          do ilev = 1,nlay
-!             call kissvec(seed1, seed2, seed3, seed4, rand_num)
-!             CDF(isubcol, :, ilev) = rand_num
-!             call kissvec(seed1, seed2, seed3, seed4, rand_num)
-!             CDF2(isubcol, :, ilev) = rand_num
-!          end do
-!       end do
-
-!       ! generate random numbers
-!       do ilev = 2,nlay
-!          where (CDF2(:, :, ilev) < spread(alpha (:,ilev), dim=1, nCopies=nsubcol) )
-!             CDF(:,:,ilev) = CDF(:,:,ilev-1) 
-!          end where
-!       end do
+       ! generate 2 streams of random numbers
+       ! CDF2 is used to select which sub-columns are vertically correlated relative to alpha
+       ! CDF  is used to select which sub-columns are treated as cloudy relative to cloud fraction
+       if (irng.eq.0) then
+          do isubcol = 1,nsubcol
+             do ilev = 1,nlay
+                call kissvec(seed1, seed2, seed3, seed4, rand_num)
+                CDF(isubcol, :, ilev) = rand_num
+                call kissvec(seed1, seed2, seed3, seed4, rand_num)
+                CDF2(isubcol, :, ilev) = rand_num
+             end do
+          end do
+       elseif (irng.eq.1) then
+          do isubcol = 1, nsubcol
+             do i = 1, ncol
+                do ilev = 1,nlay
+                   rand_num_mt = getRandomReal(randomNumbers)
+                   CDF(isubcol,i,ilev) = rand_num_mt
+                   rand_num_mt = getRandomReal(randomNumbers)
+                   CDF2(isubcol,i,ilev) = rand_num_mt
+                enddo
+             enddo
+          enddo
+       endif
+       ! generate vertical correlations in random number arrays - bottom to top
+       do ilev = 2,nlay
+          where (CDF2(:, :, ilev) < spread(alpha (:,ilev), dim=1, nCopies=nsubcol) )
+             CDF(:,:,ilev) = CDF(:,:,ilev-1)
+          end where
+       end do
 
       end select
 
@@ -2634,14 +2745,8 @@ contains
 !
       module rrtmg_lw_cldprmc
 
-#if defined(mpas)
  use mpas_atmphys_utilities,only: physics_error_fatal
 #define FATAL_ERROR(M) call physics_error_fatal( M )
-#else
-use module_wrf_error
-#define FATAL_ERROR(M) call wrf_error_fatal( M )
-#endif
-
 
 !  --------------------------------------------------------------------------
 ! |                                                                          |
@@ -3187,6 +3292,7 @@ use module_wrf_error
          icldlyr(lay) = 0
 
 ! Change to band loop?
+! todo permute, remove condition, vectorize expf
          do ig = 1, ngptlw
             if (cldfmc(ig,lay) .eq. 1._rb) then
                ib = ngb(ig)
@@ -4947,9 +5053,9 @@ use module_wrf_error
 
 ! ----- Output -----
       real(kind=rb), intent(out) :: fracs(:,:)        ! planck fractions
-                                                      !    Dimensions: (nlayers+1,ngptlw)
+                                                      !    Dimensions: (nlayers,ngptlw)
       real(kind=rb), intent(out) :: taug(:,:)         ! gaseous optical depth 
-                                                      !    Dimensions: (nlayers+1,ngptlw)
+                                                      !    Dimensions: (nlayers,ngptlw)
 
 !jm not thread safe      hvrtau = '$Revision: 1.7 $'
 
@@ -6001,10 +6107,12 @@ use module_wrf_error
 
 ! ------- Modules -------
 
-      use parrrtm, only : ng6, ngs5
+      use parrrtm, only : ngs5
+!     use parrrtm, only : ng6, ngs5
       use rrlw_ref, only : chi_mls
-      use rrlw_kg06, only : fracrefa, absa, ka, ka_mco2, &
-                            selfref, forref, cfc11adj, cfc12
+      use rrlw_kg06
+!     use rrlw_kg06, only : fracrefa, absa, ka, ka_mco2, &
+!                           selfref, forref, cfc11adj, cfc12
 
 ! ------- Declarations -------
 
@@ -8779,11 +8887,13 @@ use module_wrf_error
 ! old band 6:  820-980 cm-1 (low - h2o; high - nothing)
 !***************************************************************************
 
-      use parrrtm, only : mg, nbndlw, ngptlw, ng6
-      use rrlw_kg06, only: fracrefao, kao, kao_mco2, cfc11adjo, cfc12o, &
-                           selfrefo, forrefo, &
-                           fracrefa, absa, ka, ka_mco2, cfc11adj, cfc12, &
-                           selfref, forref
+      use parrrtm, only : mg, nbndlw, ngptlw
+!     use parrrtm, only : mg, nbndlw, ngptlw, ng6
+      use rrlw_kg06
+!     use rrlw_kg06, only: fracrefao, kao, kao_mco2, cfc11adjo, cfc12o, &
+!                          selfrefo, forrefo, &
+!                          fracrefa, absa, ka, ka_mco2, cfc11adj, cfc12, &
+!                          selfref, forref
 
 ! ------- Local -------
       integer(kind=im) :: jt, jp, igc, ipr, iprsm 
@@ -10600,7 +10710,8 @@ use module_wrf_error
              inflglw ,iceflglw,liqflglw,cldfmcl , &
              taucmcl ,ciwpmcl ,clwpmcl , cswpmcl ,reicmcl ,relqmcl , resnmcl , &
              tauaer  , &
-             uflx    ,dflx    ,hr      ,uflxc   ,dflxc,  hrc)
+             uflx    ,dflx    ,hr      ,uflxc   ,dflxc,  hrc, &
+             uflxcln ,dflxcln, calc_clean_atm_diag )
 
 ! -------- Description --------
 
@@ -10699,6 +10810,8 @@ use module_wrf_error
                                                       !    1: Random
                                                       !    2: Maximum/random
                                                       !    3: Maximum
+                                                      !    4: Exponential
+                                                      !    5: Exponential/random
       real(kind=rb), intent(in) :: play(:,:)          ! Layer pressures (hPa, mb)
                                                       !    Dimensions: (ncol,nlay)
       real(kind=rb), intent(in) :: plev(:,:)          ! Interface pressures (hPa, mb)
@@ -10781,6 +10894,7 @@ use module_wrf_error
                                                       !    Dimensions: (ncol,nlay,nbndlw)
                                                       !   for future expansion 
                                                       !   (lw aerosols/scattering not yet available)
+      integer, intent(in) :: calc_clean_atm_diag      ! Control for clean air diagnositic calls for WRF-Chem
 
 ! ----- Output -----
 
@@ -10796,6 +10910,10 @@ use module_wrf_error
                                                       !    Dimensions: (ncol,nlay+1)
       real(kind=rb), intent(out) :: hrc(:,:)          ! Clear sky longwave radiative heating rate (K/d)
                                                       !    Dimensions: (ncol,nlay)
+      real(kind=rb), intent(out) :: uflxcln(:,:)      ! Clean sky longwave upward flux (W/m2)
+                                                      !    Dimensions: (ncol,nlay+1)
+      real(kind=rb), intent(out) :: dflxcln(:,:)      ! Clean sky longwave downward flux (W/m2)
+                                                      !    Dimensions: (ncol,nlay+1)
 
 ! ----- Local -----
 
@@ -10907,6 +11025,10 @@ use module_wrf_error
       real(kind=rb) :: totdclfl(0:nlay+1)     ! clear sky downward longwave flux (w/m2)
       real(kind=rb) :: fnetc(0:nlay+1)        ! clear sky net longwave flux (w/m2)
       real(kind=rb) :: htrc(0:nlay+1)         ! clear sky longwave heating rate (k/day)
+      real(kind=rb) :: totuclnlfl(0:nlay+1)   ! clean sky upward longwave flux (w/m2)
+      real(kind=rb) :: totdclnlfl(0:nlay+1)   ! clean sky downward longwave flux (w/m2)
+      real(kind=rb) :: fnetcln(0:nlay+1)      ! clean sky net longwave flux (w/m2)
+      real(kind=rb) :: htrcln(0:nlay+1)       ! clean sky longwave heating rate (k/day)
 
 !
 ! Initializations
@@ -10930,7 +11052,8 @@ use module_wrf_error
 ! icld = 1, with clouds using random cloud overlap
 ! icld = 2, with clouds using maximum/random cloud overlap
 ! icld = 3, with clouds using maximum cloud overlap (McICA only)
-      if (icld.lt.0.or.icld.gt.3) icld = 2
+! icld = 4, with clouds using exponential cloud overlap (McICA only)
+! icld = 5, with clouds using exponential/random cloud overlap (McICA only)
 
 ! Set iaer to select aerosol option
 ! iaer = 0, no aerosols
@@ -11021,6 +11144,29 @@ use module_wrf_error
 ! to be used.  Clear sky calculation is done simultaneously.
 ! For McICA, RTRNMC is called for clear and cloudy calculations.
 
+#if (WRF_CHEM == 1)
+        ! Call the radiative transfer routine for "clean" sky first,
+        ! passing taug rather than taut so we have no aerosol influence.
+        ! We will keep totuclnlfl, totdclnlfl, fnetcln, and htrcln,
+        ! and then overwrite the rest with the second call to rtrnmc.
+         if(calc_clean_atm_diag .gt. 0)then
+             call rtrnmc(nlayers, istart, iend, iout, pz, semiss, ncbands, &
+                     cldfmc, taucmc, planklay, planklev, plankbnd, &
+                     pwvcm, fracs, taug, &
+                     totuclnlfl, totdclnlfl, fnetcln, htrcln, &
+                     totuclfl, totdclfl, fnetc, htrc )
+         else
+            do k = 0, nlayers
+                totuclnlfl(k) = 0.0
+                totdclnlfl(k) = 0.0
+            end do
+         end if
+#else
+         do k = 0, nlayers
+            totuclnlfl(k) = 0.0
+            totdclnlfl(k) = 0.0
+         end do
+#endif
          call rtrnmc(nlayers, istart, iend, iout, pz, semiss, ncbands, &
                      cldfmc, taucmc, planklay, planklev, plankbnd, &
                      pwvcm, fracs, taut, &
@@ -11035,6 +11181,8 @@ use module_wrf_error
             dflx(iplon,k+1) = totdflux(k)
             uflxc(iplon,k+1) = totuclfl(k)
             dflxc(iplon,k+1) = totdclfl(k)
+            uflxcln(iplon,k+1) = totuclnlfl(k)
+            dflxcln(iplon,k+1) = totdclnlfl(k)
          enddo
          do k = 0, nlayers-1
             hr(iplon,k+1) = htr(k)
@@ -11388,55 +11536,8 @@ use module_wrf_error
 
 !------------------------------------------------------------------
 MODULE module_ra_rrtmg_lw
-
-#if defined(mpas)
-!MPAS specific (Laura D. Fowler):
 use mpas_atmphys_constants,only : cp,g=>gravity
 use module_ra_rrtmg_vinterp,only: vinterp_ozn
-
-!> add-ons and modifications to sourcecode:
-!> ----------------------------------------
-!>    * updated the sourcecode to WRF revision 3.5, except for the implementation
-!>      of time-varying trace gases: added multiple layers above the model-top
-!>      following Cavalo et al. (2010). added option to use the ozone climatology
-!>      from the CAM radiation codes.
-!>      Laura D. Fowler (birch.mmm.ucar.edu) / 2013-07-17.
-!>    * in subroutine taugb7, corrected line number 6145 "if (specparm .lt. 0.125_rb) then"
-!>      with if (specparm1 .lt. 0.125_rb) then, in accordance with the bug fix made in WRF
-!>      revision 3.7.
-!>      Laura D. Fowler (birch.mmm.ucar.edu) / 2015-05-04.
-!>    * at the bottom of subroutine rrtmg_lwrad, changed the definition of the arrays lwupt,lwuptc,
-!>      lwdnt,and lwdntc so that they are now defined at the top-of-the-atmosphere.
-!>      Laura D. Fowler (laura@ucar.edu) / 2016-06-23.
-!>    * cleaned-up the subroutine rrtmg_lwrad in preparation for the implementation of the calculation of the
-!>      cloud optical properties when the effective radii for cloud water, cloud ice, and snow are provided by
-!>      the cloud microphysics schemes (note that for now, only the Thompson cloud microphysics scheme has the
-!>      option to calculate cloud radii). With the -g option, results are exactly the same as the original
-!>      subroutine.
-!>      Laura D. Fowler (laura@ucar.edu) / 2016-06-30.
-!>    * updated module_ra_rrtmg_lw.F using module_ra_rrtmg_lw.F from WRF version 3.8, namely to update the
-!>      calculation of the cloud optical properties to include the radiative effect of snow.
-!>      Laura D. Fowler (laura@ucar.edu / 2016-07-05).
-!>    * added the effective radii for cloud water, cloud ice, and snow calculated in the Thompson cloud
-!>      microphysics scheme as inputs to the subroutine rrtmg_lwrad. revised the initialization of arrays rel,
-!>      rei, and res, accordingly.
-!>      Laura D. Fowler (laura@ucar.edu) / 2016-07-07.
-!>    * added diagnostics of the effective radii for cloud water, cloud ice, and snow used in rrtmg_lwrad.
-!>      Laura D. Fowler (laura@ucar.edu) / 2016-07-08.
-
-!MPAS specific end.
-
-#else
-use module_model_constants, only : cp
-use module_wrf_error
-#define FATAL_ERROR(M) call wrf_error_fatal( M )
-#if (HWRF == 1)
-   USE module_state_description, ONLY : FER_MP_HIRES, FER_MP_HIRES_ADVECT, ETAMP_HWRF 
-#else
-   USE module_state_description, ONLY : FER_MP_HIRES, FER_MP_HIRES_ADVECT
-#endif
-!use module_dm
-#endif
 
 use parrrtm, only : nbndlw, ngptlw
 use rrtmg_lw_init, only: rrtmg_lw_ini
@@ -11463,10 +11564,8 @@ use mcica_subcol_gen_lw, only: mcica_subcol_lw
          205.728, 214.055, 222.694, 231.661, 240.971, 250.639/  
     !
     save retab
-#if !defined(mpas)
     ! For buffer layer adjustment.  Steven Cavallo, Dec 2010.
     integer , save    :: nlayers    
-#endif
     real, PARAMETER :: deltap = 4.  ! Pressure interval for buffer layer in mb
     
 CONTAINS
@@ -11475,7 +11574,8 @@ CONTAINS
  subroutine rrtmg_lwrad( &
                        p3d,p8w,pi3d,t3d,t8w,dz8w,qv3d,qc3d,qr3d,  &
                        qi3d,qs3d,qg3d,cldfra3d,o33d,tsk,emiss,    &
-                       xland,xice,snow,icloud,o3input,noznlevels, &
+                       xland,xice,snow,xlat,julday,icloud,        &
+                       cldovrlp,idcor,o3input,noznlevels,         &
                        pin,o3clim,glw,olr,lwcf,rthratenlw,        &
                        has_reqc,has_reqi,has_reqs,re_cloud,       &
                        re_ice,re_snow,rre_cloud,rre_ice,rre_snow, &
@@ -11495,10 +11595,13 @@ CONTAINS
  integer,intent(in):: ids,ide, jds,jde, kds,kde, &
                       ims,ime, jms,jme, kms,kme, &
                       its,ite, jts,jte, kts,kte
- integer,intent(in):: icloud,has_reqc,has_reqi,has_reqs
+ integer,intent(in):: julday
+ integer,intent(in):: icloud,cldovrlp,idcor
+ integer,intent(in):: has_reqc,has_reqi,has_reqs
  integer,intent(in),optional:: o3input
 
- real,intent(in),dimension(ims:ime,jms:jme):: emiss,tsk,snow,xice,xland
+ real,intent(in),dimension(ims:ime,jms:jme):: emiss,tsk,snow,xice,xland,xlat
+
  real,intent(in),dimension(ims:ime,kms:kme,jms:jme):: t3d,p3d,pi3d
  real,intent(in),dimension(ims:ime,kms:kme,jms:jme):: dz8w,p8w,t8w
 
@@ -11525,6 +11628,7 @@ CONTAINS
      lwupflx,lwupflxc,lwdnflx,lwdnflxc
 
 !local variables and arrays:
+ integer:: calc_clean_atm_diag
  integer:: nb,ncol,nlay,icld,inflglw,iceflglw,liqflglw
  integer:: iplon,irng,permuteseed
  integer:: pcols,pver
@@ -11535,6 +11639,7 @@ CONTAINS
  real:: corr
  real:: gliqwp,gicewp,gsnowp,gravmks
  real:: snow_mass_factor
+ real:: dzsum,lat
  real,dimension(1):: tsfc,landfrac,landm,snowh,icefrac
  real,dimension(1,1:kte-kts+1):: pdel,cliqwp,cicewp,csnowp,reliq,reice,resnow
  real,dimension(1,nbndlw):: emis
@@ -11549,9 +11654,10 @@ CONTAINS
 
  real,dimension(:),allocatable:: o3mmr,varint
  real,dimension(:,:),allocatable:: &
-    plev,tlev,play,tlay,h2ovmr,o3vmr,co2vmr,o2vmr,ch4vmr,n2ovmr,cfc11vmr,  &
+    plev,tlev,play,hlay,tlay,h2ovmr,o3vmr,co2vmr,o2vmr,ch4vmr,n2ovmr,cfc11vmr,  &
     cfc12vmr,cfc22vmr,ccl4vmr,clwpth,ciwpth,cswpth,rel,rei,res,cldfrac,relqmcl,reicmcl,resnmcl
  real,dimension(:,:),allocatable:: uflx,dflx,uflxc,dflxc,hr,hrc
+ real,dimension(:,:),allocatable:: uflxcln,dflxcln
  real,dimension(:,:,:),allocatable:: taucld,cldfmcl,clwpmcl,ciwpmcl,cswpmcl,taucmcl,tauaer
 
 !--- additional local variables and arrays needed for the CAM ozone climatologyL
@@ -11643,17 +11749,26 @@ CONTAINS
 !--- all fields are ordered vertically from bottom to top (pressures are in mb):
  ncol = 1
 
+!--- select cloud overlap asumption (1=random, 2=maximum-random, 3=maximum, 4=exponential, 5=exponential-random).
+!    assign namlist variable cldovrlp to existing icld:
+ icld = cldovrlp
+
 !--- initialize option for the calculation of the cloud optical properties:
- icld     = 2 ! with clouds using maximum/random cloud overlap in subroutine mcica_subcol_lw. 
  inflglw  = 2
  iceflglw = 3
  liqflglw = 1
+
+!--- initialize option for the calculation of clean air upward and downward fluxes:
+ calc_clean_atm_diag = 0
 
 !--- latitude loop:
  j_loop: do j = jts,jte
 
 !--- longitude loop:
     i_loop: do i = its,ite
+
+       !--- initialize local latitude:
+       lat = xlat(i,j)
 
        !--- set surface emissivity in each RRTMG longwave band:
        do nb = 1, nbndlw
@@ -11708,38 +11823,41 @@ CONTAINS
        mpas_nlay(i,j) = nlayers-kte
 !      write(0,101) j,i,kme,kte,nlayers,mpas_nlay(i,j),pw1d(kte+1),pw1d(kte+1)-mpas_nlay(i,j)*deltap
 !      101 format(6i9,3(1x,f9.4))
-       if(.not.allocated(o3mmr)   ) allocate(o3mmr(kts:nlayers)     )
-       if(.not.allocated(varint)  ) allocate(varint(kts:nlayers+1)  )
-       if(.not.allocated(plev)    ) allocate(plev(1,kts:nlayers+1)  )
-       if(.not.allocated(tlev)    ) allocate(tlev(1,kts:nlayers+1)  )
-       if(.not.allocated(play)    ) allocate(play(1,kts:nlayers)    )
-       if(.not.allocated(tlay)    ) allocate(tlay(1,kts:nlayers)    )
-       if(.not.allocated(h2ovmr)  ) allocate(h2ovmr(1,kts:nlayers)  )
-       if(.not.allocated(o3vmr)   ) allocate(o3vmr(1,kts:nlayers)   )
-       if(.not.allocated(co2vmr)  ) allocate(co2vmr(1,kts:nlayers)  )
-       if(.not.allocated(o2vmr)   ) allocate(o2vmr(1,kts:nlayers)   )
-       if(.not.allocated(ch4vmr)  ) allocate(ch4vmr(1,kts:nlayers)  )
-       if(.not.allocated(n2ovmr)  ) allocate(n2ovmr(1,kts:nlayers)  )
-       if(.not.allocated(cfc11vmr)) allocate(cfc11vmr(1,kts:nlayers))
-       if(.not.allocated(cfc12vmr)) allocate(cfc12vmr(1,kts:nlayers))
-       if(.not.allocated(cfc22vmr)) allocate(cfc22vmr(1,kts:nlayers))
-       if(.not.allocated(ccl4vmr) ) allocate(ccl4vmr(1,kts:nlayers) )
-       if(.not.allocated(clwpth)  ) allocate(clwpth(1,kts:nlayers)  )
-       if(.not.allocated(ciwpth)  ) allocate(ciwpth(1,kts:nlayers)  )
-       if(.not.allocated(cswpth)  ) allocate(cswpth(1,kts:nlayers)  )
-       if(.not.allocated(rel)     ) allocate(rel(1,kts:nlayers)     )
-       if(.not.allocated(rei)     ) allocate(rei(1,kts:nlayers)     )
-       if(.not.allocated(res)     ) allocate(res(1,kts:nlayers)     )
-       if(.not.allocated(cldfrac) ) allocate(cldfrac(1,kts:nlayers) )
-       if(.not.allocated(relqmcl) ) allocate(relqmcl(1,kts:nlayers) )
-       if(.not.allocated(reicmcl) ) allocate(reicmcl(1,kts:nlayers) )
-       if(.not.allocated(resnmcl) ) allocate(resnmcl(1,kts:nlayers) )
-       if(.not.allocated(uflx)    ) allocate(uflx(1,kts:nlayers+1)  )
-       if(.not.allocated(dflx)    ) allocate(dflx(1,kts:nlayers+1)  )
-       if(.not.allocated(uflxc)   ) allocate(uflxc(1,kts:nlayers+1) )
-       if(.not.allocated(dflxc)   ) allocate(dflxc(1,kts:nlayers+1) )
-       if(.not.allocated(hr)      ) allocate(hr(1,kts:nlayers)      )
-       if(.not.allocated(hrc)     ) allocate(hrc(1,kts:nlayers)     )
+       if(.not.allocated(o3mmr)   ) allocate(o3mmr(kts:nlayers)      )
+       if(.not.allocated(varint)  ) allocate(varint(kts:nlayers+1)   )
+       if(.not.allocated(plev)    ) allocate(plev(1,kts:nlayers+1)   )
+       if(.not.allocated(tlev)    ) allocate(tlev(1,kts:nlayers+1)   )
+       if(.not.allocated(play)    ) allocate(play(1,kts:nlayers)     )
+       if(.not.allocated(hlay)    ) allocate(hlay(1,kts:nlayers)     )
+       if(.not.allocated(tlay)    ) allocate(tlay(1,kts:nlayers)     )
+       if(.not.allocated(h2ovmr)  ) allocate(h2ovmr(1,kts:nlayers)   )
+       if(.not.allocated(o3vmr)   ) allocate(o3vmr(1,kts:nlayers)    )
+       if(.not.allocated(co2vmr)  ) allocate(co2vmr(1,kts:nlayers)   )
+       if(.not.allocated(o2vmr)   ) allocate(o2vmr(1,kts:nlayers)    )
+       if(.not.allocated(ch4vmr)  ) allocate(ch4vmr(1,kts:nlayers)   )
+       if(.not.allocated(n2ovmr)  ) allocate(n2ovmr(1,kts:nlayers)   )
+       if(.not.allocated(cfc11vmr)) allocate(cfc11vmr(1,kts:nlayers) )
+       if(.not.allocated(cfc12vmr)) allocate(cfc12vmr(1,kts:nlayers) )
+       if(.not.allocated(cfc22vmr)) allocate(cfc22vmr(1,kts:nlayers) )
+       if(.not.allocated(ccl4vmr) ) allocate(ccl4vmr(1,kts:nlayers)  )
+       if(.not.allocated(clwpth)  ) allocate(clwpth(1,kts:nlayers)   )
+       if(.not.allocated(ciwpth)  ) allocate(ciwpth(1,kts:nlayers)   )
+       if(.not.allocated(cswpth)  ) allocate(cswpth(1,kts:nlayers)   )
+       if(.not.allocated(rel)     ) allocate(rel(1,kts:nlayers)      )
+       if(.not.allocated(rei)     ) allocate(rei(1,kts:nlayers)      )
+       if(.not.allocated(res)     ) allocate(res(1,kts:nlayers)      )
+       if(.not.allocated(cldfrac) ) allocate(cldfrac(1,kts:nlayers)  )
+       if(.not.allocated(relqmcl) ) allocate(relqmcl(1,kts:nlayers)  )
+       if(.not.allocated(reicmcl) ) allocate(reicmcl(1,kts:nlayers)  )
+       if(.not.allocated(resnmcl) ) allocate(resnmcl(1,kts:nlayers)  )
+       if(.not.allocated(uflx)    ) allocate(uflx(1,kts:nlayers+1)   )
+       if(.not.allocated(dflx)    ) allocate(dflx(1,kts:nlayers+1)   )
+       if(.not.allocated(uflxc)   ) allocate(uflxc(1,kts:nlayers+1)  )
+       if(.not.allocated(dflxc)   ) allocate(dflxc(1,kts:nlayers+1)  )
+       if(.not.allocated(uflxcln) ) allocate(uflxcln(1,kts:nlayers+1))
+       if(.not.allocated(dflxcln) ) allocate(dflxcln(1,kts:nlayers+1))
+       if(.not.allocated(hr)      ) allocate(hr(1,kts:nlayers)       )
+       if(.not.allocated(hrc)     ) allocate(hrc(1,kts:nlayers)      )
        if(.not.allocated(taucld)  ) allocate(taucld(nbndlw,1,kts:nlayers) )
        if(.not.allocated(cldfmcl) ) allocate(cldfmcl(ngptlw,1,kts:nlayers))         
        if(.not.allocated(clwpmcl) ) allocate(clwpmcl(ngptlw,1,kts:nlayers))
@@ -11777,6 +11895,8 @@ CONTAINS
              uflxc(n,k)   = 0.
              dflx(n,k)    = 0.
              dflxc(n,k)   = 0.
+             uflxcln(n,k) = 0.
+             dflxcln(n,k) = 0.
              hr(n,k)      = 0.
              hrc(n,k)     = 0.
              taucld(1:nbndlw,n,k)  = 0.
@@ -11787,10 +11907,12 @@ CONTAINS
              cswpmcl(1:ngptlw,n,k) = 0.
              taucmcl(1:ngptlw,n,k) = 0.
           enddo
-          uflx(n,nlayers+1)  = 0.
-          uflxc(n,nlayers+1) = 0.
-          dflx(n,nlayers+1)  = 0.
-          dflxc(n,nlayers+1) = 0.
+          uflx(n,nlayers+1)    = 0.
+          uflxc(n,nlayers+1)   = 0.
+          uflxcln(n,nlayers+1) = 0.
+          dflx(n,nlayers+1)    = 0.
+          dflxc(n,nlayers+1)   = 0.
+          dflxcln(n,nlayers+1) = 0.
        enddo
 
        !--- fill local arrays with input sounding. convert water vapor mass mixing ratio to volume mixing ratio:
@@ -11812,6 +11934,19 @@ CONTAINS
           cfc12vmr(ncol,k) = cfc12
           cfc22vmr(ncol,k) = cfc22
           ccl4vmr(ncol,k)  = ccl4
+       enddo
+
+       !--- compute height of each layer mid-point from layer thickness needed for icl=4 (exponential) and
+       !    icld=5 (exponential-random) overlap. fill in height array above model top using dz1d from top
+       !    layer:
+       dzsum = 0.
+       do k = kts, kte
+          hlay(ncol,k) = dzsum + 0.5*dz1d(k)
+          dzsum = dzsum + dz1d(k)
+       enddo
+       do k = kte+1,nlayers
+          hlay(ncol,k) = dzsum + 0.5*dz1d(kte)
+          dzsum = dzsum + dz1d(kte)
        enddo
 
        !--- the sourcecode below follows Steven Cavallo's method to "fill" the atmospheric layers between the
@@ -11872,7 +12007,7 @@ CONTAINS
           cfc12vmr(ncol,k) = cfc12vmr(ncol,kte) 
           cfc22vmr(ncol,k) = cfc22vmr(ncol,kte) 
           ccl4vmr(ncol,k)  = ccl4vmr(ncol,kte) 
-       enddo	 
+       enddo
 
        !--- initialize the ozone voume mixing ratio:
        call inirad(o3mmr,plev,kts,nlayers-1)
@@ -12038,7 +12173,7 @@ CONTAINS
              do nb = 1, nbndlw
                 taucld(nb,ncol,k) = 0.
              enddo
-          enddo	 
+          enddo
 
        endif
 
@@ -12050,8 +12185,8 @@ CONTAINS
        call mcica_subcol_lw &
                   (iplon   , ncol    , nlay    , icld    , permuteseed , irng    , play    , &
                    cldfrac , ciwpth  , clwpth  , cswpth  , rei         , rel     , res     , &
-                   taucld  , cldfmcl , ciwpmcl , clwpmcl , cswpmcl     , reicmcl , relqmcl , & 
-                   resnmcl , taucmcl)
+                   taucld  , hlay    , idcor   , julday  , lat         , cldfmcl , ciwpmcl , &
+                   clwpmcl , cswpmcl , reicmcl , relqmcl , resnmcl     , taucmcl)
 
        !--- initialization of aerosol optical depths:
        do nb = 1, nbndlw
@@ -12070,7 +12205,7 @@ CONTAINS
                    emis    , inflglw , iceflglw , liqflglw , cldfmcl  , taucmcl , & 
                    ciwpmcl , clwpmcl , cswpmcl  , reicmcl  , relqmcl  , resnmcl , &
                    tauaer  , uflx    , dflx     , hr       , uflxc    , dflxc   , &
-                   hrc)
+                   hrc     , uflxcln , dflxcln  , calc_clean_atm_diag)
 
 
 
@@ -12125,6 +12260,7 @@ CONTAINS
        if(allocated(plev)    ) deallocate(plev    )
        if(allocated(tlev)    ) deallocate(tlev    )
        if(allocated(play)    ) deallocate(play    )
+       if(allocated(hlay)    ) deallocate(hlay    )
        if(allocated(tlay)    ) deallocate(tlay    )
        if(allocated(h2ovmr)  ) deallocate(h2ovmr  )
        if(allocated(o3vmr)   ) deallocate(o3vmr   )
@@ -12150,6 +12286,8 @@ CONTAINS
        if(allocated(dflx)    ) deallocate(dflx    )
        if(allocated(uflxc)   ) deallocate(uflxc   )
        if(allocated(dflxc)   ) deallocate(dflxc   )
+       if(allocated(uflxcln) ) deallocate(uflxcln )
+       if(allocated(dflxcln) ) deallocate(dflxcln )
        if(allocated(hr)      ) deallocate(hr      )
        if(allocated(hrc)     ) deallocate(hrc     )
        if(allocated(taucld)  ) deallocate(taucld  )
@@ -12305,1578 +12443,7 @@ CONTAINS
 !                                                                                
    END SUBROUTINE O3DATA
 
-!------------------------------------------------------------------
-
-!LDF (2013-03-15): This section of the module is moved to module_physics_rrtmg_lwinit.F in
-!./../core_physics to accomodate differences in the mpi calls between WRF and MPAS.I thought
-!that it would be cleaner to do this instead of adding a lot of #ifdef statements throughout
-!the initialization of the longwave radiation code. Initialization is handled the same way
-!for the shortwave radiation code.
-
-#if !defined(mpas)
-
-!====================================================================
-   SUBROUTINE rrtmg_lwinit(                                         &
-                       p_top, allowed_to_read ,                     &
-                       ids, ide, jds, jde, kds, kde,                &
-                       ims, ime, jms, jme, kms, kme,                &
-                       its, ite, jts, jte, kts, kte                 )
-!--------------------------------------------------------------------
-   IMPLICIT NONE
-!--------------------------------------------------------------------
-
-   LOGICAL , INTENT(IN)           :: allowed_to_read
-   INTEGER , INTENT(IN)           :: ids, ide, jds, jde, kds, kde,  &
-                                     ims, ime, jms, jme, kms, kme,  &
-                                     its, ite, jts, jte, kts, kte
-   REAL, INTENT(IN)               :: p_top 
-
-! Steven Cavallo.  Added for buffer layer adjustment.   December 2010.
-   NLAYERS = kme + nint(p_top*0.01/deltap)- 1 ! Model levels plus new levels.
-                                              ! nlayers will subsequently 
-					      ! replace kte+1
-
-! Read in absorption coefficients and other data
-   IF ( allowed_to_read ) THEN
-     CALL rrtmg_lwlookuptable
-   ENDIF
-
-! Perform g-point reduction and other initializations
-! Specific heat of dry air (cp) used in flux to heating rate conversion factor.
-   call rrtmg_lw_ini(cp)
-
-   END SUBROUTINE rrtmg_lwinit
-
-
-! **************************************************************************     
-      SUBROUTINE rrtmg_lwlookuptable
-! **************************************************************************     
-
-IMPLICIT NONE
-
-! Local                                    
-      INTEGER :: i
-      LOGICAL                 :: opened
-      LOGICAL , EXTERNAL      :: wrf_dm_on_monitor
-
-      CHARACTER*80 errmess
-      INTEGER rrtmg_unit
-
-      IF ( wrf_dm_on_monitor() ) THEN
-        DO i = 10,99
-          INQUIRE ( i , OPENED = opened )
-          IF ( .NOT. opened ) THEN
-            rrtmg_unit = i
-            GOTO 2010
-          ENDIF
-        ENDDO
-        rrtmg_unit = -1
- 2010   CONTINUE
-      ENDIF
-      CALL wrf_dm_bcast_bytes ( rrtmg_unit , IWORDSIZE )
-      IF ( rrtmg_unit < 0 ) THEN
-        CALL wrf_error_fatal ( 'module_ra_rrtmg_lw: rrtm_lwlookuptable: Can not '// &
-                               'find unused fortran unit to read in lookup table.' )
-      ENDIF
-
-      IF ( wrf_dm_on_monitor() ) THEN
-        OPEN(rrtmg_unit,FILE='RRTMG_LW_DATA',                  &
-             FORM='UNFORMATTED',STATUS='OLD',ERR=9009)
-      ENDIF
-
-      call lw_kgb01(rrtmg_unit)
-      call lw_kgb02(rrtmg_unit)
-      call lw_kgb03(rrtmg_unit)
-      call lw_kgb04(rrtmg_unit)
-      call lw_kgb05(rrtmg_unit)
-      call lw_kgb06(rrtmg_unit)
-      call lw_kgb07(rrtmg_unit)
-      call lw_kgb08(rrtmg_unit)
-      call lw_kgb09(rrtmg_unit)
-      call lw_kgb10(rrtmg_unit)
-      call lw_kgb11(rrtmg_unit)
-      call lw_kgb12(rrtmg_unit)
-      call lw_kgb13(rrtmg_unit)
-      call lw_kgb14(rrtmg_unit)
-      call lw_kgb15(rrtmg_unit)
-      call lw_kgb16(rrtmg_unit)
-
-     IF ( wrf_dm_on_monitor() ) CLOSE (rrtmg_unit)
-
-     RETURN
-9009 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_lw: error opening RRTMG_LW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-     END SUBROUTINE rrtmg_lwlookuptable
-
-! **************************************************************************     
-!  RRTMG Longwave Radiative Transfer Model
-!  Atmospheric and Environmental Research, Inc., Cambridge, MA
-!
-!  Original version:   E. J. Mlawer, et al.
-!  Revision for GCMs:  Michael J. Iacono; October, 2002
-!  Revision for F90 formatting:  Michael J. Iacono; June 2006
-!
-!  This file contains 16 READ statements that include the 
-!  absorption coefficients and other data for each of the 16 longwave
-!  spectral bands used in RRTMG_LW.  Here, the data are defined for 16
-!  g-points, or sub-intervals, per band.  These data are combined and
-!  weighted using a mapping procedure in module RRTMG_LW_INIT to reduce
-!  the total number of g-points from 256 to 140 for use in the GCM.
-! **************************************************************************     
-
-! **************************************************************************
-      subroutine lw_kgb01(rrtmg_unit)
-! **************************************************************************
-
-      use rrlw_kg01, only : fracrefao, fracrefbo, kao, kbo, kao_mn2, kbo_mn2, &
-                           absa, absb, &
-                      selfrefo, forrefo
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Arrays fracrefao and fracrefbo are the Planck fractions for the lower
-!     and upper atmosphere.
-!     Planck fraction mapping levels: P = 212.7250 mbar, T = 223.06 K
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels > ~100mb and temperatures.  The first
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the corresponding TREF for this  pressure level, 
-!     JT = 2 refers to the temperatureTREF-15, JT = 1 is for TREF-30, 
-!     JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  The second 
-!     index, JP, runs from 1 to 13 and refers to the corresponding 
-!     pressure level in PREF (e.g. JP = 1 is for a pressure of 1053.63 mb).  
-!     The third index, IG, goes from 1 to 16, and tells us which 
-!     g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The arrays kao_mn2 and kbo_mn2 contain the coefficients of the 
-!     nitrogen continuum for the upper and lower atmosphere.
-!     Minor gas mapping levels: 
-!     Lower - n2: P = 142.5490 mbar, T = 215.70 K
-!     Upper - n2: P = 142.5490 mbar, T = 215.70 K
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         fracrefao, fracrefbo, kao, kbo, kao_mn2, kbo_mn2, selfrefo, forrefo
-      DM_BCAST_MACRO(fracrefao)
-      DM_BCAST_MACRO(fracrefbo)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(kao_mn2)
-      DM_BCAST_MACRO(kbo_mn2)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_lw: error reading RRTMG_LW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine lw_kgb01
-
-! **************************************************************************
-      subroutine lw_kgb02(rrtmg_unit)
-! **************************************************************************
-
-      use rrlw_kg02, only : fracrefao, fracrefbo, kao, kbo, selfrefo, forrefo
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Arrays fracrefao and fracrefbo are the Planck fractions for the lower
-!     and upper atmosphere.
-!     Planck fraction mapping levels: 
-!     Lower: P = 1053.630 mbar, T = 294.2 K
-!     Upper: P = 3.206e-2 mb, T = 197.92 K
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels > ~100mb and temperatures.  The first
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the corresponding TREF for this  pressure level, 
-!     JT = 2 refers to the temperatureTREF-15, JT = 1 is for TREF-30, 
-!     JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  The second 
-!     index, JP, runs from 1 to 13 and refers to the corresponding 
-!     pressure level in PREF (e.g. JP = 1 is for a pressure of 1053.63 mb).  
-!     The third index, IG, goes from 1 to 16, and tells us which 
-!     g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         fracrefao, fracrefbo, kao, kbo, selfrefo, forrefo
-      DM_BCAST_MACRO(fracrefao)
-      DM_BCAST_MACRO(fracrefbo)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_lw: error reading RRTMG_LW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine lw_kgb02
-
-! **************************************************************************
-      subroutine lw_kgb03(rrtmg_unit)
-! **************************************************************************
-
-      use rrlw_kg03, only : fracrefao, fracrefbo, kao, kbo, kao_mn2o, &
-                            kbo_mn2o, selfrefo, forrefo
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Arrays fracrefao and fracrefbo are the Planck fractions for the lower
-!     and upper atmosphere.
-!     Planck fraction mapping levels: 
-!     Lower: P = 212.7250 mbar, T = 223.06 K
-!     Upper: P = 95.8 mbar, T = 215.7 k
-
-!     The array KAO contains absorption coefs for each of the 16 g-intervals
-!     for a range of pressure levels > ~100mb, temperatures, and ratios
-!     of water vapor to CO2.  The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.
-!     The 2nd index in the array, JT, which runs from 1 to 5, corresponds 
-!     to different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this  pressure 
-!     level, JT = 2 refers to the temperature
-!     TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the reference pressure level (e.g. JP = 1 is for a
-!     pressure of 1053.63 mb).  The fourth index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-!     The 2nd index in the array, JT, which runs from 1 to 5, corresponds 
-!     to different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this  pressure 
-!     level, JT = 2 refers to the temperature
-!     TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the reference pressure level (e.g. JP = 1 is for a
-!     pressure of 1053.63 mb).  The fourth index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array KAO_Mxx contains the absorption coefficient for 
-!     a minor species at the 16 chosen g-values for a reference pressure
-!     level below 100~ mb.   The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.  The second index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The third index 
-!     runs over the g-channel (1 to 16).
-
-!     The array KBO_Mxx contains the absorption coefficient for 
-!     a minor species at the 16 chosen g-values for a reference pressure
-!     level above 100~ mb.   The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amounts ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 to 
-!     that of gas2.  The second index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The third index 
-!     runs over the g-channel (1 to 16).
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         fracrefao, fracrefbo, kao, kbo, kao_mn2o, kbo_mn2o, selfrefo, forrefo
-      DM_BCAST_MACRO(fracrefao)
-      DM_BCAST_MACRO(fracrefbo)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(kao_mn2o)
-      DM_BCAST_MACRO(kbo_mn2o)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_lw: error reading RRTMG_LW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine lw_kgb03 
-
-! **************************************************************************
-      subroutine lw_kgb04(rrtmg_unit)
-! **************************************************************************
-
-      use rrlw_kg04, only : fracrefao, fracrefbo, kao, kbo, selfrefo, forrefo
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Arrays fracrefao and fracrefbo are the Planck fractions for the lower
-!     and upper atmosphere.
-!     Planck fraction mapping levels: 
-!     Lower : P = 142.5940 mbar, T = 215.70 K
-!     Upper : P = 95.58350 mb, T = 215.70 K
-
-!     The array KAO contains absorption coefs for each of the 16 g-intervals
-!     for a range of pressure levels > ~100mb, temperatures, and ratios
-!     of water vapor to CO2.  The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.
-!     The 2nd index in the array, JT, which runs from 1 to 5, corresponds 
-!     to different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this  pressure 
-!     level, JT = 2 refers to the temperature
-!     TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the reference pressure level (e.g. JP = 1 is for a
-!     pressure of 1053.63 mb).  The fourth index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs for each of the 16 g-intervals
-!     for a range of pressure levels  < ~100mb, temperatures, and ratios
-!     of H2O to CO2.  The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.  The second index, JT, which
-!     runs from 1 to 5, corresponds to different temperatures.  More 
-!     specifically, JT = 3 means that the data are for the corresponding 
-!     reference temperature TREF for this  pressure level, JT = 2 refers 
-!     to the TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and
-!     JT = 5 is for TREF+30.  The third index, JP, runs from 13 to 59 and
-!     refers to the corresponding pressure level in PREF (e.g. JP = 13 is
-!     for a pressure of 95.5835 mb).  The fourth index, IG, goes from 1 to
-!     16, and tells us which g-interval the absorption coefficients are for.
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         fracrefao, fracrefbo, kao, kbo, selfrefo, forrefo
-      DM_BCAST_MACRO(fracrefao)
-      DM_BCAST_MACRO(fracrefbo)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_lw: error reading RRTMG_LW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine lw_kgb04
-
-! **************************************************************************
-      subroutine lw_kgb05(rrtmg_unit)
-! **************************************************************************
-
-      use rrlw_kg05, only : fracrefao, fracrefbo, kao, kbo, kao_mo3, &
-                            selfrefo, forrefo, ccl4o
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Arrays fracrefao and fracrefbo are the Planck fractions for the lower
-!     and upper atmosphere.
-!     Planck fraction mapping levels: 
-!     Lower: P = 473.42 mb, T = 259.83
-!     Upper: P = 0.2369280 mbar, T = 253.60 K
-
-!     The arrays kao_mo3 and ccl4o contain the coefficients for
-!     ozone and ccl4 in the lower atmosphere.
-!     Minor gas mapping level:
-!     Lower - o3: P = 317.34 mbar, T = 240.77 k
-!     Lower - ccl4:
-
-!     The array KAO contains absorption coefs for each of the 16 g-intervals
-!     for a range of pressure levels > ~100mb, temperatures, and ratios
-!     of water vapor to CO2.  The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.
-!     The 2nd index in the array, JT, which runs from 1 to 5, corresponds 
-!     to different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this  pressure 
-!     level, JT = 2 refers to the temperature
-!     TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the reference pressure level (e.g. JP = 1 is for a
-!     pressure of 1053.63 mb).  The fourth index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs for each of the 16 g-intervals
-!     for a range of pressure levels  < ~100mb, temperatures, and ratios
-!     of H2O to CO2.  The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.  The second index, JT, which
-!     runs from 1 to 5, corresponds to different temperatures.  More 
-!     specifically, JT = 3 means that the data are for the corresponding 
-!     reference temperature TREF for this  pressure level, JT = 2 refers 
-!     to the TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and
-!     JT = 5 is for TREF+30.  The third index, JP, runs from 13 to 59 and
-!     refers to the corresponding pressure level in PREF (e.g. JP = 13 is
-!     for a pressure of 95.5835 mb).  The fourth index, IG, goes from 1 to
-!     16, and tells us which g-interval the absorption coefficients are for.
-
-!     The array KAO_Mxx contains the absorption coefficient for 
-!     a minor species at the 16 chosen g-values for a reference pressure
-!     level below 100~ mb.   The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.  The second index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The third index 
-!     runs over the g-channel (1 to 16).
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         fracrefao, fracrefbo, kao, kbo, kao_mo3, ccl4o, selfrefo, forrefo
-      DM_BCAST_MACRO(fracrefao)
-      DM_BCAST_MACRO(fracrefbo)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(kao_mo3)
-      DM_BCAST_MACRO(ccl4o)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_lw: error reading RRTMG_LW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine lw_kgb05
-
-! **************************************************************************
-      subroutine lw_kgb06(rrtmg_unit)
-! **************************************************************************
-
-      use rrlw_kg06, only : fracrefao, kao, kao_mco2, selfrefo, forrefo, &
-                            cfc11adjo, cfc12o
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Arrays fracrefao and fracrefbo are the Planck fractions for the lower
-!     and upper atmosphere.
-!     Planck fraction mapping levels: 
-!     Lower: : P = 473.4280 mb, T = 259.83 K
-
-!     The arrays kao_mco2, cfc11adjo and cfc12o contain the coefficients for
-!     carbon dioxide in the lower atmosphere and cfc11 and cfc12 in the upper
-!     atmosphere.
-!     Original cfc11 is multiplied by 1.385 to account for the 1060-1107 cm-1 band.
-!     Minor gas mapping level:
-!     Lower - co2: P = 706.2720 mb, T = 294.2 k
-!     Upper - cfc11, cfc12
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels > ~100mb and temperatures.  The first
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the corresponding TREF for this  pressure level, 
-!     JT = 2 refers to the temperatureTREF-15, JT = 1 is for TREF-30, 
-!     JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  The second 
-!     index, JP, runs from 1 to 13 and refers to the corresponding 
-!     pressure level in PREF (e.g. JP = 1 is for a pressure of 1053.63 mb).  
-!     The third index, IG, goes from 1 to 16, and tells us which 
-!     g-interval the absorption coefficients are for.
-
-!     The array KAO_Mxx contains the absorption coefficient for 
-!     a minor species at the 16 chosen g-values for a reference pressure
-!     level below 100~ mb.   The first index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         fracrefao, kao, kao_mco2, cfc11adjo, cfc12o, selfrefo, forrefo
-      DM_BCAST_MACRO(fracrefao)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kao_mco2)
-      DM_BCAST_MACRO(cfc11adjo)
-      DM_BCAST_MACRO(cfc12o)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_lw: error reading RRTMG_LW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine lw_kgb06
-
-! **************************************************************************
-      subroutine lw_kgb07(rrtmg_unit)
-! **************************************************************************
-
-      use rrlw_kg07, only : fracrefao, fracrefbo, kao, kbo, kao_mco2, &
-                            kbo_mco2, selfrefo, forrefo
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Arrays fracrefao and fracrefbo are the Planck fractions for the lower
-!     and upper atmosphere.
-!     Planck fraction mapping levels: 
-!     Lower : P = 706.27 mb, T = 278.94 K
-!     Upper : P = 95.58 mbar, T= 215.70 K
-
-!     The array KAO contains absorption coefs for each of the 16 g-intervals
-!     for a range of pressure levels > ~100mb, temperatures, and ratios
-!     of water vapor to CO2.  The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.
-!     The 2nd index in the array, JT, which runs from 1 to 5, corresponds 
-!     to different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this  pressure 
-!     level, JT = 2 refers to the temperature
-!     TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the reference pressure level (e.g. JP = 1 is for a
-!     pressure of 1053.63 mb).  The fourth index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array KAO_Mxx contains the absorption coefficient for 
-!     a minor species at the 16 chosen g-values for a reference pressure
-!     level below 100~ mb.   The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.  The second index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The third index 
-!     runs over the g-channel (1 to 16).
-
-!     The array KBO_Mxx contains the absorption coefficient for 
-!     a minor species at the 16 chosen g-values for a reference pressure
-!     level above 100~ mb.   The first index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296_rb,260_rb,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         fracrefao, fracrefbo, kao, kbo, kao_mco2, kbo_mco2, selfrefo, forrefo
-      DM_BCAST_MACRO(fracrefao)
-      DM_BCAST_MACRO(fracrefbo)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(kao_mco2)
-      DM_BCAST_MACRO(kbo_mco2)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_lw: error reading RRTMG_LW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine lw_kgb07
-
-! **************************************************************************
-      subroutine lw_kgb08(rrtmg_unit)
-! **************************************************************************
-
-      use rrlw_kg08, only : fracrefao, fracrefbo, kao, kao_mco2, kao_mn2o, &
-                            kao_mo3, kbo, kbo_mco2, kbo_mn2o, selfrefo, forrefo, &
-                            cfc12o, cfc22adjo
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Arrays fracrefao and fracrefbo are the Planck fractions for the lower
-!     and upper atmosphere.
-!     Planck fraction mapping levels: 
-!     Lower: P=473.4280 mb, T = 259.83 K
-!     Upper: P=95.5835 mb, T= 215.7 K
-
-!     The arrays kao_mco2, kbo_mco2, kao_mn2o, kbo_mn2o contain the coefficients for
-!     carbon dioxide and n2o in the lower and upper atmosphere.
-!     The array kao_mo3 contains the coefficients for ozone in the lower atmosphere,
-!     and arrays cfc12o and cfc12adjo contain the coefficients for cfc12 and cfc22.
-!     Original cfc22 is multiplied by 1.485 to account for the 780-850 cm-1 
-!     and 1290-1335 cm-1 bands.
-!     Minor gas mapping level:
-!     Lower - co2: P = 1053.63 mb, T = 294.2 k
-!     Lower - o3: P = 317.348 mb, T = 240.77 k
-!     Lower - n2o: P = 706.2720 mb, T= 278.94 k
-!     Lower - cfc12, cfc22
-!     Upper - co2: P = 35.1632 mb, T = 223.28 k
-!     Upper - n2o: P = 8.716e-2 mb, T = 226.03 k
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels > ~100mb and temperatures.  The first
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the corresponding TREF for this  pressure level, 
-!     JT = 2 refers to the temperatureTREF-15, JT = 1 is for TREF-30, 
-!     JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  The second 
-!     index, JP, runs from 1 to 13 and refers to the corresponding 
-!     pressure level in PREF (e.g. JP = 1 is for a pressure of 1053.63 mb).  
-!     The third index, IG, goes from 1 to 16, and tells us which 
-!     g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array KAO_Mxx contains the absorption coefficient for 
-!     a minor species at the 16 chosen g-values for a reference pressure
-!     level below 100~ mb.   The first index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array KBO_Mxx contains the absorption coefficient for 
-!     a minor species at the 16 chosen g-values for a reference pressure
-!     level above 100~ mb.   The first index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         fracrefao, fracrefbo, kao, kbo, kao_mco2, kbo_mco2, kao_mn2o, &
-         kbo_mn2o, kao_mo3, cfc12o, cfc22adjo, selfrefo, forrefo
-      DM_BCAST_MACRO(fracrefao)
-      DM_BCAST_MACRO(fracrefbo)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(kao_mco2)
-      DM_BCAST_MACRO(kbo_mco2)
-      DM_BCAST_MACRO(kao_mn2o)
-      DM_BCAST_MACRO(kbo_mn2o)
-      DM_BCAST_MACRO(kao_mo3)
-      DM_BCAST_MACRO(cfc12o)
-      DM_BCAST_MACRO(cfc22adjo)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_lw: error reading RRTMG_LW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine lw_kgb08
-
-! **************************************************************************
-      subroutine lw_kgb09(rrtmg_unit)
-! **************************************************************************
-
-      use rrlw_kg09, only : fracrefao, fracrefbo, kao, kbo, kao_mn2o, &
-                            kbo_mn2o, selfrefo, forrefo
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Arrays fracrefao and fracrefbo are the Planck fractions for the lower
-!     and upper atmosphere.
-!     Planck fraction mapping levels: 
-!     Lower: P=212.7250 mb, T = 223.06 K
-!     Upper: P=3.20e-2 mb, T = 197.92 k
-
-!     The array KAO contains absorption coefs for each of the 16 g-intervals
-!     for a range of pressure levels > ~100mb, temperatures, and ratios
-!     of water vapor to CO2.  The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.
-!     The 2nd index in the array, JT, which runs from 1 to 5, corresponds 
-!     to different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this  pressure 
-!     level, JT = 2 refers to the temperature
-!     TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the reference pressure level (e.g. JP = 1 is for a
-!     pressure of 1053.63 mb).  The fourth index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array KAO_Mxx contains the absorption coefficient for 
-!     a minor species at the 16 chosen g-values for a reference pressure
-!     level below 100~ mb.   The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.  The second index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The third index 
-!     runs over the g-channel (1 to 16).
-
-!     The array KBO_Mxx contains the absorption coefficient for 
-!     a minor species at the 16 chosen g-values for a reference pressure
-!     level above 100~ mb.   The first index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         fracrefao, fracrefbo, kao, kbo, kao_mn2o, kbo_mn2o, selfrefo, forrefo
-      DM_BCAST_MACRO(fracrefao)
-      DM_BCAST_MACRO(fracrefbo)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(kao_mn2o)
-      DM_BCAST_MACRO(kbo_mn2o)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_lw: error reading RRTMG_LW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine lw_kgb09
-
-! **************************************************************************
-      subroutine lw_kgb10(rrtmg_unit)
-! **************************************************************************
-
-      use rrlw_kg10, only : fracrefao, fracrefbo, kao, kbo, selfrefo, forrefo
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Arrays fracrefao and fracrefbo are the Planck fractions for the lower
-!     and upper atmosphere.
-!     Planck fraction mapping levels: 
-!     Lower: P = 212.7250 mb, T = 223.06 K
-!     Upper: P = 95.58350 mb, T = 215.70 K
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels > ~100mb and temperatures.  The first
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the corresponding TREF for this  pressure level, 
-!     JT = 2 refers to the temperatureTREF-15, JT = 1 is for TREF-30, 
-!     JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  The second 
-!     index, JP, runs from 1 to 13 and refers to the corresponding 
-!     pressure level in PREF (e.g. JP = 1 is for a pressure of 1053.63 mb).  
-!     The third index, IG, goes from 1 to 16, and tells us which 
-!     g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         fracrefao, fracrefbo, kao, kbo, selfrefo, forrefo
-      DM_BCAST_MACRO(fracrefao)
-      DM_BCAST_MACRO(fracrefbo)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_lw: error reading RRTMG_LW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine lw_kgb10
-
-! **************************************************************************
-      subroutine lw_kgb11(rrtmg_unit)
-! **************************************************************************
-
-      use rrlw_kg11, only : fracrefao, fracrefbo, kao, kbo, kao_mo2, &
-                            kbo_mo2, selfrefo, forrefo
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Arrays fracrefao and fracrefbo are the Planck fractions for the lower
-!     and upper atmosphere.
-!     Planck fraction mapping levels: 
-!     Lower: P=1053.63 mb, T= 294.2 K
-!     Upper: P=0.353 mb, T = 262.11 K
-
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels > ~100mb and temperatures.  The first
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the corresponding TREF for this  pressure level, 
-!     JT = 2 refers to the temperatureTREF-15, JT = 1 is for TREF-30, 
-!     JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  The second 
-!     index, JP, runs from 1 to 13 and refers to the corresponding 
-!     pressure level in PREF (e.g. JP = 1 is for a pressure of 1053.63 mb).  
-!     The third index, IG, goes from 1 to 16, and tells us which 
-!     g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array KAO_Mxx contains the absorption coefficient for 
-!     a minor species at the 16 chosen g-values for a reference pressure
-!     level below 100~ mb.   The first index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array KBO_Mxx contains the absorption coefficient for 
-!     a minor species at the 16 chosen g-values for a reference pressure
-!     level above 100~ mb.   The first index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         fracrefao, fracrefbo, kao, kbo, kao_mo2, kbo_mo2, selfrefo, forrefo
-      DM_BCAST_MACRO(fracrefao)
-      DM_BCAST_MACRO(fracrefbo)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(kao_mo2)
-      DM_BCAST_MACRO(kbo_mo2)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_lw: error reading RRTMG_LW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine lw_kgb11
-
-! **************************************************************************
-      subroutine lw_kgb12(rrtmg_unit)
-! **************************************************************************
-
-      use rrlw_kg12, only : fracrefao, kao, selfrefo, forrefo
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Arrays fracrefao and fracrefbo are the Planck fractions for the lower
-!     and upper atmosphere.
-!     Planck fraction mapping levels: 
-!     Lower: P = 174.1640 mbar, T= 215.78 K
-
-!     The array KAO contains absorption coefs for each of the 16 g-intervals
-!     for a range of pressure levels > ~100mb, temperatures, and ratios
-!     of water vapor to CO2.  The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.
-!     The 2nd index in the array, JT, which runs from 1 to 5, corresponds 
-!     to different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this  pressure 
-!     level, JT = 2 refers to the temperature
-!     TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the reference pressure level (e.g. JP = 1 is for a
-!     pressure of 1053.63 mb).  The fourth index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         fracrefao, kao, selfrefo, forrefo
-      DM_BCAST_MACRO(fracrefao)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_lw: error reading RRTMG_LW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine lw_kgb12
-
-! **************************************************************************
-      subroutine lw_kgb13(rrtmg_unit)
-! **************************************************************************
-
-      use rrlw_kg13, only : fracrefao, fracrefbo, kao, kao_mco2, kao_mco, &
-                            kbo_mo3, selfrefo, forrefo
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Arrays fracrefao and fracrefbo are the Planck fractions for the lower
-!     and upper atmosphere.
-!     Planck fraction mapping levels: 
-!     Lower: P=473.4280 mb, T = 259.83 K      
-!     Upper: P=4.758820 mb, T = 250.85 K
-
-!     The array KAO contains absorption coefs for each of the 16 g-intervals
-!     for a range of pressure levels > ~100mb, temperatures, and ratios
-!     of water vapor to CO2.  The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.
-!     The 2nd index in the array, JT, which runs from 1 to 5, corresponds 
-!     to different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this  pressure 
-!     level, JT = 2 refers to the temperature
-!     TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the reference pressure level (e.g. JP = 1 is for a
-!     pressure of 1053.63 mb).  The fourth index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array KAO_Mxx contains the absorption coefficient for 
-!     a minor species at the 16 chosen g-values for a reference pressure
-!     level below 100~ mb.   The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.  The second index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The third index 
-!     runs over the g-channel (1 to 16).
-
-!     The array KBO_Mxx contains the absorption coefficient for 
-!     a minor species at the 16 chosen g-values for a reference pressure
-!     level above 100~ mb.   The first index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         fracrefao, fracrefbo, kao, kao_mco2, kao_mco, kbo_mo3, selfrefo, forrefo
-      DM_BCAST_MACRO(fracrefao)
-      DM_BCAST_MACRO(fracrefbo)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kao_mco2)
-      DM_BCAST_MACRO(kao_mco)
-      DM_BCAST_MACRO(kbo_mo3)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_lw: error reading RRTMG_LW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine lw_kgb13
-
-! **************************************************************************
-      subroutine lw_kgb14(rrtmg_unit)
-! **************************************************************************
-
-      use rrlw_kg14, only : fracrefao, fracrefbo, kao, kbo, selfrefo, forrefo
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Arrays fracrefao and fracrefbo are the Planck fractions for the lower
-!     and upper atmosphere.
-!     Planck fraction mapping levels: 
-!     Lower: P = 142.5940 mb, T = 215.70 K
-!     Upper: P = 4.758820 mb, T = 250.85 K
-
-!     The array KAO contains absorption coefs for each of the 16 g-intervals
-!     for a range of pressure levels > ~100mb, temperatures, and ratios
-!     of water vapor to CO2.  The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.
-!     The 2nd index in the array, JT, which runs from 1 to 5, corresponds 
-!     to different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this  pressure 
-!     level, JT = 2 refers to the temperature
-!     TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the reference pressure level (e.g. JP = 1 is for a
-!     pressure of 1053.63 mb).  The fourth index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         fracrefao, fracrefbo, kao, kbo, selfrefo, forrefo
-      DM_BCAST_MACRO(fracrefao)
-      DM_BCAST_MACRO(fracrefbo)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_lw: error reading RRTMG_LW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine lw_kgb14
-
-! **************************************************************************
-      subroutine lw_kgb15(rrtmg_unit)
-! **************************************************************************
-
-      use rrlw_kg15, only : fracrefao, kao, kao_mn2, selfrefo, forrefo
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Arrays fracrefao and fracrefbo are the Planck fractions for the lower
-!     and upper atmosphere.
-!     Planck fraction mapping levels: 
-!     Lower: P = 1053. mb, T = 294.2 K
-
-!     The array KAO contains absorption coefs for each of the 16 g-intervals
-!     for a range of pressure levels > ~100mb, temperatures, and ratios
-!     of water vapor to CO2.  The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.
-!     The 2nd index in the array, JT, which runs from 1 to 5, corresponds 
-!     to different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this  pressure 
-!     level, JT = 2 refers to the temperature
-!     TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the reference pressure level (e.g. JP = 1 is for a
-!     pressure of 1053.63 mb).  The fourth index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array KA_Mxx contains the absorption coefficient for 
-!     a minor species at the 16 chosen g-values for a reference pressure
-!     level below 100~ mb.   The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.  The second index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The third index 
-!     runs over the g-channel (1 to 16).
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         fracrefao, kao, kao_mn2, selfrefo, forrefo
-      DM_BCAST_MACRO(fracrefao)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kao_mn2)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_lw: error reading RRTMG_LW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine lw_kgb15
-
-! **************************************************************************
-      subroutine lw_kgb16(rrtmg_unit)
-! **************************************************************************
-
-      use rrlw_kg16, only : fracrefao, fracrefbo, kao, kbo, selfrefo, forrefo
-
-      implicit none
-      save
-
-! Input
-      integer, intent(in) :: rrtmg_unit
-
-! Local                                    
-      character*80 errmess
-      logical, external  :: wrf_dm_on_monitor
-
-!     Arrays fracrefao and fracrefbo are the Planck fractions for the lower
-!     and upper atmosphere.
-!     Planck fraction mapping levels: 
-!     Lower: P = 387.6100 mbar, T = 250.17 K
-!     Upper: P=95.58350 mb, T = 215.70 K
-
-!     The array KAO contains absorption coefs for each of the 16 g-intervals
-!     for a range of pressure levels > ~100mb, temperatures, and ratios
-!     of water vapor to CO2.  The first index in the array, JS, runs
-!     from 1 to 10, and corresponds to different gas column amount ratios,
-!     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.
-!     The 2nd index in the array, JT, which runs from 1 to 5, corresponds 
-!     to different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this  pressure 
-!     level, JT = 2 refers to the temperature
-!     TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
-!     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
-!     to the reference pressure level (e.g. JP = 1 is for a
-!     pressure of 1053.63 mb).  The fourth index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
-!     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
-!     The second index, JP, runs from 13 to 59 and refers to the JPth
-!     reference pressure level (see taumol.f for the value of these
-!     pressure levels in mb).  The third index, IG, goes from 1 to 16,
-!     and tells us which g-interval the absorption coefficients are for.
-
-!     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
-!     runs over the g-channel (1 to 16).
-
-!     The array SELFREFO contains the coefficient of the water vapor
-!     self-continuum (including the energy term).  The first index
-!     refers to temperature in 7.2 degree increments.  For instance,
-!     JT = 1 refers to a temperature of 245.6, JT = 2 refers to 252.8,
-!     etc.  The second index runs over the g-channel (1 to 16).
-
-#define DM_BCAST_MACRO(A) CALL wrf_dm_bcast_bytes ( A , size ( A ) * RWORDSIZE )
-
-      IF ( wrf_dm_on_monitor() ) READ (rrtmg_unit,ERR=9010) &
-         fracrefao, fracrefbo, kao, kbo, selfrefo, forrefo
-      DM_BCAST_MACRO(fracrefao)
-      DM_BCAST_MACRO(fracrefbo)
-      DM_BCAST_MACRO(kao)
-      DM_BCAST_MACRO(kbo)
-      DM_BCAST_MACRO(selfrefo)
-      DM_BCAST_MACRO(forrefo)
-
-     RETURN
-9010 CONTINUE
-     WRITE( errmess , '(A,I4)' ) 'module_ra_rrtmg_lw: error reading RRTMG_LW_DATA on unit ',rrtmg_unit
-     CALL wrf_error_fatal(errmess)
-
-      end subroutine lw_kgb16
-
-#endif
-!ldf end (2013-03-15).
-
-!===============================================================================
+!-----------------------------------------------------------------------
   subroutine relcalc(ncol, pcols, pver, t, landfrac, landm, icefrac, rel, snowh)
 !----------------------------------------------------------------------- 
 ! 
@@ -13958,7 +12525,7 @@ IMPLICIT NONE
           index = int(t(i,k)-179.)
           index = min(max(index,1),94)
           corr = t(i,k) - int(t(i,k))
-          re(i,k) = retab(index)*(1.-corr)		&
+          re(i,k) = retab(index)*(1.-corr)              &
                +retab(index+1)*corr
           !           re(i,k) = amax1(amin1(re(i,k),30.),10.)
        end do

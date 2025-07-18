@@ -1533,6 +1533,28 @@ module mpas_io
                end if
             end do
 #endif
+#ifdef MPAS_SMIOL_SUPPORT
+            !
+            ! For the SMIOL library, only the size of the outermost (decomposed) dimension
+            ! must match, and the sizes of any inner dimensions do not need to be checked.
+            ! Since the dimensionality of fields may vary, previously created decopositions
+            ! always store the size of the decomposed dimension at decomphandle % dims(1)
+            ! rather than at decomphandle % dims(ndims)
+            !
+            if (.not. field_cursor % fieldhandle % has_unlimited_dim) then
+               if (decomp_cursor % decomphandle % dims(1) /= &
+                   field_cursor % fieldhandle % dims(field_cursor % fieldhandle % ndims) % dimsize) then
+                  decomp_cursor => decomp_cursor % next
+                  cycle DECOMP_LOOP
+               end if
+            else
+               if (decomp_cursor % decomphandle % dims(1) /= &
+                   field_cursor % fieldhandle % dims(field_cursor % fieldhandle % ndims - 1) % dimsize) then
+                  decomp_cursor => decomp_cursor % next
+                  cycle DECOMP_LOOP
+               end if
+            end if
+#endif
 
             if (size(decomp_cursor % decomphandle % indices) /= size(indices)) then
 !call mpas_log_write('We do not have the same number of indices in this decomposition...')
@@ -1710,6 +1732,11 @@ module mpas_io
 #endif
 
 #ifdef MPAS_SMIOL_SUPPORT
+      ! Save the size of the outermost (decomposed) dimension for the field for use in
+      ! subsequent calls to MPAS_io_set_var_indices when checking whether this
+      ! decomposition can be reused for other fields
+      new_decomp % decomphandle % dims(1) = field_cursor % fieldhandle % dims(ndims) % dimsize
+
       allocate(smiol_indices(size(indices)))
       smiol_indices(:) = int(indices(:), kind=SMIOL_offset_kind) - 1_SMIOL_offset_kind   ! SMIOL indices are 0-based
       smiol_n_compute_elements = size(indices,kind=SMIOL_offset_kind)

@@ -360,11 +360,17 @@
       <var name="t2mbxy" type="real" dimensions="nCells Time" units="K"
                 description="2-meter temperature over bare ground" missing_value="-9999.0"/>
 
+      <var name="t2mxy" type="real" dimensions="nCells Time" units="K"
+                description="grid-mean 2-meter temperature" missing_value="-9999.0"/>
+
       <var name="q2mvxy" type="real" dimensions="nCells Time" units="kg kg^{-1}"
                 description="2-meter water vapor mixing ratio over canopy" missing_value="-9999.0"/>
 
       <var name="q2mbxy" type="real" dimensions="nCells Time" units="kg kg^{-1}"
                 description="2-meter water vapor mixing ratio over bare ground" missing_value="-9999.0"/>
+
+      <var name="q2mxy" type="real" dimensions="nCells Time" units="kg kg^{-1}"
+                description="grid-mean 2-meter water vapor mixing ratio" missing_value="-9999.0"/>
 
       <var name="tradxy" type="real" dimensions="nCells Time" units="K"
                 description="surface radiative temperature" missing_value="-9999.0"/>

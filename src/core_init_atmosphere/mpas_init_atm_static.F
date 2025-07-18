@@ -126,6 +126,8 @@
  character(len=StrKIND), pointer :: config_vegfrac_data
  character(len=StrKIND), pointer :: config_albedo_data
  character(len=StrKIND), pointer :: config_maxsnowalbedo_data
+ logical, pointer :: config_noahmp_static
+ character(len=StrKIND), pointer :: config_soilcat_data
  character(len=StrKIND+1) :: geog_data_path      ! same as config_geog_data_path, but guaranteed to have a trailing slash
  character(len=StrKIND+1) :: geog_sub_path       ! subdirectory names in config_geog_data_path, with trailing slash
 
@@ -143,6 +145,7 @@
  type(c_ptr) :: rarray_ptr
 
  integer, pointer :: supersample_fac
+ integer, pointer :: supersample_fac_lu
  integer, pointer :: supersample_fac_30s
 
  real(kind=RKIND):: lat,lon,x,y
@@ -213,12 +216,15 @@
 
  call mpas_pool_get_config(configs, 'config_geog_data_path', config_geog_data_path)
  call mpas_pool_get_config(configs, 'config_landuse_data', config_landuse_data)
+ call mpas_pool_get_config(configs, 'config_soilcat_data', config_soilcat_data)
  call mpas_pool_get_config(configs, 'config_topo_data', config_topo_data)
  call mpas_pool_get_config(configs, 'config_vegfrac_data', config_vegfrac_data)
  call mpas_pool_get_config(configs, 'config_albedo_data', config_albedo_data)
  call mpas_pool_get_config(configs, 'config_maxsnowalbedo_data', config_maxsnowalbedo_data)
  call mpas_pool_get_config(configs, 'config_supersample_factor', supersample_fac)
+ call mpas_pool_get_config(configs, 'config_lu_supersample_factor', supersample_fac_lu)
  call mpas_pool_get_config(configs, 'config_30s_supersample_factor', supersample_fac_30s)
+ call mpas_pool_get_config(configs, 'config_noahmp_static', config_noahmp_static)
 
  write(geog_data_path, '(a)') config_geog_data_path
  i = len_trim(geog_data_path)
@@ -348,13 +354,14 @@
  surface_input_select0: select case(trim(config_landuse_data))
     case('USGS')
        write(mminlu,'(a)') 'USGS'
-    case('MODIFIED_IGBP_MODIS_NOAH')
+    case('MODIFIED_IGBP_MODIS_NOAH', 'MODIFIED_IGBP_MODIS_NOAH_15s')
        write(mminlu,'(a)') 'MODIFIED_IGBP_MODIS_NOAH'
     case default
          call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
          call mpas_log_write('Invalid land use dataset '''//trim(config_landuse_data) &
                                        //''' selected for config_landuse_data',                   messageType=MPAS_LOG_ERR)
          call mpas_log_write('   Possible options are: ''USGS'', ''MODIFIED_IGBP_MODIS_NOAH''',   messageType=MPAS_LOG_ERR)
+         call mpas_log_write('                         ''MODIFIED_IGBP_MODIS_NOAH_15s''',         messageType=MPAS_LOG_ERR)
          call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
          call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
  end select surface_input_select0
@@ -394,24 +401,42 @@
     case('MODIFIED_IGBP_MODIS_NOAH')
        call mpas_log_write('Using 20-class MODIS 30-arc-second land cover dataset')
        geog_sub_path = 'modis_landuse_20class_30s/'
+    case('MODIFIED_IGBP_MODIS_NOAH_15s')
+       call mpas_log_write('Using 20-class MODIS 15-arc-second land cover dataset')
+       geog_sub_path = 'modis_landuse_20class_15s/'
     case default
        call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
        call mpas_log_write('Invalid land use dataset '''//trim(config_landuse_data) &
                                      //''' selected for config_landuse_data',                   messageType=MPAS_LOG_ERR)
        call mpas_log_write('   Possible options are: ''USGS'', ''MODIFIED_IGBP_MODIS_NOAH''',   messageType=MPAS_LOG_ERR)
+       call mpas_log_write('                         ''MODIFIED_IGBP_MODIS_NOAH_15s''',         messageType=MPAS_LOG_ERR)
        call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
        call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
  end select surface_input_select1
 
  call mpas_log_write('--- start interpolate LU_INDEX')
  call interp_landuse(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), isice_lu, iswater_lu, &
-                     supersample_fac=supersample_fac_30s)
+                     supersample_fac=supersample_fac_lu)
  call mpas_log_write('--- end interpolate LU_INDEX')
 
 !
 ! Interpolate SOILCAT_TOP
 !
- geog_sub_path = 'soiltype_top_30s/'
+ select case(trim(config_soilcat_data))
+    case('STATSGO')
+       call mpas_log_write('Using STATSGO 30-arc-second soil type dataset')
+       geog_sub_path = 'soiltype_top_30s/'
+    case('BNU')
+       call mpas_log_write('Using BNU 30-arc-second soil type dataset')
+       geog_sub_path = 'bnu_soiltype_top/'
+    case default
+       call mpas_log_write('*****************************************************************',messageType=MPAS_LOG_ERR)
+       call mpas_log_write('Invalid soil type dataset'''//trim(config_soilcat_data) &
+                                     //''' selected for config_soilcat_data',                  messageType=MPAS_LOG_ERR)
+       call mpas_log_write('   Possible options are: ''STATSGO'',''BNU''',                     messageType=MPAS_LOG_ERR)
+       call mpas_log_write('*****************************************************************',messageType=MPAS_LOG_ERR)
+       call mpas_log_write('Please correct the namelist.', messageType=MPAS_LOG_CRIT)
+ end select
 
  call mpas_log_write('--- start interpolate SOILCAT_TOP')
  call interp_soilcat(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), iswater_soil, &
@@ -1171,55 +1196,59 @@
 
  call mpas_log_write('--- end interpolate ALBEDO12M')
 
-!
-! Interpolate SOILCOMP
-!
- geog_sub_path = 'soilgrids/soilcomp/'
- call mpas_log_write('--- start interpolate SOILCOMP')
- call interp_soilcomp(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
-                     supersample_fac=supersample_fac_30s)
- call mpas_log_write('--- end interpolate SOILCOMP')
+ if (config_noahmp_static) then
 
-!
-! Interpolate SOILCL1
-!
- geog_sub_path = 'soilgrids/texture_layer1/'
+    !
+    ! Interpolate SOILCOMP
+    !
+    geog_sub_path = 'soilgrids/soilcomp/'
 
- call mpas_log_write('--- start interpolate SOILCL1')
- call interp_soil_texture('soilcl1', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
-                          supersample_fac=supersample_fac_30s)
- call mpas_log_write('--- end interpolate SOILCL1')
+    call mpas_log_write('--- start interpolate SOILCOMP')
+    call interp_soilcomp(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                         supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate SOILCOMP')
 
-!
-! Interpolate SOILCL2
-!
- geog_sub_path = 'soilgrids/texture_layer2/'
+    !
+    ! Interpolate SOILCL1
+    !
+    geog_sub_path = 'soilgrids/texture_layer1/'
 
- call mpas_log_write('--- start interpolate SOILCL2')
- call interp_soil_texture('soilcl2', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
-                          supersample_fac=supersample_fac_30s)
- call mpas_log_write('--- end interpolate SOILCL2')
+    call mpas_log_write('--- start interpolate SOILCL1')
+    call interp_soil_texture('soilcl1', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate SOILCL1')
 
-!
-! Interpolate SOILCL3
-!
- geog_sub_path = 'soilgrids/texture_layer3/'
+    !
+    ! Interpolate SOILCL2
+    !
+    geog_sub_path = 'soilgrids/texture_layer2/'
 
- call mpas_log_write('--- start interpolate SOILCL3')
- call interp_soil_texture('soilcl3', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
-                          supersample_fac=supersample_fac_30s)
- call mpas_log_write('--- end interpolate SOILCL3')
+    call mpas_log_write('--- start interpolate SOILCL2')
+    call interp_soil_texture('soilcl2', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate SOILCL2')
 
-!
-! Interpolate SOILCL4
-!
- geog_sub_path = 'soilgrids/texture_layer4/'
+    !
+    ! Interpolate SOILCL3
+    !
+    geog_sub_path = 'soilgrids/texture_layer3/'
 
- call mpas_log_write('--- start interpolate SOILCL4')
- call interp_soil_texture('soilcl4', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
-                          supersample_fac=supersample_fac_30s)
- call mpas_log_write('--- end interpolate SOILCL4')
+    call mpas_log_write('--- start interpolate SOILCL3')
+    call interp_soil_texture('soilcl3', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate SOILCL3')
 
+    !
+    ! Interpolate SOILCL4
+    !
+    geog_sub_path = 'soilgrids/texture_layer4/'
+
+    call mpas_log_write('--- start interpolate SOILCL4')
+    call interp_soil_texture('soilcl4', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate SOILCL4')
+
+ end if
 
 !
 ! Deallocate and free the KD Tree

@@ -20,6 +20,7 @@ set(ATMOSPHERE_CORE_PHYSICS_SOURCES
     mpas_atmphys_o3climatology.F
     mpas_atmphys_rrtmg_lwinit.F
     mpas_atmphys_rrtmg_swinit.F
+    mpas_atmphys_sfc_diagnostics.F
     mpas_atmphys_update.F
     mpas_atmphys_update_surface.F
     mpas_atmphys_utilities.F
@@ -51,6 +52,7 @@ set(ATMOSPHERE_CORE_PHYSICS_WRF_SOURCES
     cu_ntiedtke_pre.F
     module_bep_bem_helper.F
     module_bl_gwdo.F
+    module_bl_ugwp_gwdo.F
     module_bl_ysu.F
     module_cam_error_function.F
     module_cam_shr_kind_mod.F
@@ -128,9 +130,36 @@ set(ATMOSPHERE_CORE_PHYSICS_MMM_SOURCES
 
 list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_MMM_SOURCES PREPEND physics/physics_mmm/)
 
+set(ATMOSPHERE_CORE_PHYSICS_NOAA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/physics/physics_noaa/UGWP)
+
+if(NOT EXISTS ${ATMOSPHERE_CORE_PHYSICS_NOAA_DIR})
+    set(PHYSICS_NOAA_REPO_URL "https://github.com/NOAA-GSL/UGWP.git")
+    execute_process(COMMAND git clone ${PHYSICS_NOAA_REPO_URL} ${ATMOSPHERE_CORE_PHYSICS_NOAA_DIR}
+                    RESULT_VARIABLE GIT_CLONE_RESULT
+                    OUTPUT_VARIABLE GIT_CLONE_OUTPUT
+                    ERROR_VARIABLE GIT_CLONE_ERROR)
+    if(NOT GIT_CLONE_RESULT EQUAL 0)
+        message(FATAL_ERROR "Git clone failed with error: ${GIT_CLONE_ERROR}")
+    endif()
+
+else()
+    message(STATUS "Directory ${DIR_TO_CHECK} already exists, skipping clone")
+endif()
+
+set(ATMOSPHERE_CORE_PHYSICS_NOAA_SOURCES
+    bl_ugwp.F
+    bl_ugwpv1_ngw.F
+    cires_tauamf_data.F
+    cires_ugwpv1_initialize.F
+    cires_ugwpv1_module.F
+    cires_ugwpv1_solv2.F
+    cires_ugwpv1_triggers.F
+)
+
+list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_NOAA_SOURCES PREPEND physics/physics_noaa/UGWP/)
+
 set(ATMOSPHERE_CORE_PHYSICS_NOAMP_UTILITY_SOURCES
     CheckNanMod.F90
-    ErrorHandleMod.F90
     Machine.F90
 )
 list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_NOAMP_UTILITY_SOURCES PREPEND physics/physics_noahmp/utility/)
@@ -344,6 +373,7 @@ add_library(core_atmosphere ${ATMOSPHERE_CORE_SOURCES}
             ${ATMOSPHERE_CORE_PHYSICS_SOURCES}
             ${ATMOSPHERE_CORE_PHYSICS_MMM_SOURCES}
             ${ATMOSPHERE_CORE_PHYSICS_WRF_SOURCES}
+            ${ATMOSPHERE_CORE_PHYSICS_NOAA_SOURCES}
             ${ATMOSPHERE_CORE_DIAGNOSTIC_SOURCES}
             ${ATMOSPHERE_CORE_DYNAMICS_SOURCES})
 

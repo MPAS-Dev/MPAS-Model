@@ -200,8 +200,10 @@ contains
     ! OUT (with no Noah LSM equivalent) (as defined in WRF)   
     if ( .not. allocated (NoahmpIO%t2mvxy)     ) allocate ( NoahmpIO%t2mvxy      (its:ite) ) ! 2m temperature of vegetation part
     if ( .not. allocated (NoahmpIO%t2mbxy)     ) allocate ( NoahmpIO%t2mbxy      (its:ite) ) ! 2m temperature of bare ground part
+    if ( .not. allocated (NoahmpIO%t2mxy)      ) allocate ( NoahmpIO%t2mxy       (its:ite) ) ! 2m grid-mean temperature
     if ( .not. allocated (NoahmpIO%q2mvxy)     ) allocate ( NoahmpIO%q2mvxy      (its:ite) ) ! 2m mixing ratio of vegetation part
     if ( .not. allocated (NoahmpIO%q2mbxy)     ) allocate ( NoahmpIO%q2mbxy      (its:ite) ) ! 2m mixing ratio of bare ground part
+    if ( .not. allocated (NoahmpIO%q2mxy)      ) allocate ( NoahmpIO%q2mxy       (its:ite) ) ! 2m grid-mean mixing ratio
     if ( .not. allocated (NoahmpIO%tradxy)     ) allocate ( NoahmpIO%tradxy      (its:ite) ) ! surface radiative temperature (K)
     if ( .not. allocated (NoahmpIO%neexy)      ) allocate ( NoahmpIO%neexy       (its:ite) ) ! net ecosys exchange (g/m2/s CO2)
     if ( .not. allocated (NoahmpIO%gppxy)      ) allocate ( NoahmpIO%gppxy       (its:ite) ) ! gross primary assimilation [g/m2/s C]
@@ -547,8 +549,10 @@ contains
     NoahmpIO%snowc           = undefined_real
     NoahmpIO%t2mvxy          = undefined_real
     NoahmpIO%t2mbxy          = undefined_real
+    NoahmpIO%t2mxy           = undefined_real
     NoahmpIO%q2mvxy          = undefined_real
     NoahmpIO%q2mbxy          = undefined_real
+    NoahmpIO%q2mxy           = undefined_real
     NoahmpIO%tradxy          = undefined_real
     NoahmpIO%neexy           = undefined_real
     NoahmpIO%gppxy           = undefined_real

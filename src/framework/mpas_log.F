@@ -470,15 +470,15 @@ module mpas_log
 !>                regardless of if all tasks have open log files.
 !>    flushNow: flag indicating the message should be flushed immediately.
 !>              Note: error and critical error messages are always flushed immediately.
-!>    intArgs, realArgs, logicArgs:  arrays of variable values to be inserted into the
-!>                                   message to replace the following characters: $i, $r, $l
+!>    intArgs, int8Args, realArgs, logicArgs:  arrays of variable values to be inserted into the
+!>                                   message to replace the following characters: $i, $j, $r, $l
 !>                                   See routine log_expand_string below for details.
 !>
 !
 !-----------------------------------------------------------------------
 
    recursive subroutine mpas_log_write(message, messageType, masterOnly, flushNow, &
-                 intArgs, realArgs, logicArgs, err)
+                 intArgs, int8Args, realArgs, logicArgs, err)
 
       use mpas_threading
 
@@ -492,6 +492,7 @@ module mpas_log
       logical, intent(in), optional :: masterOnly  !< Input: flag to only print message on master task
       logical, intent(in), optional :: flushNow  !< Input: flag to force a flush of the message buffer
       integer, dimension(:), intent(in), optional :: intArgs  !< Input: integer variable values to insert into message
+      integer(kind=I8KIND), dimension(:), intent(in), optional :: int8Args  !< Input: integer variable values to insert into message
       real(kind=RKIND), dimension(:), intent(in), optional :: realArgs  !< Input: real variable values to insert into message
          !< Input: exponential notation variable values to insert into message
       logical, dimension(:), intent(in), optional :: logicArgs  !< Input: logical variable values to insert into message
@@ -540,7 +541,7 @@ module mpas_log
 
 
       ! Construct message by expanding variable values as needed and inserting message type prefix
-      call log_expand_string(message, messageExpanded, intArgs=intArgs, logicArgs=logicArgs, realArgs=realArgs)
+      call log_expand_string(message, messageExpanded, intArgs=intArgs, int8Args=int8Args, logicArgs=logicArgs, realArgs=realArgs)
 
       ! Determine message prefix
       select case (messageTypeHere)
@@ -870,6 +871,7 @@ module mpas_log
    !>   The variables to be expanded are represented with a '$' symbol followed
    !>   by one of these indicators:
    !>   $i -> integer, formatted to be length of integer
+   !>   $j -> integer(kind=I8KIND), formatted to be length of integer
    !>   $l -> logical, fomatted as 'T' or 'F'
    !>   $r -> real,  formatted as 9 digits of precision for SP mode, 17 for DP mode
    !>                Floats are formatted using 'G' format which is smart about
@@ -880,13 +882,13 @@ module mpas_log
    !>   run out before the $ expansion indicators are all replaced, the remaining
    !>   expansions will be filled with a fill value ('**').  The fill value is also
    !>   used if the expansion indicator is of an unknown type, where the valid types
-   !>   are $i, $l, $r.
+   !>   are $i, $j, $l, $r.
    !>   If the user prefers more specific formatting, they have to do it external
    !>   to this routine in a local string variable.  Similarly, character variables
    !>   can be handled by the string concatenation command (//).
    !>   This routine is based off of mpas_expand_string.
    !-----------------------------------------------------------------------
-   subroutine log_expand_string(inString, outString, intArgs, logicArgs, realArgs)
+   subroutine log_expand_string(inString, outString, intArgs, int8Args, logicArgs, realArgs)
 
       implicit none
 
@@ -896,6 +898,7 @@ module mpas_log
       character (len=*), intent(in) :: inString  !< Input: message to be expanded
 
       integer, dimension(:), intent(in), optional :: intArgs
+      integer(kind=I8KIND), dimension(:), intent(in), optional :: int8Args
          !< Input, Optional: array of integer variable values to be used in expansion
       logical, dimension(:), intent(in), optional :: logicArgs
          !< Input, Optional: array of logical variable values to be used in expansion
@@ -915,8 +918,8 @@ module mpas_log
       ! local variables
       !-----------------------------------------------------------------
       integer :: i, curLen
-      integer :: nInts, nLogicals, nReals, nExps  !< the length of the variable arrays passed in
-      integer :: iInt, iLogical, iReal !< Counter for the current index into each variable array
+      integer :: nInts, nInt8s, nLogicals, nReals, nExps  !< the length of the variable arrays passed in
+      integer :: iInt, iInt8, iLogical, iReal !< Counter for the current index into each variable array
       character (len=ShortStrKIND) :: realFormat  !< Format string to create to use for writing real variables to log file
       integer :: realPrecision !< precision of a real variable
 
@@ -926,6 +929,7 @@ module mpas_log
 
       ! Initialize the current index for each variable array to 1
       iInt = 1
+      iInt8 = 1
       iLogical = 1
       iReal = 1
 
@@ -934,6 +938,12 @@ module mpas_log
          nInts = size(intArgs)
       else
          nInts = 0
+      endif
+
+      if (present(int8Args)) then
+         nInt8s = size(int8Args)
+      else
+         nInt8s = 0
       endif
 
       if (present(logicArgs)) then
@@ -970,6 +980,15 @@ module mpas_log
                       if (iInt <= nInts) then
                          write(varPart,'(i17)') intArgs(iInt)
                          iInt = iInt + 1
+                      else
+                         varPart = errVarPart
+                      endif
+                   case ('j')
+                      ! make the format large enough to include a large integer (up to 17 digits for 8-byte int)
+                      ! it will be trimmed below
+                      if (iInt8 <= nInt8s) then
+                         write(varPart,'(i17)') int8Args(iInt8)
+                         iInt8 = iInt8 + 1
                       else
                          varPart = errVarPart
                       endif

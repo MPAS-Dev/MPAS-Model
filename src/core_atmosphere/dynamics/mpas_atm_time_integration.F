@@ -65,9 +65,13 @@ module atm_time_integration
 !   real (kind=RKIND), allocatable, dimension(:,:) :: delsq_circulation    ! no longer used -> removed 
    real (kind=RKIND), allocatable, dimension(:,:) :: delsq_vorticity
    real (kind=RKIND), allocatable, dimension(:,:) :: dpdz
+   !$acc declare create(qtot)
+   !$acc declare create(delsq_theta, delsq_w, delsq_divergence)
+   !$acc declare create(delsq_u, delsq_vorticity, dpdz)
 
    ! Used in atm_advance_scalars
    real (kind=RKIND), dimension(:,:,:), allocatable :: horiz_flux_array
+   !$acc declare create(horiz_flux_array)
 
    ! Used in atm_advance_scalars_mono
    real (kind=RKIND), dimension(:,:), allocatable :: scalar_old_arr, scalar_new_arr
@@ -77,20 +81,34 @@ module atm_time_integration
    real (kind=RKIND), dimension(:,:), allocatable :: flux_tmp_arr
    real (kind=RKIND), dimension(:,:), allocatable :: wdtn_arr
    real (kind=RKIND), dimension(:,:), allocatable :: rho_zz_int
+   !$acc declare create(scalar_old_arr, scalar_new_arr)
+   !$acc declare create(s_max_arr, s_min_arr)
+   !$acc declare create(flux_array, flux_upwind_tmp_arr)
+   !$acc declare create(flux_tmp_arr, wdtn_arr)
 
-   real (kind=RKIND), dimension(:,:,:), allocatable :: scalars_driving ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: ru_driving_tend ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: rt_driving_tend ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: rho_driving_tend ! regional_MPAS addition 
+   !$acc declare create(ru_driving_tend)
+   !$acc declare create(rt_driving_tend)
+   !$acc declare create(rho_driving_tend)
+
+   real (kind=RKIND), dimension(:,:,:), allocatable :: scalars_driving ! regional_MPAS addition
    real (kind=RKIND), dimension(:,:), allocatable :: ru_driving_values ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: rt_driving_values ! regional_MPAS addition 
    real (kind=RKIND), dimension(:,:), allocatable :: rho_driving_values ! regional_MPAS addition 
+   !$acc declare create(scalars_driving)
+   !$acc declare create(ru_driving_values)
+   !$acc declare create(rt_driving_values)
+   !$acc declare create(rho_driving_values)
+
    integer, dimension(:), pointer :: bdyMaskEdge ! regional_MPAS addition
-   logical, pointer :: config_apply_lbcs
+   logical :: config_apply_lbcs
    
    ! Used in compute_solve_diagnostics
    real (kind=RKIND), allocatable, dimension(:,:) :: ke_vertex
    real (kind=RKIND), allocatable, dimension(:,:) :: ke_edge
+   !$acc declare create(ke_vertex, ke_edge)
 
    type (MPAS_Clock_type), pointer, private :: clock
    type (block_type), pointer, private :: block
@@ -212,8 +230,49 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: invAreaCell
       integer, dimension(:), pointer :: bdyMaskCell
       integer, dimension(:), pointer :: bdyMaskEdge
+      real (kind=RKIND), dimension(:), pointer :: specZoneMaskEdge
+      real (kind=RKIND), dimension(:), pointer :: invDvEdge
+      real (kind=RKIND), dimension(:), pointer :: dcEdge
+      real (kind=RKIND), dimension(:), pointer :: invDcEdge
+      integer, dimension(:,:), pointer :: edgesOnEdge
+      integer, dimension(:,:), pointer :: edgesOnVertex
+      real (kind=RKIND), dimension(:,:), pointer :: edgesOnVertex_sign
+      integer, dimension(:), pointer :: nEdgesOnEdge
+      real (kind=RKIND), dimension(:,:), pointer :: weightsOnEdge
+      integer, dimension(:,:), pointer :: cellsOnVertex
+      integer, dimension(:,:), pointer :: verticesOnCell
+      integer, dimension(:,:), pointer :: verticesOnEdge
+      real (kind=RKIND), dimension(:), pointer :: invAreaTriangle
+      integer, dimension(:,:), pointer :: kiteForCell
+      real (kind=RKIND), dimension(:,:), pointer :: kiteAreasOnVertex
+      real (kind=RKIND), dimension(:), pointer :: fEdge
+      real (kind=RKIND), dimension(:), pointer :: fVertex
+      real (kind=RKIND), dimension(:,:), pointer :: zz
+      real (kind=RKIND), dimension(:), pointer :: rdzw
+      real (kind=RKIND), dimension(:), pointer :: rdzu
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb_cell
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb3_cell
+      real (kind=RKIND), dimension(:), pointer :: fzm
+      real (kind=RKIND), dimension(:), pointer :: fzp
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb3
+      integer, dimension(:), pointer :: nearestRelaxationCell
+      real (kind=RKIND), dimension(:,:), pointer :: zgrid
+      real (kind=RKIND), dimension(:,:), pointer :: zxu
+      real (kind=RKIND), dimension(:,:), pointer :: dss
+      real (kind=RKIND), dimension(:), pointer :: specZoneMaskCell
+      real (kind=RKIND), dimension(:), pointer :: meshScalingRegionalCell
+      real (kind=RKIND), dimension(:), pointer :: meshScalingRegionalEdge
+      real (kind=RKIND), dimension(:), pointer :: latCell
+      real (kind=RKIND), dimension(:), pointer :: lonCell
+      real (kind=RKIND), dimension(:,:,:), pointer :: coeffs_reconstruct
+      real (kind=RKIND), dimension(:,:), pointer :: defc_a
+      real (kind=RKIND), dimension(:,:), pointer :: defc_b
+      real (kind=RKIND), dimension(:), pointer :: latEdge
+      real (kind=RKIND), dimension(:), pointer :: angleEdge
+      real (kind=RKIND), dimension(:), pointer :: meshScalingDel2
+      real (kind=RKIND), dimension(:), pointer :: meshScalingDel4
 #endif
-
 
 #ifdef MPAS_CAM_DYCORE
       nullify(tend_physics)
@@ -271,6 +330,132 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
       !$acc enter data copyin(bdyMaskEdge)
+
+      call mpas_pool_get_array(mesh, 'specZoneMaskEdge', specZoneMaskEdge)
+      !$acc enter data copyin(specZoneMaskEdge)
+
+      call mpas_pool_get_array(mesh, 'invDvEdge', invDvEdge)
+      !$acc enter data copyin(invDvEdge)
+
+      call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
+      !$acc enter data copyin(dcEdge)
+
+      call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
+      !$acc enter data copyin(invDcEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnEdge', edgesOnEdge)
+      !$acc enter data copyin(edgesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnVertex', edgesOnVertex)
+      !$acc enter data copyin(edgesOnVertex)
+
+      call mpas_pool_get_array(mesh, 'edgesOnVertex_sign', edgesOnVertex_sign)
+      !$acc enter data copyin(edgesOnVertex_sign)
+
+      call mpas_pool_get_array(mesh, 'nEdgesOnEdge', nEdgesOnEdge)
+      !$acc enter data copyin(nEdgesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
+      !$acc enter data copyin(weightsOnEdge)
+
+      call mpas_pool_get_array(mesh, 'cellsOnVertex', cellsOnVertex)
+      !$acc enter data copyin(cellsOnVertex)
+
+      call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
+      !$acc enter data copyin(verticesOnCell)
+
+      call mpas_pool_get_array(mesh, 'verticesOnEdge', verticesOnEdge)
+      !$acc enter data copyin(verticesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'invAreaTriangle', invAreaTriangle)
+      !$acc enter data copyin(invAreaTriangle)
+
+      call mpas_pool_get_array(mesh, 'kiteForCell', kiteForCell)
+      !$acc enter data copyin(kiteForCell)
+
+      call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
+      !$acc enter data copyin(kiteAreasOnVertex)
+
+      call mpas_pool_get_array(mesh, 'fVertex', fVertex)
+      !$acc enter data copyin(fVertex)
+
+      call mpas_pool_get_array(mesh, 'fEdge', fEdge)
+      !$acc enter data copyin(fEdge)
+
+      call mpas_pool_get_array(mesh, 'zz', zz)
+      !$acc enter data copyin(zz)
+
+      call mpas_pool_get_array(mesh, 'rdzw', rdzw)
+      !$acc enter data copyin(rdzw)
+
+      call mpas_pool_get_array(mesh, 'rdzu', rdzu)
+      !$acc enter data copyin(rdzu)
+
+      call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
+      !$acc enter data copyin(zb_cell)
+
+      call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
+      !$acc enter data copyin(zb3_cell)
+
+      call mpas_pool_get_array(mesh, 'fzm', fzm)
+      !$acc enter data copyin(fzm)
+
+      call mpas_pool_get_array(mesh, 'fzp', fzp)
+      !$acc enter data copyin(fzp)
+
+      call mpas_pool_get_array(mesh, 'zb', zb)
+      !$acc enter data copyin(zb)
+
+      call mpas_pool_get_array(mesh, 'zb3', zb3)
+      !$acc enter data copyin(zb3)
+
+      call mpas_pool_get_array(mesh, 'nearestRelaxationCell', nearestRelaxationCell)
+      !$acc enter data copyin(nearestRelaxationCell)
+
+      call mpas_pool_get_array(mesh, 'zgrid', zgrid)
+      !$acc enter data copyin(zgrid)
+
+      call mpas_pool_get_array(mesh, 'zxu', zxu)
+      !$acc enter data copyin(zxu)
+
+      call mpas_pool_get_array(mesh, 'dss', dss)
+      !$acc enter data copyin(dss)
+
+      call mpas_pool_get_array(mesh, 'specZoneMaskCell', specZoneMaskCell)
+      !$acc enter data copyin(specZoneMaskCell)
+
+      call mpas_pool_get_array(mesh, 'meshScalingRegionalCell', meshScalingRegionalCell)
+      !$acc enter data copyin(meshScalingRegionalCell)
+
+      call mpas_pool_get_array(mesh, 'meshScalingRegionalEdge', meshScalingRegionalEdge)
+      !$acc enter data copyin(meshScalingRegionalEdge)
+
+      call mpas_pool_get_array(mesh, 'latCell', latCell)
+      !$acc enter data copyin(latCell)
+
+      call mpas_pool_get_array(mesh, 'lonCell', lonCell)
+      !$acc enter data copyin(lonCell)
+
+      call mpas_pool_get_array(mesh, 'coeffs_reconstruct', coeffs_reconstruct)
+      !$acc enter data copyin(coeffs_reconstruct)
+
+      call mpas_pool_get_array(mesh, 'defc_a', defc_a)
+      !$acc enter data copyin(defc_a)
+
+      call mpas_pool_get_array(mesh, 'defc_b', defc_b)
+      !$acc enter data copyin(defc_b)
+
+      call mpas_pool_get_array(mesh, 'latEdge', latEdge)
+      !$acc enter data copyin(latEdge)
+
+      call mpas_pool_get_array(mesh, 'angleEdge', angleEdge)
+      !$acc enter data copyin(angleEdge)
+
+      call mpas_pool_get_array(mesh, 'meshScalingDel2', meshScalingDel2)
+      !$acc enter data copyin(meshScalingDel2)
+
+      call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
+      !$acc enter data copyin(meshScalingDel4)
 #endif
 
    end subroutine mpas_atm_dynamics_init
@@ -319,6 +504,48 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: invAreaCell
       integer, dimension(:), pointer :: bdyMaskCell
       integer, dimension(:), pointer :: bdyMaskEdge
+      real (kind=RKIND), dimension(:), pointer :: specZoneMaskEdge
+      real (kind=RKIND), dimension(:), pointer :: invDvEdge
+      real (kind=RKIND), dimension(:), pointer :: dcEdge
+      real (kind=RKIND), dimension(:), pointer :: invDcEdge
+      integer, dimension(:,:), pointer :: edgesOnEdge
+      integer, dimension(:,:), pointer :: edgesOnVertex
+      real (kind=RKIND), dimension(:,:), pointer :: edgesOnVertex_sign
+      integer, dimension(:), pointer :: nEdgesOnEdge
+      real (kind=RKIND), dimension(:,:), pointer :: weightsOnEdge
+      integer, dimension(:,:), pointer :: cellsOnVertex
+      integer, dimension(:,:), pointer :: verticesOnCell
+      integer, dimension(:,:), pointer :: verticesOnEdge
+      real (kind=RKIND), dimension(:), pointer :: invAreaTriangle
+      integer, dimension(:,:), pointer :: kiteForCell
+      real (kind=RKIND), dimension(:,:), pointer :: kiteAreasOnVertex
+      real (kind=RKIND), dimension(:), pointer :: fEdge
+      real (kind=RKIND), dimension(:), pointer :: fVertex
+      real (kind=RKIND), dimension(:,:), pointer :: zz
+      real (kind=RKIND), dimension(:), pointer :: rdzw
+      real (kind=RKIND), dimension(:), pointer :: rdzu
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb_cell
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb3_cell
+      real (kind=RKIND), dimension(:), pointer :: fzm
+      real (kind=RKIND), dimension(:), pointer :: fzp
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb3
+      integer, dimension(:), pointer :: nearestRelaxationCell
+      real (kind=RKIND), dimension(:,:), pointer :: zgrid
+      real (kind=RKIND), dimension(:,:), pointer :: zxu
+      real (kind=RKIND), dimension(:,:), pointer :: dss
+      real (kind=RKIND), dimension(:), pointer :: specZoneMaskCell
+      real (kind=RKIND), dimension(:), pointer :: meshScalingRegionalCell
+      real (kind=RKIND), dimension(:), pointer :: meshScalingRegionalEdge
+      real (kind=RKIND), dimension(:), pointer :: latCell
+      real (kind=RKIND), dimension(:), pointer :: lonCell
+      real (kind=RKIND), dimension(:,:,:), pointer :: coeffs_reconstruct
+      real (kind=RKIND), dimension(:,:), pointer :: defc_a
+      real (kind=RKIND), dimension(:,:), pointer :: defc_b
+      real (kind=RKIND), dimension(:), pointer :: latEdge
+      real (kind=RKIND), dimension(:), pointer :: angleEdge
+      real (kind=RKIND), dimension(:), pointer :: meshScalingDel2
+      real (kind=RKIND), dimension(:), pointer :: meshScalingDel4
 #endif
 
 
@@ -378,6 +605,132 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
       !$acc exit data delete(bdyMaskEdge)
+
+      call mpas_pool_get_array(mesh, 'specZoneMaskEdge', specZoneMaskEdge)
+      !$acc exit data delete(specZoneMaskEdge)
+
+      call mpas_pool_get_array(mesh, 'invDvEdge', invDvEdge)
+      !$acc exit data delete(invDvEdge)
+
+      call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
+      !$acc exit data delete(dcEdge)
+
+      call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
+      !$acc exit data delete(invDcEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnEdge', edgesOnEdge)
+      !$acc exit data delete(edgesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'edgesOnVertex', edgesOnVertex)
+      !$acc exit data delete(edgesOnVertex)
+
+      call mpas_pool_get_array(mesh, 'edgesOnVertex_sign', edgesOnVertex_sign)
+      !$acc exit data delete(edgesOnVertex_sign)
+
+      call mpas_pool_get_array(mesh, 'nEdgesOnEdge', nEdgesOnEdge)
+      !$acc exit data delete(nEdgesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'weightsOnEdge', weightsOnEdge)
+      !$acc exit data delete(weightsOnEdge)
+
+      call mpas_pool_get_array(mesh, 'cellsOnVertex', cellsOnVertex)
+      !$acc exit data delete(cellsOnVertex)
+
+      call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
+      !$acc exit data delete(verticesOnCell)
+
+      call mpas_pool_get_array(mesh, 'verticesOnEdge', verticesOnEdge)
+      !$acc exit data delete(verticesOnEdge)
+
+      call mpas_pool_get_array(mesh, 'invAreaTriangle', invAreaTriangle)
+      !$acc exit data delete(invAreaTriangle)
+
+      call mpas_pool_get_array(mesh, 'kiteForCell', kiteForCell)
+      !$acc exit data delete(kiteForCell)
+
+      call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
+      !$acc exit data delete(kiteAreasOnVertex)
+
+      call mpas_pool_get_array(mesh, 'fVertex', fVertex)
+      !$acc exit data delete(fVertex)
+
+      call mpas_pool_get_array(mesh, 'fEdge', fEdge)
+      !$acc exit data delete(fEdge)
+
+      call mpas_pool_get_array(mesh, 'zz', zz)
+      !$acc exit data delete(zz)
+
+      call mpas_pool_get_array(mesh, 'rdzw', rdzw)
+      !$acc exit data delete(rdzw)
+
+      call mpas_pool_get_array(mesh, 'rdzu', rdzu)
+      !$acc exit data delete(rdzu)
+
+      call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
+      !$acc exit data delete(zb_cell)
+
+      call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
+      !$acc exit data delete(zb3_cell)
+
+      call mpas_pool_get_array(mesh, 'fzm', fzm)
+      !$acc exit data delete(fzm)
+
+      call mpas_pool_get_array(mesh, 'fzp', fzp)
+      !$acc exit data delete(fzp)
+
+      call mpas_pool_get_array(mesh, 'zb', zb)
+      !$acc exit data delete(zb)
+
+      call mpas_pool_get_array(mesh, 'zb3', zb3)
+      !$acc exit data delete(zb3)
+
+      call mpas_pool_get_array(mesh, 'nearestRelaxationCell', nearestRelaxationCell)
+      !$acc exit data delete(nearestRelaxationCell)
+
+      call mpas_pool_get_array(mesh, 'zgrid', zgrid)
+      !$acc exit data delete(zgrid)
+
+      call mpas_pool_get_array(mesh, 'zxu', zxu)
+      !$acc exit data delete(zxu)
+
+      call mpas_pool_get_array(mesh, 'dss', dss)
+      !$acc exit data delete(dss)
+
+      call mpas_pool_get_array(mesh, 'specZoneMaskCell', specZoneMaskCell)
+      !$acc exit data delete(specZoneMaskCell)
+      
+      call mpas_pool_get_array(mesh, 'meshScalingRegionalCell', meshScalingRegionalCell)
+      !$acc exit data delete(meshScalingRegionalCell)
+
+      call mpas_pool_get_array(mesh, 'meshScalingRegionalEdge', meshScalingRegionalEdge)
+      !$acc exit data delete(meshScalingRegionalEdge)
+
+      call mpas_pool_get_array(mesh, 'latCell', latCell)
+      !$acc exit data delete(latCell)
+
+      call mpas_pool_get_array(mesh, 'lonCell', lonCell)
+      !$acc exit data delete(lonCell)
+
+      call mpas_pool_get_array(mesh, 'coeffs_reconstruct', coeffs_reconstruct)
+      !$acc exit data delete(coeffs_reconstruct)
+
+      call mpas_pool_get_array(mesh, 'defc_a', defc_a)
+      !$acc exit data delete(defc_a)
+
+      call mpas_pool_get_array(mesh, 'defc_b', defc_b)
+      !$acc exit data delete(defc_b)
+
+      call mpas_pool_get_array(mesh, 'latEdge', latEdge)
+      !$acc exit data delete(latEdge)
+
+      call mpas_pool_get_array(mesh, 'angleEdge', angleEdge)
+      !$acc exit data delete(angleEdge)
+
+      call mpas_pool_get_array(mesh, 'meshScalingDel2', meshScalingDel2)
+      !$acc exit data delete(meshScalingDel2)
+
+      call mpas_pool_get_array(mesh, 'meshScalingDel4', meshScalingDel4)
+      !$acc exit data delete(meshScalingDel4)
 #endif
 
    end subroutine mpas_atm_dynamics_finalize
@@ -410,13 +763,16 @@ module atm_time_integration
       real (kind=RKIND) :: Time_new
       type (mpas_pool_type), pointer :: state
       character (len=StrKIND), pointer :: config_time_integration
+      logical, pointer :: config_apply_lbcs_ptr
 
 
       clock => domain % clock
       block => domain % blocklist
 
       call mpas_pool_get_config(block % configs, 'config_time_integration', config_time_integration)
-      call mpas_pool_get_config(block % configs, 'config_apply_lbcs', config_apply_lbcs)
+      call mpas_pool_get_config(block % configs, 'config_apply_lbcs', config_apply_lbcs_ptr)
+
+      config_apply_lbcs = config_apply_lbcs_ptr
 
       if (trim(config_time_integration) == 'SRK3') then
          call atm_srk3(domain, dt, itimestep, exchange_halo_group)
@@ -494,12 +850,13 @@ module atm_time_integration
       logical, pointer :: config_scalar_advection
       logical, pointer :: config_positive_definite
       logical, pointer :: config_monotonic
-      real (kind=RKIND), pointer :: config_dt
       character (len=StrKIND), pointer :: config_microp_scheme
       character (len=StrKIND), pointer :: config_convection_scheme
 
-      integer, pointer :: num_scalars, index_qv, nCells, nCellsSolve, nEdges, nEdgesSolve, nVertices, nVerticesSolve, nVertLevels
-      integer, pointer :: index_qc, index_qr, index_qi, index_qs, index_qg, index_nr, index_ni, index_nc, index_nifa, index_nwfa
+      integer, pointer :: index_qv, nCellsSolve, nVertices_ptr, nVerticesSolve
+      integer, pointer :: nCells_ptr, nEdges_ptr, nEdgesSolve_ptr
+      integer, pointer :: nVertLevels_ptr, num_scalars_ptr
+      integer :: nCells, nEdges, nVertices, nEdgesSolve, nVertLevels, num_scalars
 
       character(len=StrKIND), pointer :: config_IAU_option
 
@@ -535,7 +892,6 @@ module atm_time_integration
       call mpas_pool_get_config(block % configs, 'config_scalar_advection', config_scalar_advection)
       call mpas_pool_get_config(block % configs, 'config_positive_definite', config_positive_definite)
       call mpas_pool_get_config(block % configs, 'config_monotonic', config_monotonic)
-      call mpas_pool_get_config(block % configs, 'config_dt', config_dt)
       call mpas_pool_get_config(block % configs, 'config_IAU_option', config_IAU_option)
       !  config variables for dynamics-transport splitting, WCS 18 November 2014
       call mpas_pool_get_config(block % configs, 'config_split_dynamics_transport', config_split_dynamics_transport)
@@ -562,15 +918,24 @@ module atm_time_integration
       ! Retrieve dimensions
       ! Note: nCellsSolve and nVerticesSolve are not currently used in this function
       !
-      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+      call mpas_pool_get_dimension(mesh, 'nCells', nCells_ptr)
       call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
-      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
-      call mpas_pool_get_dimension(mesh, 'nVertices', nVertices)
-      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges_ptr)
+      call mpas_pool_get_dimension(mesh, 'nVertices', nVertices_ptr)
+      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels_ptr)
 
       !call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
-      call mpas_pool_get_dimension(mesh, 'nEdgesSolve', nEdgesSolve)
+      call mpas_pool_get_dimension(mesh, 'nEdgesSolve', nEdgesSolve_ptr)
       !call mpas_pool_get_dimension(mesh, 'nVerticesSolve', nVerticesSolve)
+
+      ! For OpenACC parallel regions, use regular scalar integers for loop
+      ! bounds rather than pointers to integers, as the former are implicitly
+      ! copied to the device
+      nEdges = nEdges_ptr
+      nCells = nCells_ptr
+      nVertices = nVertices_ptr
+      nEdgesSolve = nEdgesSolve_ptr
+      nVertLevels = nVertLevels_ptr
 
       call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
 
@@ -593,26 +958,19 @@ module atm_time_integration
 #ifdef DO_PHYSICS
       call mpas_pool_get_dimension(state, 'index_qv', index_qv)
 #endif
-      if (config_apply_lbcs) then
-         call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
-         call mpas_pool_get_dimension(state, 'index_qv', index_qv)
-         call mpas_pool_get_dimension(state, 'index_qc', index_qc)
-         call mpas_pool_get_dimension(state, 'index_qr', index_qr)
-         call mpas_pool_get_dimension(state, 'index_qi', index_qi)
-         call mpas_pool_get_dimension(state, 'index_qs', index_qs)
-         call mpas_pool_get_dimension(state, 'index_qg', index_qg)  
-         call mpas_pool_get_dimension(state, 'index_nr', index_nr)
-         call mpas_pool_get_dimension(state, 'index_ni', index_ni)
-         call mpas_pool_get_dimension(state, 'index_nc', index_nc)
-         call mpas_pool_get_dimension(state, 'index_nifa', index_nifa)
-         call mpas_pool_get_dimension(state, 'index_nwfa', index_nwfa)
-      endif
+      call mpas_pool_get_dimension(state, 'num_scalars', num_scalars_ptr)
+      num_scalars = num_scalars_ptr
 
       !
       ! allocate storage for physics tendency save
       !
       allocate(qtot(nVertLevels,nCells+1))
-      qtot(:,nCells+1) = 0.0_RKIND
+      !$acc parallel default(present)
+      !$acc loop vector
+      do k = 1, nVertLevels
+         qtot(k,nCells+1) = 0.0_RKIND
+      end do
+      !$acc end parallel
 
 #ifndef MPAS_CAM_DYCORE
       call mpas_pool_get_field(tend_physics, 'tend_rtheta_physics', tend_rtheta_physicsField)
@@ -688,7 +1046,7 @@ module atm_time_integration
 
 !$OMP PARALLEL DO
       do thread=1,nThreads
-         call atm_rk_integration_setup(state, diag, &
+         call atm_rk_integration_setup(state, diag, nVertLevels, num_scalars, &
                                        cellThreadStart(thread), cellThreadEnd(thread), &
                                        vertexThreadStart(thread), vertexThreadEnd(thread), &
                                        edgeThreadStart(thread), edgeThreadEnd(thread), &
@@ -791,19 +1149,25 @@ module atm_time_integration
             call mpas_timer_start('atm_compute_dyn_tend')
    
             allocate(delsq_theta(nVertLevels,nCells+1))
-            delsq_theta(:,nCells+1) = 0.0_RKIND
             allocate(delsq_w(nVertLevels,nCells+1))
-            delsq_w(:,nCells+1) = 0.0_RKIND
-!!            allocate(qtot(nVertLevels,nCells+1))  ! initializing this earlier in solution sequence
+            !!  allocate(qtot(nVertLevels,nCells+1))  ! initializing this earlier in solution sequence
             allocate(delsq_divergence(nVertLevels,nCells+1))
-            delsq_divergence(:,nCells+1) = 0.0_RKIND
             allocate(delsq_u(nVertLevels,nEdges+1))
-            delsq_u(:,nEdges+1) = 0.0_RKIND
-!!            allocate(delsq_circulation(nVertLevels,nVertices+1))  ! no longer used -> removed 
+            !!  allocate(delsq_circulation(nVertLevels,nVertices+1))  ! no longer used -> removed
             allocate(delsq_vorticity(nVertLevels,nVertices+1))
-            delsq_vorticity(:,nVertices+1) = 0.0_RKIND
             allocate(dpdz(nVertLevels,nCells+1))
-            dpdz(:,nCells+1) = 0.0_RKIND
+
+            !$acc parallel default(present)
+            !$acc loop vector
+            do k = 1, nVertLevels
+               delsq_theta(k,nCells+1) = 0.0_RKIND
+               delsq_w(k,nCells+1) = 0.0_RKIND
+               delsq_divergence(k,nCells+1) = 0.0_RKIND
+               delsq_u(k,nEdges+1) = 0.0_RKIND
+               delsq_vorticity(k,nVertices+1) = 0.0_RKIND
+               dpdz(k,nCells+1) = 0.0_RKIND
+            end do
+            !$acc end parallel
 
 !$OMP PARALLEL DO
             do thread=1,nThreads
@@ -842,11 +1206,8 @@ module atm_time_integration
    
 !$OMP PARALLEL DO
             do thread=1,nThreads
-               call atm_set_smlstep_pert_variables( tend, diag, mesh, block % configs, &
-                                          cellThreadStart(thread), cellThreadEnd(thread), &
-                                          edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                          edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+               call atm_set_smlstep_pert_variables( tend, mesh, &
+                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
             end do
 !$OMP END PARALLEL DO
             call mpas_timer_stop('small_step_prep')
@@ -859,9 +1220,9 @@ module atm_time_integration
                allocate(ru_driving_tend(nVertLevels,nEdges+1))
                allocate(rt_driving_tend(nVertLevels,nCells+1))
                allocate(rho_driving_tend(nVertLevels,nCells+1))
-               ru_driving_tend(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_tend( clock, block, nVertLevels, nEdges, 'ru', 0.0_RKIND )
-               rt_driving_tend(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_tend( clock, block, nVertLevels, nCells, 'rtheta_m', 0.0_RKIND )
-               rho_driving_tend(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_tend( clock, block, nVertLevels, nCells, 'rho_zz', 0.0_RKIND )
+               call mpas_atm_get_bdy_tend( clock, block, nVertLevels, nEdges, 'ru', 0.0_RKIND, ru_driving_tend)
+               call mpas_atm_get_bdy_tend( clock, block, nVertLevels, nCells, 'rtheta_m', 0.0_RKIND, rt_driving_tend)
+               call mpas_atm_get_bdy_tend( clock, block, nVertLevels, nCells, 'rho_zz', 0.0_RKIND, rho_driving_tend)
 !$OMP PARALLEL DO
                do thread=1,nThreads
                   call atm_bdy_adjust_dynamics_speczone_tend( tend, mesh, block % configs, nVertLevels,                 &
@@ -884,10 +1245,11 @@ module atm_time_integration
                allocate(rho_driving_values(nVertLevels,nCells+1))
 
                time_dyn_step = dt_dynamics*real(dynamics_substep-1) + rk_timestep(rk_step)
-               ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nEdges, 'ru', time_dyn_step )
-               rt_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rtheta_m', time_dyn_step )
-               rho_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rho_zz', time_dyn_step )
+               call mpas_atm_get_bdy_state(clock, block, nVertLevels, nEdges, 'ru', time_dyn_step, ru_driving_values)
+               call mpas_atm_get_bdy_state(clock, block, nVertLevels, nCells, 'rtheta_m', time_dyn_step, rt_driving_values)
+               call mpas_atm_get_bdy_state(clock, block, nVertLevels, nCells, 'rho_zz', time_dyn_step, rho_driving_values)
 
+               call mpas_timer_start('atm_bdy_adjust_dynamics_relaxzone_tend')
 !$OMP PARALLEL DO
                do thread=1,nThreads
                   call atm_bdy_adjust_dynamics_relaxzone_tend( block % configs, tend, state, diag, mesh, nVertLevels, dt,  &
@@ -898,6 +1260,7 @@ module atm_time_integration
                                                                edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread) )
                end do
 !$OMP END PARALLEL DO
+               call mpas_timer_stop('atm_bdy_adjust_dynamics_relaxzone_tend')
 
                deallocate(ru_driving_values)
                deallocate(rt_driving_values)
@@ -988,27 +1351,40 @@ module atm_time_integration
 
                time_dyn_step = dt_dynamics*real(dynamics_substep-1) + rk_timestep(rk_step)
 
-               ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nEdges, 'u', time_dyn_step )
+               call mpas_atm_get_bdy_state(clock, block, nVertLevels, nEdges, 'u', time_dyn_step, ru_driving_values)
+
                ! do this inline at present - it is simple enough
+               !$acc enter data copyin(u)
+               !$acc parallel default(present)
+               !$acc loop gang worker
                do iEdge = 1, nEdgesSolve
                   if(bdyMaskEdge(iEdge) > nRelaxZone) then
+                     !$acc loop vector
                      do k = 1, nVertLevels
                         u(k,iEdge) = ru_driving_values(k,iEdge)
                      end do
                   end if
                end do
+               !$acc end parallel
+               !$acc exit data copyout(u)
 
-               ru_driving_values(1:nVertLevels,1:nEdges+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nEdges, 'ru', time_dyn_step )
+               call mpas_atm_get_bdy_state(clock, block, nVertLevels, nEdges, 'ru', time_dyn_step, ru_driving_values)
                call mpas_pool_get_array(diag, 'ru', u)
                ! do this inline at present - it is simple enough
+               !$acc enter data copyin(u)
+               !$acc parallel default(present)
+               !$acc loop gang worker
                do iEdge = 1, nEdges
                   if(bdyMaskEdge(iEdge) > nRelaxZone) then
+                     !$acc loop vector
                      do k = 1, nVertLevels
                         u(k,iEdge) = ru_driving_values(k,iEdge)
                      end do
                   end if
                end do
-               
+               !$acc end parallel
+               !$acc exit data copyout(u)
+
                deallocate(ru_driving_values)
 
             end if  ! regional_MPAS addition
@@ -1036,41 +1412,12 @@ module atm_time_integration
 
                   allocate(scalars_driving(num_scalars,nVertLevels,nCells+1))
 
-                  !  get the scalar values driving the regional boundary conditions
                   !
-                  if (index_qv > 0) then
-                     scalars_driving(index_qv,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qv', rk_timestep(rk_step) )
-                  end if
-                  if (index_qc > 0) then
-                     scalars_driving(index_qc,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qc', rk_timestep(rk_step) )
-                  end if
-                  if (index_qr > 0) then
-                     scalars_driving(index_qr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qr', rk_timestep(rk_step) )
-                  end if
-                  if (index_qi > 0) then
-                     scalars_driving(index_qi,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qi', rk_timestep(rk_step) )
-                  end if
-                  if (index_qs > 0) then
-                     scalars_driving(index_qs,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qs', rk_timestep(rk_step) )
-                  end if
-                  if (index_qg > 0) then
-                     scalars_driving(index_qg,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qg', rk_timestep(rk_step) )
-                  end if
-                  if (index_nr > 0) then
-                     scalars_driving(index_nr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'nr', rk_timestep(rk_step) )
-                  end if
-                  if (index_ni > 0) then
-                     scalars_driving(index_ni,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'ni', rk_timestep(rk_step) )
-                  end if
-                  if (index_nc > 0) then
-                     scalars_driving(index_nc,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'nc', rk_timestep(rk_step) )
-                  end if
-                  if (index_nifa > 0) then
-                     scalars_driving(index_nifa,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'nifa', rk_timestep(rk_step) )
-                  end if
-                  if (index_nwfa > 0) then
-                     scalars_driving(index_nwfa,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'nwfa', rk_timestep(rk_step) )
-                  end if
+                  ! get the scalar values driving the regional boundary conditions
+                  !
+                  call mpas_atm_get_bdy_state(clock, block, num_scalars, nVertLevels, nCells, &
+                                              'scalars', rk_timestep(rk_step), scalars_driving)
+
                   !$OMP PARALLEL DO
                   do thread=1,nThreads
                      call atm_bdy_adjust_scalars( state, diag, mesh, block % configs, scalars_driving, nVertLevels, dt, rk_timestep(rk_step), &
@@ -1089,9 +1436,15 @@ module atm_time_integration
             call mpas_timer_start('atm_compute_solve_diagnostics')
 
             allocate(ke_vertex(nVertLevels,nVertices+1))
-            ke_vertex(:,nVertices+1) = 0.0_RKIND
             allocate(ke_edge(nVertLevels,nEdges+1))
-            ke_edge(:,nEdges+1) = 0.0_RKIND
+
+            !$acc parallel default(present)
+            !$acc loop vector
+            do k = 1, nVertLevels
+               ke_vertex(k,nVertices+1) = 0.0_RKIND
+               ke_edge(k,nEdges+1) = 0.0_RKIND
+            end do
+            !$acc end parallel
    
 !$OMP PARALLEL DO
             do thread=1,nThreads
@@ -1162,7 +1515,7 @@ module atm_time_integration
 
 !$OMP PARALLEL DO
          do thread=1,nThreads
-            call atm_rk_dynamics_substep_finish(state, diag, dynamics_substep, dynamics_split, &
+            call atm_rk_dynamics_substep_finish(state, diag, nVertLevels, dynamics_substep, dynamics_split, &
                                              cellThreadStart(thread), cellThreadEnd(thread), &
                                              vertexThreadStart(thread), vertexThreadEnd(thread), &
                                              edgeThreadStart(thread), edgeThreadEnd(thread), &
@@ -1211,41 +1564,12 @@ module atm_time_integration
    
                allocate(scalars_driving(num_scalars,nVertLevels,nCells+1))
 
-               !  get the scalar values driving the regional boundary conditions
                !
-               if (index_qv > 0) then
-                  scalars_driving(index_qv,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qv', rk_timestep(rk_step) )
-               end if
-               if (index_qc > 0) then
-                  scalars_driving(index_qc,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qc', rk_timestep(rk_step) )
-               end if
-               if (index_qr > 0) then
-                  scalars_driving(index_qr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qr', rk_timestep(rk_step) )
-               end if
-               if (index_qi > 0) then
-                  scalars_driving(index_qi,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qi', rk_timestep(rk_step) )
-               end if
-               if (index_qs > 0) then
-                  scalars_driving(index_qs,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qs', rk_timestep(rk_step) )
-               end if
-               if (index_qg > 0) then
-                  scalars_driving(index_qg,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qg', rk_timestep(rk_step) )
-               end if
-               if (index_nr > 0) then
-                  scalars_driving(index_nr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'nr', rk_timestep(rk_step) )
-               end if
-               if (index_ni > 0) then
-                  scalars_driving(index_ni,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'ni', rk_timestep(rk_step) )
-               end if
-               if (index_nc > 0) then
-                  scalars_driving(index_nc,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'nc', rk_timestep(rk_step) )
-               end if
-               if (index_nifa > 0) then
-                  scalars_driving(index_nifa,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'nifa', rk_timestep(rk_step) )
-               end if
-               if (index_nwfa > 0) then
-                  scalars_driving(index_nwfa,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'nwfa', rk_timestep(rk_step) )
-               end if
+               ! get the scalar values driving the regional boundary conditions
+               !
+               call mpas_atm_get_bdy_state(clock, block, num_scalars, nVertLevels, nCells, &
+                                           'scalars', rk_timestep(rk_step), scalars_driving)
+
 !$OMP PARALLEL DO
                do thread=1,nThreads
                   call atm_bdy_adjust_scalars( state, diag, mesh, block % configs, scalars_driving, nVertLevels, dt, rk_timestep(rk_step), &
@@ -1309,7 +1633,7 @@ module atm_time_integration
          !requires that the subroutine atm_advance_scalars_mono was called on the third Runge Kutta step, so that a halo
          !update for the scalars at time_levs(1) is applied. A halo update for the scalars at time_levs(2) is done above. 
          if (config_monotonic) then
-            rqvdynten(:,:) = ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / config_dt
+            rqvdynten(:,:) = ( scalars_2(index_qv,:,:) - scalars_1(index_qv,:,:) ) / dt
          else
             rqvdynten(:,:) = 0._RKIND
          end if
@@ -1355,8 +1679,8 @@ module atm_time_integration
         allocate(rho_driving_values(nVertLevels,nCells+1))
         time_dyn_step = dt  ! end of full timestep values
 
-        rt_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rtheta_m', time_dyn_step )
-        rho_driving_values(1:nVertLevels,1:nCells+1) =  mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'rho_zz', time_dyn_step )
+        call mpas_atm_get_bdy_state(clock, block, nVertLevels, nCells, 'rtheta_m', time_dyn_step, rt_driving_values)
+        call mpas_atm_get_bdy_state(clock, block, nVertLevels, nCells, 'rho_zz', time_dyn_step, rho_driving_values)
 
 !$OMP PARALLEL DO
         do thread=1,nThreads
@@ -1379,41 +1703,11 @@ module atm_time_integration
 
          allocate(scalars_driving(num_scalars,nVertLevels,nCells+1))
 
-         !  get the scalar values driving the regional boundary conditions
          !
-         if (index_qv > 0) then
-            scalars_driving(index_qv,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qv', dt )
-         end if
-         if (index_qc > 0) then
-            scalars_driving(index_qc,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qc', dt )
-         end if
-         if (index_qr > 0) then
-            scalars_driving(index_qr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qr', dt )
-         end if
-         if (index_qi > 0) then
-            scalars_driving(index_qi,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qi', dt )
-         end if
-         if (index_qs > 0) then
-            scalars_driving(index_qs,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qs', dt )
-         end if
-         if (index_qg > 0) then
-            scalars_driving(index_qg,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'qg', dt )
-         end if
-         if (index_nr > 0) then
-            scalars_driving(index_nr,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'nr', dt )
-         end if
-         if (index_ni > 0) then
-            scalars_driving(index_ni,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'ni', dt )
-         end if
-         if (index_nc > 0) then
-            scalars_driving(index_nc,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'nc', dt )
-         end if
-         if (index_nifa > 0) then
-            scalars_driving(index_nifa,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'nifa', dt )
-         end if
-         if (index_nwfa > 0) then
-            scalars_driving(index_nwfa,1:nVertLevels,1:nCells+1) = mpas_atm_get_bdy_state( clock, block, nVertLevels, nCells, 'nwfa', dt )
-         end if
+         ! get the scalar values driving the regional boundary conditions
+         !
+         call mpas_atm_get_bdy_state(clock, block, num_scalars, nVertLevels, nCells, 'scalars', dt, scalars_driving)
+
 !$OMP PARALLEL DO
          do thread=1,nThreads
             call atm_bdy_set_scalars( state, mesh, scalars_driving, nVertLevels, &
@@ -1482,10 +1776,12 @@ module atm_time_integration
       type (mpas_pool_type), pointer :: mesh
       type (mpas_pool_type), pointer :: halo_scratch
 
-      integer, pointer :: nCells
-      integer, pointer :: nEdges
-      integer, pointer :: nVertLevels
-      integer, pointer :: num_scalars
+      integer, pointer :: nCells_ptr
+      integer, pointer :: nEdges_ptr
+      integer, pointer :: nVertLevels_ptr
+      integer, pointer :: num_scalars_ptr
+      integer :: nCells, nEdges, nVertLevels, num_scalars
+      integer :: iScalar, k
 
       integer, pointer :: nThreads
       integer, dimension(:), pointer :: cellThreadStart
@@ -1508,10 +1804,10 @@ module atm_time_integration
       call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
       call mpas_pool_get_subpool(block % structs, 'halo_scratch', halo_scratch)
 
-      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
-      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-      call mpas_pool_get_dimension(state, 'num_'//trim(field_name), num_scalars)
+      call mpas_pool_get_dimension(mesh, 'nCells', nCells_ptr)
+      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges_ptr)
+      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels_ptr)
+      call mpas_pool_get_dimension(state, 'num_'//trim(field_name), num_scalars_ptr)
 
       call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
 
@@ -1523,18 +1819,35 @@ module atm_time_integration
       call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
       call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
 
+      nCells = nCells_ptr
+      nEdges = nEdges_ptr
+      nVertLevels = nVertLevels_ptr
+      num_scalars = num_scalars_ptr
+
       allocate(scalar_old_arr(nVertLevels,nCells+1))
-      scalar_old_arr(:,nCells+1) = 0.0_RKIND
       allocate(scalar_new_arr(nVertLevels,nCells+1))
-      scalar_new_arr(:,nCells+1) = 0.0_RKIND
       allocate(s_max_arr(nVertLevels,nCells+1))
-      s_max_arr(:,nCells+1) = 0.0_RKIND
       allocate(s_min_arr(nVertLevels,nCells+1))
-      s_min_arr(:,nCells+1) = 0.0_RKIND
       allocate(flux_array(nVertLevels,nEdges+1))
-      flux_array(:,nEdges+1) = 0.0_RKIND
+      !$acc parallel default(present)
+      !$acc loop vector
+      do k = 1, nVertLevels
+         scalar_old_arr(k,nCells+1) = 0.0_RKIND
+         scalar_new_arr(k,nCells+1) = 0.0_RKIND
+         s_max_arr(k,nCells+1) = 0.0_RKIND
+         s_min_arr(k,nCells+1) = 0.0_RKIND
+         flux_array(k,nEdges+1) = 0.0_RKIND
+      end do
+      !$acc end parallel
+
       allocate(wdtn_arr(nVertLevels+1,nCells+1))
-      wdtn_arr(:,nCells+1) = 0.0_RKIND
+      !$acc parallel default(present)
+      !$acc loop vector
+      do k = 1, nVertLevels+1
+         wdtn_arr(k,nCells+1) = 0.0_RKIND
+      end do
+      !$acc end parallel
+
       if (config_split_dynamics_transport) then
          allocate(rho_zz_int(nVertLevels,nCells+1))
          rho_zz_int(:,nCells+1) = 0.0_RKIND
@@ -1543,12 +1856,24 @@ module atm_time_integration
       end if
       if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
          allocate(horiz_flux_array(num_scalars,nVertLevels,nEdges+1))
-         horiz_flux_array(:,:,nEdges+1) = 0.0_RKIND
+         !$acc parallel default(present)
+         !$acc loop gang vector collapse(2)
+         do k = 1, nVertLevels
+            do iScalar = 1, num_scalars
+               horiz_flux_array(iScalar,k,nEdges+1) = 0.0_RKIND
+            end do
+         end do
+         !$acc end parallel
       else
          allocate(flux_upwind_tmp_arr(nVertLevels,nEdges+1))
-         flux_upwind_tmp_arr(:,nEdges+1) = 0.0_RKIND
          allocate(flux_tmp_arr(nVertLevels,nEdges+1))
-         flux_tmp_arr(:,nEdges+1) = 0.0_RKIND
+         !$acc parallel default(present)
+         !$acc loop vector
+         do k = 1, nVertLevels
+            flux_upwind_tmp_arr(k,nEdges+1) = 0.0_RKIND
+            flux_tmp_arr(k,nEdges+1) = 0.0_RKIND
+         end do
+         !$acc end parallel
       end if
 
       !
@@ -1602,7 +1927,7 @@ module atm_time_integration
    end subroutine advance_scalars
 
 
-   subroutine atm_rk_integration_setup( state, diag, &
+   subroutine atm_rk_integration_setup( state, diag, nVertLevels, num_scalars, &
                                    cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
                                    cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
 
@@ -1610,8 +1935,9 @@ module atm_time_integration
 
       type (mpas_pool_type), intent(inout) :: state
       type (mpas_pool_type), intent(inout) :: diag
-      integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
+      integer, intent(in) :: nVertLevels, num_scalars, cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
       integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
+      integer :: iCell, iEdge, j, k
 
       real (kind=RKIND), dimension(:,:), pointer :: ru
       real (kind=RKIND), dimension(:,:), pointer :: ru_save
@@ -1650,17 +1976,65 @@ module atm_time_integration
       call mpas_pool_get_array(state, 'scalars', scalars_1, 1)
       call mpas_pool_get_array(state, 'scalars', scalars_2, 2)
 
-      ru_save(:,edgeStart:edgeEnd) = ru(:,edgeStart:edgeEnd)
-      rw_save(:,cellStart:cellEnd) = rw(:,cellStart:cellEnd)
-      rtheta_p_save(:,cellStart:cellEnd) = rtheta_p(:,cellStart:cellEnd)
-      rho_p_save(:,cellStart:cellEnd) = rho_p(:,cellStart:cellEnd)
+      MPAS_ACC_TIMER_START('atm_rk_integration_setup [ACC_data_xfer]')
+      !$acc enter data create(ru_save, u_2, rw_save, rtheta_p_save, rho_p_save, &
+      !$acc                   w_2, theta_m_2, rho_zz_2, rho_zz_old_split, scalars_2) &
+      !$acc            copyin(ru, rw, rtheta_p, rho_p, u_1, w_1, theta_m_1, &
+      !$acc                   rho_zz_1, scalars_1)
+      MPAS_ACC_TIMER_STOP('atm_rk_integration_setup [ACC_data_xfer]')
 
-      u_2(:,edgeStart:edgeEnd) = u_1(:,edgeStart:edgeEnd)
-      w_2(:,cellStart:cellEnd) = w_1(:,cellStart:cellEnd)
-      theta_m_2(:,cellStart:cellEnd) = theta_m_1(:,cellStart:cellEnd)
-      rho_zz_2(:,cellStart:cellEnd) = rho_zz_1(:,cellStart:cellEnd)
-      rho_zz_old_split(:,cellStart:cellEnd) =  rho_zz_1(:,cellStart:cellEnd)
-      scalars_2(:,:,cellStart:cellEnd) = scalars_1(:,:,cellStart:cellEnd)
+      !$acc kernels
+      theta_m_2(:,cellEnd+1) = 0.0_RKIND
+      !$acc end kernels
+
+      !$acc parallel default(present)
+      !$acc loop gang worker
+      do iEdge = edgeStart,edgeEnd
+         !$acc loop vector
+         do k = 1,nVertLevels
+            ru_save(k,iEdge) = ru(k,iEdge)
+            u_2(k,iEdge) = u_1(k,iEdge)
+         end do
+      end do
+
+      !$acc loop gang worker
+      do iCell = cellStart,cellEnd
+         !$acc loop vector
+         do k = 1,nVertLevels
+            rtheta_p_save(k,iCell) = rtheta_p(k,iCell)
+            rho_p_save(k,iCell) = rho_p(k,iCell)
+            theta_m_2(k,iCell) = theta_m_1(k,iCell)
+            rho_zz_2(k,iCell) = rho_zz_1(k,iCell)
+            rho_zz_old_split(k,iCell) =  rho_zz_1(k,iCell)
+         end do
+      end do
+
+      !$acc loop gang worker
+      do iCell = cellStart,cellEnd
+         !$acc loop vector
+         do k = 1,nVertLevels+1
+            rw_save(k,iCell) = rw(k,iCell)
+            w_2(k,iCell) = w_1(k,iCell)
+         end do
+      end do
+
+      !$acc loop gang worker
+      do iCell = cellStart,cellEnd
+         !$acc loop vector collapse(2)
+         do k = 1,nVertLevels
+            do j = 1,num_scalars
+               scalars_2(j,k,iCell) = scalars_1(j,k,iCell)
+            end do
+         end do
+      end do
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_rk_integration_setup [ACC_data_xfer]')
+      !$acc exit data copyout(ru_save, rw_save, rtheta_p_save, rho_p_save, u_2, &
+      !$acc                   w_2, theta_m_2, rho_zz_2, rho_zz_old_split, scalars_2) &
+      !$acc            delete(ru, rw, rtheta_p, rho_p, u_1, w_1, theta_m_1, &
+      !$acc                  rho_zz_1, scalars_1)
+      MPAS_ACC_TIMER_STOP('atm_rk_integration_setup [ACC_data_xfer]')
 
    end subroutine atm_rk_integration_setup
 
@@ -1682,52 +2056,79 @@ module atm_time_integration
       integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
 
       integer :: iEdge, iCell, k, cell1, cell2, iq
-      integer, pointer :: nCells, nEdges, nVertLevels, nCellsSolve
+      integer, pointer :: nCells_ptr, nEdges_ptr, nVertLevels_ptr, nCellsSolve_ptr
+      integer :: nCells, nEdges, nVertLevels, nCellsSolve
       real (kind=RKIND) :: qtotal
       integer, dimension(:,:), pointer :: cellsOnEdge
-      integer, pointer :: moist_start, moist_end
+      integer, pointer :: moist_start_ptr, moist_end_ptr
+      integer :: moist_start, moist_end
       real (kind=RKIND), dimension(:,:,:), pointer :: scalars
       real (kind=RKIND), dimension(:,:), pointer :: cqw
       real (kind=RKIND), dimension(:,:), pointer :: cqu
 
-      call mpas_pool_get_dimension(dims, 'nCells', nCells)
-      call mpas_pool_get_dimension(dims, 'nEdges', nEdges)
-      call mpas_pool_get_dimension(dims, 'nVertLevels', nVertLevels)
-      call mpas_pool_get_dimension(dims, 'nCellsSolve', nCellsSolve)
-      call mpas_pool_get_dimension(state, 'moist_start', moist_start)
-      call mpas_pool_get_dimension(state, 'moist_end', moist_end)
+      call mpas_pool_get_dimension(dims, 'nCells', nCells_ptr)
+      call mpas_pool_get_dimension(dims, 'nEdges', nEdges_ptr)
+      call mpas_pool_get_dimension(dims, 'nVertLevels', nVertLevels_ptr)
+      call mpas_pool_get_dimension(dims, 'nCellsSolve', nCellsSolve_ptr)
+      call mpas_pool_get_dimension(state, 'moist_start', moist_start_ptr)
+      call mpas_pool_get_dimension(state, 'moist_end', moist_end_ptr)
 
       call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
       call mpas_pool_get_array(state, 'scalars', scalars, 2)
       call mpas_pool_get_array(diag, 'cqw', cqw)
       call mpas_pool_get_array(diag, 'cqu', cqu)
 
+      nCells = nCells_ptr
+      nEdges = nEdges_ptr
+      nVertLevels = nVertLevels_ptr
+      nCellsSolve = nCellsSolve_ptr
+      moist_start = moist_start_ptr
+      moist_end = moist_end_ptr
+
+      MPAS_ACC_TIMER_START('atm_compute_moist_coefficients [ACC_data_xfer]')
+      !$acc enter data create(cqw, cqu) & 
+      !$acc            copyin(scalars)
+      MPAS_ACC_TIMER_STOP('atm_compute_moist_coefficients [ACC_data_xfer]')
+
+      !$acc parallel default(present)
+      !$acc loop gang worker
 !      do iCell = cellSolveStart,cellSolveEnd
       do iCell = cellStart,cellEnd
-         qtot(1:nVertLevels,iCell) = 0.0
+         !$acc loop vector
          do k = 1,nVertLevels
+            qtot(k,iCell) = 0.0
+            !$acc loop seq
             do iq = moist_start, moist_end
                qtot(k,iCell) = qtot(k,iCell) + scalars(iq, k, iCell)
             end do
          end do
       end do    
+      !$acc end parallel
 
 !      do iCell = cellSolveStart,cellSolveEnd
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellStart,cellEnd
+        !$acc loop vector
          do k = 2, nVertLevels
             qtotal = 0.5*(qtot(k,iCell)+qtot(k-1,iCell))
             cqw(k,iCell) = 1.0 / (1.0 + qtotal)
          end do
       end do
+      !$acc end parallel
 
 !  would need to compute qtot for all cells and an openmp barrier to use qtot below.
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iEdge = edgeStart,edgeEnd
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
          if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve) then
-            do k = 1, nVertLevels
+            !$acc loop vector
+            do k = 1, nVertLevels         
                qtotal = 0.0
+               !$acc loop seq
                do iq = moist_start, moist_end
                   qtotal = qtotal + 0.5 * ( scalars(iq, k, cell1) + scalars(iq, k, cell2) )
                end do
@@ -1735,6 +2136,12 @@ module atm_time_integration
             end do
          end if
       end do
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_compute_moist_coefficients [ACC_data_xfer]')
+      !$acc exit data copyout(cqw, cqu) &
+      !$acc           delete(scalars)
+      MPAS_ACC_TIMER_STOP('atm_compute_moist_coefficients [ACC_data_xfer]')
 
    end subroutine atm_compute_moist_coefficients
 
@@ -1866,25 +2273,37 @@ module atm_time_integration
       real (kind=RKIND) :: dtseps, c2, qtotal, rcv
       real (kind=RKIND), dimension( nVertLevels ) :: b_tri, c_tri
 
+      MPAS_ACC_TIMER_START('atm_compute_vert_imp_coefs_work [ACC_data_xfer]')
+      !$acc enter data copyin(cqw, p, t, rb, rtb, rt, pb)
+      !$acc enter data create(cofrz, cofwr, cofwz, coftz, cofwt, a_tri, b_tri, &
+      !$acc                   c_tri, alpha_tri, gamma_tri)
+      MPAS_ACC_TIMER_STOP('atm_compute_vert_imp_coefs_work [ACC_data_xfer]')
 
       !  set coefficients
       dtseps = .5*dts*(1.+epssm)
       rcv = rgas/(cp-rgas)
       c2 = cp*rcv
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
 ! MGD bad to have all threads setting this variable?
       do k=1,nVertLevels
          cofrz(k) = dtseps*rdzw(k)
       end do
+      !$acc end parallel
 
+      !$acc parallel default(present)
+      !$acc loop gang worker private(b_tri,c_tri)
       do iCell = cellSolveStart,cellSolveEnd  !  we only need to do cells we are solving for, not halo cells
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k=2,nVertLevels
             cofwr(k,iCell) =.5*dtseps*gravity*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))
          end do
          coftz(1,iCell) = 0.0
 !DIR$ IVDEP
+         !$acc loop vector
          do k=2,nVertLevels
             cofwz(k,iCell) = dtseps*c2*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))  &
                  *rdzu(k)*cqw(k,iCell)*(fzm(k)*p (k,iCell)+fzp(k)*p (k-1,iCell))
@@ -1892,6 +2311,7 @@ module atm_time_integration
          end do
          coftz(nVertLevels+1,iCell) = 0.0
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
 
 !            qtotal = 0.
@@ -1912,6 +2332,7 @@ module atm_time_integration
          alpha_tri(1,iCell) = 0.  ! note, this value is never used
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k=2,nVertLevels
             a_tri(k,iCell) = -cofwz(k  ,iCell)* coftz(k-1,iCell)*rdzw(k-1)*zz(k-1,iCell)   &
                          +cofwr(k  ,iCell)* cofrz(k-1  )                       &
@@ -1927,19 +2348,25 @@ module atm_time_integration
                          +cofwt(k  ,iCell)* coftz(k+1,iCell)*rdzw(k  )
          end do
 !MGD VECTOR DEPENDENCE
+         !$acc loop seq
          do k=2,nVertLevels
             alpha_tri(k,iCell) = 1./(b_tri(k)-a_tri(k,iCell)*gamma_tri(k-1,iCell))
             gamma_tri(k,iCell) = c_tri(k)*alpha_tri(k,iCell)
          end do
 
       end do ! loop over cells
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_compute_vert_imp_coefs_work [ACC_data_xfer]')
+      !$acc exit data copyout(cofrz, cofwr, cofwz, coftz, cofwt, a_tri, b_tri, &
+      !$acc                   c_tri, alpha_tri, gamma_tri)
+      !$acc exit data delete(cqw, p, t, rb, rtb, rt, pb)
+      MPAS_ACC_TIMER_STOP('atm_compute_vert_imp_coefs_work [ACC_data_xfer]')
 
    end subroutine atm_compute_vert_imp_coefs_work
 
 
-   subroutine atm_set_smlstep_pert_variables( tend, diag, mesh, configs, &
-                                   cellStart, cellEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd)
+   subroutine atm_set_smlstep_pert_variables( tend, mesh, cellSolveStart, cellSolveEnd)
 
       ! following Klemp et al MWR 2007, we use preturbation variables
       ! in the acoustic-step integration.  This routine computes those 
@@ -1950,91 +2377,58 @@ module atm_time_integration
       implicit none
 
       type (mpas_pool_type), intent(inout) :: tend
-      type (mpas_pool_type), intent(inout) :: diag
       type (mpas_pool_type), intent(inout) :: mesh
-      type (mpas_pool_type), intent(in) :: configs
-      integer, intent(in) :: cellStart, cellEnd, edgeStart, edgeEnd
-      integer, intent(in) :: cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd
+      integer, intent(in) :: cellSolveStart, cellSolveEnd
 
-      integer, pointer :: nCells, nEdges, nCellsSolve
+      integer, pointer :: nCells, nEdges
+
       integer, dimension(:), pointer :: nEdgesOnCell
       integer, dimension(:,:), pointer :: cellsOnEdge, edgesOnCell
-      real (kind=RKIND), dimension(:), pointer :: fzm, fzp
-      real (kind=RKIND), dimension(:,:), pointer :: ruAvg, wwAvg
-      real (kind=RKIND), dimension(:,:,:), pointer :: zb, zb3, zb_cell, zb3_cell
-      real (kind=RKIND), dimension(:,:), pointer :: zz
-      real (kind=RKIND), dimension(:,:), pointer :: w_tend, u_tend
-      real (kind=RKIND), dimension(:,:), pointer :: rho_pp, rho_p_save, rho_p
-      real (kind=RKIND), dimension(:,:), pointer :: ru_p, ru, ru_save
-      real (kind=RKIND), dimension(:,:), pointer :: rtheta_pp, rtheta_p_save, rtheta_p, rtheta_pp_old
-      real (kind=RKIND), dimension(:,:), pointer :: rw_p, rw_save, rw
       real (kind=RKIND), dimension(:,:), pointer :: edgesOnCell_sign
-
       integer, dimension(:), pointer :: bdyMaskCell  ! regional_MPAS
 
+      real (kind=RKIND), dimension(:), pointer :: fzm, fzp
+      real (kind=RKIND), dimension(:,:,:), pointer :: zb, zb3, zb_cell, zb3_cell
+      real (kind=RKIND), dimension(:,:), pointer :: zz
+
+      real (kind=RKIND), dimension(:,:), pointer :: w_tend, u_tend
+
       call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-      call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
       call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
 
+      call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
+      call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
+      call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
+      call mpas_pool_get_array(mesh, 'edgesOnCell_sign', edgesOnCell_sign)
 ! regional_MPAS: get specified zone cell mask
       call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)
 
-      call mpas_pool_get_array(mesh, 'zz', zz)
+      call mpas_pool_get_array(mesh, 'fzm', fzm)
+      call mpas_pool_get_array(mesh, 'fzp', fzp)
       call mpas_pool_get_array(mesh, 'zb', zb)
       call mpas_pool_get_array(mesh, 'zb3', zb3)
       call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
       call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
-      call mpas_pool_get_array(mesh, 'fzm', fzm)
-      call mpas_pool_get_array(mesh, 'fzp', fzp)
-      call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
-      call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
-      call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
-      call mpas_pool_get_array(mesh, 'edgesOnCell_sign', edgesOnCell_sign)
+      call mpas_pool_get_array(mesh, 'zz', zz)
 
       call mpas_pool_get_array(tend, 'w', w_tend)
       call mpas_pool_get_array(tend, 'u', u_tend)
 
-      call mpas_pool_get_array(diag, 'ruAvg', ruAvg)
-      call mpas_pool_get_array(diag, 'wwAvg', wwAvg)
-
-      call mpas_pool_get_array(diag, 'rho_pp', rho_pp)
-      call mpas_pool_get_array(diag, 'rho_p_save', rho_p_save)
-      call mpas_pool_get_array(diag, 'rho_p', rho_p)
-
-      call mpas_pool_get_array(diag, 'ru_p', ru_p)
-      call mpas_pool_get_array(diag, 'ru_save', ru_save)
-      call mpas_pool_get_array(diag, 'ru', ru)
-
-      call mpas_pool_get_array(diag, 'rtheta_pp', rtheta_pp)
-      call mpas_pool_get_array(diag, 'rtheta_p_save', rtheta_p_save)
-      call mpas_pool_get_array(diag, 'rtheta_p', rtheta_p)
-      call mpas_pool_get_array(diag, 'rtheta_pp_old', rtheta_pp_old)
-
-      call mpas_pool_get_array(diag, 'rw_p', rw_p)
-      call mpas_pool_get_array(diag, 'rw_save', rw_save)
-      call mpas_pool_get_array(diag, 'rw', rw)
-
-      call atm_set_smlstep_pert_variables_work(nCells, nEdges, nCellsSolve, &
-                                   nEdgesOnCell, cellsOnEdge, edgesOnCell, fzm, fzp, ruAvg, wwAvg, zb, zb3, zb_cell, zb3_cell, &
-                                   zz, w_tend, u_tend, rho_pp, rho_p_save, rho_p, ru_p, ru, ru_save, &
-                                   rtheta_pp, rtheta_p_save, rtheta_p, rtheta_pp_old, rw_p, rw_save, rw, &
-                                   bdyMaskCell, &  ! added for regional_MPAS
-                                   edgesOnCell_sign, &
-                                   cellStart, cellEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd)
+      call atm_set_smlstep_pert_variables_work(nCells, nEdges, &
+                                   nEdgesOnCell, cellsOnEdge, edgesOnCell, edgesOnCell_sign, bdyMaskCell, &
+                                   fzm, fzp, zb, zb3, zb_cell, zb3_cell, zz, &
+                                   w_tend, u_tend, &
+                                   cellSolveStart, cellSolveEnd)
 
 
    end subroutine atm_set_smlstep_pert_variables
 
 
-   subroutine atm_set_smlstep_pert_variables_work(nCells, nEdges, nCellsSolve, &
-                                   nEdgesOnCell, cellsOnEdge, edgesOnCell, fzm, fzp, ruAvg, wwAvg, zb, zb3, zb_cell, zb3_cell, &
-                                   zz, w_tend, u_tend, rho_pp, rho_p_save, rho_p, ru_p, ru, ru_save, &
-                                   rtheta_pp, rtheta_p_save, rtheta_p, rtheta_pp_old, rw_p, rw_save, rw, &
-                                   bdyMaskCell, &  ! added for regional_MPAS
-                                   edgesOnCell_sign, &
-                                   cellStart, cellEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd)
+   subroutine atm_set_smlstep_pert_variables_work(nCells, nEdges, &
+                                   nEdgesOnCell, cellsOnEdge, edgesOnCell, edgesOnCell_sign, bdyMaskCell, &
+                                   fzm, fzp, zb, zb3, zb_cell, zb3_cell, zz, &
+                                   w_tend, u_tend, &
+                                   cellSolveStart, cellSolveEnd)
 
       use mpas_atm_dimensions
 
@@ -2044,41 +2438,26 @@ module atm_time_integration
       !
       ! Dummy arguments
       !
-      integer, intent(in) :: nCells, nEdges, nCellsSolve
-
-      integer, intent(in) :: cellStart, cellEnd, edgeStart, edgeEnd
-      integer, intent(in) :: cellSolveStart, cellSolveEnd, edgeSolveStart, edgeSolveEnd
+      integer, intent(in) :: nCells, nEdges
+      integer, intent(in) :: cellSolveStart, cellSolveEnd
 
       integer, dimension(nCells+1) :: nEdgesOnCell
       integer, dimension(2,nEdges+1) :: cellsOnEdge
       integer, dimension(maxEdges,nCells+1) :: edgesOnCell
+      real (kind=RKIND), dimension(maxEdges,nCells+1) :: edgesOnCell_sign
+      integer, dimension(nCells+1), intent(in) :: bdyMaskCell  !  added for regional_MPAS
+
       real (kind=RKIND), dimension(nVertLevels) :: fzm
       real (kind=RKIND), dimension(nVertLevels) :: fzp
-      real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: ruAvg
-      real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: wwAvg
       real (kind=RKIND), dimension(nVertLevels+1,2,nEdges+1) :: zb
       real (kind=RKIND), dimension(nVertLevels+1,2,nEdges+1) :: zb3
       real (kind=RKIND), dimension(nVertLevels+1,maxEdges,nCells+1) :: zb_cell
       real (kind=RKIND), dimension(nVertLevels+1,maxEdges,nCells+1) :: zb3_cell
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: zz
+
       real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: w_tend
       real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: u_tend
-      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rho_pp
-      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rho_p_save
-      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rho_p
-      real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: ru_p
-      real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: ru
-      real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: ru_save
-      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rtheta_pp
-      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rtheta_p_save
-      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rtheta_p
-      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rtheta_pp_old
-      real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: rw_p
-      real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: rw_save
-      real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: rw
-      real (kind=RKIND), dimension(maxEdges,nCells+1) :: edgesOnCell_sign
 
-      integer, dimension(nCells+1), intent(in) :: bdyMaskCell  !  added for regional_MPAS
 
       !
       ! Local variables
@@ -2086,31 +2465,45 @@ module atm_time_integration
       integer :: iCell, iEdge, i, k
       real (kind=RKIND) :: flux
 
+      MPAS_ACC_TIMER_START('atm_set_smlstep_pert_variables [ACC_data_xfer]')
+      !$acc enter data copyin(u_tend, w_tend)
+      MPAS_ACC_TIMER_STOP('atm_set_smlstep_pert_variables [ACC_data_xfer]')
+
       ! we solve for omega instead of w (see Klemp et al MWR 2007),
       ! so here we change the w_p tendency to an omega_p tendency
 
       ! here we need to compute the omega tendency in a manner consistent with our diagnosis of omega.
       ! this requires us to use the same flux divergence as is used in the theta eqn - see Klemp et al MWR 2003.
 
-!!      do iCell=cellStart,cellEnd
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell=cellSolveStart,cellSolveEnd
 
          if (bdyMaskCell(iCell) <= nRelaxZone) then  !  no conversion in specified zone, regional_MPAS
-         do i=1,nEdgesOnCell(iCell)
-            iEdge = edgesOnCell(i,iCell)
+            !$acc loop seq
+            do i=1,nEdgesOnCell(iCell)
+               iEdge = edgesOnCell(i,iCell)
 !DIR$ IVDEP
-            do k = 2, nVertLevels
-               flux = edgesOnCell_sign(i,iCell) * (fzm(k) * u_tend(k,iEdge) + fzp(k) * u_tend(k-1,iEdge))
-               w_tend(k,iCell) = w_tend(k,iCell)   &
-                        - (zb_cell(k,i,iCell) + sign(1.0_RKIND, u_tend(k,iEdge)) * zb3_cell(k,i,iCell)) * flux
+               !$acc loop vector
+               do k = 2, nVertLevels
+                  flux = edgesOnCell_sign(i,iCell) * (fzm(k) * u_tend(k,iEdge) + fzp(k) * u_tend(k-1,iEdge))
+                  w_tend(k,iCell) = w_tend(k,iCell)   &
+                           - (zb_cell(k,i,iCell) + sign(1.0_RKIND, u_tend(k,iEdge)) * zb3_cell(k,i,iCell)) * flux
+               end do
             end do
-         end do
 !DIR$ IVDEP
-         do k = 2, nVertLevels
-            w_tend(k,iCell) = ( fzm(k) * zz(k,iCell) + fzp(k) * zz(k-1,iCell)   ) * w_tend(k,iCell)
-         end do
+            !$acc loop vector
+            do k = 2, nVertLevels
+               w_tend(k,iCell) = ( fzm(k) * zz(k,iCell) + fzp(k) * zz(k-1,iCell)   ) * w_tend(k,iCell)
+            end do
          end if ! no conversion in specified zone
       end do
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_set_smlstep_pert_variables [ACC_data_xfer]')
+      !$acc exit data delete(u_tend)
+      !$acc exit data copyout(w_tend)
+      MPAS_ACC_TIMER_STOP('atm_set_smlstep_pert_variables [ACC_data_xfer]')
 
    end subroutine atm_set_smlstep_pert_variables_work
 
@@ -2120,7 +2513,7 @@ module atm_time_integration
                                    cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
 
       !  This subroutine performs the entire acoustic step update, following Klemp et al MWR 2007,
-      !  using forward-backward vertically implicit integration.  
+      !  using forward-backward vertically implicit integration.
       !  The gravity-waves are included in the acoustic-step integration.
       !  The input state variables that are updated are ru_p, rw_p (note that this is (rho*omega)_p here),
       !  rtheta_p, and rho_pp.  The time averaged mass flux is accumulated in ruAvg and wwAvg
@@ -2144,7 +2537,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(nVertLevels+1) :: dpzx
 
       real (kind=RKIND), dimension(:,:), pointer :: rho_zz, theta_m, ru_p, rw_p, rtheta_pp,  &
-                                                    rtheta_pp_old, zz, exner, cqu, ruAvg, &
+                                                    rtheta_pp_old, zz, exner, cqu, ruAvg,    &
                                                     wwAvg, rho_pp, cofwt, coftz, zxu,        &
                                                     a_tri, alpha_tri, gamma_tri, dss,        &
                                                     tend_ru, tend_rho, tend_rt, tend_rw,     &
@@ -2235,7 +2628,7 @@ module atm_time_integration
       call mpas_pool_get_array(diag, 'rw_save', rw_save)
 
       ! epssm is the offcentering coefficient for the vertically implicit integration.
-      call mpas_pool_get_config(configs, 'config_epssm', epssm) 
+      call mpas_pool_get_config(configs, 'config_epssm', epssm)
 
       call atm_advance_acoustic_step_work(nCells, nEdges, nCellsSolve, cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
                                    cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
@@ -2323,13 +2716,13 @@ module atm_time_integration
 
       real (kind=RKIND), dimension(nCells+1) :: specZoneMaskCell
       real (kind=RKIND), dimension(nEdges+1) :: specZoneMaskEdge
-      
+
 
       integer, intent(in) :: small_step
       real (kind=RKIND), intent(in) :: dts, epssm,cf1, cf2, cf3
       real (kind=RKIND), dimension(nVertLevels) :: ts, rs
 
-  
+
       !
       ! Local variables
       !
@@ -2343,20 +2736,34 @@ module atm_time_integration
       resm = (1.0 - epssm) / (1.0 + epssm)
       rdts = 1./dts
 
-      if(small_step /= 1) then  !  not needed on first small step 
+      MPAS_ACC_TIMER_START('atm_advance_acoustic_step [ACC_data_xfer]')
+      !$acc enter data copyin(exner,cqu,cofwt,coftz,cofrz,cofwr,cofwz, &
+      !$acc                a_tri,alpha_tri,gamma_tri,rho_zz,theta_m,w, &
+      !$acc                tend_ru,tend_rho,tend_rt,tend_rw,rw,rw_save)
+      !$acc enter data create(rtheta_pp_old)
+      if(small_step == 1) then
+         !$acc enter data create(ru_p,ruAvg,rho_pp,rtheta_pp,wwAvg,rw_p)
+      else
+         !$acc enter data copyin(ru_p,ruAvg,rho_pp,rtheta_pp,wwAvg,rw_p)
+      end if
+      MPAS_ACC_TIMER_STOP('atm_advance_acoustic_step [ACC_data_xfer]')
+
+      if(small_step /= 1) then  !  not needed on first small step
 
         ! forward-backward acoustic step integration.
-        ! begin by updating the horizontal velocity u, 
+        ! begin by updating the horizontal velocity u,
         ! and accumulating the contribution from the updated u to the other tendencies.
 
         ! we are looping over all edges, but only computing on edges of owned cells. This will include updates of
         ! all owned edges plus some edges that are owned by other blocks.  We perform these redundant computations
-        ! so that we do not have to communicate updates of u to update the cell variables (rho, w, and theta). 
+        ! so that we do not have to communicate updates of u to update the cell variables (rho, w, and theta).
 
         !MGD this loop will not be very load balanced with if-test below
 
+        !$acc parallel default(present)
+        !$acc loop gang worker
         do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
- 
+
            cell1 = cellsOnEdge(1,iEdge)
            cell2 = cellsOnEdge(2,iEdge)
 
@@ -2364,6 +2771,7 @@ module atm_time_integration
            if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
 
 !DIR$ IVDEP
+              !$acc loop vector
               do k=1,nVertLevels
                  pgrad = ((rtheta_pp(k,cell2)-rtheta_pp(k,cell1))*invDcEdge(iEdge) )/(.5*(zz(k,cell2)+zz(k,cell1)))
                  pgrad = cqu(k,iEdge)*0.5*c2*(exner(k,cell1)+exner(k,cell2))*pgrad
@@ -2373,6 +2781,7 @@ module atm_time_integration
 
               ! accumulate ru_p for use later in scalar transport
 !DIR$ IVDEP
+              !$acc loop vector
               do k=1,nVertLevels
                  ruAvg(k,iEdge) = ruAvg(k,iEdge) + ru_p(k,iEdge)
               end do
@@ -2380,9 +2789,12 @@ module atm_time_integration
            end if ! end test for block-owned cells
 
         end do ! end loop over edges
+        !$acc end parallel
 
       else !  this is all that us needed for ru_p update for first acoustic step in RK substep
 
+        !$acc parallel default(present)
+        !$acc loop gang worker
         do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
 
            cell1 = cellsOnEdge(1,iEdge)
@@ -2392,129 +2804,163 @@ module atm_time_integration
            if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
 
 !DIR$ IVDEP
+              !$acc loop vector
               do k=1,nVertLevels
                  ru_p(k,iEdge) = dts*tend_ru(k,iEdge)
               end do
 !DIR$ IVDEP
+              !$acc loop vector
               do k=1,nVertLevels
-                 ruAvg(k,iEdge) = ru_p(k,iEdge)                 
+                 ruAvg(k,iEdge) = ru_p(k,iEdge)
               end do
 
            end if ! end test for block-owned cells
 
         end do ! end loop over edges
+        !$acc end parallel
 
       end if ! test for first acoustic step
 
       if (small_step == 1) then  ! initialize here on first small timestep.
+         !$acc parallel default(present)
+         !$acc loop gang worker vector collapse(2)
          do iCell=cellStart,cellEnd
-            rtheta_pp_old(1:nVertLevels,iCell) = 0.0
+            do k=1,nVertLevels
+               rtheta_pp_old(k,iCell) = 0.0
+            end do
          end do
+         !$acc end parallel
       else
+         !$acc parallel default(present)
+         !$acc loop gang worker collapse(2)
          do iCell=cellStart,cellEnd
-            rtheta_pp_old(1:nVertLevels,iCell) = rtheta_pp(1:nVertLevels,iCell)
+            do k=1,nVertLevels
+               rtheta_pp_old(k,iCell) = rtheta_pp(k,iCell)
+            end do
          end do
+         !$acc end parallel
       end if
 
 !$OMP BARRIER
 
+      !$acc parallel default(present)
+      !$acc loop gang worker private(ts,rs)
       do iCell=cellSolveStart,cellSolveEnd  ! loop over all owned cells to solve
 
          if(small_step == 1) then  ! initialize here on first small timestep.
-            wwAvg(1:nVertLevels+1,iCell) = 0.0            
-            rho_pp(1:nVertLevels,iCell) = 0.0            
-            rtheta_pp(1:nVertLevels,iCell) = 0.0            
-            rw_p(:,iCell) = 0.0
+            !$acc loop vector
+            do k=1,nVertLevels
+               wwAvg(k,iCell) = 0.0
+               rho_pp(k,iCell) = 0.0
+               rtheta_pp(k,iCell) = 0.0
+               rw_p(k,iCell) = 0.0
+            end do
+            wwAvg(nVertLevels+1,iCell) = 0.0
+            rw_p(nVertLevels+1,iCell) = 0.0
          end if
-            
+
          if(specZoneMaskCell(iCell) == 0.0) then  ! not specified zone, compute...
 
-         ts(:) = 0.0
-         rs(:) = 0.0
-
-         do i=1,nEdgesOnCell(iCell) 
-            iEdge = edgesOnCell(i,iCell)
-            cell1 = cellsOnEdge(1,iEdge)
-            cell2 = cellsOnEdge(2,iEdge)
-!DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
-               flux = edgesOnCell_sign(i,iCell)*dts*dvEdge(iEdge)*ru_p(k,iEdge) * invAreaCell(iCell)
-               rs(k) = rs(k)-flux
-               ts(k) = ts(k)-flux*0.5*(theta_m(k,cell2)+theta_m(k,cell1))
+               ts(k) = 0.0
+               rs(k) = 0.0
             end do
-         end do
 
-      ! vertically implicit acoustic and gravity wave integration.
-      ! this follows Klemp et al MWR 2007, with the addition of an implicit Rayleigh damping of w
-      ! serves as a gravity-wave absorbing layer, from Klemp et al 2008.
+            !$acc loop seq
+            do i=1,nEdgesOnCell(iCell)
+               iEdge = edgesOnCell(i,iCell)
+               cell1 = cellsOnEdge(1,iEdge)
+               cell2 = cellsOnEdge(2,iEdge)
+!DIR$ IVDEP
+               !$acc loop vector
+               do k=1,nVertLevels
+                  flux = edgesOnCell_sign(i,iCell)*dts*dvEdge(iEdge)*ru_p(k,iEdge) * invAreaCell(iCell)
+                  rs(k) = rs(k)-flux
+                  ts(k) = ts(k)-flux*0.5*(theta_m(k,cell2)+theta_m(k,cell1))
+               end do
+            end do
+
+            ! vertically implicit acoustic and gravity wave integration.
+            ! this follows Klemp et al MWR 2007, with the addition of an implicit Rayleigh damping of w
+            ! serves as a gravity-wave absorbing layer, from Klemp et al 2008.
 
 !DIR$ IVDEP
-         do k=1, nVertLevels
-            rs(k) = rho_pp(k,iCell) + dts*tend_rho(k,iCell) + rs(k)                  &
-                            - cofrz(k)*resm*(rw_p(k+1,iCell)-rw_p(k,iCell)) 
-            ts(k) = rtheta_pp(k,iCell) + dts*tend_rt(k,iCell) + ts(k)                &
-                               - resm*rdzw(k)*( coftz(k+1,iCell)*rw_p(k+1,iCell)     &
-                                               -coftz(k,iCell)*rw_p(k,iCell))
-         end do
+            !$acc loop vector
+            do k=1, nVertLevels
+               rs(k) = rho_pp(k,iCell) + dts*tend_rho(k,iCell) + rs(k)              &
+                               - cofrz(k)*resm*(rw_p(k+1,iCell)-rw_p(k,iCell))
+               ts(k) = rtheta_pp(k,iCell) + dts*tend_rt(k,iCell) + ts(k)            &
+                                  - resm*rdzw(k)*( coftz(k+1,iCell)*rw_p(k+1,iCell) &
+                                                  -coftz(k,iCell)*rw_p(k,iCell))
+            end do
 
 !DIR$ IVDEP
-         do k=2, nVertLevels
-            wwavg(k,iCell) = wwavg(k,iCell) + 0.5*(1.0-epssm)*rw_p(k,iCell)
-         end do
+            !$acc loop vector
+            do k=2, nVertLevels
+               wwAvg(k,iCell) = wwAvg(k,iCell) + 0.5*(1.0-epssm)*rw_p(k,iCell)
+            end do
 
 !DIR$ IVDEP
-         do k=2, nVertLevels
-            rw_p(k,iCell) = rw_p(k,iCell) +  dts*tend_rw(k,iCell)                       &
-                       - cofwz(k,iCell)*((zz(k  ,iCell)*ts(k)                           &
-                                     -zz(k-1,iCell)*ts(k-1))                            &
-                               +resm*(zz(k  ,iCell)*rtheta_pp(k  ,iCell)                &
-                                     -zz(k-1,iCell)*rtheta_pp(k-1,iCell)))              &
-                       - cofwr(k,iCell)*((rs(k)+rs(k-1))                                &
-                               +resm*(rho_pp(k,iCell)+rho_pp(k-1,iCell)))               &
-                       + cofwt(k  ,iCell)*(ts(k  )+resm*rtheta_pp(k  ,iCell))           &
-                       + cofwt(k-1,iCell)*(ts(k-1)+resm*rtheta_pp(k-1,iCell))
-         end do
+            !$acc loop vector
+            do k=2, nVertLevels
+               rw_p(k,iCell) = rw_p(k,iCell) +  dts*tend_rw(k,iCell)                 &
+                          - cofwz(k,iCell)*((zz(k  ,iCell)*ts(k)                     &
+                                        -zz(k-1,iCell)*ts(k-1))                      &
+                                  +resm*(zz(k  ,iCell)*rtheta_pp(k  ,iCell)          &
+                                        -zz(k-1,iCell)*rtheta_pp(k-1,iCell)))        &
+                          - cofwr(k,iCell)*((rs(k)+rs(k-1))                          &
+                                  +resm*(rho_pp(k,iCell)+rho_pp(k-1,iCell)))         &
+                          + cofwt(k  ,iCell)*(ts(k  )+resm*rtheta_pp(k  ,iCell))     &
+                          + cofwt(k-1,iCell)*(ts(k-1)+resm*rtheta_pp(k-1,iCell))
+            end do
 
-         ! tridiagonal solve sweeping up and then down the column
+            ! tridiagonal solve sweeping up and then down the column
 
 !MGD VECTOR DEPENDENCE
-         do k=2,nVertLevels
-            rw_p(k,iCell) = (rw_p(k,iCell)-a_tri(k,iCell)*rw_p(k-1,iCell))*alpha_tri(k,iCell)
-         end do
+            !$acc loop seq
+            do k=2,nVertLevels
+               rw_p(k,iCell) = (rw_p(k,iCell)-a_tri(k,iCell)*rw_p(k-1,iCell))*alpha_tri(k,iCell)
+            end do
 
 !MGD VECTOR DEPENDENCE
-         do k=nVertLevels,1,-1
-            rw_p(k,iCell) = rw_p(k,iCell) - gamma_tri(k,iCell)*rw_p(k+1,iCell)     
-         end do
+            !$acc loop seq
+            do k=nVertLevels,1,-1
+               rw_p(k,iCell) = rw_p(k,iCell) - gamma_tri(k,iCell)*rw_p(k+1,iCell)
+            end do
 
-         ! the implicit Rayleigh damping on w (gravity-wave absorbing) 
-
-!DIR$ IVDEP
-         do k=2,nVertLevels
-            rw_p(k,iCell) = (rw_p(k,iCell) + (rw_save(k  ,iCell) - rw(k  ,iCell)) -dts*dss(k,iCell)*               &
-                        (fzm(k)*zz (k,iCell)+fzp(k)*zz (k-1,iCell))        &
-                        *(fzm(k)*rho_zz(k,iCell)+fzp(k)*rho_zz(k-1,iCell))       &
-                                 *w(k,iCell)    )/(1.0+dts*dss(k,iCell)) &
-                         - (rw_save(k  ,iCell) - rw(k  ,iCell))
-         end do
-
-         ! accumulate (rho*omega)' for use later in scalar transport
-!DIR$ IVDEP
-         do k=2,nVertLevels
-            wwAvg(k,iCell) = wwAvg(k,iCell) + 0.5*(1.0+epssm)*rw_p(k,iCell)
-         end do
-
-         ! update rho_pp and theta_pp given updated rw_p
+            ! the implicit Rayleigh damping on w (gravity-wave absorbing)
 
 !DIR$ IVDEP
-         do k=1,nVertLevels
-            rho_pp(k,iCell) = rs(k) - cofrz(k) *(rw_p(k+1,iCell)-rw_p(k  ,iCell))
-            rtheta_pp(k,iCell) = ts(k) - rdzw(k)*(coftz(k+1,iCell)*rw_p(k+1,iCell)  &
-                               -coftz(k  ,iCell)*rw_p(k  ,iCell))
-         end do
+            !$acc loop vector
+            do k=2,nVertLevels
+               rw_p(k,iCell) = (rw_p(k,iCell) + (rw_save(k  ,iCell) - rw(k  ,iCell)) -dts*dss(k,iCell)* &
+                           (fzm(k)*zz (k,iCell)+fzp(k)*zz (k-1,iCell))                                  &
+                           *(fzm(k)*rho_zz(k,iCell)+fzp(k)*rho_zz(k-1,iCell))                           &
+                                    *w(k,iCell)    )/(1.0+dts*dss(k,iCell))                             &
+                            - (rw_save(k  ,iCell) - rw(k  ,iCell))
+            end do
+
+            ! accumulate (rho*omega)' for use later in scalar transport
+!DIR$ IVDEP
+            !$acc loop vector
+            do k=2,nVertLevels
+               wwAvg(k,iCell) = wwAvg(k,iCell) + 0.5*(1.0+epssm)*rw_p(k,iCell)
+            end do
+
+            ! update rho_pp and theta_pp given updated rw_p
+
+!DIR$ IVDEP
+            !$acc loop vector
+            do k=1,nVertLevels
+               rho_pp(k,iCell) = rs(k) - cofrz(k) *(rw_p(k+1,iCell)-rw_p(k  ,iCell))
+               rtheta_pp(k,iCell) = ts(k) - rdzw(k)*(coftz(k+1,iCell)*rw_p(k+1,iCell)  &
+                                  -coftz(k  ,iCell)*rw_p(k  ,iCell))
+            end do
 
          else ! specifed zone in regional_MPAS
 
+            !$acc loop vector
             do k=1,nVertLevels
                rho_pp(k,iCell) = rho_pp(k,iCell) + dts*tend_rho(k,iCell)
                rtheta_pp(k,iCell) = rtheta_pp(k,iCell) + dts*tend_rt(k,iCell)
@@ -2525,6 +2971,15 @@ module atm_time_integration
          end if
 
       end do !  end of loop over cells
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_advance_acoustic_step [ACC_data_xfer]')
+      !$acc exit data delete(exner,cqu,cofwt,coftz,cofrz,cofwr,cofwz, &
+      !$acc                a_tri,alpha_tri,gamma_tri,rho_zz,theta_m,w, &
+      !$acc                tend_ru,tend_rho,tend_rt,tend_rw,rw,rw_save)
+      !$acc exit data copyout(rtheta_pp_old,ru_p,ruAvg,rho_pp, &
+      !$acc                   rtheta_pp,wwAvg,rw_p)
+      MPAS_ACC_TIMER_STOP('atm_advance_acoustic_step [ACC_data_xfer]')
 
    end subroutine atm_advance_acoustic_step_work
 
@@ -2548,8 +3003,10 @@ module atm_time_integration
       real (kind=RKIND), dimension(:), pointer :: specZoneMaskEdge
 
       integer, dimension(:,:), pointer :: cellsOnEdge
-      integer, pointer :: nCellsSolve
-      integer, pointer :: nVertLevels
+      integer, pointer :: nCellsSolve_ptr
+      integer, pointer :: nVertLevels_ptr
+      integer :: nCellsSolve
+      integer :: nVertLevels
 
       real (kind=RKIND) :: divCell1, divCell2, rdts, coef_divdamp
       integer :: cell1, cell2, iEdge, k
@@ -2562,8 +3019,8 @@ module atm_time_integration
       call mpas_pool_get_array(diag, 'rtheta_pp_old', rtheta_pp_old)
       call mpas_pool_get_array(diag, 'ru_p', ru_p)
 
-      call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
-      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
+      call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve_ptr)
+      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels_ptr)
 
       call mpas_pool_get_config(configs, 'config_smdiv', smdiv) 
       call mpas_pool_get_config(configs, 'config_len_disp', config_len_disp)
@@ -2571,6 +3028,15 @@ module atm_time_integration
       rdts = 1.0_RKIND / dts
       coef_divdamp = 2.0_RKIND * smdiv * config_len_disp * rdts
 
+      nCellsSolve = nCellsSolve_ptr
+      nVertLevels = nVertLevels_ptr
+
+      MPAS_ACC_TIMER_START('atm_divergence_damping_3d [ACC_data_xfer]')
+      !$acc enter data copyin(ru_p, rtheta_pp, rtheta_pp_old, theta_m)
+      MPAS_ACC_TIMER_STOP('atm_divergence_damping_3d [ACC_data_xfer]')
+
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
 
          cell1 = cellsOnEdge(1,iEdge)
@@ -2580,6 +3046,7 @@ module atm_time_integration
          if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
 
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
 
 !!  unscaled 3d divergence damping
@@ -2597,6 +3064,13 @@ module atm_time_integration
             end do
          end if ! edges for block-owned cells
       end do ! end loop over edges
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_divergence_damping_3d [ACC_data_xfer]')
+      !$acc exit data copyout(ru_p) &
+      !$acc           delete(rtheta_pp, rtheta_pp_old, theta_m)
+      MPAS_ACC_TIMER_STOP('atm_divergence_damping_3d [ACC_data_xfer]')
+      
 
    end subroutine atm_divergence_damping_3d
 
@@ -2605,7 +3079,7 @@ module atm_time_integration
                                        cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
                                        cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
 
-      ! reconstitute state variables from acoustic-step perturbation variables 
+      ! reconstitute state variables from acoustic-step perturbation variables
       ! after the acoustic steps.  The perturbation variables were originally set in
       ! subroutine atm_set_smlstep_pert_variables prior to their acoustic-steps update.
       ! we are also computing a few other state-derived variables here.
@@ -2735,7 +3209,7 @@ module atm_time_integration
       real (kind=RKIND), intent(in) :: dt
 
       integer, dimension(nCells+1), intent(in) :: bdyMaskCell
-      
+
       real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: wwAvg
       real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: rw_save
       real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: w
@@ -2786,45 +3260,70 @@ module atm_time_integration
       integer :: i, iCell, iEdge, k, cell1, cell2
       real (kind=RKIND) :: invNs, rcv, p0, flux
 
+      MPAS_ACC_TIMER_START('atm_recover_large_step_variables [ACC_data_xfer]')
+      !$acc enter data copyin(rho_p_save,rho_pp,rho_base,rw_save,rw_p, &
+      !$acc                   rtheta_p_save,rtheta_pp,rtheta_base, &
+      !$acc                   ru_save,ru_p,wwAvg,ruAvg) &
+      !$acc            create(rho_zz,rho_p,rw,w,rtheta_p,theta_m, &
+      !$acc                   ru,u)
+      if (rk_step == 3) then
+         !$acc enter data copyin(rt_diabatic_tend,exner_base) &
+         !$acc            create(exner,pressure_p)
+      end if
+      MPAS_ACC_TIMER_STOP('atm_recover_large_step_variables [ACC_data_xfer]')
 
       rcv = rgas/(cp-rgas)
       p0 = 1.0e+05  ! this should come from somewhere else...
 
-      ! Avoid FP errors caused by a potential division by zero below by 
+      ! Avoid FP errors caused by a potential division by zero below by
       ! initializing the "garbage cell" of rho_zz to a non-zero value
+      !$acc parallel default(present)
+      !$acc loop gang vector
       do k=1,nVertLevels
          rho_zz(k,nCells+1) = 1.0
       end do
+      !$acc end parallel
 
       ! compute new density everywhere so we can compute u from ru.
       ! we will also need it to compute theta_m below
 
       invNs = 1 / real(ns,RKIND)
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell=cellStart,cellEnd
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k = 1, nVertLevels
             rho_p(k,iCell) = rho_p_save(k,iCell) + rho_pp(k,iCell)
 
             rho_zz(k,iCell) = rho_p(k,iCell) + rho_base(k,iCell)
          end do
 
+         rw(1,iCell) = 0.0
          w(1,iCell) = 0.0
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k = 2, nVertLevels
             wwAvg(k,iCell) = rw_save(k,iCell) + (wwAvg(k,iCell) * invNs)
             rw(k,iCell) = rw_save(k,iCell) + rw_p(k,iCell)
 
           ! pick up part of diagnosed w from omega - divide by density later
             w(k,iCell) = rw(k,iCell)/(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))
-                                      
+
          end do
 
+         rw(nVertLevels+1,iCell) = 0.0
          w(nVertLevels+1,iCell) = 0.0
+      end do
+      !$acc end parallel
 
-         if (rk_step == 3) then
+      if (rk_step == 3) then
+         !$acc parallel default(present)
+         !$acc loop collapse(2)
+         do iCell=cellStart,cellEnd
 !DIR$ IVDEP
             do k = 1, nVertLevels
                rtheta_p(k,iCell) = rtheta_p_save(k,iCell) + rtheta_pp(k,iCell) &
@@ -2835,37 +3334,48 @@ module atm_time_integration
                pressure_p(k,iCell) = zz(k,iCell) * rgas * (exner(k,iCell)*rtheta_p(k,iCell)+rtheta_base(k,iCell)  &
                                                           * (exner(k,iCell)-exner_base(k,iCell)))
             end do
-         else
+         end do
+         !$acc end parallel
+      else
+         !$acc parallel default(present)
+         !$acc loop collapse(2)
+         do iCell=cellStart,cellEnd
 !DIR$ IVDEP
             do k = 1, nVertLevels
                rtheta_p(k,iCell) = rtheta_p_save(k,iCell) + rtheta_pp(k,iCell)
                theta_m(k,iCell) = (rtheta_p(k,iCell) + rtheta_base(k,iCell))/rho_zz(k,iCell)
             end do
-         end if
+         end do
+         !$acc end parallel
+      end if
 
-      end do
-
-      ! recover time-averaged ruAvg on all edges of owned cells (for upcoming scalar transport).  
-      ! we solved for these in the acoustic-step loop.  
+      ! recover time-averaged ruAvg on all edges of owned cells (for upcoming scalar transport).
+      ! we solved for these in the acoustic-step loop.
       ! we will compute ru and u here also, given we are here, even though we only need them on nEdgesSolve
 
 !$OMP BARRIER
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iEdge=edgeStart,edgeEnd
 
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k = 1, nVertLevels
             ruAvg(k,iEdge) = ru_save(k,iEdge) + (ruAvg(k,iEdge) * invNs)
             ru(k,iEdge) = ru_save(k,iEdge) + ru_p(k,iEdge)
             u(k,iEdge) = 2.*ru(k,iEdge)/(rho_zz(k,cell1)+rho_zz(k,cell2))
          end do
       end do
+      !$acc end parallel
 
 !$OMP BARRIER
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell=cellStart,cellEnd
 
          !  finish recovering w from (rho*omega)_p.  as when we formed (rho*omega)_p from u and w, we need
@@ -2874,33 +3384,49 @@ module atm_time_integration
 
          if (bdyMaskCell(iCell) <= nRelaxZone) then  ! addition for regional_MPAS, no spec zone update
 
-         do i=1,nEdgesOnCell(iCell)
-            iEdge=edgesOnCell(i,iCell)
+            !$acc loop seq
+            do i=1,nEdgesOnCell(iCell)
+               iEdge=edgesOnCell(i,iCell)
 
-            flux = (cf1*ru(1,iEdge) + cf2*ru(2,iEdge) + cf3*ru(3,iEdge))
-            w(1,iCell) = w(1,iCell) + edgesOnCell_sign(i,iCell) * &
-                                   (zb_cell(1,i,iCell) + sign(1.0_RKIND,flux)*zb3_cell(1,i,iCell))*flux
+               flux = (cf1*ru(1,iEdge) + cf2*ru(2,iEdge) + cf3*ru(3,iEdge))
+               w(1,iCell) = w(1,iCell) + edgesOnCell_sign(i,iCell) * &
+                                      (zb_cell(1,i,iCell) + sign(1.0_RKIND,flux)*zb3_cell(1,i,iCell))*flux
 
 !DIR$ IVDEP
-            do k = 2, nVertLevels
-               flux = (fzm(k)*ru(k,iEdge)+fzp(k)*ru(k-1,iEdge))
-               w(k,iCell) = w(k,iCell) + edgesOnCell_sign(i,iCell) * &
-                                    (zb_cell(k,i,iCell)+sign(1.0_RKIND,flux)*zb3_cell(k,i,iCell))*flux
+               !$acc loop vector
+               do k = 2, nVertLevels
+                  flux = (fzm(k)*ru(k,iEdge)+fzp(k)*ru(k-1,iEdge))
+                  w(k,iCell) = w(k,iCell) + edgesOnCell_sign(i,iCell) * &
+                                       (zb_cell(k,i,iCell)+sign(1.0_RKIND,flux)*zb3_cell(k,i,iCell))*flux
+               end do
+
             end do
 
-         end do
-
-         w(1,iCell) = w(1,iCell)/(cf1*rho_zz(1,iCell)+cf2*rho_zz(2,iCell)+cf3*rho_zz(3,iCell))
+            w(1,iCell) = w(1,iCell)/(cf1*rho_zz(1,iCell)+cf2*rho_zz(2,iCell)+cf3*rho_zz(3,iCell))
 
 
-         !DIR$ IVDEP
-         do k = 2, nVertLevels
-           w(k,iCell) = w(k,iCell)/(fzm(k)*rho_zz(k,iCell)+fzp(k)*rho_zz(k-1,iCell))
-         end do
+            !DIR$ IVDEP
+            !$acc loop vector
+            do k = 2, nVertLevels
+              w(k,iCell) = w(k,iCell)/(fzm(k)*rho_zz(k,iCell)+fzp(k)*rho_zz(k-1,iCell))
+            end do
 
          end if ! addition for regional_MPAS, no spec zone update
 
       end do
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_recover_large_step_variables [ACC_data_xfer]')
+      !$acc exit data delete(rho_p_save,rho_pp,rho_base,rw_save,rw_p, &
+      !$acc                   rtheta_p_save,rtheta_pp,rtheta_base, &
+      !$acc                   ru_save,ru_p) &
+      !$acc            copyout(rho_zz,rho_p,rw,w,rtheta_p,theta_m, &
+      !$acc                   ru,u,wwAvg,ruAvg)
+      if (rk_step == 3) then
+         !$acc exit data delete(rt_diabatic_tend,exner_base) &
+         !$acc            copyout(exner,pressure_p)
+      end if
+      MPAS_ACC_TIMER_STOP('atm_recover_large_step_variables [ACC_data_xfer]')
 
    end subroutine atm_recover_large_step_variables_work
 
@@ -3136,7 +3662,6 @@ module atm_time_integration
 
 
       MPAS_ACC_TIMER_START('atm_advance_scalars [ACC_data_xfer]')
-      !$acc enter data create(horiz_flux_arr)
       !$acc enter data copyin(uhAvg, scalar_new)
       MPAS_ACC_TIMER_STOP('atm_advance_scalars [ACC_data_xfer]')
 
@@ -3240,7 +3765,7 @@ module atm_time_integration
       !$acc enter data copyin(scalar_tend_save)
 #endif
       !$acc enter data copyin(scalar_old, fnm, fnp, rdnw, wwAvg, rho_zz_old, rho_zz_new)
-      !$acc enter data create(scalar_tend_column, wdtn)
+      !$acc enter data create(scalar_tend_column)
       MPAS_ACC_TIMER_STOP('atm_advance_scalars [ACC_data_xfer]')
 
       !$acc parallel wait
@@ -3323,8 +3848,8 @@ module atm_time_integration
 
       MPAS_ACC_TIMER_START('atm_advance_scalars [ACC_data_xfer]')
       !$acc exit data copyout(scalar_new)
-      !$acc exit data delete(scalar_tend_column, wdtn, uhAvg, wwAvg, scalar_old, fnm, fnp, &
-      !$acc                  rdnw, rho_zz_old, rho_zz_new, horiz_flux_arr, scalar_tend_save)
+      !$acc exit data delete(scalar_tend_column, uhAvg, wwAvg, scalar_old, fnm, fnp, &
+      !$acc                  rdnw, rho_zz_old, rho_zz_new, scalar_tend_save)
       MPAS_ACC_TIMER_STOP('atm_advance_scalars [ACC_data_xfer]')
 
    end subroutine atm_advance_scalars_work
@@ -3510,7 +4035,7 @@ module atm_time_integration
       integer, intent(in) :: cellSolveStart, cellSolveEnd
       procedure (halo_exchange_routine) :: exchange_halo_group
       logical, intent(in), optional :: advance_density
-      real (kind=RKIND), dimension(nVertLevels,nCells+1), intent(inout), optional :: rho_zz_int
+      real (kind=RKIND), dimension(:,:), intent(inout), optional :: rho_zz_int
 
       integer :: ii,jj
       integer, dimension(10) :: ica
@@ -3689,8 +4214,7 @@ module atm_time_integration
          !$acc enter data copyin(rho_zz_new)
       end if
       !$acc enter data copyin(scalars_new, fnm, fnp)
-      !$acc enter data create(scalar_old, scalar_new, scale_arr, s_min, s_max, &
-      !$acc                   flux_arr, flux_tmp, flux_upwind_tmp, wdtn)
+      !$acc enter data create(scale_arr)
       MPAS_ACC_TIMER_STOP('atm_advance_scalars_mono [ACC_data_xfer]')
 
       do iScalar = 1, num_scalars
@@ -4201,8 +4725,7 @@ module atm_time_integration
          !$acc exit data delete(rho_zz_new)
       end if
       !$acc exit data copyout(scalars_new)
-      !$acc exit data delete(scalars_old, scalar_old, scalar_new, scale_arr, s_min, s_max, &
-      !$acc                  rho_zz_old, flux_arr, flux_tmp, flux_upwind_tmp, wdtn, wwAvg, &
+      !$acc exit data delete(scalars_old, scale_arr, rho_zz_old, wwAvg, &
       !$acc                  uhAvg, fnm, fnp, rdnw)
 
       !$acc end data
@@ -4637,25 +5160,84 @@ module atm_time_integration
                 flux4(q_im2, q_im1, q_i, q_ip1, ua) +           &
                 coef3*abs(ua)*((q_ip1 - q_im2)-3.*(q_i-q_im1))/12.0
 
+
+      MPAS_ACC_TIMER_START('atm_compute_dyn_tend_work [ACC_data_xfer]')
+      if (rk_step == 1) then
+         !$acc enter data create(tend_w_euler)
+         !$acc enter data create(tend_u_euler)
+         !$acc enter data create(tend_theta_euler)
+         !$acc enter data create(tend_rho)
+
+         !$acc enter data create(kdiff)
+         !$acc enter data copyin(tend_rho_physics)
+         !$acc enter data copyin(rb, rr_save)
+         !$acc enter data copyin(divergence, vorticity)
+         !$acc enter data copyin(v)
+         !$acc enter data copyin(u_init, v_init)
+      else
+         !$acc enter data copyin(tend_w_euler)
+         !$acc enter data copyin(tend_u_euler)
+         !$acc enter data copyin(tend_theta_euler)
+         !$acc enter data copyin(tend_rho)
+      end if
+      !$acc enter data create(tend_u)
+      !$acc enter data copyin(cqu, pp, u, w, pv_edge, rho_edge, ke)
+      !$acc enter data create(h_divergence)
+      !$acc enter data copyin(ru, rw)
+      !$acc enter data create(rayleigh_damp_coef)
+      !$acc enter data copyin(tend_ru_physics)
+      !$acc enter data create(tend_w)
+      !$acc enter data copyin(rho_zz)
+      !$acc enter data create(tend_theta)
+      !$acc enter data copyin(theta_m)
+      !$acc enter data copyin(ru_save, theta_m_save)
+      !$acc enter data copyin(cqw)
+      !$acc enter data copyin(tend_rtheta_physics)
+      !$acc enter data copyin(rw_save, rt_diabatic_tend)
+      !$acc enter data create(rthdynten)
+      !$acc enter data copyin(t_init)
+#ifdef CURVATURE
+      !$acc enter data copyin(ur_cell, vr_cell)
+#endif
+      MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
+
       prandtl_inv = 1.0_RKIND / prandtl
       invDt = 1.0_RKIND / dt
       inv_r_earth = 1.0_RKIND / r_earth
 
-       v_mom_eddy_visc2   = config_v_mom_eddy_visc2
-       v_theta_eddy_visc2 = config_v_theta_eddy_visc2
+      v_mom_eddy_visc2   = config_v_mom_eddy_visc2
+      v_theta_eddy_visc2 = config_v_theta_eddy_visc2
 
       if (rk_step == 1) then
 
-!         tend_u_euler(1:nVertLevels,edgeStart:edgeEnd) = 0.0
+         !$acc parallel default(present)
+         !$acc loop gang worker
+         do iEdge = edgeStart, edgeEnd
+            !$acc loop vector
+            do k = 1, nVertLevels
+               tend_u_euler(k,iEdge) = 0.0_RKIND
+            end do
+         end do
+         !$acc end parallel
 
          ! Smagorinsky eddy viscosity, based on horizontal deformation (in this case on model coordinate surfaces).
          ! The integration coefficients were precomputed and stored in defc_a and defc_b
 
          if(config_horiz_mixing == "2d_smagorinsky") then
+
+            !$acc parallel default(present)
+            !$acc loop gang worker private(d_diag, d_off_diag)
             do iCell = cellStart,cellEnd
-               d_diag(1:nVertLevels) = 0.0
-               d_off_diag(1:nVertLevels) = 0.0
+
+               !$acc loop vector
+               do k = 1, nVertLevels
+                  d_diag(k) = 0.0_RKIND
+                  d_off_diag(k) = 0.0_RKIND
+               end do
+
+               !$acc loop seq
                do iEdge=1,nEdgesOnCell(iCell)
+                  !$acc loop vector
                   do k=1,nVertLevels
                      d_diag(k)     = d_diag(k)     + defc_a(iEdge,iCell)*u(k,EdgesOnCell(iEdge,iCell))  &
                                                    - defc_b(iEdge,iCell)*v(k,EdgesOnCell(iEdge,iCell))
@@ -4664,19 +5246,30 @@ module atm_time_integration
                   end do
                end do
 !DIR$ IVDEP
+               !$acc loop vector
                do k=1, nVertLevels
                   ! here is the Smagorinsky formulation, 
                   ! followed by imposition of an upper bound on the eddy viscosity
                   kdiff(k,iCell) = min((c_s * config_len_disp)**2 * sqrt(d_diag(k)**2 + d_off_diag(k)**2),(0.01*config_len_disp**2) * invDt)
                end do
             end do
+            !$acc end parallel
 
             h_mom_eddy_visc4   = config_visc4_2dsmag * config_len_disp**3
             h_theta_eddy_visc4 = h_mom_eddy_visc4
 
          else if(config_horiz_mixing == "2d_fixed") then
 
-            kdiff(1:nVertLevels,cellStart:cellEnd) = config_h_theta_eddy_visc2
+            !$acc parallel default(present)
+            !$acc loop gang worker
+            do iCell = cellStart, cellEnd
+               !$acc loop vector
+               do k = 1, nVertLevels
+                  kdiff(k,iCell) = config_h_theta_eddy_visc2
+               end do
+            end do
+            !$acc end parallel
+
             h_mom_eddy_visc4 = config_h_mom_eddy_visc4
             h_theta_eddy_visc4 = config_h_theta_eddy_visc4
 
@@ -4684,17 +5277,21 @@ module atm_time_integration
 
          if (config_mpas_cam_coef > 0.0) then
 
+            !$acc parallel default(present)
+            !$acc loop gang worker
             do iCell = cellStart,cellEnd
                !
                ! 2nd-order filter for top absorbing layer similar to that in CAM-SE :  WCS 10 May 2017, modified 7 April 2023
                ! From MPAS-CAM V4.0 code, with addition to config-specified coefficient (V4.0_coef = 0.2; SE_coef = 1.0)
                !
+               !$acc loop vector
                do k = nVertLevels-config_number_cam_damping_levels + 1, nVertLevels
                   visc2cam = 4.0*2.0833*config_len_disp*config_mpas_cam_coef
                   visc2cam = visc2cam*(1.0-real(nVertLevels-k)/real(config_number_cam_damping_levels))
-                  kdiff(k  ,iCell) = max(kdiff(nVertLevels  ,iCell),visc2cam)
+                  kdiff(k  ,iCell) = max(kdiff(k  ,iCell),visc2cam)
                end do
             end do
+            !$acc end parallel
 
          end if
             
@@ -4705,26 +5302,40 @@ module atm_time_integration
 
       ! accumulate horizontal mass-flux
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell=cellStart,cellEnd
-         h_divergence(1:nVertLevels,iCell) = 0.0
+
+         !$acc loop vector
+         do k=1,nVertLevels
+            h_divergence(k,iCell) = 0.0_RKIND
+         end do
+
+         !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
             edge_sign = edgesOnCell_sign(i,iCell) * dvEdge(iEdge)
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
                h_divergence(k,iCell) = h_divergence(k,iCell) + edge_sign * ru(k,iEdge)
             end do
          end do
       end do
+      !$acc end parallel
 
       ! compute horiontal mass-flux divergence, add vertical mass flux divergence to complete tend_rho
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellStart,cellEnd
          r = invAreaCell(iCell)
+         !$acc loop vector
          do k = 1,nVertLevels
             h_divergence(k,iCell) = h_divergence(k,iCell) * r
          end do
-      end do    
+      end do
+      !$acc end parallel
 
       !
       ! dp / dz and tend_rho
@@ -4734,14 +5345,20 @@ module atm_time_integration
       if(rk_step == 1) then
 
         rgas_cprcv = rgas*cp/cv
+
+        !$acc parallel default(present)
+        !$acc loop gang worker
         do iCell = cellStart,cellEnd
 
 !DIR$ IVDEP
+          !$acc loop vector
           do k = 1,nVertLevels
             tend_rho(k,iCell) = -h_divergence(k,iCell)-rdzw(k)*(rw(k+1,iCell)-rw(k,iCell)) + tend_rho_physics(k,iCell)
             dpdz(k,iCell) = -gravity*(rb(k,iCell)*(qtot(k,iCell)) + rr_save(k,iCell)*(1.+qtot(k,iCell)))
           end do
         end do
+        !$acc end parallel
+
       end if
 
 !$OMP BARRIER
@@ -4750,6 +5367,8 @@ module atm_time_integration
       ! Compute u (normal) velocity tendency for each edge (cell face)
       !
 
+      !$acc parallel default(present)
+      !$acc loop gang worker private(wduz, q)
       do iEdge=edgeSolveStart,edgeSolveEnd
 
          cell1 = cellsOnEdge(1,iEdge)
@@ -4759,6 +5378,7 @@ module atm_time_integration
 
          if(rk_step == 1) then
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
                tend_u_euler(k,iEdge) =  - cqu(k,iEdge)*( (pp(k,cell2)-pp(k,cell1))*invDcEdge(iEdge)/(.5*(zz(k,cell2)+zz(k,cell1))) &
                                               -0.5*zxu(k,iEdge)*(dpdz(k,cell1)+dpdz(k,cell2)) )
@@ -4772,6 +5392,7 @@ module atm_time_integration
 
          k = 2
          wduz(k) =  0.5*( rw(k,cell1)+rw(k,cell2))*(fzm(k)*u(k,iEdge)+fzp(k)*u(k-1,iEdge))
+         !$acc loop vector
          do k=3,nVertLevels-1
             wduz(k) = flux3( u(k-2,iEdge),u(k-1,iEdge),u(k,iEdge),u(k+1,iEdge),0.5*(rw(k,cell1)+rw(k,cell2)), 1.0_RKIND )
          end do
@@ -4781,15 +5402,23 @@ module atm_time_integration
          wduz(nVertLevels+1) = 0.
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
             tend_u(k,iEdge) = - rdzw(k)*(wduz(k+1)-wduz(k)) !  first use of tend_u
          end do
 
          ! Next, nonlinear Coriolis term (q) following Ringler et al JCP 2009
 
-         q(:) = 0.0
+         !$acc loop vector
+         do k=1,nVertLevels
+            q(k) = 0.0_RKIND
+         end do
+
+         !$acc loop seq
          do j = 1,nEdgesOnEdge(iEdge)
             eoe = edgesOnEdge(j,iEdge)
+
+            !$acc loop vector
             do k=1,nVertLevels
                workpv = 0.5 * (pv_edge(k,iEdge) + pv_edge(k,eoe))
 !  the original definition of pv_edge had a factor of 1/density.  We have removed that factor
@@ -4799,6 +5428,7 @@ module atm_time_integration
          end do
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
 
             ! horizontal ke gradient and vorticity terms in the vector invariant formulation
@@ -4817,7 +5447,7 @@ module atm_time_integration
          end do
 
       end do
-
+      !$acc end parallel
 
       !
       !  horizontal mixing for u
@@ -4832,8 +5462,18 @@ module atm_time_integration
          ! del^4 horizontal filter.  We compute this as del^2 ( del^2 (u) ).
          ! First, storage to hold the result from the first del^2 computation.
 
-         delsq_u(1:nVertLevels,edgeStart:edgeEnd) = 0.0
+         !$acc parallel default(present)
+         !$acc loop gang worker
+         do iEdge = edgeStart, edgeEnd
+            !$acc loop vector
+            do k = 1, nVertLevels
+               delsq_u(k,iEdge) = 0.0_RKIND
+            end do
+         end do
+         !$acc end parallel
 
+         !$acc parallel default(present)
+         !$acc loop gang worker
          do iEdge=edgeStart,edgeEnd
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
@@ -4843,6 +5483,7 @@ module atm_time_integration
             r_dv = min(invDvEdge(iEdge), 4*invDcEdge(iEdge))
 
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
 
                ! Compute diffusion, computed as \nabla divergence - k \times \nabla vorticity
@@ -4860,39 +5501,60 @@ module atm_time_integration
 
             end do
          end do
+         !$acc end parallel
 
          if (h_mom_eddy_visc4 > 0.0) then  ! 4th order mixing is active
 
 !$OMP BARRIER
 
+            !$acc parallel default(present)
+            !$acc loop gang worker
             do iVertex=vertexStart,vertexEnd
-               delsq_vorticity(1:nVertLevels,iVertex) = 0.0
+
+               !$acc loop vector
+               do k=1,nVertLevels
+                  delsq_vorticity(k,iVertex) = 0.0_RKIND
+               end do
+
+               !$acc loop seq
                do i=1,vertexDegree
                   iEdge = edgesOnVertex(i,iVertex)
                   edge_sign = invAreaTriangle(iVertex) * dcEdge(iEdge) * edgesOnVertex_sign(i,iVertex)
+
+                  !$acc loop vector
                   do k=1,nVertLevels
                      delsq_vorticity(k,iVertex) = delsq_vorticity(k,iVertex) + edge_sign * delsq_u(k,iEdge)
                   end do
                end do
             end do
 
+            !$acc loop gang worker
             do iCell=cellStart,cellEnd
-               delsq_divergence(1:nVertLevels,iCell) = 0.0
+
+               !$acc loop vector
+               do k=1,nVertLevels
+                  delsq_divergence(k,iCell) = 0.0_RKIND
+               end do
+
                r = invAreaCell(iCell)
+
+               !$acc loop seq
                do i=1,nEdgesOnCell(iCell)
                   iEdge = edgesOnCell(i,iCell)
                   edge_sign = r * dvEdge(iEdge) * edgesOnCell_sign(i,iCell)
+
+                  !$acc loop vector
                   do k=1,nVertLevels
                      delsq_divergence(k,iCell) = delsq_divergence(k,iCell) + edge_sign * delsq_u(k,iEdge)
                   end do
                end do
             end do
-
-
-
+            !$acc end parallel
          
 !$OMP BARRIER
 
+            !$acc parallel default(present)
+            !$acc loop gang worker
             do iEdge=edgeSolveStart,edgeSolveEnd
                cell1 = cellsOnEdge(1,iEdge)
                cell2 = cellsOnEdge(2,iEdge)
@@ -4904,6 +5566,7 @@ module atm_time_integration
                r_dv = u_mix_scale * min(invDvEdge(iEdge), 4*invDcEdge(iEdge))
 
 !DIR$ IVDEP
+               !$acc loop vector
                do k=1,nVertLevels
 
                   ! Compute diffusion, computed as \nabla divergence - k \times \nabla vorticity
@@ -4919,6 +5582,7 @@ module atm_time_integration
                   
                end do
             end do
+            !$acc end parallel
          
          end if ! 4th order mixing is active 
 
@@ -4929,11 +5593,14 @@ module atm_time_integration
 
             if (config_mix_full) then  ! mix full state
 
+               !$acc parallel default(present)
+               !$acc loop gang worker
                do iEdge=edgeSolveStart,edgeSolveEnd
 
                   cell1 = cellsOnEdge(1,iEdge)
                   cell2 = cellsOnEdge(2,iEdge)
 
+                  !$acc loop vector
                   do k=2,nVertLevels-1
 
                      z1 = 0.5*(zgrid(k-1,cell1)+zgrid(k-1,cell2))
@@ -4950,19 +5617,24 @@ module atm_time_integration
                                        -(u(k  ,iEdge)-u(k-1,iEdge))/(z0-zm) )/(0.5*(zp-zm))
                   end do
                end do
+               !$acc end parallel
 
             else  ! idealized cases where we mix on the perturbation from the initial 1-D state
 
+               !$acc parallel default(present)
+               !$acc loop gang worker private(u_mix)
                do iEdge=edgeSolveStart,edgeSolveEnd
 
                   cell1 = cellsOnEdge(1,iEdge)
                   cell2 = cellsOnEdge(2,iEdge)
 
+                  !$acc loop vector
                   do k=1,nVertLevels
                      u_mix(k) = u(k,iEdge) - u_init(k) * cos( angleEdge(iEdge) ) &
                                            - v_init(k) * sin( angleEdge(iEdge) )
                   end do
 
+                  !$acc loop vector
                   do k=2,nVertLevels-1
 
                      z1 = 0.5*(zgrid(k-1,cell1)+zgrid(k-1,cell2))
@@ -4979,6 +5651,7 @@ module atm_time_integration
                                        -(u_mix(k  )-u_mix(k-1))/(z0-zm) )/(0.5*(zp-zm))
                   end do
                end do
+               !$acc end parallel
 
             end if  ! mix perturbation state
 
@@ -4992,52 +5665,81 @@ module atm_time_integration
 
 !  Rayleigh damping on u
       if (config_rayleigh_damp_u) then
+
+         !$acc parallel default(present)
          rayleigh_coef_inverse = 1.0 / ( real(config_number_rayleigh_damp_u_levels) &
                                          * (config_rayleigh_damp_u_timescale_days*seconds_per_day) )
+
+         !$acc loop gang vector
          do k=nVertLevels-config_number_rayleigh_damp_u_levels+1,nVertLevels
             rayleigh_damp_coef(k) = real(k - (nVertLevels-config_number_rayleigh_damp_u_levels))*rayleigh_coef_inverse
          end do
+         !$acc end parallel
 
+         !$acc parallel default(present)
+         !$acc loop gang worker
          do iEdge=edgeSolveStart,edgeSolveEnd
 !DIR$ IVDEP
+            !$acc loop vector
             do k=nVertlevels-config_number_rayleigh_damp_u_levels+1,nVertLevels
                tend_u(k,iEdge) = tend_u(k,iEdge) - rho_edge(k,iEdge)*u(k,iEdge)*rayleigh_damp_coef(k)
             end do
          end do
+         !$acc end parallel
+
       end if
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iEdge=edgeSolveStart,edgeSolveEnd
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
 !            tend_u(k,iEdge) = tend_u(k,iEdge) + tend_u_euler(k,iEdge)
             tend_u(k,iEdge) = tend_u(k,iEdge) + tend_u_euler(k,iEdge) + tend_ru_physics(k,iEdge)
          end do
       end do
+      !$acc end parallel
 
 
 !----------- rhs for w
-
 
       !
       !  horizontal advection for w
       !
 
+      !$acc parallel default(present)
+      !$acc loop gang worker private(ru_edge_w, flux_arr)
       do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
-         tend_w(1:nVertLevels+1,iCell) = 0.0
+
+         !$acc loop vector
+         do k=1,nVertLevels+1
+            tend_w(k,iCell) = 0.0_RKIND
+         end do
+
+         !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
+
             iEdge = edgesOnCell(i,iCell)
             edge_sign = edgesOnCell_sign(i,iCell) * dvEdge(iEdge) * 0.5
 
+            !$acc loop vector
             do k=2,nVertLevels
                ru_edge_w(k) = fzm(k)*ru(k,iEdge) + fzp(k)*ru(k-1,iEdge)
             end do
 
-            flux_arr(1:nVertLevels) = 0.0
+            !$acc loop vector
+            do k=1,nVertLevels
+               flux_arr(k) = 0.0_RKIND
+            end do
 
             ! flux_arr stores the value of w at the cell edge used in the horizontal transport
 
+            !$acc loop seq
             do j=1,nAdvCellsForEdge(iEdge)
                iAdvCell = advCellsForEdge(j,iEdge)
+
+               !$acc loop vector
                do k=2,nVertLevels
                   scalar_weight = adv_coefs(j,iEdge) + sign(1.0_RKIND,ru_edge_w(k)) * adv_coefs_3rd(j,iEdge)
                   flux_arr(k) = flux_arr(k) + scalar_weight * w(k,iAdvCell)
@@ -5045,16 +5747,21 @@ module atm_time_integration
             end do
 
 !DIR$ IVDEP
+            !$acc loop vector
             do k=2,nVertLevels
                tend_w(k,iCell) = tend_w(k,iCell) - edgesOnCell_sign(i,iCell) * ru_edge_w(k)*flux_arr(k)
             end do
 
          end do
       end do
+      !$acc end parallel
 
 #ifdef CURVATURE
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd
 !DIR$ IVDEP
+         !$acc loop vector
          do k=2,nVertLevels
             tend_w(k,iCell) = tend_w(k,iCell) + (rho_zz(k,iCell)*fzm(k)+rho_zz(k-1,iCell)*fzp(k))*          &
                                       ( (fzm(k)*ur_cell(k,iCell)+fzp(k)*ur_cell(k-1,iCell))**2.             &
@@ -5065,8 +5772,9 @@ module atm_time_integration
 
          end do
       end do
-#endif
+      !$acc end parallel
 
+#endif
 
       !
       !  horizontal mixing for w - we could combine this with advection directly (i.e. as a turbulent flux),
@@ -5082,12 +5790,23 @@ module atm_time_integration
          ! First, storage to hold the result from the first del^2 computation.
          !  we copied code from the theta mixing, hence the theta* names.
 
-
-         delsq_w(1:nVertLevels,cellStart:cellEnd) = 0.0
-
+         !$acc parallel default(present)
+         !$acc loop gang worker
          do iCell=cellStart,cellEnd
-            tend_w_euler(1:nVertLevels+1,iCell) = 0.0
+
+            !$acc loop vector
+            do k=1,nVertLevels
+               delsq_w(k,iCell) = 0.0_RKIND
+            end do
+
+            !$acc loop vector
+            do k=1,nVertLevels+1
+               tend_w_euler(k,iCell) = 0.0_RKIND
+            end do
+
             r_areaCell = invAreaCell(iCell)
+
+            !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
 
@@ -5097,6 +5816,7 @@ module atm_time_integration
                cell2 = cellsOnEdge(2,iEdge)
 
 !DIR$ IVDEP
+              !$acc loop vector
               do k=2,nVertLevels
 
                   w_turb_flux =  edge_sign*(rho_edge(k,iEdge)+rho_edge(k-1,iEdge))*(w(k,cell2) - w(k,cell1))
@@ -5107,13 +5827,19 @@ module atm_time_integration
                end do
             end do
          end do
+         !$acc end parallel
 
 !$OMP BARRIER
 
          if (h_mom_eddy_visc4 > 0.0) then  ! 4th order mixing is active
 
+            !$acc parallel default(present)
+            !$acc loop gang worker
             do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
+
                r_areaCell = h_mom_eddy_visc4 * invAreaCell(iCell)
+
+               !$acc loop seq
                do i=1,nEdgesOnCell(iCell)
                   iEdge = edgesOnCell(i,iCell)
                   cell1 = cellsOnEdge(1,iEdge)
@@ -5121,12 +5847,14 @@ module atm_time_integration
 
                   edge_sign = meshScalingDel4(iEdge)*r_areaCell*dvEdge(iEdge)*edgesOnCell_sign(i,iCell) * invDcEdge(iEdge)
 
+                  !$acc loop vector
                   do k=2,nVertLevels
                      tend_w_euler(k,iCell) = tend_w_euler(k,iCell) - edge_sign * (delsq_w(k,cell2) - delsq_w(k,cell1))
                   end do
            
                end do
             end do
+            !$acc end parallel
 
          end if ! 4th order mixing is active 
 
@@ -5143,15 +5871,20 @@ module atm_time_integration
       !  vertical advection, pressure gradient and buoyancy for w
       !
 
+      !$acc parallel default(present)
+      !$acc loop gang worker private(wdwz)
       do iCell=cellSolveStart,cellSolveEnd
 
          wdwz(1) = 0.0
 
          k = 2
          wdwz(k) =  0.25*(rw(k,icell)+rw(k-1,iCell))*(w(k,iCell)+w(k-1,iCell))
+
+         !$acc loop vector
          do k=3,nVertLevels-1
             wdwz(k) = flux3( w(k-2,iCell),w(k-1,iCell),w(k,iCell),w(k+1,iCell),0.5*(rw(k,iCell)+rw(k-1,iCell)), 1.0_RKIND )
          end do
+
          k = nVertLevels
          wdwz(k) =  0.25*(rw(k,icell)+rw(k-1,iCell))*(w(k,iCell)+w(k-1,iCell))
 
@@ -5160,12 +5893,14 @@ module atm_time_integration
       !  Note: next we are also dividing through by the cell area after the horizontal flux divergence
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k=2,nVertLevels
             tend_w(k,iCell) = tend_w(k,iCell) * invAreaCell(iCell) -rdzu(k)*(wdwz(k+1)-wdwz(k))
          end do
 
          if(rk_step == 1) then
 !DIR$ IVDEP
+            !$acc loop vector
             do k=2,nVertLevels
               tend_w_euler(k,iCell) = tend_w_euler(k,iCell) - cqw(k,iCell)*(   &
                                            rdzu(k)*(pp(k,iCell)-pp(k-1,iCell)) &
@@ -5174,19 +5909,24 @@ module atm_time_integration
           end if
 
       end do
+      !$acc end parallel
 
       if (rk_step == 1) then
 
          if ( v_mom_eddy_visc2 > 0.0 ) then
 
+            !$acc parallel default(present)
+            !$acc loop gang worker
             do iCell=cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
+               !$acc loop vector
                do k=2,nVertLevels
                   tend_w_euler(k,iCell) = tend_w_euler(k,iCell) + v_mom_eddy_visc2*0.5*(rho_zz(k,iCell)+rho_zz(k-1,iCell))*(  &
                                            (w(k+1,iCell)-w(k  ,iCell))*rdzw(k)                              &
                                           -(w(k  ,iCell)-w(k-1,iCell))*rdzw(k-1) )*rdzu(k)
                end do
             end do
+            !$acc end parallel
 
          end if
 
@@ -5194,12 +5934,16 @@ module atm_time_integration
 
       ! add in mixing terms for w
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
+         !$acc loop vector
          do k=2,nVertLevels
             tend_w(k,iCell) = tend_w(k,iCell) + tend_w_euler(k,iCell)
          end do
       end do
+      !$acc end parallel
 
 !----------- rhs for theta
 
@@ -5207,15 +5951,29 @@ module atm_time_integration
       !  horizontal advection for theta
       !
 
+      !$acc parallel default(present)
+      !$acc loop gang worker private(flux_arr)
       do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
-         tend_theta(1:nVertLevels,iCell) = 0.0
+
+         !$acc loop vector
+         do k=1,nVertLevels
+            tend_theta(k,iCell) = 0.0_RKIND
+         end do
+
+         !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
 
-            flux_arr(1:nVertLevels) = 0.0
+            !$acc loop vector
+            do k=1,nVertLevels
+               flux_arr(k) = 0.0_RKIND
+            end do
 
+            !$acc loop seq
             do j=1,nAdvCellsForEdge(iEdge)
                iAdvCell = advCellsForEdge(j,iEdge)
+
+               !$acc loop vector
                do k=1,nVertLevels
                   scalar_weight = adv_coefs(j,iEdge) + sign(1.0_RKIND,ru(k,iEdge))*adv_coefs_3rd(j,iEdge)
                   flux_arr(k) = flux_arr(k) + scalar_weight* theta_m(k,iAdvCell)
@@ -5223,28 +5981,38 @@ module atm_time_integration
             end do
 
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
                tend_theta(k,iCell) = tend_theta(k,iCell) - edgesOnCell_sign(i,iCell) * ru(k,iEdge) * flux_arr(k)
             end do
 
          end do
       end do
+      !$acc end parallel
 
 !  addition to pick up perturbation flux for rtheta_pp equation
 
       if(rk_step > 1) then
+
+        !$acc parallel default(present)
+        !$acc loop gang worker
         do iCell=cellSolveStart,cellSolveEnd
+
+          !$acc loop seq
           do i=1,nEdgesOnCell(iCell) 
             iEdge = edgesOnCell(i,iCell)
             cell1 = cellsOnEdge(1,iEdge)
             cell2 = cellsOnEdge(2,iEdge)
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
                flux = edgesOnCell_sign(i,iCell)*dvEdge(iEdge)*(ru_save(k,iEdge)-ru(k,iEdge))*0.5*(theta_m_save(k,cell2)+theta_m_save(k,cell1))
                tend_theta(k,iCell) = tend_theta(k,iCell)-flux  ! division by areaCell picked up down below
             end do
           end do
         end do
+        !$acc end parallel
+
       end if
 
       !
@@ -5254,11 +6022,19 @@ module atm_time_integration
 
       if (rk_step == 1) then
 
-         delsq_theta(1:nVertLevels,cellStart:cellEnd) = 0.0
-
+         !$acc parallel default(present)
+         !$acc loop gang worker
          do iCell=cellStart,cellEnd
-            tend_theta_euler(1:nVertLevels,iCell) = 0.0
+
+            !$acc loop vector
+            do k=1,nVertLevels
+               delsq_theta(k,iCell) = 0.0_RKIND
+               tend_theta_euler(k,iCell) = 0.0_RKIND
+            end do
+
             r_areaCell = invAreaCell(iCell)
+
+            !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
                edge_sign = r_areaCell*edgesOnCell_sign(i,iCell) * dvEdge(iEdge) * invDcEdge(iEdge)
@@ -5266,6 +6042,7 @@ module atm_time_integration
                cell1 = cellsOnEdge(1,iEdge)
                cell2 = cellsOnEdge(2,iEdge)
 !DIR$ IVDEP
+               !$acc loop vector
                do k=1,nVertLevels
 
 !  we are computing the Smagorinsky filter at more points than needed here so as to pick up the delsq_theta for 4th order filter below
@@ -5278,13 +6055,19 @@ module atm_time_integration
                end do
             end do
           end do
+          !$acc end parallel
 
 !$OMP BARRIER
             
          if (h_theta_eddy_visc4 > 0.0) then  ! 4th order mixing is active
 
+            !$acc parallel default(present)
+            !$acc loop gang worker
             do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
+
                r_areaCell = h_theta_eddy_visc4 * prandtl_inv * invAreaCell(iCell)
+
+               !$acc loop seq
                do i=1,nEdgesOnCell(iCell)
 
                   iEdge = edgesOnCell(i,iCell)
@@ -5293,11 +6076,13 @@ module atm_time_integration
                   cell1 = cellsOnEdge(1,iEdge)
                   cell2 = cellsOnEdge(2,iEdge)
 
+                  !$acc loop vector
                   do k=1,nVertLevels
                      tend_theta_euler(k,iCell) = tend_theta_euler(k,iCell) - edge_sign*(delsq_theta(k,cell2) - delsq_theta(k,cell1))
                   end do
                end do
             end do
+            !$acc end parallel
 
          end if ! 4th order mixing is active 
 
@@ -5307,6 +6092,10 @@ module atm_time_integration
       !  vertical advection plus diabatic term
       !  Note: we are also dividing through by the cell area after the horizontal flux divergence
       !
+
+
+      !$acc parallel default(present)
+      !$acc loop gang worker private(wdtz)
       do iCell = cellSolveStart,cellSolveEnd
 
          wdtz(1) = 0.0
@@ -5314,22 +6103,27 @@ module atm_time_integration
          k = 2
          wdtz(k) =  rw(k,icell)*(fzm(k)*theta_m(k,iCell)+fzp(k)*theta_m(k-1,iCell))  
          wdtz(k) =  wdtz(k)+(rw_save(k,icell)-rw(k,icell))*(fzm(k)*theta_m_save(k,iCell)+fzp(k)*theta_m_save(k-1,iCell))
+
+         !$acc loop vector
          do k=3,nVertLevels-1
             wdtz(k) = flux3( theta_m(k-2,iCell),theta_m(k-1,iCell),theta_m(k,iCell),theta_m(k+1,iCell), rw(k,iCell), coef_3rd_order )
             wdtz(k) =  wdtz(k) + (rw_save(k,icell)-rw(k,iCell))*(fzm(k)*theta_m_save(k,iCell)+fzp(k)*theta_m_save(k-1,iCell))  ! rtheta_pp redefinition
          end do
+
          k = nVertLevels
          wdtz(k) =  rw_save(k,icell)*(fzm(k)*theta_m(k,iCell)+fzp(k)*theta_m(k-1,iCell))  ! rtheta_pp redefinition
 
          wdtz(nVertLevels+1) = 0.0
 
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
             tend_theta(k,iCell) = tend_theta(k,iCell)*invAreaCell(iCell) -rdzw(k)*(wdtz(k+1)-wdtz(k))
             rthdynten(k,iCell)  = (tend_theta(k,iCell)-tend_rho(k,iCell)*theta_m(k,iCell))/rho_zz(k,iCell)
             tend_theta(k,iCell) = tend_theta(k,iCell) + rho_zz(k,iCell)*rt_diabatic_tend(k,iCell)
          end do
       end do
+      !$acc end parallel
 
       !
       !  vertical mixing for theta - 2nd order 
@@ -5341,7 +6135,11 @@ module atm_time_integration
 
             if (config_mix_full) then
 
+               !$acc parallel default(present)
+               !$acc loop gang worker
                do iCell = cellSolveStart,cellSolveEnd
+
+                  !$acc loop vector
                   do k=2,nVertLevels-1
                      z1 = zgrid(k-1,iCell)
                      z2 = zgrid(k  ,iCell)
@@ -5357,9 +6155,12 @@ module atm_time_integration
                                              -(theta_m(k  ,iCell)-theta_m(k-1,iCell))/(z0-zm) )/(0.5*(zp-zm))
                   end do
                end do
+               !$acc end parallel
 
-         else  ! idealized cases where we mix on the perturbation from the initial 1-D state
+            else  ! idealized cases where we mix on the perturbation from the initial 1-D state
 
+               !$acc parallel default(present)
+               !$acc loop gang worker
                do iCell = cellSolveStart,cellSolveEnd
                   do k=2,nVertLevels-1
                      z1 = zgrid(k-1,iCell)
@@ -5376,6 +6177,7 @@ module atm_time_integration
                                              -((theta_m(k  ,iCell)-t_init(k,iCell))-(theta_m(k-1,iCell)-t_init(k-1,iCell)))/(z0-zm) )/(0.5*(zp-zm))
                   end do
                end do
+               !$acc end parallel
 
             end if
 
@@ -5383,13 +6185,57 @@ module atm_time_integration
 
       end if ! compute vertical theta mixing on first rk_step
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart,cellSolveEnd
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
 !            tend_theta(k,iCell) = tend_theta(k,iCell) + tend_theta_euler(k,iCell)
             tend_theta(k,iCell) = tend_theta(k,iCell) + tend_theta_euler(k,iCell) + tend_rtheta_physics(k,iCell)
          end do
       end do
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_compute_dyn_tend_work [ACC_data_xfer]')
+      if (rk_step == 1) then
+         !$acc exit data copyout(tend_w_euler)
+         !$acc exit data copyout(tend_u_euler)
+         !$acc exit data copyout(tend_theta_euler)
+         !$acc exit data copyout(tend_rho)
+
+         !$acc exit data delete(kdiff)
+         !$acc exit data delete(tend_rho_physics)
+         !$acc exit data delete(rb, rr_save)
+         !$acc exit data delete(divergence, vorticity)
+         !$acc exit data delete(v)
+         !$acc exit data delete(u_init, v_init)
+      else
+         !$acc exit data delete(tend_w_euler)
+         !$acc exit data delete(tend_u_euler)
+         !$acc exit data delete(tend_theta_euler)
+         !$acc exit data delete(tend_rho)
+      end if
+      !$acc exit data copyout(tend_u)
+      !$acc exit data delete(cqu, pp, u, w, pv_edge, rho_edge, ke)
+      !$acc exit data copyout(h_divergence)
+      !$acc exit data delete(ru, rw)
+      !$acc exit data delete(rayleigh_damp_coef)
+      !$acc exit data delete(tend_ru_physics)
+      !$acc exit data copyout(tend_w)
+      !$acc exit data delete(rho_zz)
+      !$acc exit data copyout(tend_theta)
+      !$acc exit data delete(theta_m)
+      !$acc exit data delete(ru_save, theta_m_save)
+      !$acc exit data delete(cqw)
+      !$acc exit data delete(tend_rtheta_physics)
+      !$acc exit data delete(rw_save, rt_diabatic_tend)
+      !$acc exit data copyout(rthdynten)
+      !$acc exit data delete(t_init)
+#ifdef CURVATURE
+      !$acc exit data delete(ur_cell, vr_cell)
+#endif
+      MPAS_ACC_TIMER_STOP('atm_compute_dyn_tend_work [ACC_data_xfer]')
 
    end subroutine atm_compute_dyn_tend_work
 
@@ -5557,13 +6403,33 @@ module atm_time_integration
       logical :: reconstruct_v
 
 
+      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc enter data copyin(cellsOnEdge,dcEdge,dvEdge, &
+      !$acc                   edgesOnVertex,edgesOnVertex_sign,invAreaTriangle, &
+      !$acc                   nEdgesOnCell,edgesOnCell, &
+      !$acc                   edgesOnCell_sign,invAreaCell, &
+      !$acc                   invAreaTriangle,edgesOnVertex, &
+      !$acc                   verticesOnCell,kiteForCell,kiteAreasOnVertex, &
+      !$acc                   nEdgesOnEdge,edgesOnEdge,weightsOnEdge, &
+      !$acc                   fVertex, &
+      !$acc                   verticesOnEdge, &
+      !$acc                   invDvEdge,invDcEdge)
+      !$acc enter data copyin(u,h)
+      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
+
       !
       ! Compute height on cell edges at velocity locations
       !
+      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc enter data create(h_edge,vorticity,divergence)
+      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc parallel default(present)
+      !$acc loop gang
       do iEdge=edgeStart,edgeEnd
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
             h_edge(k,iEdge) = 0.5 * (h(k,cell1) + h(k,cell2))
          end do
@@ -5572,6 +6438,7 @@ module atm_time_integration
 !  it would be good to move this somewhere else?
 
          efac = dcEdge(iEdge)*dvEdge(iEdge)
+         !$acc loop vector
          do k=1,nVertLevels
             ke_edge(k,iEdge) = efac*u(k,iEdge)**2
          end do
@@ -5581,17 +6448,24 @@ module atm_time_integration
       !
       ! Compute circulation and relative vorticity at each vertex
       !
+      !$acc loop gang
       do iVertex=vertexStart,vertexEnd
-         vorticity(1:nVertLevels,iVertex) = 0.0
+         !$acc loop vector
+         do k=1,nVertLevels
+            vorticity(k,iVertex) = 0.0_RKIND
+         end do
+         !$acc loop seq
          do i=1,vertexDegree
             iEdge = edgesOnVertex(i,iVertex)
             s = edgesOnVertex_sign(i,iVertex) * dcEdge(iEdge)
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
                vorticity(k,iVertex) = vorticity(k,iVertex) + s * u(k,iEdge)
             end do
          end do
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
             vorticity(k,iVertex) = vorticity(k,iVertex) * invAreaTriangle(iVertex)
          end do
@@ -5601,21 +6475,29 @@ module atm_time_integration
       !
       ! Compute the divergence at each cell center
       !
+      !$acc loop gang
       do iCell=cellStart,cellEnd
-         divergence(1:nVertLevels,iCell) = 0.0
+         !$acc loop vector
+         do k=1,nVertLevels
+            divergence(k,iCell) = 0.0_RKIND
+         end do
+         !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
             s = edgesOnCell_sign(i,iCell) * dvEdge(iEdge)
 !DIR$ IVDEP
+            !$acc loop vector
             do k=1,nVertLevels
               divergence(k,iCell) = divergence(k,iCell) + s * u(k,iEdge)
             end do
          end do
          r = invAreaCell(iCell)
+         !$acc loop vector
          do k = 1,nVertLevels
             divergence(k,iCell) = divergence(k,iCell) * r
          end do
       end do
+      !$acc end parallel
 
 
 !$OMP BARRIER
@@ -5625,20 +6507,32 @@ module atm_time_integration
       !
       ! Replace 2.0 with 2 in exponentiation to avoid outside chance that
       ! compiler will actually allow "float raised to float" operation
+      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc enter data create(ke)
+      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc parallel default(present)
+      !$acc loop gang
       do iCell=cellStart,cellEnd
-         ke(1:nVertLevels,iCell) = 0.0
+         !$acc loop vector
+         do k=1,nVertLevels
+            ke(k,iCell) = 0.0_RKIND
+         end do
+         !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
+            !$acc loop vector
             do k=1,nVertLevels
 !               ke(k,iCell) = ke(k,iCell) + 0.25 * dcEdge(iEdge) * dvEdge(iEdge) * u(k,iEdge)**2
                ke(k,iCell) = ke(k,iCell) + 0.25 * ke_edge(k,iEdge)
             end do
          end do
 !DIR$ IVDEP
+         !$acc loop vector
          do k=1,nVertLevels
             ke(k,iCell) = ke(k,iCell) * invAreaCell(iCell)
          end do
       end do
+      !$acc end parallel
 
 
       if (hollingsworth) then
@@ -5649,8 +6543,11 @@ module atm_time_integration
 
          ! Replace 2.0 with 2 in exponentiation to avoid outside chance that
          ! compiler will actually allow "float raised to float" operation
+         !$acc parallel default(present)
+         !$acc loop gang
          do iVertex=vertexStart,vertexEnd
             r = 0.25 * invAreaTriangle(iVertex) 
+            !$acc loop vector
             do k=1,nVertLevels
 
 !               ke_vertex(k,iVertex) = (  dcEdge(EdgesOnVertex(1,iVertex))*dvEdge(EdgesOnVertex(1,iVertex))*u(k,EdgesOnVertex(1,iVertex))**2  &
@@ -5662,6 +6559,7 @@ module atm_time_integration
 
             end do
          end do
+         !$acc end parallel
 
 !$OMP BARRIER
 
@@ -5670,6 +6568,8 @@ module atm_time_integration
 
          ke_fact = 1.0 - .375
 
+         !$acc parallel default(present)
+         !$acc loop collapse(2)
          do iCell=cellStart,cellEnd
             do k=1,nVertLevels
                ke(k,iCell) = ke_fact * ke(k,iCell)
@@ -5677,17 +6577,21 @@ module atm_time_integration
          end do
 
 
+         !$acc loop gang
          do iCell=cellStart,cellEnd
             r = invAreaCell(iCell)
+            !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iVertex = verticesOnCell(i,iCell)
                j = kiteForCell(i,iCell)
 !DIR$ IVDEP
+               !$acc loop vector
                do k = 1,nVertLevels
                   ke(k,iCell) = ke(k,iCell) + (1.-ke_fact)*kiteAreasOnVertex(j,iVertex) * ke_vertex(k,iVertex) * r
                end do
             end do
          end do
+         !$acc end parallel
 
       end if
 
@@ -5700,17 +6604,33 @@ module atm_time_integration
         if(rk_step /= 3) reconstruct_v = .false.
       end if
 
+      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
       if (reconstruct_v) then
+         !$acc enter data create(v)
+      else
+         !$acc enter data copyin(v)
+      end if
+      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
+
+      if (reconstruct_v) then
+        !$acc parallel default(present)
+        !$acc loop gang
         do iEdge = edgeStart,edgeEnd
-          v(1:nVertLevels,iEdge) = 0.0
+          !$acc loop vector
+          do k = 1,nVertLevels
+            v(k,iEdge) = 0.0_RKIND
+          end do
+          !$acc loop seq
           do i=1,nEdgesOnEdge(iEdge)
             eoe = edgesOnEdge(i,iEdge)
 !DIR$ IVDEP
+            !$acc loop vector
             do k = 1,nVertLevels
               v(k,iEdge) = v(k,iEdge) + weightsOnEdge(i,iEdge) * u(k, eoe)
             end do
           end do
         end do
+        !$acc end parallel
       end if
 
       !
@@ -5719,6 +6639,11 @@ module atm_time_integration
       !
       ! Avoid dividing h_vertex by areaTriangle and move areaTriangle into
       ! numerator for the pv_vertex calculation
+      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc enter data create(pv_vertex)
+      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc parallel default(present)
+      !$acc loop collapse(2)
       do iVertex = vertexStart,vertexEnd
 !DIR$ IVDEP
          do k=1,nVertLevels
@@ -5732,6 +6657,7 @@ module atm_time_integration
             pv_vertex(k,iVertex) = (fVertex(iVertex) + vorticity(k,iVertex))
          end do
       end do
+      !$acc end parallel
 
 !$OMP BARRIER
 
@@ -5739,32 +6665,49 @@ module atm_time_integration
       ! Compute pv at the edges
       !   ( this computes pv_edge at all edges bounding real cells )
       !
+      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc enter data create(pv_edge)
+      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc parallel default(present)
+      !$acc loop collapse(2)
       do iEdge = edgeStart,edgeEnd
 !DIR$ IVDEP
          do k=1,nVertLevels
             pv_edge(k,iEdge) =  0.5 * (pv_vertex(k,verticesOnEdge(1,iEdge)) + pv_vertex(k,verticesOnEdge(2,iEdge)))
          end do
       end do
+      !$acc end parallel
 
       if (config_apvm_upwinding > 0.0) then
 
-      !
-      ! Compute pv at cell centers
-      !    ( this computes pv_cell for all real cells )
-      !  only needed for APVM upwinding
-      !
-      do iCell=cellStart,cellEnd
-         pv_cell(1:nVertLevels,iCell) = 0.0
-         r = invAreaCell(iCell)
-         do i=1,nEdgesOnCell(iCell)
-            iVertex = verticesOnCell(i,iCell)
-            j = kiteForCell(i,iCell)
-!DIR$ IVDEP
+         !
+         ! Compute pv at cell centers
+         !    ( this computes pv_cell for all real cells )
+         !  only needed for APVM upwinding
+         !
+         MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+         !$acc enter data create(pv_cell)
+         MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
+         !$acc parallel default(present)
+         !$acc loop gang
+         do iCell=cellStart,cellEnd
+            !$acc loop vector
             do k = 1,nVertLevels
-               pv_cell(k,iCell) = pv_cell(k,iCell) + kiteAreasOnVertex(j,iVertex) * pv_vertex(k,iVertex) * r
+               pv_cell(k,iCell) = 0.0_RKIND
+            end do
+            r = invAreaCell(iCell)
+            !$acc loop seq
+            do i=1,nEdgesOnCell(iCell)
+               iVertex = verticesOnCell(i,iCell)
+               j = kiteForCell(i,iCell)
+!DIR$ IVDEP
+               !$acc loop vector
+               do k = 1,nVertLevels
+                  pv_cell(k,iCell) = pv_cell(k,iCell) + kiteAreasOnVertex(j,iVertex) * pv_vertex(k,iVertex) * r
+               end do
             end do
          end do
-      end do
+         !$acc end parallel
 
 
 !$OMP BARRIER
@@ -5783,19 +6726,49 @@ module atm_time_integration
          ! Merged loops for calculating gradPVt, gradPVn and pv_edge
          ! Also precomputed inverses of dvEdge and dcEdge to avoid repeated divisions
          !
+         MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+         !$acc enter data create(gradPVt,gradPVn)
+         MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
          r = config_apvm_upwinding * dt
+         !$acc parallel default(present)
+         !$acc loop gang
          do iEdge = edgeStart,edgeEnd
             r1 = 1.0_RKIND * invDvEdge(iEdge)
             r2 = 1.0_RKIND * invDcEdge(iEdge)
 !DIR$ IVDEP
+            !$acc loop vector
             do k = 1,nVertLevels
                gradPVt(k,iEdge) = (pv_vertex(k,verticesOnEdge(2,iEdge)) - pv_vertex(k,verticesOnEdge(1,iEdge))) * r1
                gradPVn(k,iEdge) = (pv_cell(k,cellsOnEdge(2,iEdge)) - pv_cell(k,cellsOnEdge(1,iEdge))) * r2
                pv_edge(k,iEdge) = pv_edge(k,iEdge) - r * (v(k,iEdge) * gradPVt(k,iEdge) + u(k,iEdge) * gradPVn(k,iEdge))
             end do
          end do
+         !$acc end parallel
+
+         MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+         !$acc exit data delete(pv_cell,gradPVt,gradPVn)
+         MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
 
       end if  ! apvm upwinding
+
+
+      MPAS_ACC_TIMER_START('atm_compute_solve_diagnostics [ACC_data_xfer]')
+      !$acc exit data delete(cellsOnEdge,dcEdge,dvEdge, &
+      !$acc                  edgesOnVertex,edgesOnVertex_sign,invAreaTriangle, &
+      !$acc                  nEdgesOnCell,edgesOnCell, &
+      !$acc                  edgesOnCell_sign,invAreaCell, &
+      !$acc                  invAreaTriangle,edgesOnVertex, &
+      !$acc                  verticesOnCell,kiteForCell,kiteAreasOnVertex, &
+      !$acc                  nEdgesOnEdge,edgesOnEdge,weightsOnEdge, &
+      !$acc                  verticesOnEdge, &
+      !$acc                  fVertex,invDvEdge,invDcEdge)
+      !$acc exit data delete(u,h)
+      !$acc exit data copyout(h_edge,vorticity,divergence, &
+      !$acc                   ke, &
+      !$acc                   v, &
+      !$acc                   pv_vertex, &
+      !$acc                   pv_edge)
+      MPAS_ACC_TIMER_STOP('atm_compute_solve_diagnostics [ACC_data_xfer]')
 
    end subroutine atm_compute_solve_diagnostics_work
 
@@ -5815,8 +6788,10 @@ module atm_time_integration
       integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
 
       integer :: i, k, iCell, iEdge, cell1, cell2
-      integer, pointer :: nCells, nEdges, nVertLevels
-      integer, pointer :: index_qv
+      integer, pointer :: nVertLevels_ptr
+      integer, pointer :: index_qv_ptr
+      integer          :: nVertLevels
+      integer          :: index_qv
       real (kind=RKIND) :: p0, rcv, flux
       integer, dimension(:), pointer :: nEdgesOnCell
       integer, dimension(:,:), pointer :: cellsOnEdge, edgesOnCell
@@ -5844,10 +6819,12 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:,:), pointer :: zb, zb3, zb_cell, zb3_cell
 
 
-      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
-      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
-      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
-      call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+      call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels_ptr)
+      call mpas_pool_get_dimension(state, 'index_qv', index_qv_ptr)
+
+      ! Dereference integer pointers for OpenACC
+      nVertLevels = nVertLevels_ptr
+      index_qv = index_qv_ptr
 
       call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
       call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
@@ -5880,81 +6857,129 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
       call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
 
+      MPAS_ACC_TIMER_START('atm_init_coupled_diagnostics [ACC_data_xfer]')
+      ! copyin invariant fields
+      !$acc enter data copyin(cellsOnEdge,nEdgesOnCell,edgesOnCell, &
+      !$acc                   edgesOnCell_sign,zz,fzm,fzp,zb,zb3, &
+      !$acc                   zb_cell,zb3_cell)
+
+      ! copyin the data that is only on the right-hand side
+      !$acc enter data copyin(scalars(index_qv,:,:),u,w,rho,theta, &
+      !$acc                           rho_base,theta_base)
+
+      ! copyin the data that will be modified in this routine
+      !$acc enter data create(theta_m,rho_zz,ru,rw,rho_p,rtheta_base, &
+      !$acc                   rtheta_p,exner,exner_base,pressure_p, &
+      !$acc                   pressure_base)
+      MPAS_ACC_TIMER_STOP('atm_init_coupled_diagnostics [ACC_data_xfer]')
+
+
 
       rcv = rgas / (cp-rgas)
       p0 = 1.e5  ! this should come from somewhere else...
 
+      !$acc parallel default(present)
+      !$acc loop gang
       do iCell=cellStart,cellEnd
+         !$acc loop vector
          do k=1,nVertLevels
             theta_m(k,iCell) = theta(k,iCell) * (1._RKIND + rvord * scalars(index_qv,k,iCell))
             rho_zz(k,iCell) = rho(k,iCell) / zz(k,iCell)
          end do
       end do
+      !$acc end parallel
 
 !$OMP BARRIER
 
+      !$acc parallel default(present)
+      !$acc loop gang
       do iEdge=edgeStart,edgeEnd
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
+         !$acc loop vector
          do k=1,nVertLevels
             ru(k,iEdge) = 0.5 * u(k,iEdge) * (rho_zz(k,cell1) + rho_zz(k,cell2))
          end do
       end do
+      !$acc end parallel
 
 !$OMP BARRIER
 
       ! Compute rw (i.e. rho_zz * omega) from rho_zz, w, and ru.
       ! We are reversing the procedure we use in subroutine atm_recover_large_step_variables.
       ! first, the piece that depends on w.
+      !$acc parallel default(present)
+      !$acc loop gang
       do iCell=cellStart,cellEnd
          rw(1,iCell) = 0.0
          rw(nVertLevels+1,iCell) = 0.0
+         !$acc loop vector
          do k=2,nVertLevels
             rw(k,iCell) = w(k,iCell)     &
                           * (fzp(k) * rho_zz(k-1,iCell) + fzm(k) * rho_zz(k,iCell)) &
                           * (fzp(k) * zz(k-1,iCell) + fzm(k) * zz(k,iCell))
          end do
       end do
+      !$acc end parallel
   
       ! next, the piece that depends on ru
+      !$acc parallel default(present)
+      !$acc loop gang
       do iCell=cellStart,cellEnd
+         !$acc loop seq
          do i=1,nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
+            !$acc loop vector
             do k = 2,nVertLevels
-            flux = (fzm(k)*ru(k,iEdge) + fzp(k)*ru(k-1,iEdge))
-            rw(k,iCell) = rw(k,iCell)   &
-                          - edgesOnCell_sign(i,iCell) * (zb_cell(k,i,iCell) + sign(1.0_RKIND,flux) * zb3_cell(k,i,iCell))*flux   &
-                          * (fzp(k) * zz(k-1,iCell) + fzm(k) * zz(k,iCell))
+               flux = (fzm(k)*ru(k,iEdge) + fzp(k)*ru(k-1,iEdge))
+               rw(k,iCell) = rw(k,iCell)   &
+                             - edgesOnCell_sign(i,iCell) * (zb_cell(k,i,iCell) + sign(1.0_RKIND,flux) * zb3_cell(k,i,iCell))*flux   &
+                             * (fzp(k) * zz(k-1,iCell) + fzm(k) * zz(k,iCell))
             end do
          end do
       end do
+      !$acc end parallel
 
+      !$acc parallel default(present)
+      !$acc loop collapse(2)
       do iCell=cellStart,cellEnd
          do k=1,nVertLevels
             rho_p(k,iCell) = rho_zz(k,iCell) - rho_base(k,iCell)
          end do
       end do
+      !$acc end parallel
 
+      !$acc parallel default(present)
+      !$acc loop collapse(2)
       do iCell=cellStart,cellEnd
          do k=1,nVertLevels
             rtheta_base(k,iCell) = theta_base(k,iCell) * rho_base(k,iCell)
          end do
       end do
+      !$acc end parallel
 
+      !$acc parallel default(present)
+      !$acc loop collapse(2)
       do iCell=cellStart,cellEnd
          do k=1,nVertLevels
             rtheta_p(k,iCell) = theta_m(k,iCell) * rho_p(k,iCell)  &
                                              + rho_base(k,iCell)   * (theta_m(k,iCell) - theta_base(k,iCell))
          end do
       end do
+      !$acc end parallel
 
+      !$acc parallel default(present)
+      !$acc loop collapse(2)
       do iCell=cellStart,cellEnd
          do k=1,nVertLevels
             exner(k,iCell) = (zz(k,iCell) * (rgas/p0) * (rtheta_p(k,iCell) + rtheta_base(k,iCell)))**rcv
             exner_base(k,iCell) = (zz(k,iCell) * (rgas/p0) * (rtheta_base(k,iCell)))**rcv  ! WCS addition 20180403
          end do
       end do
+      !$acc end parallel
 
+      !$acc parallel default(present)
+      !$acc loop collapse(2)
       do iCell=cellStart,cellEnd
          do k=1,nVertLevels
             pressure_p(k,iCell) = zz(k,iCell) * rgas &
@@ -5964,11 +6989,28 @@ module atm_time_integration
             pressure_base(k,iCell) = zz(k,iCell) * rgas * exner_base(k,iCell) * rtheta_base(k,iCell)      ! WCS addition 20180403
          end do
       end do
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_init_coupled_diagnostics [ACC_data_xfer]')
+      ! delete invariant fields
+      !$acc exit data delete(cellsOnEdge,nEdgesOnCell,edgesOnCell, &
+      !$acc                  edgesOnCell_sign,zz,fzm,fzp,zb,zb3, &
+      !$acc                  zb_cell,zb3_cell)
+
+      ! delete the data that is only on the right-hand side
+      !$acc exit data delete(scalars(index_qv,:,:),u,w,rho,theta, &
+      !$acc                           rho_base,theta_base)
+
+      ! copyout the data that will be modified in this routine
+      !$acc exit data copyout(theta_m,rho_zz,ru,rw,rho_p,rtheta_base, &
+      !$acc                   rtheta_p,exner,exner_base,pressure_p, &
+      !$acc                   pressure_base)
+      MPAS_ACC_TIMER_STOP('atm_init_coupled_diagnostics [ACC_data_xfer]')
 
    end subroutine atm_init_coupled_diagnostics
 
 
-   subroutine atm_rk_dynamics_substep_finish( state, diag, dynamics_substep, dynamics_split, &
+   subroutine atm_rk_dynamics_substep_finish( state, diag, nVertLevels, dynamics_substep, dynamics_split, &
                                        cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
                                        cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
 
@@ -5982,7 +7024,7 @@ module atm_time_integration
 
       type (mpas_pool_type), intent(inout) :: state
       type (mpas_pool_type), intent(inout) :: diag
-      integer, intent(in) :: dynamics_substep, dynamics_split
+      integer, intent(in) :: nVertLevels, dynamics_substep, dynamics_split
       integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
       integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
 
@@ -6002,6 +7044,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: theta_m_1, theta_m_2
       real (kind=RKIND), dimension(:,:), pointer :: rho_zz_1, rho_zz_2, rho_zz_old_split
       real (kind=RKIND), dimension(:,:), pointer :: ruAvg, wwAvg, ruAvg_split, wwAvg_split
+      integer :: iCell, iEdge, j, k
 
       call mpas_pool_get_array(diag, 'ru', ru)
       call mpas_pool_get_array(diag, 'ru_save', ru_save)
@@ -6026,35 +7069,124 @@ module atm_time_integration
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_1, 1)
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_2, 2)
 
+      MPAS_ACC_TIMER_START('atm_rk_dynamics_substep_finish [ACC_data_xfer]')
+      !$acc enter data create(ru_save, u_1, rtheta_p_save, theta_m_1, rho_p_save, rw_save, &
+      !$acc                   w_1, rho_zz_1) &
+      !$acc            copyin(ru, u_2, rtheta_p, rho_p, theta_m_2, rho_zz_2, rw, &
+      !$acc                   w_2, ruAvg, wwAvg, ruAvg_split, wwAvg_split, rho_zz_old_split)
+      MPAS_ACC_TIMER_STOP('atm_rk_dynamics_substep_finish [ACC_data_xfer]')
+
+      ! Interim fix for the atm_compute_dyn_tend_work subroutine accessing uninitialized values
+      ! in garbage cells of theta_m
+      !$acc kernels
+      theta_m_1(:,cellEnd+1) = 0.0_RKIND
+      !$acc end kernels
+
       inv_dynamics_split = 1.0_RKIND / real(dynamics_split)
-      
+
       if (dynamics_substep < dynamics_split) then
+         !$acc parallel default(present)
+         !$acc loop gang worker
+         do iEdge = edgeStart,edgeEnd
+            !$acc loop vector
+            do k = 1,nVertLevels
+               ru_save(k,iEdge) = ru(k,iEdge)
+               u_1(k,iEdge) = u_2(k,iEdge)
+            end do
+         end do
 
-         ru_save(:,edgeStart:edgeEnd) = ru(:,edgeStart:edgeEnd)
-         rw_save(:,cellStart:cellEnd) = rw(:,cellStart:cellEnd)
-         rtheta_p_save(:,cellStart:cellEnd) = rtheta_p(:,cellStart:cellEnd)
-         rho_p_save(:,cellStart:cellEnd) = rho_p(:,cellStart:cellEnd)
 
-         u_1(:,edgeStart:edgeEnd) = u_2(:,edgeStart:edgeEnd)
-         w_1(:,cellStart:cellEnd) = w_2(:,cellStart:cellEnd)
-         theta_m_1(:,cellStart:cellEnd) = theta_m_2(:,cellStart:cellEnd)
-         rho_zz_1(:,cellStart:cellEnd) = rho_zz_2(:,cellStart:cellEnd)
+         !$acc loop gang worker
+         do iCell = cellStart,cellEnd
+            !$acc loop vector
+            do k = 1,nVertLevels
+               rtheta_p_save(k,iCell) = rtheta_p(k,iCell)
+               rho_p_save(k,iCell) = rho_p(k,iCell)
+               theta_m_1(k,iCell) = theta_m_2(k,iCell)
+               rho_zz_1(k,iCell) = rho_zz_2(k,iCell)
+            end do
+         end do
 
+         !$acc loop gang worker
+         do iCell = cellStart,cellEnd
+            !$acc loop vector
+            do k = 1,nVertLevels+1
+               rw_save(k,iCell) = rw(k,iCell)
+               w_1(k,iCell) = w_2(k,iCell)
+            end do
+         end do
+         !$acc end parallel
       end if
 
       if (dynamics_substep == 1) then
-         ruAvg_split(:,edgeStart:edgeEnd) = ruAvg(:,edgeStart:edgeEnd)
-         wwAvg_split(:,cellStart:cellEnd) = wwAvg(:,cellStart:cellEnd)
+         !$acc parallel default(present)
+         !$acc loop gang worker
+         do iEdge = edgeStart,edgeEnd
+            !$acc loop vector
+            do k = 1,nVertLevels
+               ruAvg_split(k,iEdge) = ruAvg(k,iEdge)
+            end do
+         end do
+         !$acc loop gang worker
+         do iCell = cellStart,cellEnd
+            !$acc loop vector
+            do k = 1,nVertLevels+1
+               wwAvg_split(k,iCell) = wwAvg(k,iCell)
+            end do
+         end do
+         !$acc end parallel
       else
-         ruAvg_split(:,edgeStart:edgeEnd) = ruAvg(:,edgeStart:edgeEnd)+ruAvg_split(:,edgeStart:edgeEnd)
-         wwAvg_split(:,cellStart:cellEnd) = wwAvg(:,cellStart:cellEnd)+wwAvg_split(:,cellStart:cellEnd)
+         !$acc parallel default(present)
+         !$acc loop gang worker
+         do iEdge = edgeStart,edgeEnd
+            !$acc loop vector
+            do k = 1,nVertLevels
+               ruAvg_split(k,iEdge) = ruAvg(k,iEdge) + ruAvg_split(k,iEdge)
+            end do
+         end do
+         !$acc loop gang worker
+         do iCell = cellStart,cellEnd
+            !$acc loop vector
+            do k = 1,nVertLevels+1
+               wwAvg_split(k,iCell) = wwAvg(k,iCell) + wwAvg_split(k,iCell)
+            end do
+         end do
+         !$acc end parallel
       end if
 
       if (dynamics_substep == dynamics_split) then
-         ruAvg(:,edgeStart:edgeEnd) = ruAvg_split(:,edgeStart:edgeEnd) * inv_dynamics_split
-         wwAvg(:,cellStart:cellEnd) = wwAvg_split(:,cellStart:cellEnd) * inv_dynamics_split
-         rho_zz_1(:,cellStart:cellEnd) = rho_zz_old_split(:,cellStart:cellEnd)
+         !$acc parallel default(present)
+         !$acc loop gang worker
+         do iEdge = edgeStart,edgeEnd
+            !$acc loop vector
+            do k = 1,nVertLevels
+               ruAvg(k,iEdge) = ruAvg_split(k,iEdge) * inv_dynamics_split
+            end do
+         end do
+         !$acc loop gang worker
+         do iCell = cellStart,cellEnd
+            !$acc loop vector
+            do k = 1,nVertLevels+1
+               wwAvg(k,iCell) = wwAvg_split(k,iCell) * inv_dynamics_split
+            end do
+         end do
+         !$acc loop gang worker
+         do iCell = cellStart,cellEnd
+            !$acc loop vector
+            do k = 1,nVertLevels           
+               rho_zz_1(k,iCell) = rho_zz_old_split(k,iCell)
+            end do
+         end do
+         !$acc end parallel
       end if
+
+      MPAS_ACC_TIMER_START('atm_rk_dynamics_substep_finish [ACC_data_xfer]')
+      !$acc exit data copyout(ru_save, u_1, rtheta_p_save, rho_p_save, rw_save, &
+      !$acc                   w_1, theta_m_1, rho_zz_1, ruAvg, wwAvg, ruAvg_split, &
+      !$acc                   wwAvg_split) &
+      !$acc            delete(ru, u_2, rtheta_p, rho_p, theta_m_2, rho_zz_2, rw, &
+      !$acc                  w_2, rho_zz_old_split)
+      MPAS_ACC_TIMER_STOP('atm_rk_dynamics_substep_finish [ACC_data_xfer]')
 
    end subroutine atm_rk_dynamics_substep_finish
 
@@ -6109,14 +7241,28 @@ module atm_time_integration
 
       integer :: iCell, k
 
+      MPAS_ACC_TIMER_START('atm_zero_gradient_w_bdy_work [ACC_data_xfer]')
+      !$acc enter data copyin(w)
+      MPAS_ACC_TIMER_STOP('atm_zero_gradient_w_bdy_work [ACC_data_xfer]')
+
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell=cellSolveStart,cellSolveEnd
          if (bdyMaskCell(iCell) > nRelaxZone) then
 !DIR$ IVDEP
+            !$acc loop vector
             do k = 2, nVertLevels
-              w(k,iCell) = w(k,nearestRelaxationCell(iCell))
+               ! w(k,iCell) = w(k,nearestRelaxationCell(iCell))
+               w(k,iCell) = 0.0  ! WCS fix for instabilities caused by zero-gradient condition on inflow, 20240806
             end do
          end if  
       end do
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_zero_gradient_w_bdy_work [ACC_data_xfer]')
+      !$acc exit data copyout(w)
+      MPAS_ACC_TIMER_STOP('atm_zero_gradient_w_bdy_work [ACC_data_xfer]')
+
 
    end subroutine atm_zero_gradient_w_bdy_work
 
@@ -6155,9 +7301,17 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'bdyMaskCell', bdyMaskCell)
       call mpas_pool_get_array(mesh, 'bdyMaskEdge', bdyMaskEdge)
       call mpas_pool_get_array(tend, 'rt_diabatic_tend', rt_diabatic_tend)
-      
+
+      MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
+      !$acc enter data copyin(tend_ru,tend_rho,tend_rt,tend_rw, &
+      !$acc                   rt_diabatic_tend)
+      MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
+
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd
          if(bdyMaskCell(iCell) > nRelaxZone) then
+            !$acc loop vector
             do k=1, nVertLevels
                tend_rho(k,iCell) = rho_driving_tend(k,iCell)
                tend_rt(k,iCell) = rt_driving_tend(k,iCell)
@@ -6166,14 +7320,24 @@ module atm_time_integration
             end do
          end if
       end do
+      !$acc end parallel
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iEdge = edgeSolveStart, edgeSolveEnd
          if(bdyMaskEdge(iEdge) > nRelaxZone) then
+            !$acc loop vector
             do k=1, nVertLevels
                tend_ru(k,iEdge) = ru_driving_tend(k,iEdge)
             end do
          end if
       end do
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
+      !$acc exit data copyout(tend_ru,tend_rho,tend_rt, &
+      !$acc                   tend_rw,rt_diabatic_tend)
+      MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_speczone_tend [ACC_data_xfer]')
       
     end subroutine atm_bdy_adjust_dynamics_speczone_tend
 
@@ -6210,11 +7374,13 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: edgesOnCell_sign, edgesOnVertex_sign
       integer, dimension(:), pointer :: bdyMaskCell, bdyMaskEdge, nEdgesOnCell
       integer, dimension(:,:), pointer :: cellsOnEdge, verticesOnEdge, edgesOnCell, edgesOnVertex
-      integer, pointer :: vertexDegree
+      integer, pointer :: vertexDegree_ptr
+      integer :: vertexDegree
       
 
       real (kind=RKIND) :: edge_sign, laplacian_filter_coef, rayleigh_damping_coef, r_dc, r_dv, invArea
-      real (kind=RKIND), pointer :: divdamp_coef
+      real (kind=RKIND), pointer :: divdamp_coef_ptr
+      real (kind=RKIND) :: divdamp_coef
       real (kind=RKIND), dimension(nVertLevels) :: divergence1, divergence2, vorticity1, vorticity2      
       integer :: iCell, iEdge, i, k, cell1, cell2, iEdge_vort, iEdge_div
       integer :: vertex1, vertex2, iVertex
@@ -6235,7 +7401,7 @@ module atm_time_integration
       call mpas_pool_get_array(state, 'theta_m', theta_m, 2)
       call mpas_pool_get_array(state, 'rho_zz', rho_zz, 2)
 
-      call mpas_pool_get_dimension(mesh, 'vertexDegree', vertexDegree)
+      call mpas_pool_get_dimension(mesh, 'vertexDegree', vertexDegree_ptr)
       call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
       call mpas_pool_get_array(mesh, 'dvEdge', dvEdge)
       call mpas_pool_get_array(mesh, 'invDcEdge', invDcEdge)
@@ -6250,13 +7416,25 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'nEdgesOnCell',nEdgesOnCell)
       call mpas_pool_get_array(mesh, 'verticesOnEdge', verticesOnEdge)
 
-      call mpas_pool_get_config(config, 'config_relax_zone_divdamp_coef', divdamp_coef)
+      call mpas_pool_get_config(config, 'config_relax_zone_divdamp_coef', divdamp_coef_ptr)
+
+      ! De-referencing scalar pointers so that acc parallel regions correctly copy the
+      ! scalars onto the device
+      divdamp_coef = divdamp_coef_ptr
+      vertexDegree = vertexDegree_ptr
+
+      MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
+      !$acc enter data copyin(tend_rho, tend_rt, rho_zz, theta_m, tend_ru, ru)
+      !$acc enter data create(divergence1, divergence2, vorticity1, vorticity2)
+      MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
       
       !  First, Rayleigh damping terms for ru, rtheta_m and rho_zz
-
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd
          if( (bdyMaskCell(iCell) > 1) .and. (bdyMaskCell(iCell) <= nRelaxZone) ) then
             rayleigh_damping_coef = (real(bdyMaskCell(iCell)) - 1.)/real(nRelaxZone)/(50.*dt*meshScalingRegionalCell(iCell))
+            !$acc loop vector
             do k=1, nVertLevels
                tend_rho(k,iCell) = tend_rho(k,iCell) - rayleigh_damping_coef * (rho_zz(k,iCell) - rho_driving_values(k,iCell))
                tend_rt(k,iCell)  = tend_rt(k,iCell)  - rayleigh_damping_coef * (rho_zz(k,iCell)*theta_m(k,iCell) - rt_driving_values(k,iCell))
@@ -6264,23 +7442,28 @@ module atm_time_integration
          end if
       end do
 
+      !$acc loop gang worker
       do iEdge = edgeStart, edgeEnd
          if( (bdyMaskEdge(iEdge) > 1) .and. (bdyMaskEdge(iEdge) <= nRelaxZone) ) then
             rayleigh_damping_coef = (real(bdyMaskEdge(iEdge)) - 1.)/real(nRelaxZone)/(50.*dt*meshScalingRegionalEdge(iEdge))
+            !$acc loop vector
             do k=1, nVertLevels
                tend_ru(k,iEdge) = tend_ru(k,iEdge) - rayleigh_damping_coef * (ru(k,iEdge) - ru_driving_values(k,iEdge))
             end do
          end if
       end do
-      
-      !  Second, the horizontal filter for rtheta_m and rho_zz
+      !$acc end parallel
 
+      !  Second, the horizontal filter for rtheta_m and rho_zz
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd ! threaded over cells
 
          if ( (bdyMaskCell(iCell) > 1) .and. (bdyMaskCell(iCell) <= nRelaxZone) ) then ! relaxation zone
 
             laplacian_filter_coef = (real(bdyMaskCell(iCell)) - 1.)/real(nRelaxZone)/(10.*dt*meshScalingRegionalCell(iCell))
             !
+            !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
                !  edge_sign = r_areaCell*edgesOnCell_sign(i,iCell) * dvEdge(iEdge) * invDcEdge(iEdge) * laplacian_filter_coef
@@ -6289,6 +7472,7 @@ module atm_time_integration
                cell1 = cellsOnEdge(1,iEdge)
                cell2 = cellsOnEdge(2,iEdge)
 !DIR$ IVDEP
+               !$acc loop vector
                do k=1,nVertLevels
                   tend_rt(k,iCell)  = tend_rt(k,iCell)  + edge_sign*(   (rho_zz(k,cell2)*theta_m(k,cell2)-rt_driving_values(k,cell2)) &
                                                                     - (rho_zz(k,cell1)*theta_m(k,cell1)-rt_driving_values(k,cell1)) )
@@ -6300,9 +7484,11 @@ module atm_time_integration
          end if
 
       end do
+      !$acc end parallel
 
       !  Third (and last), the horizontal filter for ru
-
+      !$acc parallel default(present)
+      !$acc loop gang worker private(divergence1, divergence2, vorticity1, vorticity2)
       do iEdge = edgeStart, edgeEnd
 
          if ( (bdyMaskEdge(iEdge) > 1) .and. (bdyMaskEdge(iEdge) <= nRelaxZone) ) then ! relaxation zone
@@ -6319,10 +7505,19 @@ module atm_time_integration
 
             iCell = cell1
             invArea = invAreaCell(iCell)
-            divergence1(1:nVertLevels) = 0.
+            !$acc loop vector
+            do k=1,nVertLevels
+               divergence1(k) = 0.
+               divergence2(k) = 0.
+               vorticity1(k) = 0.
+               vorticity2(k) = 0.
+            end do
+            
+            !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge_div = edgesOnCell(i,iCell)
                edge_sign = invArea * dvEdge(iEdge_div) * edgesOnCell_sign(i,iCell)
+               !$acc loop vector
                do k=1,nVertLevels
                   divergence1(k) = divergence1(k) + edge_sign * (ru(k,iEdge_div) - ru_driving_values(k,iEdge_div))
                end do
@@ -6330,30 +7525,33 @@ module atm_time_integration
 
             iCell = cell2
             invArea = invAreaCell(iCell)
-            divergence2(1:nVertLevels) = 0.
+            !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge_div = edgesOnCell(i,iCell)
                edge_sign = invArea * dvEdge(iEdge_div) * edgesOnCell_sign(i,iCell)
+               !$acc loop vector
                do k=1,nVertLevels
                   divergence2(k) = divergence2(k) + edge_sign * (ru(k,iEdge_div) - ru_driving_values(k,iEdge_div))
                end do
             end do
             
             iVertex = vertex1
-            vorticity1(1:nVertLevels) = 0.
+            !$acc loop seq
             do i=1,vertexDegree
                iEdge_vort = edgesOnVertex(i,iVertex)
                edge_sign = invAreaTriangle(iVertex) * dcEdge(iEdge_vort) * edgesOnVertex_sign(i,iVertex)
+               !$acc loop vector
                do k=1,nVertLevels
                   vorticity1(k) = vorticity1(k) + edge_sign * (ru(k,iEdge_vort) - ru_driving_values(k,iEdge_vort))
                end do
             end do
 
             iVertex = vertex2
-            vorticity2(1:nVertLevels) = 0.
+            !$acc loop seq
             do i=1,vertexDegree
                iEdge_vort = edgesOnVertex(i,iVertex)
                edge_sign = invAreaTriangle(iVertex) * dcEdge(iEdge_vort) * edgesOnVertex_sign(i,iVertex)
+               !$acc loop vector
                do k=1,nVertLevels
                   vorticity2(k) = vorticity2(k) + edge_sign * (ru(k,iEdge_vort) - ru_driving_values(k,iEdge_vort))
                end do
@@ -6361,6 +7559,7 @@ module atm_time_integration
 
             ! Compute diffusion, computed as \nabla divergence - k \times \nabla vorticity
             !
+            !$acc loop vector
              do k=1,nVertLevels
                 tend_ru(k,iEdge) = tend_ru(k,iEdge) + laplacian_filter_coef &
                                                       * (divdamp_coef * (divergence2(k) - divergence1(k)) * r_dc  &
@@ -6370,6 +7569,13 @@ module atm_time_integration
           end if  !  end test for relaxation-zone edge
 
        end do  !  end of loop over edges
+       !$acc end parallel
+
+       MPAS_ACC_TIMER_START('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
+      !$acc exit data copyout(tend_rho, tend_rt, tend_ru)
+      !$acc exit data delete(rho_zz, theta_m, ru, &
+      !$acc            divergence1, divergence2, vorticity1, vorticity2)
+      MPAS_ACC_TIMER_STOP('atm_bdy_adjust_dynamics_relaxzone_tend [ACC_data_xfer]')
        
    end subroutine atm_bdy_adjust_dynamics_relaxzone_tend
       
@@ -6403,15 +7609,28 @@ module atm_time_integration
       call mpas_pool_get_array(state, 'theta_m', theta_m, 2)
       call mpas_pool_get_array(diag, 'rtheta_p', rtheta_p)
       call mpas_pool_get_array(diag, 'rtheta_base', rtheta_base)
+
+      MPAS_ACC_TIMER_START('atm_bdy_reset_speczone_values [ACC_data_xfer]')
+      !$acc enter data copyin(rtheta_base, theta_m, rtheta_p)
+      MPAS_ACC_TIMER_STOP('atm_bdy_reset_speczone_values [ACC_data_xfer]')
       
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd
          if( bdyMaskCell(iCell) > nRelaxZone) then
+            !$acc loop vector
             do k=1, nVertLevels
               theta_m(k,iCell) = rt_driving_values(k,iCell)/rho_driving_values(k,iCell)
               rtheta_p(k,iCell) = rt_driving_values(k,iCell) - rtheta_base(k,iCell)
             end do
          end if
       end do
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_bdy_reset_speczone_values [ACC_data_xfer]')
+      !$acc exit data copyout(theta_m, rtheta_p) &
+      !$acc            delete(rtheta_base)
+      MPAS_ACC_TIMER_STOP('atm_bdy_reset_speczone_values [ACC_data_xfer]')
 
    end subroutine atm_bdy_reset_speczone_values
 
@@ -6501,17 +7720,29 @@ module atm_time_integration
       integer :: iCell, iEdge, iScalar, i, k, cell1, cell2
 
       !---
+      MPAS_ACC_TIMER_START('atm_bdy_adjust_scalars [ACC_data_xfer]')
+      !$acc enter data create(scalars_tmp) &
+      !$acc            copyin(scalars_new)
+      MPAS_ACC_TIMER_STOP('atm_bdy_adjust_scalars [ACC_data_xfer]')
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd ! threaded over cells
 
          if ( (bdyMaskCell(iCell) > 1) .and. (bdyMaskCell(iCell) <= nRelaxZone) ) then ! relaxation zone
 
             laplacian_filter_coef = dt_rk*(real(bdyMaskCell(iCell)) - 1.)/real(nRelaxZone)/(10.*dt*meshScalingRegionalCell(iCell))
             rayleigh_damping_coef = laplacian_filter_coef/5.0
-            scalars_tmp(1:num_scalars,1:nVertLevels,iCell) = scalars_new(1:num_scalars,1:nVertLevels,iCell)
+            !$acc loop vector collapse(2)
+            do k=1,nVertLevels
+               do iScalar=1,num_scalars
+                  scalars_tmp(iScalar,k,iCell) = scalars_new(iScalar,k,iCell)
+               end do
+            end do
 
             !  first, we compute the 2nd-order laplacian filter
             !
+            !$acc loop seq
             do i=1,nEdgesOnCell(iCell)
                iEdge = edgesOnCell(i,iCell)
                !  edge_sign = r_areaCell*edgesOnCell_sign(i,iCell) * dvEdge(iEdge) * invDcEdge(iEdge) * laplacian_filter_coef
@@ -6520,6 +7751,7 @@ module atm_time_integration
                cell1 = cellsOnEdge(1,iEdge)
                cell2 = cellsOnEdge(2,iEdge)
 !DIR$ IVDEP
+               !$acc loop vector collapse(2)
                do k=1,nVertLevels
                   do iScalar = 1, num_scalars
                      filter_flux = edge_sign*(   (scalars_new(iScalar,k,cell2)-scalars_driving(iScalar,k,cell2)) &
@@ -6532,6 +7764,7 @@ module atm_time_integration
             !  second, we compute the Rayleigh damping component
             !
 !DIR$ IVDEP
+            !$acc loop vector collapse(2)
             do k=1,nVertLevels
                do iScalar = 1, num_scalars
                   scalars_tmp(iScalar,k,iCell) =scalars_tmp(iScalar,k,iCell) - rayleigh_damping_coef * (scalars_new(iScalar,k,iCell)-scalars_driving(iScalar,k,iCell))
@@ -6539,10 +7772,11 @@ module atm_time_integration
             end do
 
          else  if ( bdyMaskCell(iCell) > nRelaxZone) then ! specified zone
-            
+
             !  update the specified-zone values
             !
 !DIR$ IVDEP
+            !$acc loop vector collapse(2)
             do k=1,nVertLevels
                do iScalar = 1, num_scalars
                   scalars_tmp(iScalar,k,iCell) = scalars_driving(iScalar,k,iCell)
@@ -6552,12 +7786,16 @@ module atm_time_integration
          end if
 
       end do  ! updates now in temp storage
-            
+      !$acc end parallel
+
 !$OMP BARRIER
 
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd ! threaded over cells
          if (bdyMaskCell(iCell) > 1) then ! update values
 !DIR$ IVDEP
+            !$acc loop vector collapse(2)
             do k=1,nVertLevels
                do iScalar = 1, num_scalars
                   scalars_new(iScalar,k,iCell) = scalars_tmp(iScalar,k,iCell)
@@ -6565,6 +7803,12 @@ module atm_time_integration
             end do
          end if
       end do
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_bdy_adjust_scalars [ACC_data_xfer]')
+      !$acc exit data delete(scalars_tmp) &
+      !$acc           copyout(scalars_new)
+      MPAS_ACC_TIMER_STOP('atm_bdy_adjust_scalars [ACC_data_xfer]')
 
    end subroutine atm_bdy_adjust_scalars_work
 
@@ -6634,6 +7878,12 @@ module atm_time_integration
 
       !---
 
+      MPAS_ACC_TIMER_START('atm_bdy_set_scalars_work [ACC_data_xfer]')
+      !$acc enter data copyin(scalars_new)
+      MPAS_ACC_TIMER_STOP('atm_bdy_set_scalars_work [ACC_data_xfer]')
+
+      !$acc parallel default(present)
+      !$acc loop gang worker
       do iCell = cellSolveStart, cellSolveEnd ! threaded over cells
 
          if ( bdyMaskCell(iCell) > nRelaxZone) then ! specified zone
@@ -6641,6 +7891,7 @@ module atm_time_integration
             !  update the specified-zone values
             !
 !DIR$ IVDEP
+           !$acc loop vector collapse(2)
             do k=1,nVertLevels
                do iScalar = 1, num_scalars
                   scalars_new(iScalar,k,iCell) = scalars_driving(iScalar,k,iCell)
@@ -6650,6 +7901,11 @@ module atm_time_integration
          end if
 
       end do  ! updates now in temp storage
+      !$acc end parallel
+
+      MPAS_ACC_TIMER_START('atm_bdy_set_scalars_work [ACC_data_xfer]')
+      !$acc exit data copyout(scalars_new)
+      MPAS_ACC_TIMER_STOP('atm_bdy_set_scalars_work [ACC_data_xfer]')
             
    end subroutine atm_bdy_set_scalars_work
 
@@ -6670,7 +7926,8 @@ module atm_time_integration
        logical, pointer :: config_print_global_minmax_sca
 
        integer :: iCell, k, iEdge, iScalar
-       integer, pointer :: num_scalars, nCellsSolve, nEdgesSolve, nVertLevels
+       integer, pointer :: num_scalars_ptr, nCellsSolve_ptr, nEdgesSolve_ptr, nVertLevels_ptr
+       integer :: num_scalars, nCellsSolve, nEdgesSolve, nVertLevels
 
        type (mpas_pool_type), pointer :: state
        type (mpas_pool_type), pointer :: diag
@@ -6686,54 +7943,94 @@ module atm_time_integration
        integer, dimension(:), pointer :: indexToCellID
        integer :: indexMax, indexMax_global
        integer :: kMax, kMax_global
+       integer :: offset_1d ! Offset into a multi-dimensional array, as if it were a contiguous 1-d array
        real (kind=RKIND) :: latMax, latMax_global
        real (kind=RKIND) :: lonMax, lonMax_global
        real (kind=RKIND), dimension(5) :: localVals, globalVals
 
-       real (kind=RKIND) :: spd
+       real (kind=RKIND), dimension(:,:), allocatable :: spd
+       !$acc declare create(spd)
        real (kind=RKIND), dimension(:,:), pointer :: w
        real (kind=RKIND), dimension(:,:), pointer :: u, v, uReconstructZonal, uReconstructMeridional, uReconstructX, uReconstructY, uReconstructZ
        real (kind=RKIND), dimension(:,:,:), pointer :: scalars, scalars_1, scalars_2
+
+       logical :: found_NaN
 
        call mpas_pool_get_config(block % configs, 'config_print_global_minmax_vel', config_print_global_minmax_vel)
        call mpas_pool_get_config(block % configs, 'config_print_detailed_minmax_vel', config_print_detailed_minmax_vel)
        call mpas_pool_get_config(block % configs, 'config_print_global_minmax_sca', config_print_global_minmax_sca)
 
+      call mpas_pool_get_subpool(block % structs, 'state', state)
+      call mpas_pool_get_subpool(block % structs, 'diag', diag)
+      call mpas_pool_get_array(state, 'w', w, 2)
+      call mpas_pool_get_array(state, 'u', u, 2)
+      call mpas_pool_get_array(diag, 'v', v)
+      call mpas_pool_get_array(state, 'scalars', scalars, 2)
+      call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve_ptr)
+      call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve_ptr)
+      call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels_ptr)
+      call mpas_pool_get_dimension(state, 'num_scalars', num_scalars_ptr)
+      nCellsSolve = nCellsSolve_ptr
+      nEdgesSolve = nEdgesSolve_ptr
+      nVertLevels = nVertLevels_ptr
+      num_scalars = num_scalars_ptr
+
+      MPAS_ACC_TIMER_START('summarize_timestep [ACC_data_xfer]')
+      if (config_print_detailed_minmax_vel) then
+         !$acc enter data copyin(w,u,v)
+      else if (config_print_global_minmax_vel) then
+         !$acc enter data copyin(w,u)
+      end if
+      if (config_print_global_minmax_sca) then
+         !$acc enter data copyin(scalars)
+      end if
+      MPAS_ACC_TIMER_STOP('summarize_timestep [ACC_data_xfer]')
+
       if (config_print_detailed_minmax_vel) then
          call mpas_log_write('')
 
-         call mpas_pool_get_subpool(block % structs, 'state', state)
-         call mpas_pool_get_subpool(block % structs, 'diag', diag)
          call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
 
-         call mpas_pool_get_array(state, 'w', w, 2)
-         call mpas_pool_get_array(state, 'u', u, 2)
-         call mpas_pool_get_array(diag, 'v', v)
          call mpas_pool_get_array(mesh, 'indexToCellID', indexToCellID)
          call mpas_pool_get_array(mesh, 'latCell', latCell)
          call mpas_pool_get_array(mesh, 'lonCell', lonCell)
          call mpas_pool_get_array(mesh, 'latEdge', latEdge)
          call mpas_pool_get_array(mesh, 'lonEdge', lonEdge)
-         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
-         call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve)
-         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
+
+         allocate(spd(nVertLevels,nEdgesSolve))
 
          scalar_min = 1.0e20
+         offset_1d = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:scalar_min)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
-            if (w(k,iCell) < scalar_min) then
-               scalar_min = w(k,iCell)
-               indexMax = iCell
-               kMax = k
-               latMax = latCell(iCell)
-               lonMax = lonCell(iCell)
+            scalar_min = min(scalar_min, w(k,iCell))
+         end do
+         end do
+         !$acc end parallel
+
+         ! This second loop using offset_1d ensures the same (kMax,indexMax) are reported with the scalar_min
+         ! Especially when using OpenACC
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:offset_1d)
+         do iCell = 1, nCellsSolve
+         do k = 1, nVertLevels
+            if (w(k,iCell) == scalar_min) then
+               ! In case 2 locations tie, only save the minimum value
+               offset_1d = min(offset_1d, (k-1) + size(w,1)*(iCell-1))
             end if
          end do
          end do
+         !$acc end parallel
+         kMax = mod(offset_1d, size(w,1)) + 1
+         indexMax = (offset_1d / size(w,1)) + 1 ! Integer divide
+         latMax = latCell(indexMax)
+         lonMax = lonCell(indexMax)
          localVals(1) = scalar_min
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -6755,21 +8052,34 @@ module atm_time_integration
                              realArgs=(/global_scalar_min, latMax_global, lonMax_global/))
 
          scalar_max = -1.0e20
+         offset_1d = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(max:scalar_max)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
-            if (w(k,iCell) > scalar_max) then
-               scalar_max = w(k,iCell)
-               indexMax = iCell
-               kMax = k
-               latMax = latCell(iCell)
-               lonMax = lonCell(iCell)
+            scalar_max = max(scalar_max, w(k,iCell))
+         end do
+         end do
+         !$acc end parallel
+
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:offset_1d)
+         do iCell = 1, nCellsSolve
+         do k = 1, nVertLevels
+            if (w(k,iCell) == scalar_max) then
+               offset_1d = min(offset_1d, (k-1) + size(w,1)*(iCell-1))
             end if
          end do
          end do
+         !$acc end parallel
+         kMax = mod(offset_1d, size(w,1)) + 1
+         indexMax = (offset_1d / size(w,1)) + 1
+         latMax = latCell(indexMax)
+         lonMax = lonCell(indexMax)
          localVals(1) = scalar_max
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -6791,21 +8101,34 @@ module atm_time_integration
                              realArgs=(/global_scalar_max, latMax_global, lonMax_global/))
 
          scalar_min = 1.0e20
+         offset_1d = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:scalar_min)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
-            if (u(k,iEdge) < scalar_min) then
-               scalar_min = u(k,iEdge)
-               indexMax = iEdge
-               kMax = k
-               latMax = latEdge(iEdge)
-               lonMax = lonEdge(iEdge)
+            scalar_min = min(scalar_min, u(k,iEdge))
+         end do
+         end do
+         !$acc end parallel
+
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:offset_1d)
+         do iEdge = 1, nEdgesSolve
+         do k = 1, nVertLevels
+            if (u(k,iEdge) == scalar_min) then
+               offset_1d = min(offset_1d, (k-1) + size(u,1)*(iEdge-1))
             end if
          end do
          end do
+         !$acc end parallel
+         kMax = mod(offset_1d, size(u,1)) + 1
+         indexMax = (offset_1d / size(u,1)) + 1
+         latMax = latEdge(indexMax)
+         lonMax = lonEdge(indexMax)
          localVals(1) = scalar_min
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -6827,21 +8150,34 @@ module atm_time_integration
                              realArgs=(/global_scalar_min, latMax_global, lonMax_global/))
 
          scalar_max = -1.0e20
+         offset_1d = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(max:scalar_max)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
-            if (u(k,iEdge) > scalar_max) then
-               scalar_max = u(k,iEdge)
-               indexMax = iEdge
-               kMax = k
-               latMax = latEdge(iEdge)
-               lonMax = lonEdge(iEdge)
+            scalar_max = max(scalar_max, u(k,iEdge))
+         end do
+         end do
+         !$acc end parallel
+
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:offset_1d)
+         do iEdge = 1, nEdgesSolve
+         do k = 1, nVertLevels
+            if (u(k,iEdge) == scalar_max) then
+               offset_1d = min(offset_1d, (k-1) + size(u,1)*(iEdge-1))
             end if
          end do
          end do
+         !$acc end parallel
+         kMax = mod(offset_1d, size(u,1)) + 1
+         indexMax = (offset_1d / size(u,1)) + 1
+         latMax = latEdge(indexMax)
+         lonMax = lonEdge(indexMax)
          localVals(1) = scalar_max
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -6863,22 +8199,35 @@ module atm_time_integration
                              realArgs=(/global_scalar_max, latMax_global, lonMax_global/))
 
          scalar_max = -1.0e20
+         offset_1d = huge(1)
          indexMax = -1
          kMax = -1
          latMax = 0.0
          lonMax = 0.0
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(max:scalar_max)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
-            spd = sqrt(u(k,iEdge)*u(k,iEdge) + v(k,iEdge)*v(k,iEdge))
-            if (spd > scalar_max) then
-               scalar_max = spd
-               indexMax = iEdge
-               kMax = k
-               latMax = latEdge(iEdge)
-               lonMax = lonEdge(iEdge)
+            spd(k,iEdge) = sqrt(u(k,iEdge)*u(k,iEdge) + v(k,iEdge)*v(k,iEdge))
+            scalar_max = max(scalar_max, spd(k,iEdge))
+         end do
+         end do
+         !$acc end parallel
+
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(min:offset_1d)
+         do iEdge = 1, nEdgesSolve
+         do k = 1, nVertLevels
+            if (spd(k,iEdge) == scalar_max) then
+               offset_1d = min(offset_1d, (k-1) + size(spd,1)*(iEdge-1))
             end if
          end do
          end do
+         !$acc end parallel
+         kMax = mod(offset_1d, size(spd,1)) + 1
+         indexMax = (offset_1d / size(spd,1)) + 1
+         latMax = latEdge(indexMax)
+         lonMax = lonEdge(indexMax)
          localVals(1) = scalar_max
          localVals(2) = real(indexMax,kind=RKIND)
          localVals(3) = real(kMax,kind=RKIND)
@@ -6902,52 +8251,69 @@ module atm_time_integration
          !
          ! Check for NaNs
          !
+         found_NaN = .false.
+
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(.or.:found_NaN)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
             if (ieee_is_nan(w(k,iCell))) then
-               call mpas_log_write('NaN detected in ''w'' field.', messageType=MPAS_LOG_CRIT)
+               found_NaN = .true.
             end if
          end do
          end do
+         !$acc end parallel
+         if (found_NaN) then
+            call mpas_log_write('NaN detected in ''w'' field.', messageType=MPAS_LOG_CRIT)
+         end if
 
+         found_NaN = .false.
+
+         !$acc parallel default(present)
+         !$acc loop collapse(2) gang vector reduction(.or.:found_NaN)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             if (ieee_is_nan(u(k,iEdge))) then
-               call mpas_log_write('NaN detected in ''u'' field.', messageType=MPAS_LOG_CRIT)
+               found_NaN = .true.
             end if
          end do
          end do
+         !$acc end parallel
+         if (found_NaN) then
+            call mpas_log_write('NaN detected in ''u'' field.', messageType=MPAS_LOG_CRIT)
+         end if
+
+         deallocate(spd)
 
       else if (config_print_global_minmax_vel) then
          call mpas_log_write('')
 
-         call mpas_pool_get_subpool(block % structs, 'state', state)
-         call mpas_pool_get_array(state, 'w', w, 2)
-         call mpas_pool_get_array(state, 'u', u, 2)
-         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
-         call mpas_pool_get_dimension(state, 'nEdgesSolve', nEdgesSolve)
-         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
-
          scalar_min = 0.0
          scalar_max = 0.0
+         !$acc parallel default(present)
+         !$acc loop gang vector collapse(2) reduction(min:scalar_min) reduction(max:scalar_max)
          do iCell = 1, nCellsSolve
          do k = 1, nVertLevels
             scalar_min = min(scalar_min, w(k,iCell))
             scalar_max = max(scalar_max, w(k,iCell))
          end do
          end do
+         !$acc end parallel
          call mpas_dmpar_min_real(domain % dminfo, scalar_min, global_scalar_min)
          call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
          call mpas_log_write('global min, max w $r $r', realArgs=(/global_scalar_min, global_scalar_max/))
 
          scalar_min = 0.0
          scalar_max = 0.0
+         !$acc parallel default(present)
+         !$acc loop gang vector collapse(2) reduction(min:scalar_min) reduction(max:scalar_max)
          do iEdge = 1, nEdgesSolve
          do k = 1, nVertLevels
             scalar_min = min(scalar_min, u(k,iEdge))
             scalar_max = max(scalar_max, u(k,iEdge))
          end do
          end do
+         !$acc end parallel
          call mpas_dmpar_min_real(domain % dminfo, scalar_min, global_scalar_min)
          call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
          call mpas_log_write('global min, max u $r $r', realArgs=(/global_scalar_min, global_scalar_max/))
@@ -6958,26 +8324,35 @@ module atm_time_integration
             call mpas_log_write('')
          end if
 
-         call mpas_pool_get_subpool(block % structs, 'state', state)
-         call mpas_pool_get_array(state, 'scalars', scalars, 2)
-         call mpas_pool_get_dimension(state, 'nCellsSolve', nCellsSolve)
-         call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels)
-         call mpas_pool_get_dimension(state, 'num_scalars', num_scalars)
-
          do iScalar = 1, num_scalars
             scalar_min = 0.0
             scalar_max = 0.0
+            !$acc parallel default(present)
+            !$acc loop gang vector collapse(2) reduction(min:scalar_min) reduction(max:scalar_max)
             do iCell = 1, nCellsSolve
             do k = 1, nVertLevels
                scalar_min = min(scalar_min, scalars(iScalar,k,iCell))
                scalar_max = max(scalar_max, scalars(iScalar,k,iCell))
             end do
             end do
+            !$acc end parallel
             call mpas_dmpar_min_real(domain % dminfo, scalar_min, global_scalar_min)
             call mpas_dmpar_max_real(domain % dminfo, scalar_max, global_scalar_max)
             call mpas_log_write(' global min, max scalar $i $r $r', intArgs=(/iScalar/), realArgs=(/global_scalar_min, global_scalar_max/))
          end do
+
       end if
+
+      MPAS_ACC_TIMER_START('summarize_timestep [ACC_data_xfer]')
+      if (config_print_detailed_minmax_vel) then
+         !$acc exit data delete(w,u,v)
+      else if (config_print_global_minmax_vel) then
+         !$acc exit data delete(w,u)
+      end if
+      if (config_print_global_minmax_sca) then
+         !$acc exit data delete(scalars)
+      end if
+      MPAS_ACC_TIMER_STOP('summarize_timestep [ACC_data_xfer]')
 
    end subroutine summarize_timestep
 

@@ -1,4 +1,4 @@
-! Copyright (c) 2023, The University Corporation for Atmospheric Research (UCAR).
+! Copyright (c) 2023-2024, The University Corporation for Atmospheric Research (UCAR).
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
 ! Additional copyright and license information can be found in the LICENSE file
@@ -30,7 +30,7 @@ module mpas_halo_testing
    !-----------------------------------------------------------------------
    subroutine mpas_halo_tests(domain, ierr)
 
-      use mpas_derived_types, only : domain_type, mpas_pool_type, field2DReal, field3DReal
+      use mpas_derived_types, only : domain_type, mpas_pool_type, field1DReal, field2DReal, field3DReal
       use mpas_kind_types, only : StrKIND, RKIND
       use mpas_log, only : mpas_log_write
       use mpas_dmpar, only : mpas_dmpar_max_int
@@ -50,8 +50,10 @@ module mpas_halo_testing
       character(len=StrKIND) :: test_mesg
       type (mpas_pool_type), pointer :: haloExchTest_pool
       type (mpas_pool_type), pointer :: mesh_pool
+      type (field1DReal), pointer :: scratch_1d
       type (field2DReal), pointer :: scratch_2d
       type (field3DReal), pointer :: scratch_3d
+      real (kind=RKIND), dimension(:), pointer :: array_1d
       real (kind=RKIND), dimension(:,:), pointer :: array_2d
       real (kind=RKIND), dimension(:,:,:), pointer :: array_3d
       integer, dimension(:), pointer :: indexToCellID
@@ -98,6 +100,9 @@ module mpas_halo_testing
       call mpas_halo_exch_group_create(domain, 'persistent_group', ierr_local)
       ierr = ior(ierr, ierr_local)
 
+      call mpas_halo_exch_group_add_field(domain, 'persistent_group', 'cellPersistReal1D', iErr=ierr_local)
+      ierr = ior(ierr, ierr_local)
+
       call mpas_halo_exch_group_add_field(domain, 'persistent_group', 'cellPersistReal2D', iErr=ierr_local)
       ierr = ior(ierr, ierr_local)
 
@@ -127,6 +132,9 @@ module mpas_halo_testing
       call mpas_halo_exch_group_add_field(domain, 'scratch_group', 'cellScratchReal2D', iErr=ierr_local)
       ierr = ior(ierr, ierr_local)
 
+      call mpas_halo_exch_group_add_field(domain, 'scratch_group', 'cellScratchReal1D', iErr=ierr_local)
+      ierr = ior(ierr, ierr_local)
+
       call mpas_halo_exch_group_complete(domain, 'scratch_group', ierr_local)
       ierr = ior(ierr, ierr_local)
 
@@ -141,6 +149,10 @@ module mpas_halo_testing
       ! Exchange a group with persistent fields
       !
       write(test_mesg, '(a)') '  Exchanging a halo group with persistent fields: '
+
+      call mpas_pool_get_array(haloExchTest_pool, 'cellPersistReal1D', array_1d)
+      array_1d(:) = -1.0_RKIND
+      array_1d(1:nCellsSolve) = real(indexToCellID(1:nCellsSolve), kind=RKIND)
 
       call mpas_pool_get_array(haloExchTest_pool, 'cellPersistReal2D', array_2d)
       do k = 1, size(array_2d, dim=1)
@@ -160,6 +172,9 @@ module mpas_halo_testing
       ierr = ior(ierr, ierr_local)
 
       diff = 0.0_RKIND
+
+      diff = diff + sum(abs(array_1d(1:nCells) - real(indexToCellID(1:nCells), kind=RKIND)))
+
       do k = 1, size(array_2d, dim=1)
          diff = diff + sum(abs(array_2d(k,1:nCells) - real(indexToCellID(1:nCells), kind=RKIND)))
       end do
@@ -187,11 +202,17 @@ module mpas_halo_testing
       !
       write(test_mesg, '(a)') '  Exchanging a halo group with scratch fields: '
 
+      call mpas_pool_get_field(haloExchTest_pool, 'cellScratchReal1D', scratch_1d)
       call mpas_pool_get_field(haloExchTest_pool, 'cellScratchReal2D', scratch_2d)
       call mpas_pool_get_field(haloExchTest_pool, 'cellScratchReal3D', scratch_3d)
 
+      call mpas_allocate_scratch_field(scratch_1d)
       call mpas_allocate_scratch_field(scratch_2d)
       call mpas_allocate_scratch_field(scratch_3d)
+
+      call mpas_pool_get_array(haloExchTest_pool, 'cellScratchReal1D', array_1d)
+      array_1d(:) = -1.0_RKIND
+      array_1d(1:nCellsSolve) = real(indexToCellID(1:nCellsSolve), kind=RKIND)
 
       call mpas_pool_get_array(haloExchTest_pool, 'cellScratchReal2D', array_2d)
       do k = 1, size(array_2d, dim=1)
@@ -211,6 +232,9 @@ module mpas_halo_testing
       ierr = ior(ierr, ierr_local)
 
       diff = 0.0_RKIND
+
+      diff = diff + sum(abs(array_1d(1:nCells) - real(indexToCellID(1:nCells), kind=RKIND)))
+
       do k = 1, size(array_2d, dim=1)
          diff = diff + sum(abs(array_2d(k,1:nCells) - real(indexToCellID(1:nCells), kind=RKIND)))
       end do
@@ -221,6 +245,7 @@ module mpas_halo_testing
       end do
       end do
 
+      call mpas_deallocate_scratch_field(scratch_1d)
       call mpas_deallocate_scratch_field(scratch_2d)
       call mpas_deallocate_scratch_field(scratch_3d)
 
