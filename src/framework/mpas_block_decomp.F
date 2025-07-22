@@ -25,9 +25,8 @@ module mpas_block_decomp
    use mpas_derived_types
    use mpas_io_units
    use mpas_log
-   
+
 #include "ptscotchf.h"
-!!#include "scotchf.h"
 
    type graph
       integer :: nVerticesTotal
@@ -54,7 +53,7 @@ module mpas_block_decomp
    subroutine mpas_block_decomp_cells_for_proc(dminfo, partial_global_graph_info, local_cell_list, block_id, block_start, &
                                                block_count, numBlocks, explicitProcDecomp, blockFilePrefix, procFilePrefix)!{{{
 
-      use mpas_timer, only : mpas_timer_start, mpas_timer_stop, mpas_timer_write, mpas_timer_write_header
+      use mpas_timer, only : mpas_timer_start, mpas_timer_stop
       use mpi
 
       implicit none
@@ -77,18 +76,16 @@ module mpas_block_decomp
       integer, dimension(:), allocatable :: local_block_list
       integer, dimension(:,:), allocatable :: sorted_local_cell_list
 
-      integer, dimension(:), allocatable :: global_block_id_arr, local_block_id_arr, owning_proc_arr
+      integer, dimension(:), allocatable :: local_block_id_arr, owning_proc_arr
       integer :: i, global_block_id, local_block_id, owning_proc, iunit, ounit, istatus, ostatus, j, k
       integer :: blocks_per_proc, err, ierr
       integer, dimension(:), pointer :: local_nvertices
       character (len=StrKIND) :: filename, msg
 
       logical :: no_blocks
-      integer :: nTotalEdgesGraph = 0, nLocEdgesGraph = 0, edgelocsiz = 0
-      integer, dimension(:), allocatable :: edgetab, verttab, parttab
-
       logical :: useScotch
-
+      integer :: nLocEdgesGraph = 0, edgelocsiz = 0
+      integer, dimension(:), allocatable :: edgetab, verttab, parttab
       doubleprecision :: stradat (scotch_stratdim)
       doubleprecision :: scotchgraph (scotch_graphdim)
       doubleprecision :: scotchdgraph (SCOTCH_DGRAPHDIM)
@@ -97,8 +94,6 @@ module mpas_block_decomp
       integer, dimension(:), allocatable :: indxtab
       integer :: vertglbnbr, vertlocnbr, vertlocmax, vertgstnbr, vertlocidx, vendlocidx, velolocidx, vlbllocidx
       integer :: edgeglbnbr, edgelocnbr, edgelocidx, edgegstidx, edlolocidx, comm, baseval
-
-
 
       no_blocks = .false.
 
@@ -119,7 +114,6 @@ module mpas_block_decomp
         allocate(local_nvertices(dminfo % nprocs))
         allocate(global_start(dminfo % nprocs))
         allocate(global_list(partial_global_graph_info % nVerticesTotal))
-        !allocate(global_block_id_arr(partial_global_graph_info % nVerticesTotal))
         allocate(local_block_id_arr(partial_global_graph_info % nVertices))
         allocate(owning_proc_arr(partial_global_graph_info % nVerticesTotal))
  
@@ -131,7 +125,7 @@ module mpas_block_decomp
                
                if (partial_global_graph_info % adjacencyList(j,i) == 0) cycle
                nLocEdgesGraph = nLocEdgesGraph + 1
-               !nTotalEdgesGraph = nTotalEdgesGraph + nEdgesOnCellFull% array(i)
+               
 
                ! do j=1,partial_global_graph_info % nAdjacent(i)
                !    call mpas_log_write('i=$i j=$i adj= $i', intArgs=(/i,j,partial_global_graph_info % adjacencyList(j,i)/) )
@@ -139,10 +133,7 @@ module mpas_block_decomp
             end do
          end do
          
-         call mpas_dmpar_sum_int(dminfo, nLocEdgesGraph, nTotalEdgesGraph)
-         
          call mpas_log_write('nLocEdgesGraph is $i', intArgs=(/nLocEdgesGraph/))
-         call mpas_log_write('nTotalEdgesGraph is $i', intArgs=(/nTotalEdgesGraph/))
          allocate(edgetab(nLocEdgesGraph))
          allocate(verttab(partial_global_graph_info % nVertices + 1))
          !allocate(parttab(partial_global_graph_info % nVerticesTotal))
@@ -175,7 +166,7 @@ module mpas_block_decomp
                   call mpas_log_write('Cannot duplicate communicator')
             endif
             call mpas_log_write('duplicate communicator is $i', intArgs=(/localcomm/) )
-            call mpas_log_write('dminfo communicator is $i', intArgs=(/dminfo % comm/) )
+            !call mpas_log_write('dminfo communicator is $i', intArgs=(/dminfo % comm/) )
             call scotchfdgraphinit(scotchdgraph(1),  localcomm, ierr)
             call scotchfdgraphinit(scotchdgraph_redist(1),  localcomm, ierr)
             if (ierr .ne. 0) then
@@ -208,26 +199,12 @@ module mpas_block_decomp
             endif
             call mpas_log_write('Graph build successful ')
 
-            
-
             call scotchfstratinit (stradat (1), ierr)
             call mpas_log_write('After strat init successful ')
-
-            ! CALL scotchfgraphbuild (scotchgraph (1), 1, partial_global_graph_info % nVerticesTotal, &
-            !                         verttab (1), verttab (2), &
-            !                         verttab (1), verttab (1), &
-            !                         nTotalEdgesGraph, edgetab (1), edgetab (1), ierr)
-            
-
-         ! if (dminfo % my_proc_id == IO_NODE) then
-         !    call scotchfdgraphscatter (scotchdgraph(1), scotchgraph(1) , ierr)
-         ! else 
-         !    call scotchfdgraphscatter (scotchdgraph(1), scotchdgraph(1) , ierr)
          ! end if
          call mpas_timer_start('scotch_part')
          call scotchfdgraphpart (scotchdgraph(1), dminfo % nProcs, stradat (1), local_block_id_arr(1), ierr)
          !call scotchfdgraphpart (scotchdgraph(1), dminfo % total_blocks, stradat (1), local_block_id_arr(1), ierr)
-         !call scotchfdgraphpart(scotchgraph (1), dminfo % total_blocks, stradat (1) ,global_block_id_arr(1),  IERR)
          call mpas_log_write('Graph parition successful ')
 
          call scotchfdgraphredist(scotchdgraph(1), local_block_id_arr(1),scotchdgraph(1), -1 ,-1, scotchdgraph_redist(1), ierr)
@@ -250,12 +227,6 @@ module mpas_block_decomp
          ! do i=1,vertlocnbr
          !    call mpas_log_write('i: $i, vlbllocidx: $i', intArgs=(/i,indxtab(vlbllocidx+i-1)/) )
          ! end do
-
-         !call MPI_Scatterv(inlist, counts, displs, MPI_INTEGERKIND, outlist, noutlist, MPI_INTEGERKIND, IO_NODE, dminfo % comm, mpi_ierr)
-         !call MPI_Gatherv( local_block_id_arr, partial_global_graph_info % nVertices, MPI_INTEGERKIND, rbuf, rcounts, displs, MPI_INTEGERKIND, IO_NODE, dminfo % comm, mpi_ierr)
-
-
-
          call mpas_timer_stop('scotch_part')
          call mpas_timer_stop('scotch')
          ! call mpas_timer_stop('mpas_block_decomp_cells_for_proc')
@@ -277,7 +248,6 @@ module mpas_block_decomp
          call scotchfdgraphexit (scotchdgraph (1))
          call scotchfdgraphexit (scotchdgraph_redist (1))
          call scotchfstratexit (stradat (1))
-
          call mpas_log_write('post1 successful ')
 
 
@@ -337,8 +307,6 @@ module mpas_block_decomp
            deallocate(global_list)
         end if
       else
-      
-      call mpas_log_write('post2 successful ')
 
         if (dminfo % my_proc_id == IO_NODE) then
            allocate(local_cell_list(partial_global_graph_info % nVerticesTotal))
@@ -362,7 +330,6 @@ module mpas_block_decomp
            block_count(1) = 0
         end if
       end if
-
       call mpas_log_write('mpas_block_decomp_cells_for_proc successful ')
 
       call mpas_timer_stop('mpas_block_decomp_cells_for_proc')
