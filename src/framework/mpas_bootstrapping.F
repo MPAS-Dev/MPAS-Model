@@ -107,8 +107,8 @@ module mpas_bootstrapping
       type (field1dInteger), pointer :: indexToCellIDField
       type (field1dInteger), pointer :: indexToEdgeIDField
       type (field1dInteger), pointer :: indexToVertexIDField
-      type (field1dInteger), pointer :: nEdgesOnCellField, nEdgesOnCellFull
-      type (field2dInteger), pointer :: cellsOnCellField, cellsOnCellFull
+      type (field1dInteger), pointer :: nEdgesOnCellField
+      type (field2dInteger), pointer :: cellsOnCellField
       type (field2dInteger), pointer :: edgesOnCellField
       type (field2dInteger), pointer :: verticesOnCellField
       type (field2dInteger), pointer :: cellsOnEdgeField
@@ -145,7 +145,7 @@ module mpas_bootstrapping
       integer, pointer :: config_num_halos, config_number_of_blocks
       logical, pointer :: config_explicit_proc_decomp
       character (len=StrKIND), pointer :: config_block_decomp_file_prefix, config_proc_decomp_file_prefix
-      integer :: nHalos, j, vind
+      integer :: nHalos
 
 
       call mpas_pool_get_config(domain % configs, 'config_num_halos', config_num_halos)
@@ -431,7 +431,6 @@ module mpas_bootstrapping
       deallocate(block_start)
       deallocate(block_count)
       deallocate(readingBlock)
-
 
       call mpas_timer_stop('bootstrap_framework_phase1')
 
