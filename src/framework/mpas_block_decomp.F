@@ -92,7 +92,12 @@ module mpas_block_decomp
       doubleprecision :: stradat (scotch_stratdim)
       doubleprecision :: scotchgraph (scotch_graphdim)
       doubleprecision :: scotchdgraph (SCOTCH_DGRAPHDIM)
+      doubleprecision :: scotchdgraph_redist (SCOTCH_DGRAPHDIM)
       integer :: localcomm, mpi_ierr
+      integer, dimension(:), allocatable :: indxtab
+      integer :: vertglbnbr, vertlocnbr, vertlocmax, vertgstnbr, vertlocidx, vendlocidx, velolocidx, vlbllocidx
+      integer :: edgeglbnbr, edgelocnbr, edgelocidx, edgegstidx, edlolocidx, comm, baseval
+
 
 
       no_blocks = .false.
@@ -114,7 +119,7 @@ module mpas_block_decomp
         allocate(local_nvertices(dminfo % nprocs))
         allocate(global_start(dminfo % nprocs))
         allocate(global_list(partial_global_graph_info % nVerticesTotal))
-        allocate(global_block_id_arr(partial_global_graph_info % nVerticesTotal))
+        !allocate(global_block_id_arr(partial_global_graph_info % nVerticesTotal))
         allocate(local_block_id_arr(partial_global_graph_info % nVertices))
         allocate(owning_proc_arr(partial_global_graph_info % nVerticesTotal))
  
@@ -172,6 +177,7 @@ module mpas_block_decomp
             call mpas_log_write('duplicate communicator is $i', intArgs=(/localcomm/) )
             call mpas_log_write('dminfo communicator is $i', intArgs=(/dminfo % comm/) )
             call scotchfdgraphinit(scotchdgraph(1),  localcomm, ierr)
+            call scotchfdgraphinit(scotchdgraph_redist(1),  localcomm, ierr)
             if (ierr .ne. 0) then
                   call mpas_log_write('Cannot initialize D Scotch Graph', MPAS_LOG_CRIT)
             endif
@@ -195,13 +201,18 @@ module mpas_block_decomp
             if (ierr .ne. 0) then
                call mpas_log_write('Cannot build Scotch Graph', MPAS_LOG_CRIT)
             endif
-            call MPI_Barrier(dminfo % comm, mpi_ierr)
-
+            !call MPI_Barrier(dminfo % comm, mpi_ierr)
+            call scotchfdgraphcheck (scotchdgraph(1), ierr)
+            if (ierr .ne. 0) then
+               call mpas_log_write(' Scotch Graph check not successfull', MPAS_LOG_CRIT)
+            endif
             call mpas_log_write('Graph build successful ')
 
+            
 
             call scotchfstratinit (stradat (1), ierr)
-            
+            call mpas_log_write('After strat init successful ')
+
             ! CALL scotchfgraphbuild (scotchgraph (1), 1, partial_global_graph_info % nVerticesTotal, &
             !                         verttab (1), verttab (2), &
             !                         verttab (1), verttab (1), &
@@ -214,110 +225,65 @@ module mpas_block_decomp
          !    call scotchfdgraphscatter (scotchdgraph(1), scotchdgraph(1) , ierr)
          ! end if
          call mpas_timer_start('scotch_part')
-         call scotchfdgraphpart (scotchdgraph(1), dminfo % total_blocks, stradat (1), local_block_id_arr(1), ierr)
+         call scotchfdgraphpart (scotchdgraph(1), dminfo % nProcs, stradat (1), local_block_id_arr(1), ierr)
+         !call scotchfdgraphpart (scotchdgraph(1), dminfo % total_blocks, stradat (1), local_block_id_arr(1), ierr)
          !call scotchfdgraphpart(scotchgraph (1), dminfo % total_blocks, stradat (1) ,global_block_id_arr(1),  IERR)
          call mpas_log_write('Graph parition successful ')
 
+         call scotchfdgraphredist(scotchdgraph(1), local_block_id_arr(1),scotchdgraph(1), -1 ,-1, scotchdgraph_redist(1), ierr)
+         call mpas_log_write('Graph redist successful ')
+
+         allocate(indxtab(5*partial_global_graph_info % nVertices))
+         call scotchfdgraphdata(scotchdgraph_redist(1), indxtab(1), baseval, vertglbnbr, vertlocnbr, vertlocmax, vertgstnbr, &
+                                vertlocidx, vendlocidx, velolocidx, vlbllocidx, edgeglbnbr, edgelocnbr, &
+                                 edgelocsiz, edgelocidx, edgegstidx, edlolocidx, comm, ierr )
+
+         call mpas_log_write('vertlocnbr $i vertlocidx $i ', intArgs=(/vertlocnbr,vertlocidx/) )
+         call mpas_log_write('vertgstnbr $i vertlocmax $i ', intArgs=(/vertgstnbr,vertlocmax/) )
+         call mpas_log_write('edgelocsiz $i edgelocidx $i ', intArgs=(/edgelocsiz,edgelocidx/) )
+         call mpas_log_write('edgegstidx $i edlolocidx $i ', intArgs=(/edgegstidx,edlolocidx/) )
+         call mpas_log_write('vertglbnbr $i ierr $i ', intArgs=(/vertglbnbr,ierr/) )
+
+         ! do i=1,vertlocnbr
+         !    call mpas_log_write('i: $i, vertlocidx: $i', intArgs=(/i,indxtab(vertlocidx+i-1)/) )
+         ! end do
+         ! do i=1,vertlocnbr
+         !    call mpas_log_write('i: $i, vlbllocidx: $i', intArgs=(/i,indxtab(vlbllocidx+i-1)/) )
+         ! end do
+
+         !call MPI_Scatterv(inlist, counts, displs, MPI_INTEGERKIND, outlist, noutlist, MPI_INTEGERKIND, IO_NODE, dminfo % comm, mpi_ierr)
+         !call MPI_Gatherv( local_block_id_arr, partial_global_graph_info % nVertices, MPI_INTEGERKIND, rbuf, rcounts, displs, MPI_INTEGERKIND, IO_NODE, dminfo % comm, mpi_ierr)
+
+
+
          call mpas_timer_stop('scotch_part')
          call mpas_timer_stop('scotch')
-         call mpas_timer_stop('mpas_block_decomp_cells_for_proc')
-         call mpas_timer_stop('bootstrap_framework_phase1')
-         call mpas_timer_stop('initialize')
-         call mpas_timer_stop('total time')
-         call mpas_timer_write_header()
-         call mpas_timer_write()
+         ! call mpas_timer_stop('mpas_block_decomp_cells_for_proc')
+         ! call mpas_timer_stop('bootstrap_framework_phase1')
+         ! call mpas_timer_stop('initialize')
+         ! call mpas_timer_stop('total time')
+         !call mpas_timer_write_header()
+         !call mpas_timer_write()
 
-         call scotchfdgraphexit (scotchdgraph (1))
-         call scotchfstratexit (stradat (1))
+         allocate(local_cell_list(vertlocnbr))
+         allocate(local_block_list(vertlocnbr))
 
-         local_nvertices(:) = 0
-         do i=1,partial_global_graph_info % nVertices
-            !global_block_id_arr(i) = parttab(i)
-            call mpas_get_owning_proc(dminfo, local_block_id_arr(i), owning_proc)
-            owning_proc_arr(i) = owning_proc
-            call mpas_log_write('vert: $i, global_block_id: $i, owning_proc: $i ', intArgs=(/i,local_block_id_arr(i),owning_proc/) )
-            local_nvertices(owning_proc+1) = local_nvertices(owning_proc+1) + 1
+         do i=1,vertlocnbr
+            local_cell_list(i)=indxtab(vlbllocidx+i-1)
+            local_block_list(i)=dminfo % my_proc_id
+            !call mpas_log_write('local_cell_list: $i, local_block_list: $i', intArgs=(/local_cell_list(i),local_block_list(i)/) )
          end do
 
+         call scotchfdgraphexit (scotchdgraph (1))
+         call scotchfdgraphexit (scotchdgraph_redist (1))
+         call scotchfstratexit (stradat (1))
 
-           global_start(1) = 1
-           do i=2,dminfo % nprocs
-              global_start(i) = global_start(i-1) + local_nvertices(i-1)
-              !call mpas_log_write('i: $i global_start= $i', intArgs=(/i, global_start(i)/))
-           end do
+         call mpas_log_write('post1 successful ')
 
-           !rewind(unit=iunit)
-           call mpas_log_write('Second read pass ')
 
-           do i=1,partial_global_graph_info % nVerticesTotal
-              !read(unit=iunit, fmt=*, iostat=err) global_block_id
-              !call mpas_get_owning_proc(dminfo, global_block_id, owning_proc)
-              global_block_id = global_block_id_arr(i)
-              owning_proc = owning_proc_arr(i)
-              global_list(global_start(owning_proc+1)) = i
-              !call mpas_log_write('owning_proc+1: $i global_start= $i global_list=$i', intArgs=(/owning_proc+1, global_start(owning_proc+1), global_list(global_start(owning_proc+1))/))
-              global_start(owning_proc+1) = global_start(owning_proc+1) + 1
-              !call mpas_log_write('global_start(owning_proc+1): $i', intArgs=(/global_start(owning_proc+1)/))
-           end do
-
-           global_start(1) = 0
-           do i=2,dminfo % nprocs
-              global_start(i) = global_start(i-1) + local_nvertices(i-1)
-              !call mpas_log_write('i: $i global_start= $i', intArgs=(/i, global_start(i)/))
-           end do
-         if (dminfo % my_proc_id == IO_NODE) then
-           call mpas_dmpar_bcast_ints(dminfo, dminfo % nprocs, local_nvertices)
-           allocate(local_cell_list(local_nvertices(dminfo % my_proc_id + 1)))
-           allocate(local_block_list(local_nvertices(dminfo % my_proc_id + 1)))
-
-           call mpas_dmpar_scatter_ints(dminfo, dminfo % nprocs, local_nvertices(dminfo % my_proc_id + 1), &
-                                   global_start, local_nvertices, global_list, local_cell_list)
-
-           ! Reset global start for second read of global_block_list
-           global_start(1) = 1
-           do i=2,dminfo % nprocs
-              global_start(i) = global_start(i-1) + local_nvertices(i-1)
-              !call mpas_log_write('i: $i global_start= $i', intArgs=(/i, global_start(i)/))
-           end do
-
-           !rewind(unit=iunit)
-           call mpas_log_write('Third read pass ')
-
-           do i=1,partial_global_graph_info % nVerticesTotal
-              !read(unit=iunit, fmt=*) global_block_id
-              !call mpas_get_owning_proc(dminfo, global_block_id, owning_proc)
-              global_block_id = global_block_id_arr(i)
-              owning_proc = owning_proc_arr(i)
-              global_list(global_start(owning_proc+1)) = global_block_id
-              !call mpas_log_write('owning_proc+1: $i global_start= $i global_list=$i', intArgs=(/owning_proc+1, global_start(owning_proc+1), global_list(global_start(owning_proc+1))/))
-              global_start(owning_proc+1) = global_start(owning_proc+1) + 1
-              !call mpas_log_write('global_start(owning_proc+1): $i', intArgs=(/global_start(owning_proc+1)/))
-           end do
-
-           ! Recompute global start after second read of global_block_list
-           global_start(1) = 0
-           do i=2,dminfo % nprocs
-              global_start(i) = global_start(i-1) + local_nvertices(i-1)
-              !call mpas_log_write('i: $i global_start= $i', intArgs=(/i, global_start(i)/))
-           end do
-
-           call mpas_dmpar_scatter_ints(dminfo, dminfo % nprocs, local_nvertices(dminfo % my_proc_id + 1), &
-                                   global_start, local_nvertices, global_list, local_block_list)
-
-           
-
-        else
-
-           call mpas_dmpar_bcast_ints(dminfo, dminfo % nprocs, local_nvertices)
-           allocate(local_cell_list(local_nvertices(dminfo % my_proc_id + 1)))
-           allocate(local_block_list(local_nvertices(dminfo % my_proc_id + 1)))
-
-           call mpas_dmpar_scatter_ints(dminfo, dminfo % nprocs, local_nvertices(dminfo % my_proc_id + 1), &
-                                   global_start, local_nvertices, global_list, local_cell_list)
-
-           call mpas_dmpar_scatter_ints(dminfo, dminfo % nprocs, local_nvertices(dminfo % my_proc_id + 1), &
-                                   global_start, local_nvertices, global_list, local_block_list)
-        end if
+         ! do i=1,partial_global_graph_info % nVertices         
+         !    call mpas_log_write('vert: $i, partloctab: $i', intArgs=(/i,local_block_id_arr(i)/) )
+         ! end do
 
         if(blocks_per_proc == 0) then
            no_blocks = .true.
@@ -333,7 +299,7 @@ module mpas_block_decomp
            block_start(1) = 0
            block_count(1) = 0
         else
-           allocate(sorted_local_cell_list(2, local_nvertices(dminfo % my_proc_id + 1)))
+           allocate(sorted_local_cell_list(2, vertlocnbr))
            allocate(block_id(blocks_per_proc))
            allocate(block_start(blocks_per_proc))
            allocate(block_count(blocks_per_proc))
@@ -343,7 +309,7 @@ module mpas_block_decomp
              block_count = 0
            end do
    
-           do i = 1,local_nvertices(dminfo % my_proc_id +1)
+           do i = 1,vertlocnbr
              call mpas_get_local_block_id(dminfo, local_block_list(i), local_block_id)
      
              block_id(local_block_id+1) = local_block_list(i)
@@ -354,9 +320,9 @@ module mpas_block_decomp
              block_count(local_block_id+1) = block_count(local_block_id+1) + 1
            end do
    
-           call mpas_quicksort(local_nvertices(dminfo % my_proc_id + 1), sorted_local_cell_list)
+           call mpas_quicksort(vertlocnbr, sorted_local_cell_list)
    
-           do i = 1, local_nvertices(dminfo % my_proc_id+1)
+           do i = 1, vertlocnbr
              local_cell_list(i) = sorted_local_cell_list(2, i)
            end do
    
@@ -371,6 +337,8 @@ module mpas_block_decomp
            deallocate(global_list)
         end if
       else
+      
+      call mpas_log_write('post2 successful ')
 
         if (dminfo % my_proc_id == IO_NODE) then
            allocate(local_cell_list(partial_global_graph_info % nVerticesTotal))
@@ -394,6 +362,8 @@ module mpas_block_decomp
            block_count(1) = 0
         end if
       end if
+
+      call mpas_log_write('mpas_block_decomp_cells_for_proc successful ')
 
       call mpas_timer_stop('mpas_block_decomp_cells_for_proc')
 
