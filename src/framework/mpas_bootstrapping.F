@@ -199,16 +199,6 @@ module mpas_bootstrapping
       !   which cells/edges/vertices are owned by each block, and which are ghost
       !
 
-      allocate(cellsOnCellFull)
-      allocate(cellsOnCellFull % array(maxEdges,nCells))
-      call MPAS_io_inq_var(inputHandle, 'cellsOnCell', ierr=ierr)
-      call mpas_io_get_var(inputHandle, 'cellsOnCell', cellsOnCellFull % array, ierr)
-
-      allocate(nEdgesOnCellFull)
-      allocate(nEdgesOnCellFull % array(nCells))
-      call MPAS_io_inq_var(inputHandle, 'nEdgesOnCell', ierr=ierr)
-      call mpas_io_get_var(inputHandle, 'nEdgesOnCell', nEdgesOnCellFull % array, ierr)
-
       call mpas_io_setup_cell_block_fields(inputHandle, nreadCells, readCellStart, readingBlock, maxEdges, &
                                            indexTocellIDField, xCellField, yCellField, zCellField, nEdgesOnCellField, &
                                            cellsOnCellField, edgesOnCellField, verticesOnCellField, nHalos)
