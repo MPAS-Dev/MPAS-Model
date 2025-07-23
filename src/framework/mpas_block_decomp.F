@@ -89,7 +89,7 @@ module mpas_block_decomp
       logical :: useScotch
 #ifdef MPAS_SCOTCH
       integer :: nLocEdgesGraph = 0, edgelocsiz = 0
-      integer, dimension(:), allocatable :: edgetab, verttab, parttab
+      integer, dimension(:), allocatable :: edgeloctab, vertloctab
       doubleprecision :: stradat (scotch_stratdim)
       doubleprecision :: scotchgraph (scotch_graphdim)
       doubleprecision :: scotchdgraph (SCOTCH_DGRAPHDIM)
@@ -169,102 +169,147 @@ module mpas_block_decomp
 
       if (useScotch) then ! Using PT-Scotch across all MPI ranks
 #ifdef MPAS_SCOTCH
-         call mpas_timer_start('scotch')
+         call mpas_timer_start('scotch_total')
 
          call mpas_log_write('Using LibScotch for graph partitioning')
+
+         ! Count the number of edges (including to ghost cells) in the portion of graph
+         ! owned by the current rank. Each edge is counted twice, once for each vertex,
+         ! with the exception of edges to ghost vertices, which are counted only once.
          do i=1,partial_global_graph_info % nVertices
             do j=1,partial_global_graph_info % nAdjacent(i)
-               
                if (partial_global_graph_info % adjacencyList(j,i) == 0) cycle
                nLocEdgesGraph = nLocEdgesGraph + 1
-               ! do j=1,partial_global_graph_info % nAdjacent(i)
-               !    call mpas_log_write('i=$i j=$i adj= $i', intArgs=(/i,j,partial_global_graph_info % adjacencyList(j,i)/) )
-               ! end do
+               ! call mpas_log_write('i=$i j=$i adj= $i', intArgs=(/i,j,partial_global_graph_info % adjacencyList(j,i)/) )
             end do
          end do
          call mpas_log_write('nLocEdgesGraph is $i', intArgs=(/nLocEdgesGraph/))
-         allocate(edgetab(nLocEdgesGraph))
-         allocate(verttab(partial_global_graph_info % nVertices + 1))
-         !allocate(parttab(partial_global_graph_info % nVerticesTotal))
 
+         ! Holds the adjacency array for every local vertex
+         allocate(edgeloctab(nLocEdgesGraph))
+         ! Array of start indices in edgeloctab for each local vertex
+         allocate(vertloctab(partial_global_graph_info % nVertices + 1))
+         
          ! do i=1,partial_global_graph_info % nVertices
-         !    !call mpas_log_write('proc=$i  i= $i part= $i', intArgs=(/dminfo % my_proc_id, i,parttab(i)/))
          !    call mpas_log_write('i=$i j=$i adj= $i', intArgs=(/i,j,partial_global_graph_info % adjacencyList(j,i)/) )
          ! end do 
 
-            k = 1
-            do i=1,partial_global_graph_info % nVertices
-               verttab(i) = k 
-               !call mpas_log_write('i=$i verttab= $i', intArgs=(/i,verttab(i)/) )
-               !call mpas_log_write('i=$i vertexID= $i', intArgs=(/i,partial_global_graph_info % vertexID(i)/) )
-               do j=1,partial_global_graph_info % nAdjacent(i)
-                  
-                  if (partial_global_graph_info % adjacencyList(j,i) == 0) cycle
+         ! Fill up edgeloctab and vertloctab
+         k = 1
+         do i=1,partial_global_graph_info % nVertices
+            vertloctab(i) = k 
+            !call mpas_log_write('i=$i vertloctab= $i', intArgs=(/i,vertloctab(i)/) )
+            !call mpas_log_write('i=$i vertexID= $i', intArgs=(/i,partial_global_graph_info % vertexID(i)/) )
+            do j=1,partial_global_graph_info % nAdjacent(i)
+               
+               if (partial_global_graph_info % adjacencyList(j,i) == 0) cycle
 
-                  edgetab(k) = partial_global_graph_info % adjacencyList(j,i)
-                  !call mpas_log_write('k=$i edgetab= $i', intArgs=(/k,edgetab(k)/) )
-                  k = k + 1
-               end do
-            end do 
-            verttab(partial_global_graph_info % nVertices+1) = nLocEdgesGraph + 1
-   
-            call mpas_log_write('nvertices =$i  nLocEdgesGraph= $i', intArgs=(/partial_global_graph_info % nVertices, nLocEdgesGraph/))
+               edgeloctab(k) = partial_global_graph_info % adjacencyList(j,i)
+               !call mpas_log_write('k=$i edgeloctab= $i', intArgs=(/k,edgeloctab(k)/) )
+               k = k + 1
+            end do
+         end do 
+         vertloctab(partial_global_graph_info % nVertices+1) = nLocEdgesGraph + 1
 
-            call MPI_Comm_dup(MPI_COMM_WORLD, localcomm, mpi_ierr)
-            if (mpi_ierr .ne. 0) then
-                  call mpas_log_write('Cannot duplicate communicator')
-            endif
-            call mpas_log_write('duplicate communicator is $i', intArgs=(/localcomm/) )
-            !call mpas_log_write('dminfo communicator is $i', intArgs=(/dminfo % comm/) )
-            call scotchfdgraphinit(scotchdgraph(1),  localcomm, ierr)
-            call scotchfdgraphinit(scotchdgraph_redist(1),  localcomm, ierr)
-            if (ierr .ne. 0) then
-                  call mpas_log_write('Cannot initialize D Scotch Graph', MPAS_LOG_CRIT)
-            endif
+         call mpas_log_write('nvertices =$i  nLocEdgesGraph= $i', intArgs=(/partial_global_graph_info % nVertices, nLocEdgesGraph/))
 
-            edgelocsiz = maxval(verttab) - 1
+         ! Duplicate the communicator to be used by Scotch
+         call MPI_Comm_dup(MPI_COMM_WORLD, localcomm, mpi_ierr)
+         if (mpi_ierr .ne. 0) then
+               call mpas_log_write('Cannot duplicate communicator')
+         endif
+         call mpas_log_write('duplicate communicator is $i', intArgs=(/localcomm/) )
+         
+         ! Initialize the Scotch graph data structure, and an extra one to hold the re-distributed graph
+         call scotchfdgraphinit(scotchdgraph(1),  localcomm, ierr)
+         if (ierr .ne. 0) then
+               call mpas_log_write('Cannot initialize D Scotch Graph', MPAS_LOG_CRIT)
+         endif
+         call scotchfdgraphinit(scotchdgraph_redist(1),  localcomm, ierr)
 
-            call scotchfdgraphbuild (scotchdgraph(1), &
-                                     1, &
-                                     partial_global_graph_info % nVertices, &
-                                     partial_global_graph_info % nVertices, & ! vertlocmax
-                                     verttab (1), & ! vertloctab
-                                     verttab (2), & ! 
-                                     verttab (1), &
-                                     verttab (1), &
-                                     nLocEdgesGraph, &
-                                     edgelocsiz, &
-                                     edgetab(1), &
-                                     edgetab(1), &
-                                     edgetab(1), ierr)
+         ! From Scotch documentation: edgelocsiz is lower-bounded by the minimum size 
+         ! of the edge array required to encompass all used adjacency values; it is 
+         ! therefore at least equal to the maximum of the vendloctab entries, over all 
+         ! local vertices, minus baseval; it can be set to edgelocnbr if the edge array is compact.
+         edgelocsiz = maxval(vertloctab) - 1
 
-            if (ierr .ne. 0) then
-               call mpas_log_write('Cannot build Scotch Graph', MPAS_LOG_CRIT)
-            endif
-            
-            ! Only needed during development/debugging. 
-            call scotchfdgraphcheck (scotchdgraph(1), ierr)
-            if (ierr .ne. 0) then
-               call mpas_log_write(' Scotch Graph check not successfull', MPAS_LOG_CRIT)
-            endif
-            call mpas_log_write('Graph build successful ')
+         ! Build the distributed Scotch graph and save it in scotchdgraph
+         ! Note: Optional arguments veloloctab, vlblloctab, edgegsttab, and edloloctab are not needed here.
+         ! Scotch Fortran interface requires that if veloloctab, vlblloctab are skipped, then we pass a reference
+         ! to vertloctab(1) so that they are treated as null pointers. Similarly, pass reference to edgeloctab for
+         ! the optional edgegsttab and edloloctab arguments.
+         call scotchfdgraphbuild (scotchdgraph(1), &
+                           1, & ! base value value for index arrays (1 in Fortran)
+                           partial_global_graph_info % nVertices, & ! num of local vertices on the calling process
+                           partial_global_graph_info % nVertices, & ! max number of local vertices = num_local_vertices for graphs without holes
+                           vertloctab (1), & ! Array of start indices in edgeloctab for each local vertex
+                           vertloctab (2), & ! vendloctab: Array of after-last indices in edgeloctab
+                           vertloctab (1), & ! veloloctab: Optional array of integer loads for each local vertex
+                           vertloctab (1), & ! vlblloctab: Optional array of labels for each local vertex
+                           nLocEdgesGraph, & ! Number of local edges, including to ghost vertices
+                           edgelocsiz, & ! Defined previously
+                           edgeloctab(1), & ! Holds the adjacency array for every local vertex
+                           edgeloctab(1), & ! edgegsttab: Optional array holding the local and ghost indices
+                           edgeloctab(1), & ! edloloctab: Optional array of integer loads for each local edge
+                           ierr)
 
-            call scotchfstratinit (stradat (1), ierr)
-            call mpas_log_write('After strat init successful ')
-         ! end if
-         call mpas_timer_start('scotch_part')
+         if (ierr .ne. 0) then
+            call mpas_log_write('Cannot build Scotch Graph', MPAS_LOG_CRIT)
+         endif
+         
+         ! Only needed during development/debugging. 
+         call scotchfdgraphcheck (scotchdgraph(1), ierr)
+         if (ierr .ne. 0) then
+            call mpas_log_write(' Scotch Graph check not successfull', MPAS_LOG_CRIT)
+         endif
+         call mpas_log_write('Graph build successful ')
+         ! Initialize the strategy data structure
+         call scotchfstratinit (stradat (1), ierr)
+         call mpas_log_write('strategy init success')
+         
+         call mpas_timer_start('scotch_graph_partitioning')
+         ! Partition the distributed graph and save the result in local_block_id_arr
          call scotchfdgraphpart (scotchdgraph(1), dminfo % nProcs, stradat (1), local_block_id_arr(1), ierr)
-         !call scotchfdgraphpart (scotchdgraph(1), dminfo % total_blocks, stradat (1), local_block_id_arr(1), ierr)
-         call mpas_timer_stop('scotch_part')
+         call mpas_timer_stop('scotch_graph_partitioning')
          call mpas_log_write('Graph parition successful ')
 
-         call scotchfdgraphredist(scotchdgraph(1), local_block_id_arr(1),scotchdgraph(1), -1 ,-1, scotchdgraph_redist(1), ierr)
+         ! After the paritioning above, each processor would not necessarily have information about all of the
+         ! vertices it owns. To obtain this information, Scotch provides a convenience function to redistribute the graph
+         ! to all processors, so that each processor has information about all of the vertices it owns.
+         call scotchfdgraphredist(scotchdgraph(1), & ! Input: original distributed graph
+                                  local_block_id_arr(1), & ! Input: the partition array
+                                  scotchdgraph(1), & ! Optional: permgsttab. Pass ref to original graph to skip it.
+                                   -1 , & ! Optional: vertlocdlt. Pass <0 to skip it.
+                                   -1,  & ! Optional: edgelocdlt. Pass <0 to skip it.
+                                  scotchdgraph_redist(1), & ! Output: re-distributed graph
+                                  ierr)
          call mpas_log_write('Graph redist successful ')
 
+         ! indxtab holds the graph data returned by the call to scotchfdgraphdata
+         ! Not sure how large indxtab needs to be, so currently allocating it to be
+         ! 5 times the number of local vertices
          allocate(indxtab(5*partial_global_graph_info % nVertices))
-         call scotchfdgraphdata(scotchdgraph_redist(1), indxtab(1), baseval, vertglbnbr, num_local_vertices, vertlocmax, vertgstnbr, &
-                                vertlocidx, vendlocidx, velolocidx, vlbllocidx, edgeglbnbr, edgelocnbr, &
-                                 edgelocsiz, edgelocidx, edgegstidx, edlolocidx, comm, ierr )
+
+         ! Input to scotchfdgraphdata is the re-distributed graph scotchdgraph_redist, and all
+         ! the remaining are output arguments.
+         call scotchfdgraphdata(scotchdgraph_redist(1), &
+                           indxtab(1), & ! Holds the data queried from graph, local to this processor
+                           baseval, &  ! returns base value value for index arrays (1 in Fortran)
+                           vertglbnbr, & ! number of global vertices
+                           num_local_vertices, & ! number of local vertices
+                           vertlocmax, & ! max number of local vertices = num_local_vertices for graphs without holes
+                           vertgstnbr, & ! num of local and ghost vertices. -1 unless dgraphGhst is called
+                           vertlocidx, & ! starting index of vertloctab in indxtab
+                           vendlocidx, & ! starting index of vendloctab in indxtab
+                           velolocidx, & ! starting index of veloloctab in indxtab
+                           vlbllocidx, & ! starting index of vlblloctab in indxtab
+                           edgeglbnbr, & ! Global number of arcs. Each edge counts twice.
+                           edgelocnbr, & ! Local number of arcs including to ghost vertices
+                           edgelocsiz, & ! ~ max of vendloctab entries, for local vertices, minus baseval
+                           edgelocidx, & ! starting index of edgeloctab in indxtab 
+                           edgegstidx, & ! starting index of edgegsttab in indxtab
+                           edlolocidx, & ! starting index of edloloctab in indxtab
+                           comm, ierr ) ! communicator used and error code
 
          call mpas_log_write('vertlocnbr $i vertlocidx $i ', intArgs=(/num_local_vertices,vertlocidx/) )
          call mpas_log_write('vertgstnbr $i vertlocmax $i ', intArgs=(/vertgstnbr,vertlocmax/) )
@@ -272,36 +317,27 @@ module mpas_block_decomp
          call mpas_log_write('edgegstidx $i edlolocidx $i ', intArgs=(/edgegstidx,edlolocidx/) )
          call mpas_log_write('vertglbnbr $i ierr $i ', intArgs=(/vertglbnbr,ierr/) )
 
-         ! do i=1,num_local_vertices
-         !    call mpas_log_write('i: $i, vertlocidx: $i', intArgs=(/i,indxtab(vertlocidx+i-1)/) )
-         ! end do
-         ! do i=1,num_local_vertices
-         !    call mpas_log_write('i: $i, vlbllocidx: $i', intArgs=(/i,indxtab(vlbllocidx+i-1)/) )
-         ! end do
-         
-         
-         ! call mpas_timer_stop('mpas_block_decomp_cells_for_proc')
-         ! call mpas_timer_stop('bootstrap_framework_phase1')
-         ! call mpas_timer_stop('initialize')
-         ! call mpas_timer_stop('total time')
-         !call mpas_timer_write_header()
-         !call mpas_timer_write()
-
          allocate(local_cell_list(num_local_vertices))
          allocate(local_block_list(num_local_vertices))
 
+         ! To look up all the local cells, we simply look at vlblloctab returned in indxtab
+         ! NOTE: TODO: local_block_list might not be the same as proc_id when num blocks > 0?
          do i=1,num_local_vertices
             local_cell_list(i)=indxtab(vlbllocidx+i-1)
             local_block_list(i)=dminfo % my_proc_id
             !call mpas_log_write('local_cell_list: $i, local_block_list: $i', intArgs=(/local_cell_list(i),local_block_list(i)/) )
          end do
 
-         ! Calling scotchfdgraphexit 
+         ! Clean up
          call scotchfdgraphexit (scotchdgraph (1))
          call scotchfdgraphexit (scotchdgraph_redist (1))
          call scotchfstratexit (stradat (1))
-         call mpas_timer_stop('scotch')
-         call mpas_log_write('Scotch parition successful ')
+         deallocate(edgeloctab)
+         deallocate(vertloctab)
+         deallocate(indxtab)
+         call MPI_Comm_free(localcomm, mpi_ierr)
+         call mpas_timer_stop('scotch_total')
+         call mpas_log_write('Scotch partition successful')
 #endif
       else  ! useScotch = .false.
          if (dminfo % my_proc_id == IO_NODE) then
