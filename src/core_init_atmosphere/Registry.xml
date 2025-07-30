@@ -1245,7 +1245,7 @@
                      description="Meridional component of reconstructed horizontal velocity at cell centers"
                      packages="fdda"/>
 
-                <var name="th_fdda" type="real" dimensions="nVertLevels nCells Time" packages="fdda"
+                <var name="theta_fdda" type="real" dimensions="nVertLevels nCells Time" packages="fdda"
                      units="K"
                      description="Potential temperature input for FDDA nudging"/> 
 

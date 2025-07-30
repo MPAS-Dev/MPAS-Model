@@ -6253,7 +6253,7 @@ call mpas_log_write('Done with soil consistency check')
    !-----------------------------------------------------------------------
    !  routine init_atm_case_fdda
    !
-   !> \brief Computes th_fdda, qv_fdda, u_fdda, v_fdda fields for FDDA nudging 
+   !> \brief Computes theta_fdda, qv_fdda, u_fdda, v_fdda fields for FDDA nudging 
    !> \details
    !>  This routine is similar to the init_atm_case_lbc routine in that it reads
    !>  atmospheric fields from "intermediate" files and horizontally and vertically
@@ -6440,7 +6440,7 @@ call mpas_log_write('Done with soil consistency check')
       call mpas_pool_get_array(diag, 'rtheta_p', rt)
       call mpas_pool_get_array(fdda_state, 'scalars_fdda', scalars)
       call mpas_pool_get_array(fdda_state, 'uEdge_fdda', u)
-      call mpas_pool_get_array(fdda_state, 'th_fdda', theta)
+      call mpas_pool_get_array(fdda_state, 'theta_fdda', theta)
       call mpas_pool_get_array(fdda_state, 'rho_fdda', rho)
       call mpas_pool_get_array(fdda_state, 'uReconstructX_fdda', uReconstructX)
       call mpas_pool_get_array(fdda_state, 'uReconstructY_fdda', uReconstructY)
