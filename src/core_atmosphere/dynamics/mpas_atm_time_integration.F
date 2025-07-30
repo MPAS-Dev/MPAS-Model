@@ -868,6 +868,7 @@ module atm_time_integration
       type (mpas_pool_type), pointer :: mesh
       type (mpas_pool_type), pointer :: tend
       type (mpas_pool_type), pointer :: tend_physics => null()
+      type (mpas_pool_type), pointer :: tend_fdda => null()
       type (mpas_pool_type), pointer :: lbc  ! regional_MPAS addition
       type (mpas_pool_type), pointer :: fdda 
 
@@ -914,6 +915,7 @@ module atm_time_integration
       call mpas_pool_get_subpool(block % structs, 'diag', diag)
       call mpas_pool_get_subpool(block % structs, 'tend', tend)
       call mpas_pool_get_subpool(block % structs, 'tend_physics', tend_physics)
+      call mpas_pool_get_subpool(block % structs, 'tend_fdda', tend_fdda)
 #ifdef DO_PHYSICS
       call mpas_pool_get_subpool(block % structs, 'diag_physics', diag_physics)
 #endif
@@ -1112,7 +1114,7 @@ module atm_time_integration
       !
       ! MW: Why are tend_ru_physics and tend_rtheta_physics global variables, but not tend_scalars?
       if (trim(config_fdda_scheme) /= 'off') then
-         call apply_fdda( block, xtime_s, block % configs, mesh, state, 1, fdda, diag, diag_physics, tend, tend_physics, &
+         call apply_fdda( block, xtime_s, block % configs, mesh, state, 1, fdda, diag, diag_physics, tend, tend_physics, tend_fdda, &
                           tend_ru_physics, tend_rtheta_physics)
       end if
 
