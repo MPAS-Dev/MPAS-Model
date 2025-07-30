@@ -36,6 +36,7 @@ module atm_time_integration
    use mpas_atm_boundaries, only : nSpecZone, nRelaxZone, nBdyZone, mpas_atm_get_bdy_state, mpas_atm_get_bdy_tend  ! regional_MPAS addition
    
    use mpas_atm_iau  
+   use mpas_atm_fdda
 
    !
    ! Abstract interface for routine used to communicate halos of fields
@@ -859,6 +860,7 @@ module atm_time_integration
       integer :: nCells, nEdges, nVertices, nEdgesSolve, nVertLevels, num_scalars
 
       character(len=StrKIND), pointer :: config_IAU_option
+      character(len=StrKIND), pointer :: config_fdda_scheme
 
       type (mpas_pool_type), pointer :: state
       type (mpas_pool_type), pointer :: diag
@@ -867,6 +869,7 @@ module atm_time_integration
       type (mpas_pool_type), pointer :: tend
       type (mpas_pool_type), pointer :: tend_physics => null()
       type (mpas_pool_type), pointer :: lbc  ! regional_MPAS addition
+      type (mpas_pool_type), pointer :: fdda 
 
       real (kind=RKIND), dimension(:,:), pointer :: w
       real (kind=RKIND), dimension(:,:), pointer :: u, uReconstructZonal, uReconstructMeridional, uReconstructX, uReconstructY, uReconstructZ
@@ -901,6 +904,7 @@ module atm_time_integration
       call mpas_pool_get_config(block % configs, 'config_microp_scheme', config_microp_scheme)
       call mpas_pool_get_config(block % configs, 'config_convection_scheme', config_convection_scheme)
 #endif
+      call mpas_pool_get_config(block % configs, 'config_fdda_scheme', config_fdda_scheme)
 
       !
       ! Retrieve field structures
@@ -913,6 +917,7 @@ module atm_time_integration
 #ifdef DO_PHYSICS
       call mpas_pool_get_subpool(block % structs, 'diag_physics', diag_physics)
 #endif
+      call mpas_pool_get_subpool(block % structs, 'fdda', fdda)
 
       !
       ! Retrieve dimensions
@@ -1101,6 +1106,16 @@ module atm_time_integration
          call atm_add_tend_anal_incr(block % configs, block % structs, itimestep, dt, &
                                      tend_ru_physics, tend_rtheta_physics, tend_rho_physics)
       end if
+
+      !
+      ! FDDA - Four-dimensional data assimilation (Grid point nudging)
+      !
+      ! MW: Why are tend_ru_physics and tend_rtheta_physics global variables, but not tend_scalars?
+      if (trim(config_fdda_scheme) /= 'off') then
+         call apply_fdda( block, xtime_s, block % configs, mesh, state, 1, fdda, diag, diag_physics, tend, tend_physics, &
+                          tend_ru_physics, tend_rtheta_physics)
+      end if
+
 
 
       DYNAMICS_SUBSTEPS : do dynamics_substep = 1, dynamics_split

@@ -369,7 +369,90 @@
                      possible_values=".true. or .false."/>
         </nml_record>
 
-        <nml_record name="IAU" in_defaults="true">
+        <nml_record name="fdda" in_defaults="true">
+                <nml_option name="config_fdda_scheme" type="character" default_value="off" in_defaults="false"
+                     units="-"
+                     description="configuration for four-dimensional data assimilation"
+                     possible_values="`suite',`analysis',`scaled',`off'"/>
+
+                <nml_option name="config_fdda_int" type="real" default_value="21600." in_defaults="false"
+                     units="s"
+                     description="nudging time interval"
+                     possible_values="Positive real values"/>
+
+                <nml_option name="config_fdda_scale_min" type="real" default_value="0." in_defaults="false"
+                     units="-"
+                     description="nudging scale factor minimum"
+                     possible_values="Positive real values"/>
+
+                <nml_option name="config_fdda_scale_max" type="real" default_value="100000." in_defaults="false"
+                     units="-"
+                     description="nudging scale factor maximum"
+                     possible_values="Positive real values"/>
+
+                <nml_option name="config_fdda_t" type="logical" default_value="false" in_defaults="false"
+                     units="-"
+                     description="whether to enable temperature nudging"
+                     possible_values=".true. or .false."/>
+
+                <nml_option name="config_fdda_t_coef" type="real" default_value="3.0e-4" in_defaults="false"
+                     units="s^{-1}"
+                     description="nudging coefficient for temperature"
+                     possible_values="Positive real values"/>
+
+                <nml_option name="config_fdda_t_in_pbl" type="logical" default_value="true" in_defaults="false"
+                     units="-"
+                     description="whether to enable temperature nudging within the PBL"
+                     possible_values=".true. or .false."/>
+
+                <nml_option name="config_fdda_t_min_layer" type="integer" default_value="0" in_defaults="false"
+                     units="-"
+                     description="model level above which nudging is enabled for temperature"
+                     possible_values="Positive integers"/>
+
+                <nml_option name="config_fdda_q" type="logical" default_value="false" in_defaults="false"
+                     units="-"
+                     description="whether to enable water vapor nudging"
+                     possible_values=".true. or .false."/>
+
+                <nml_option name="config_fdda_q_coef" type="real" default_value="3.0e-4" in_defaults="false"
+                     units="s^{-1}"
+                     description="nudging coefficient for water vapor"
+                     possible_values="Positive real values"/>
+
+                <nml_option name="config_fdda_q_in_pbl" type="logical" default_value="true" in_defaults="false"
+                     units="-"
+                     description="whether to enable water vapor nudging within the PBL"
+                     possible_values=".true. or .false."/>
+
+                <nml_option name="config_fdda_q_min_layer" type="integer" default_value="0" in_defaults="false"
+                     units="-"
+                     description="model level above which nudging is enabled for water vapor"
+                     possible_values="Positive integers"/>
+
+                <nml_option name="config_fdda_uv" type="logical" default_value="false" in_defaults="false"
+                     units="-"
+                     description="whether to enable u and v nudging"
+                     possible_values=".true. or .false."/>
+
+                <nml_option name="config_fdda_uv_coef" type="real" default_value="3.0e-4" in_defaults="false"
+                     units="s^{-1}"
+                     description="nudging coefficient for u and v"
+                     possible_values="Positive real values"/>
+
+                <nml_option name="config_fdda_uv_in_pbl" type="logical" default_value="true" in_defaults="false"
+                     units="-"
+                     description="whether to enable u and v nudging within the PBL"
+                     possible_values=".true. or .false."/>
+
+                <nml_option name="config_fdda_uv_min_layer" type="integer" default_value="0" in_defaults="false"
+                     units="-"
+                     description="model level above which nudging is enabled for u and v"
+                     possible_values="Positive integers"/>
+
+          </nml_record>
+
+	  <nml_record name="IAU" in_defaults="true">
                 <nml_option name="config_IAU_option" type="character" default_value="off"
                      units="-"
                      description="Incremental Analysis Update scheme"
@@ -378,7 +461,7 @@
                      units="s"
                      description="Length of window over which analysis increments are applied"
                      possible_values="Non-negative real values"/>
-	</nml_record>
+        </nml_record>
 
         <nml_record name="assimilation" in_defaults="false">
                 <nml_option name="config_jedi_da" type="logical" default_value="false"
@@ -2484,86 +2567,6 @@
                      description="threshold above which the accumulated grid-scale precipitation is reset"
                      possible_values="Positive real values"/>
 
-                <nml_option name="config_fdda_scheme" type="character" default_value="suite" in_defaults="false"
-                     units="-"
-                     description="configuration for four-dimensional data assimilation"
-                     possible_values="`suite',`analysis',`scaled',`off'"/>
-
-                <nml_option name="config_fdda_int" type="real" default_value="21600." in_defaults="false"
-                     units="s"
-                     description="nudging time interval"
-                     possible_values="Positive real values"/>
-
-                <nml_option name="config_fdda_scale_min" type="real" default_value="0." in_defaults="false"
-                     units="-"
-                     description="nudging scale factor minimum"
-                     possible_values="Positive real values"/>
-
-                <nml_option name="config_fdda_scale_max" type="real" default_value="100000." in_defaults="false"
-                     units="-"
-                     description="nudging scale factor maximum"
-                     possible_values="Positive real values"/>
-
-                <nml_option name="config_fdda_t" type="logical" default_value="false" in_defaults="false"
-                     units="-"
-                     description="whether to enable temperature nudging"
-                     possible_values=".true. or .false."/>
-
-                <nml_option name="config_fdda_t_coef" type="real" default_value="3.0e-4" in_defaults="false"
-                     units="s^{-1}"
-                     description="nudging coefficient for temperature"
-                     possible_values="Positive real values"/>
-
-                <nml_option name="config_fdda_t_in_pbl" type="logical" default_value="true" in_defaults="false"
-                     units="-"
-                     description="whether to enable temperature nudging within the PBL"
-                     possible_values=".true. or .false."/>
-
-                <nml_option name="config_fdda_t_min_layer" type="integer" default_value="0" in_defaults="false"
-                     units="-"
-                     description="model level above which nudging is enabled for temperature"
-                     possible_values="Positive integers"/>
-
-                <nml_option name="config_fdda_q" type="logical" default_value="false" in_defaults="false"
-                     units="-"
-                     description="whether to enable water vapor nudging"
-                     possible_values=".true. or .false."/>
-
-                <nml_option name="config_fdda_q_coef" type="real" default_value="3.0e-4" in_defaults="false"
-                     units="s^{-1}"
-                     description="nudging coefficient for water vapor"
-                     possible_values="Positive real values"/>
-
-                <nml_option name="config_fdda_q_in_pbl" type="logical" default_value="true" in_defaults="false"
-                     units="-"
-                     description="whether to enable water vapor nudging within the PBL"
-                     possible_values=".true. or .false."/>
-
-                <nml_option name="config_fdda_q_min_layer" type="integer" default_value="0" in_defaults="false"
-                     units="-"
-                     description="model level above which nudging is enabled for water vapor"
-                     possible_values="Positive integers"/>
-
-                <nml_option name="config_fdda_uv" type="logical" default_value="false" in_defaults="false"
-                     units="-"
-                     description="whether to enable u and v nudging"
-                     possible_values=".true. or .false."/>
-
-                <nml_option name="config_fdda_uv_coef" type="real" default_value="3.0e-4" in_defaults="false"
-                     units="s^{-1}"
-                     description="nudging coefficient for u and v"
-                     possible_values="Positive real values"/>
-
-                <nml_option name="config_fdda_uv_in_pbl" type="logical" default_value="true" in_defaults="false"
-                     units="-"
-                     description="whether to enable u and v nudging within the PBL"
-                     possible_values=".true. or .false."/>
-
-                <nml_option name="config_fdda_uv_min_layer" type="integer" default_value="0" in_defaults="false"
-                     units="-"
-                     description="model level above which nudging is enabled for u and v"
-                     possible_values="Positive integers"/>
-
                 <nml_option name="config_oml1d" type="logical" default_value="false" in_defaults="false"
                      units="-"
                      description="Whether to activate the 1-d ocean mixed-layer model"
@@ -3644,7 +3647,8 @@
                 <var name="rvfddaten" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
                      description="tendency of meridional wind component due to FDDA"/>
 
-	        <var name="rufddaten_Edge" type="real" dimensions="nVertLevels nEdges Time"/>
+	        <var name="rufddaten_Edge" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-1}"
+                     description="tendency of horizontal normal velocity due to FDDA"/>
 
                 <!-- ================================================================================================== -->
                 <!-- TENDENCIES FROM PARAMETERIZATION OF CONVECTION:                                                    -->

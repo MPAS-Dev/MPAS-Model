@@ -24,7 +24,6 @@ OBJS = \
 	mpas_atmphys_driver.o              \
 	mpas_atmphys_driver_cloudiness.o   \
 	mpas_atmphys_driver_convection.o   \
-	mpas_atmphys_fdda.o                \
 	mpas_atmphys_driver_gwdo.o         \
 	mpas_atmphys_driver_lsm.o          \
 	mpas_atmphys_driver_lsm_noahmp.o   \
@@ -97,7 +96,6 @@ mpas_atmphys_control.o: \
 mpas_atmphys_driver.o: \
 	mpas_atmphys_driver_cloudiness.o \
 	mpas_atmphys_driver_convection.o \
-	mpas_atmphys_fdda.o \
 	mpas_atmphys_driver_gwdo.o \
 	mpas_atmphys_driver_lsm.o \
 	mpas_atmphys_driver_lsm_noahmp.o \
@@ -118,11 +116,6 @@ mpas_atmphys_driver_cloudiness.o: \
 	mpas_atmphys_vars.o
 
 mpas_atmphys_driver_convection.o: \
-	mpas_atmphys_constants.o \
-	mpas_atmphys_utilities.o \
-	mpas_atmphys_vars.o
-
-mpas_atmphys_fdda.o: \
 	mpas_atmphys_constants.o \
 	mpas_atmphys_utilities.o \
 	mpas_atmphys_vars.o
