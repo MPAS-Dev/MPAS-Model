@@ -2163,6 +2163,28 @@
 #endif
         </var_struct>
 
+        <!-- ================================================================================================== -->
+        <!-- TENDENCIES FROM FOUR DIMENSIONAL DATA ASSIMILATION:                                                -->
+        <!-- ================================================================================================== -->
+        <var_struct name="tend_fdda" time_levs="1">
+                <var name="rthfddaten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
+                     description="tendency of potential temperature due to FDDA"/>
+
+                <var name="rqvfddaten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+                     description="tendency of water vapor mixing ratio due to FDDA"/>
+
+                <var name="rufddaten" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="tendency of zonal wind component due to FDDA"/>
+
+                <var name="rvfddaten" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="tendency of meridional wind component due to FDDA"/>
+
+	        <var name="rufddaten_Edge" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-1}"
+                     description="tendency of horizontal normal velocity due to FDDA"/>
+
+        </var_struct>
+
+
         <!-- ===================================================================================== -->
         <!-- Storage for lateral boundary conditions:                                              -->
         <!-- Time-level 1 contains tendencies for variables                                        -->
@@ -3630,25 +3652,6 @@
                 <var name="rnwfampten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of water-friendly aerosol number concentration due to microphysics"
                      packages="mp_thompson_aers_in"/>
-
-                <!-- ================================================================================================== -->
-                <!-- TENDENCIES FROM FOUR DIMENSIONAL DATA ASSIMILATION:                                                -->
-                <!-- ================================================================================================== -->
-
-                <var name="rthfddaten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
-                     description="tendency of potential temperature due to FDDA"/>
-
-                <var name="rqvfddaten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
-                     description="tendency of water vapor mixing ratio due to FDDA"/>
-
-                <var name="rufddaten" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
-                     description="tendency of zonal wind component due to FDDA"/>
-
-                <var name="rvfddaten" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
-                     description="tendency of meridional wind component due to FDDA"/>
-
-	        <var name="rufddaten_Edge" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-1}"
-                     description="tendency of horizontal normal velocity due to FDDA"/>
 
                 <!-- ================================================================================================== -->
                 <!-- TENDENCIES FROM PARAMETERIZATION OF CONVECTION:                                                    -->

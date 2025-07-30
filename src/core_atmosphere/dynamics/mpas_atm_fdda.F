@@ -1,48 +1,66 @@
 !==================================================================================================
+!  MPAS four-dimensional data assimilation (FDDA) grid nudging.
+!
+!  O. Russell Bullock Jr. (send comments to bullock.russell@epa.gov).
+!  2016-03-30.
+!
+!   subroutines in mpas_atm_fdda:
+!   ----------------------------------------------
+!   apply_fdda      : main fdda subroutine (called from subroutine physics_driver).
+!   
+!  
+     
+!   add-ons and modifications to sourcecode:
+!   ----------------------------------------
+!   Original sourcecode by O. Russell Bullock Jr. (bullock.russell@epa.gov) / 2016-03-30. 
+!  
+!   * Added various controls for length-scaled FDDA application 
+!     O. Russell Bullock Jr. (bullock.russell@epa.gov) / 2016-08-11. 
+!   * Modified to only require reads of "fdda_new" data arrays.  "fdda_old" is initially 
+!     set to initial conditions.  At end of FDDA data interval, "fdda_old" is set to 
+!     "fdda_new" and updated "fdda_new" data comes from FDDA input stream.
+!     O. Russell Bullock Jr. (bullock.russell@epa.gov) / 2016-08-30.
+!   * Modified to add variable transformation and adding nudging tendencies to tend_ru, tend_rtheta
+!     May Wong (mwong@ucar.edu) / 2025-07-30
+ 
  module mpas_atm_fdda
- use mpas_kind_types
- use mpas_derived_types
- use mpas_pool_routines
 
- use mpas_atmphys_constants
- use mpas_atmphys_utilities
- use mpas_atmphys_vars
- use mpas_atmphys_todynamics, only : tend_toEdges
- use mpas_log, only : mpas_log_write
+      use mpas_kind_types
+      use mpas_derived_types
+      use mpas_pool_routines
+     
+      use mpas_atmphys_constants
+      use mpas_atmphys_utilities
+      use mpas_atmphys_vars
+      use mpas_atmphys_todynamics, only : tend_toEdges
+      use mpas_log, only : mpas_log_write
+     
+      implicit none
+      private
+      public:: apply_fdda
+     
+      integer, private:: i,k
+     
+     
+      contains
 
- implicit none
- private
- public:: apply_fdda
-
- integer, private:: i,k
-
-
-!MPAS grid nudging.
-!O. Russell Bullock Jr. (send comments to bullock.russell@epa.gov).
-!2016-03-30.
-!
-! subroutines in mpas_atm_fdda:
-! ----------------------------------------------
-! apply_fdda      : main fdda subroutine (called from subroutine physics_driver).
-!
-
-! add-ons and modifications to sourcecode:
-! ----------------------------------------
-! Original sourcecode by O. Russell Bullock Jr. (bullock.russell@epa.gov) / 2016-03-30. 
-!
-! * Added various controls for length-scaled FDDA application 
-!   O. Russell Bullock Jr. (bullock.russell@epa.gov) / 2016-08-11. 
-! * Modified to only require reads of "fdda_new" data arrays.  "fdda_old" is initially 
-!   set to initial conditions.  At end of FDDA data interval, "fdda_old" is set to 
-!   "fdda_new" and updated "fdda_new" data comes from FDDA input stream.
-!   O. Russell Bullock Jr. (bullock.russell@epa.gov) / 2016-08-30.
-
- contains
-
-!==================================================================================================
- subroutine apply_fdda(block,xtime_s,configs,mesh,state,time_lev,fdda,diag,diag_physics,tend,tend_physics, &
+      !***********************************************************************
+      !
+      !  routine apply_fdda 
+      !
+      !> \brief   Applies FDDA nudging tendencies to the RHS tendencies for dynamics 
+      !> \author  O. Russell Bullock Jr. 
+      !> \date    30 March 2016
+      !> \details 
+      !>  This routine computes the FDDA weighted nudging tendencies and adds them 
+      !>  to the 'physics' tendencies for the dynamics. 
+      !> 
+      !>  Variable transformation and adding to the physics tendencies were added.
+      !>  May Wong (mwong@ucar.edu) / 2025-07-30
+      !
+      !-----------------------------------------------------------------------
+      subroutine apply_fdda(block,xtime_s,configs,mesh,state,time_lev,fdda,diag,diag_physics,tend,tend_physics,tend_fdda, &
                        tend_ru, tend_rtheta)
-!==================================================================================================
 
 	!input variables:
 	 type(block_type), intent(in) :: block
@@ -58,6 +76,7 @@
 	!inout variables:
 	 type(mpas_pool_type),intent(inout):: tend_physics
 	 type(mpas_pool_type),intent(inout):: tend
+	 type(mpas_pool_type),intent(inout):: tend_fdda
 
 	 real (kind=RKIND), dimension(:,:), intent(inout) :: tend_ru
 	 real (kind=RKIND), dimension(:,:), intent(inout) :: tend_rtheta
@@ -136,11 +155,11 @@
 	 call mpas_pool_get_array(fdda,'th_fdda_new',th_fdda_new)
 	 call mpas_pool_get_array(fdda,'u_fdda_new', u_fdda_new )
 	 call mpas_pool_get_array(fdda,'v_fdda_new', v_fdda_new )
-	 call mpas_pool_get_array(tend_physics,'rthfddaten',rthfddaten)
-	 call mpas_pool_get_array(tend_physics,'rqvfddaten',rqvfddaten)
-	 call mpas_pool_get_array(tend_physics,'rufddaten_Edge' ,rufddaten_Edge )
-	 call mpas_pool_get_array(tend_physics,'rufddaten' ,rufddaten )
-	 call mpas_pool_get_array(tend_physics,'rvfddaten' ,rvfddaten )
+	 call mpas_pool_get_array(tend_fdda,'rthfddaten',rthfddaten)
+	 call mpas_pool_get_array(tend_fdda,'rqvfddaten',rqvfddaten)
+	 call mpas_pool_get_array(tend_fdda,'rufddaten_Edge' ,rufddaten_Edge )
+	 call mpas_pool_get_array(tend_fdda,'rufddaten' ,rufddaten )
+	 call mpas_pool_get_array(tend_fdda,'rvfddaten' ,rvfddaten )
 	 call mpas_pool_get_array(diag_physics,'kpbl',kpbl)
 	 call mpas_pool_get_array(diag,'uReconstructZonal'     ,u)
 	 call mpas_pool_get_array(diag,'uReconstructMeridional',v)
@@ -270,9 +289,6 @@
 	      tend_ru(k,i)=tend_ru(k,i)+rufddaten_Edge(k,i)*rho_edge(k,i)
 	   enddo
 	 enddo
-         call mpas_log_write('fdda: min/max rufddaten = $r, $r', realArgs=(/minval(rufddaten), maxval(rufddaten)/) )
-         call mpas_log_write('fdda: min/max rvfddaten = $r, $r', realArgs=(/minval(rvfddaten), maxval(rvfddaten)/) )
-         call mpas_log_write('fdda: min/max rufddaten_Edge = $r, $r', realArgs=(/minval(rufddaten_Edge), maxval(rufddaten_Edge)/) )
 
 	! MW: add coupled tendencies for other variables at cell centers 
 	 tend_th = 0.0_RKIND
@@ -282,8 +298,6 @@
 	      tend_scalars(index_qv,k,i) = tend_scalars(index_qv,k,i) + rqvfddaten(k,i)*rho_zz(k,i)
 	   enddo
 	 enddo
-         call mpas_log_write('fdda: min/max rthfddaten = $r, $r', realArgs=(/minval(rthfddaten), maxval(rthfddaten)/) )
-         call mpas_log_write('fdda: min/max rqvfddaten = $r, $r', realArgs=(/minval(rqvfddaten), maxval(rqvfddaten)/) )
 
 
         ! if non-hydrostatic core, convert the tendency for the potential temperature to a 
@@ -307,8 +321,7 @@
 
          deallocate(tend_th)
 
- end subroutine apply_fdda
+      end subroutine apply_fdda
 
-!==================================================================================================
+
  end module mpas_atm_fdda
-!==================================================================================================
