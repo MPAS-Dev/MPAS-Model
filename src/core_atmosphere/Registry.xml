@@ -521,6 +521,7 @@
 			<var name="ol2"/>
 			<var name="ol3"/>
 			<var name="ol4"/>
+			<var name="elvmax"/>
 			<var name="soilcomp"/>
 			<var name="soilcl1"/>
 			<var name="soilcl2"/>
@@ -3782,6 +3783,8 @@
 
                 <var name="ol4" type="real" dimensions="nCells" units="unitless"
                      description="effective orographic length for north-westerly flow"/>
+                <var name="elvmax" type="real" dimensions="nCells" units="m"
+                     description="elevation maximum over a grid cell"/>
 
                 <!-- GSL GWDO fields - meso-scale -->
                 <var name="var2dls" type="real" dimensions="nCells" units="m"

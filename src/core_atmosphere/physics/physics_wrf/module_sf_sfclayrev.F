@@ -19,7 +19,7 @@
                       znt,ust,pblh,mavail,zol,mol,regime,psim,psih, &
                       fm,fh,                                        &
                       xland,hfx,qfx,lh,tsk,flhc,flqc,qgh,qsfc,rmol, &
-                      u10,v10,th2,t2,q2,                            &
+                      var2d,u10,v10,th2,t2,q2,                      &
                       gz1oz0,wspd,br,isfflx,dx,                     &
                       svp1,svp2,svp3,svpt0,ep1,ep2,                 &
                       karman,p1000mb,lakemask,                      &
@@ -48,6 +48,7 @@
 
  real(kind=kind_phys),intent(in),dimension(ims:ime,jms:jme):: &
     dx,         &
+    var2d,      &
     mavail,     &
     pblh,       &
     psfc,       &
@@ -125,7 +126,7 @@
     dz_hv,u_hv,v_hv,qv_hv,p_hv,t_hv
 
  real(kind=kind_phys),dimension(its:ite):: &
-    lh_hv,u10_hv,v10_hv,th2_hv,t2_hv,q2_hv
+    lh_hv,var2d_hv,u10_hv,v10_hv,th2_hv,t2_hv,q2_hv
  real(kind=kind_phys),dimension(its:ite):: &
     ck_hv,cka_hv,cd_hv,cda_hv
 
@@ -157,6 +158,7 @@
        xland_hv(i)       = xland(i,j)
        lakemask_hv(i)    = lakemask(i,j)
        water_depth_hv(i) = water_depth(i,j)
+       var2d_hv(i)       = var2d(i,j)
 
        do k = kts,kte
           dz_hv(i,k) = dz8w(i,k,j)
@@ -209,7 +211,7 @@
                           rmol=rmol_hv,znt=znt_hv,ust=ust_hv,mavail=mavail_hv,                     &
                           zol=zol_hv,mol=mol_hv,regime=regime_hv,psim=psim_hv,                     &
                           psih=psih_hv,fm=fm_hv,fh=fh_hv,xland=xland_hv,lakemask=lakemask_hv,      &
-                          hfx=hfx_hv,qfx=qfx_hv,tsk=tsk_hv,u10=u10_hv,                             &
+                          hfx=hfx_hv,qfx=qfx_hv,tsk=tsk_hv,varf=var2d_hv,u10=u10_hv,               &
                           v10=v10_hv,th2=th2_hv,t2=t2_hv,q2=q2_hv,flhc=flhc_hv,                    &
                           flqc=flqc_hv,qgh=qgh_hv,qsfc=qsfc_hv,lh=lh_hv,                           &
                           gz1oz0=gz1oz0_hv,wspd=wspd_hv,br=br_hv,isfflx=l_isfflx,dx=dx_hv,         &

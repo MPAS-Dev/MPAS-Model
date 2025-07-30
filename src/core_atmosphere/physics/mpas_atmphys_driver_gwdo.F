@@ -112,6 +112,8 @@
     if(.not.allocated(ol2_p)   ) allocate(ol2_p(ims:ime,jms:jme)   )
     if(.not.allocated(ol3_p)   ) allocate(ol3_p(ims:ime,jms:jme)   )
     if(.not.allocated(ol4_p)   ) allocate(ol4_p(ims:ime,jms:jme)   )
+    if(.not.allocated(elvmax_p)) allocate(elvmax_p(ims:ime,jms:jme))
+
 
    case("bl_ugwp_gwdo")
     if(.not.allocated(var2dls_p) ) allocate(var2dls_p(ims:ime,jms:jme) )
@@ -217,6 +219,7 @@
     if(allocated(ol2_p)   ) deallocate(ol2_p   )
     if(allocated(ol3_p)   ) deallocate(ol3_p   )
     if(allocated(ol4_p)   ) deallocate(ol4_p   )
+    if(allocated(elvmax_p)) deallocate(elvmax_p)
 
    case("bl_ugwp_gwdo")
     if(allocated(var2dls_p) ) deallocate(var2dls_p )
@@ -307,7 +310,7 @@
  integer,dimension(:),pointer:: jindx1_tau,jindx2_tau
  real(kind=RKIND),pointer:: len_disp
  real(kind=RKIND),dimension(:),pointer  :: meshDensity
- real(kind=RKIND),dimension(:),pointer  :: oa1,oa2,oa3,oa4,ol1,ol2,ol3,ol4,con,var2d
+ real(kind=RKIND),dimension(:),pointer  :: oa1,oa2,oa3,oa4,ol1,ol2,ol3,ol4,con,var2d,elvmax
  real(kind=RKIND),dimension(:),pointer  :: oa1ls,oa2ls,oa3ls,oa4ls,ol1ls,ol2ls,       &
                                            ol3ls,ol4ls,conls,var2dls
  real(kind=RKIND),dimension(:),pointer  :: oa1ss,oa2ss,oa3ss,oa4ss,ol1ss,ol2ss,       &
@@ -338,6 +341,7 @@
 
    case("bl_ysu_gwdo")
       call mpas_pool_get_array(sfc_input,'var2d',var2d)
+      call mpas_pool_get_array(sfc_input,'elvmax',elvmax)
       call mpas_pool_get_array(sfc_input,'con'  ,con  )
       call mpas_pool_get_array(sfc_input,'oa1'  ,oa1  )
       call mpas_pool_get_array(sfc_input,'oa2'  ,oa2  )
@@ -359,6 +363,7 @@
          ol2_p(i,j)   = ol2(i)
          ol3_p(i,j)   = ol3(i)
          ol4_p(i,j)   = ol4(i)
+         elvmax_p(i,j)= elvmax(i)
       enddo
       enddo
 
@@ -768,8 +773,8 @@
                   var2d     = var2d_p     , oc12d     = con_p        , oa2d1   = oa1_p     , & 
                   oa2d2     = oa2_p       , oa2d3     = oa3_p        , oa2d4   = oa4_p     , &
                   ol2d1     = ol1_p       , ol2d2     = ol2_p        , ol2d3   = ol3_p     , & 
-                  ol2d4     = ol4_p       , sina      = sina_p       , cosa    = cosa_p    , &
-                  errmsg    = errmsg      , errflg    = errflg       ,                       &
+                  ol2d4     = ol4_p       , elvmax    = elvmax_p     , sina    = sina_p    , &
+                  cosa      = cosa_p      , errmsg    = errmsg      , errflg    = errflg   , &
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,    &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,    &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte      &

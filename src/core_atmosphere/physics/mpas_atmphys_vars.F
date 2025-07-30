@@ -469,7 +469,9 @@
     sina_p             !sine of map rotation                                                                   [-]
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
+    ter_p,            &!orographic height                                                                      [m]
     var2d_p,          &!orographic variance                                                                   [m2]
+    elvmax_p,         &!orographic maximum                                                                     [m]
     con_p,            &!orographic convexity                                                                  [m2]
     oa1_p,            &!orographic direction asymmetry function                                                [-]
     oa2_p,            &!orographic direction asymmetry function                                                [-]
