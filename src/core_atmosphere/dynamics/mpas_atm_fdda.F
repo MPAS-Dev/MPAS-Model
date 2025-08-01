@@ -7,6 +7,7 @@
 !   subroutines in mpas_atm_fdda:
 !   ----------------------------------------------
 !   apply_fdda      : main fdda subroutine (called from subroutine physics_driver).
+!   mpas_atm_update_fdda_state : subroutine to read in fdda input stream and save/shift to correct time-level
 !   
 !  
      
@@ -21,6 +22,9 @@
 !     "fdda_new" and updated "fdda_new" data comes from FDDA input stream.
 !     O. Russell Bullock Jr. (bullock.russell@epa.gov) / 2016-08-30.
 !   * Modified to add variable transformation and adding nudging tendencies to tend_ru, tend_rtheta
+!     May Wong (mwong@ucar.edu) / 2025-07-30
+!   * Modified to add subroutine mpas_atm_update_fdda_state to update the fdda target data arrays
+!     from the input stream.
 !     May Wong (mwong@ucar.edu) / 2025-07-30
  
  module mpas_atm_fdda
@@ -37,7 +41,7 @@
      
       implicit none
       private
-      public:: apply_fdda
+      public:: apply_fdda, mpas_atm_update_fdda_state
      
       integer, private:: i,k
      
@@ -92,8 +96,8 @@
 	 real(kind=RKIND),dimension(:),pointer    :: meshDensity
 	 real(kind=RKIND),dimension(:,:),pointer  :: rthfddaten,rqvfddaten
 	 real(kind=RKIND),dimension(:,:),pointer  :: rufddaten,rvfddaten,rufddaten_Edge
-	 real(kind=RKIND),dimension(:,:),pointer  :: qv_fdda_old,th_fdda_old,u_fdda_old,v_fdda_old
-	 real(kind=RKIND),dimension(:,:),pointer  :: qv_fdda_new,th_fdda_new,u_fdda_new,v_fdda_new
+	 real(kind=RKIND),dimension(:,:),pointer  :: qv_fdda_old,theta_fdda_old,u_fdda_old,v_fdda_old
+	 real(kind=RKIND),dimension(:,:),pointer  :: qv_fdda_new,theta_fdda_new,u_fdda_new,v_fdda_new
 	 real(kind=RKIND),dimension(:,:),pointer  :: u,v
 	 real(kind=RKIND),dimension(:,:),pointer  :: qv
 	 real(kind=RKIND),dimension(:,:),pointer  :: theta_m
@@ -147,14 +151,14 @@
 	 call mpas_pool_get_dimension(mesh, 'nEdgesSolve', nEdgesSolve)
 	 call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
 
-	 call mpas_pool_get_array(fdda,'qv_fdda_old',qv_fdda_old)
-	 call mpas_pool_get_array(fdda,'th_fdda_old',th_fdda_old)
-	 call mpas_pool_get_array(fdda,'u_fdda_old', u_fdda_old )
-	 call mpas_pool_get_array(fdda,'v_fdda_old', v_fdda_old )
-	 call mpas_pool_get_array(fdda,'qv_fdda_new',qv_fdda_new)
-	 call mpas_pool_get_array(fdda,'th_fdda_new',th_fdda_new)
-	 call mpas_pool_get_array(fdda,'u_fdda_new', u_fdda_new )
-	 call mpas_pool_get_array(fdda,'v_fdda_new', v_fdda_new )
+	 call mpas_pool_get_array(fdda,'qv_fdda',qv_fdda_old      , 1)
+	 call mpas_pool_get_array(fdda,'theta_fdda',theta_fdda_old, 1)
+	 call mpas_pool_get_array(fdda,'u_fdda', u_fdda_old       , 1)
+	 call mpas_pool_get_array(fdda,'v_fdda', v_fdda_old       , 1)
+	 call mpas_pool_get_array(fdda,'qv_fdda',qv_fdda_new      , 2)
+	 call mpas_pool_get_array(fdda,'theta_fdda',theta_fdda_new, 2)
+	 call mpas_pool_get_array(fdda,'u_fdda', u_fdda_new       , 2)
+	 call mpas_pool_get_array(fdda,'v_fdda', v_fdda_new       , 2)
 	 call mpas_pool_get_array(tend_fdda,'rthfddaten',rthfddaten)
 	 call mpas_pool_get_array(tend_fdda,'rqvfddaten',rqvfddaten)
 	 call mpas_pool_get_array(tend_fdda,'rufddaten_Edge' ,rufddaten_Edge )
@@ -175,14 +179,6 @@
 
 	 allocate(tend_th(nVertLevels,nCellsSolve))
 
-	!check to see if 'old' FDDA target values need to be defined from initial conditions
-	 if(first_call .and. .not. config_do_restart) then
-	    qv_fdda_old = qv
-	    th_fdda_old = theta_m / (1._RKIND + rvord * qv)
-	    u_fdda_old = u
-	    v_fdda_old = v
-	    first_call = .false.
-	 endif
 
 	!calculate time fraction within FDDA target data interval
 	 tfrac = mod(xtime_s,fdda_int)/fdda_int
@@ -213,7 +209,7 @@
 		     theta_p = theta_m(k,i) / (1._RKIND + rvord * qv(k,i))
 	   
 		     if (fdda_t .and. k.gt.fdda_t_min_layer .and. (fdda_t_in_pbl .or. k.gt.kpbl(i))) then
-			t_target = (1.0_RKIND-tfrac)*th_fdda_old(k,i)+tfrac*th_fdda_new(k,i)
+			t_target = (1.0_RKIND-tfrac)*theta_fdda_old(k,i)+tfrac*theta_fdda_new(k,i)
 			rthfddaten(k,i) = fdda_t_coef * ( t_target - theta_p ) * sfac
  
 		     else
@@ -248,8 +244,10 @@
 		   theta_p = theta_m(k,i) / (1._RKIND + rvord * qv(k,i))
 	 
 		   if (fdda_t .and. k.gt.fdda_t_min_layer .and. (fdda_t_in_pbl .or. k.gt.kpbl(i))) then
-		      t_target = (1.0_RKIND-tfrac)*th_fdda_old(k,i)+tfrac*th_fdda_new(k,i)
+		      t_target = (1.0_RKIND-tfrac)*theta_fdda_old(k,i)+tfrac*theta_fdda_new(k,i)
 		      rthfddaten(k,i) = fdda_t_coef * ( t_target - theta_p )
+                      if (i.eq.1 .and. k.eq.1 ) call mpas_log_write('t_target, theta_p, theta_fdda_old, theta_fdda_new = $r, $r, $r, $r', &
+                                                   realArgs=(/t_target, theta_p, theta_fdda_old(k,i), theta_fdda_new(k,i)/) )
 		   else
 		      rthfddaten(k,i) = 0._RKIND
 		   endif
@@ -273,6 +271,10 @@
 	 
 		  ENDDO
 	       ENDDO
+               call mpas_log_write('in apply_fdda: min,max rthfddaten = $r, $r', realArgs=(/minval(rthfddaten), maxval(rthfddaten)/) )
+               call mpas_log_write('in apply_fdda: min,max rqvfddaten = $r, $r', realArgs=(/minval(rqvfddaten), maxval(rqvfddaten)/) )
+               call mpas_log_write('in apply_fdda: min,max rufddaten = $r, $r', realArgs=(/minval(rufddaten), maxval(rufddaten)/) )
+               call mpas_log_write('in apply_fdda: min,max rvfddaten = $r, $r', realArgs=(/minval(rvfddaten), maxval(rvfddaten)/) )
 
 	    case default
 
@@ -310,18 +312,123 @@
            end do
          end do
 
-	!check to see if this is the last time step within the current FDDA target data interval and 
-	!if so, save the current "new" targets as the "old" targets for the next time step
-	 if(mod(xtime_s+config_dt,fdda_int)/fdda_int .lt. tfrac) then
-	    th_fdda_old = th_fdda_new
-	    qv_fdda_old = qv_fdda_new
-	    u_fdda_old = u_fdda_new
-	    v_fdda_old = v_fdda_new
-	 endif
 
          deallocate(tend_th)
 
       end subroutine apply_fdda
+
+
+    !***********************************************************************
+    !
+    !  routine mpas_atm_update_fdda_state
+    !
+    !> \brief   Reads new fdda input data and updates the FDDA tendencies
+    !> \author  Michael Duda, May Wong
+    !> \date    30 July 2025
+    !> \details 
+    !>  This routine reads from the 'fdda' stream all variables in the 'fdda'
+    !>  pool. When called with firstCall=.true., the latest time before the
+    !>  present is read into time level 2 of the fdda pool; otherwise, the
+    !>  contents of time level 2 are shifted to time level 1, the earliest
+    !>  time strictly later than the present is read into time level 2, and
+    !>  the tendencies for all fields in the fdda pool are computed and stored
+    !>  in time level 1.
+    !>
+    !>  This subroutine for FDDA tendencies is based on mpas_atm_update_bdy_tend.
+    !
+    !-----------------------------------------------------------------------
+    subroutine mpas_atm_update_fdda_state(clock, streamManager, block, firstCall, ierr)
+
+        use mpas_constants, only : rvord
+        use mpas_stream_manager, only : mpas_stream_mgr_read
+        use mpas_log, only : mpas_log_write
+        use mpas_derived_types, only : MPAS_STREAM_MGR_NOERR, MPAS_LOG_ERR
+        use mpas_timekeeping, only : mpas_get_time
+
+        implicit none
+
+        type (mpas_clock_type), intent(in) :: clock
+        type (MPAS_streamManager_type), intent(inout) :: streamManager
+        type (block_type), intent(inout) :: block
+        logical, intent(in) :: firstCall
+        integer, intent(out) :: ierr
+
+        character(len=StrKIND) :: lbc_intv_start_string
+        character(len=StrKIND) :: lbc_intv_end_string
+
+        type (mpas_pool_type), pointer :: mesh
+        type (mpas_pool_type), pointer :: state
+        type (mpas_pool_type), pointer :: fdda 
+        real (kind=RKIND) :: dt
+
+        integer, pointer :: nCells
+        integer, pointer :: nEdges
+        integer, pointer :: index_qv
+
+        real (kind=RKIND), dimension(:,:), pointer :: u
+        real (kind=RKIND), dimension(:,:), pointer :: ru
+        real (kind=RKIND), dimension(:,:), pointer :: rho_edge
+        real (kind=RKIND), dimension(:,:), pointer :: w
+        real (kind=RKIND), dimension(:,:), pointer :: theta
+        real (kind=RKIND), dimension(:,:), pointer :: rtheta_m
+        real (kind=RKIND), dimension(:,:), pointer :: rho_zz
+        real (kind=RKIND), dimension(:,:), pointer :: rho
+        real (kind=RKIND), dimension(:,:,:), pointer :: scalars
+
+        real (kind=RKIND), dimension(:,:), pointer :: qv_fdda 
+        real (kind=RKIND), dimension(:,:), pointer :: theta_fdda 
+        real (kind=RKIND), dimension(:,:), pointer :: u_fdda 
+        real (kind=RKIND), dimension(:,:), pointer :: v_fdda 
+
+
+        integer :: dd_intv, s_intv, sn_intv, sd_intv
+        type (MPAS_Time_Type) :: currTime
+        type (MPAS_TimeInterval_Type) :: lbc_interval
+        character(len=StrKIND) :: read_time
+        integer :: iEdge
+        integer :: cell1, cell2
+
+
+        ierr = 0
+
+        call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
+        call mpas_pool_get_subpool(block % structs, 'state', state)
+        call mpas_pool_get_subpool(block % structs, 'fdda', fdda)
+
+        if (firstCall) then
+            call MPAS_stream_mgr_read(streamManager, streamID='fdda', timeLevel=1, whence=MPAS_STREAM_LATEST_BEFORE, &
+                                      actualWhen=read_time, ierr=ierr)
+            if (ierr /= MPAS_STREAM_MGR_NOERR) then
+               call mpas_log_write('Could not read from ''fdda'' stream on or before the current date '// &
+                                   'to update target FDDA fields', messageType=MPAS_LOG_ERR)
+               ierr = 1
+            end if
+
+            call MPAS_stream_mgr_read(streamManager, streamID='fdda', timeLevel=2, whence=MPAS_STREAM_EARLIEST_STRICTLY_AFTER, &
+                                      actualWhen=read_time, ierr=ierr)
+            if (ierr /= MPAS_STREAM_MGR_NOERR) then
+               call mpas_log_write('Could not read from ''fdda'' stream after the current date '// &
+                                   'to update target FDDA fields', messageType=MPAS_LOG_ERR)
+
+               ierr = 1
+            end if
+
+        else
+            call mpas_pool_shift_time_levels(fdda)
+            call MPAS_stream_mgr_read(streamManager, streamID='fdda', timeLevel=2, whence=MPAS_STREAM_EARLIEST_STRICTLY_AFTER, &
+                                      actualWhen=read_time, ierr=ierr)
+            if (ierr /= MPAS_STREAM_MGR_NOERR) then
+               call mpas_log_write('Could not read from ''fdda'' stream after the current date '// &
+                                   'to update target FDDA fields', messageType=MPAS_LOG_ERR)
+
+               ierr = 1
+            end if
+        end if
+        if (ierr /= 0) then
+           return
+        end if
+
+    end subroutine mpas_atm_update_fdda_state 
 
 
  end module mpas_atm_fdda
