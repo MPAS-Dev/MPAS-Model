@@ -2279,7 +2279,7 @@
                 <nml_option name="config_gwdo_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration of gravity wave drag over orography"
-                     possible_values="`suite',`bl_ysu_gwdo',`bl_ugwp_gwdo',`off'"/>
+                     possible_values="`suite',`bl_kim_gwdo',`bl_ugwp_gwdo',`off'"/>
 
                 <nml_option name="config_ngw_scheme" type="logical" default_value="false" in_defaults="false"
                      units="-"
@@ -2451,6 +2451,22 @@
                 <nml_option name="config_oml_relaxation_time" type="real" default_value="864000." in_defaults="false"
                      units="s"
                      description="Relaxation time to initial values in 1-d OML"
+                     possible_values="Non-negative real values"/>
+                <nml_option name="config_gwdo_factor" type="real" default_value="2.0" in_defaults="false"
+                     units="-"
+                     description="Effective grid length ratio in kim_gwdo scheme"
+                     possible_values="Non-negative real values"/>
+                <nml_option name="config_gwdo_nonhyd" type="logical" default_value="true" in_defaults="false"
+                     units="-"
+                     description="Logical index for nonhydrostatic effect in kim_gwdo scheme"
+                     possible_values="true. or .false."/>
+                <nml_option name="config_kim_tofd" type="logical" default_value="true" in_defaults="false"
+                     units="-"
+                     description="Tubulent orographic form drag (tofd) in kim_gwdo scheme"
+                     possible_values="true. or .false."/>
+                <nml_option name="config_tofd_factor" type="real" default_value="0.003" in_defaults="false"
+                     units="-"
+                     description="Factor in kim_tofd scheme"
                      possible_values="Non-negative real values"/>
         </nml_record>
 

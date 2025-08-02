@@ -856,12 +856,14 @@
 
 !local pointers:
  logical,pointer:: config_do_restart,config_frac_seaice
+ logical,pointer:: config_kim_tofd
  character(len=StrKIND),pointer:: sfclayer_scheme
  real(kind=RKIND),dimension(:),pointer:: areaCell
 
 !local variables:
  integer:: initflag
  real(kind=RKIND):: dx
+ real(kind=RKIND), pointer :: tofd_factor
 
 !CCPP-compliant flags:
  character(len=StrKIND):: errmsg
@@ -878,6 +880,8 @@
  call mpas_pool_get_config(configs,'config_do_restart'     ,config_do_restart )
  call mpas_pool_get_config(configs,'config_frac_seaice'    ,config_frac_seaice)
  call mpas_pool_get_config(configs,'config_sfclayer_scheme',sfclayer_scheme   )
+ call mpas_pool_get_config(configs,'config_kim_tofd'       ,config_kim_tofd   )
+ call mpas_pool_get_config(configs,'config_tofd_factor'    ,tofd_factor)
 
  call mpas_pool_get_array(mesh,'areaCell',areaCell)
 
@@ -968,6 +972,7 @@
                lh           = lh_p           , tsk         = tsk_p        , flhc           = flhc_p         , &
                flqc         = flqc_p         , qgh         = qgh_p        , qsfc           = qsfc_p         , &
                rmol         = rmol_p         , var2d       = var2d_p      , u10            = u10_p          , &
+               if_kim_tofd  = config_kim_tofd, tofd_factor = tofd_factor                                    , &
                v10          = v10_p          , &
                th2          = th2m_p         , t2          = t2m_p        , q2             = q2_p           , &
                gz1oz0       = gz1oz0_p       , wspd        = wspd_p       , br             = br_p           , &
@@ -999,6 +1004,7 @@
                   lh           = lh_sea         , tsk         = tsk_sea      , flhc           = flhc_sea       , &
                   flqc         = flqc_sea       , qgh         = qgh_sea      , qsfc           = qsfc_sea       , &
                   rmol         = rmol_sea       , var2d       = var2d_p      , u10            = u10_sea        , &
+                  if_kim_tofd  = config_kim_tofd, tofd_factor = tofd_factor                                    , &
                   v10          = v10_sea        , &
                   th2          = th2m_sea       , t2          = t2m_sea      , q2             = q2_sea         , &
                   gz1oz0       = gz1oz0_sea     , wspd        = wspd_sea     , br             = br_sea         , &

@@ -23,6 +23,7 @@
                       gz1oz0,wspd,br,isfflx,dx,                     &
                       svp1,svp2,svp3,svpt0,ep1,ep2,                 &
                       karman,p1000mb,lakemask,                      &
+                      if_kim_tofd,tofd_factor,                      &
                       ids,ide,jds,jde,kds,kde,                      &
                       ims,ime,jms,jme,kms,kme,                      &
                       its,ite,jts,jte,kts,kte,                      &
@@ -45,6 +46,8 @@
  real(kind=kind_phys),intent(in):: ep1,ep2,karman
  real(kind=kind_phys),intent(in):: p1000mb
  real(kind=kind_phys),intent(in):: cp,g,rovcp,r,xlv
+ real(kind=kind_phys),intent(in):: tofd_factor
+ logical             ,intent(in):: if_kim_tofd
 
  real(kind=kind_phys),intent(in),dimension(ims:ime,jms:jme):: &
     dx,         &
@@ -213,6 +216,7 @@
                           psih=psih_hv,fm=fm_hv,fh=fh_hv,xland=xland_hv,lakemask=lakemask_hv,      &
                           hfx=hfx_hv,qfx=qfx_hv,tsk=tsk_hv,varf=var2d_hv,u10=u10_hv,               &
                           v10=v10_hv,th2=th2_hv,t2=t2_hv,q2=q2_hv,flhc=flhc_hv,                    &
+                          if_kim_tofd=if_kim_tofd,tofd_factor=tofd_factor,                         &
                           flqc=flqc_hv,qgh=qgh_hv,qsfc=qsfc_hv,lh=lh_hv,                           &
                           gz1oz0=gz1oz0_hv,wspd=wspd_hv,br=br_hv,isfflx=l_isfflx,dx=dx_hv,         &
                           svp1=svp1,svp2=svp2,svp3=svp3,svpt0=svpt0,ep1=ep1,ep2=ep2,karman=karman, &
