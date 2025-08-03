@@ -97,6 +97,9 @@ module mpas_init_atm_gwd
    !>  con
    !>  ol{1,2,3,4}
    !>  oa{1,2,3,4}
+   !>  
+   !>  Added elvmax for blocking, revised oa and ol computations 
+   !>  date : 24 August 2025, Songyou Hong (hong@ucar.edu) 
    !
    !-----------------------------------------------------------------------
    function compute_gwd_fields(domain) result(iErr)
