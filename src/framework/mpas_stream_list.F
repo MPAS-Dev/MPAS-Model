@@ -118,15 +118,17 @@ module mpas_stream_list
             list % head => stream
         else
             node => list % head
-            do while (associated(node % next))
+            do while (associated(node))
                 if (node % name == stream % name) then
                     if (present(ierr)) ierr = MPAS_STREAM_LIST_DUPLICATE
-                    LIST_ERROR_WRITE('Found duplicate item '//trim(stream % name)//' in list.')
                     return
+                end if
+                if (.not. associated(node % next)) then
+                    node % next => stream
+                    exit
                 end if
                 node => node % next
             end do
-            node % next => stream
         end if
 
         list % nItems = list % nItems + 1
