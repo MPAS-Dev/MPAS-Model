@@ -91,6 +91,7 @@ module test_core
       use mpas_vector_operations
       use mpas_geometry_utils
       use test_core_streams, only : test_core_streams_test
+      use mpas_test_core_stream_list, only : mpas_test_stream_list
       use test_core_sorting, only : test_core_test_sorting
       use mpas_halo_testing, only : mpas_halo_tests
       use test_core_string_utils, only : mpas_test_string_utils
@@ -171,6 +172,16 @@ module test_core
       else
          call mpas_log_write('Stream tests: FAILURE', MPAS_LOG_ERR)
       end if
+      call mpas_log_write('')
+
+      ! Run stream list tests
+      call mpas_test_stream_list(iErr)
+      if (iErr == 0) then
+          call mpas_log_write('Stream list tests: SUCCESS')
+      else
+          call mpas_log_write('Stream list tests: FAILURE', MPAS_LOG_ERR)
+      end if
+      call mpas_log_write('')
 
       ! Run string util tests
       call mpas_log_write('')
