@@ -273,7 +273,7 @@ contains
    subroutine mpas_test_remove_not_found(err)
       integer, intent(out) :: err
       type(MPAS_stream_list_type), pointer :: list, removed
-      type(MPAS_stream_list_type), pointer :: s1, s2, s3
+      type(MPAS_stream_list_type), pointer :: s1, s2
       integer :: ierr
 
       err = 0
