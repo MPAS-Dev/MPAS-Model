@@ -1,9 +1,8 @@
-! Copyright (c) 2023, University Corporation for Atmospheric Research (UCAR)
+! Copyright (c) 2025 The University Corporation for Atmospheric Research (UCAR).
 !
 ! Unless noted otherwise source code is licensed under the BSD license.
-! Additional copyright and license information can be found in the
-! LICENSE file distributed with this code, or at
-! http://mpas-dev.github.com/license.html .
+! Additional copyright and license information can be found in the LICENSE file
+! distributed with this code, or at https://mpas-dev.github.io/license.html .
 !
 module mpas_test_core_stream_list
 
@@ -42,7 +41,7 @@ contains
          err = err + 1
       end if
 
-      if (list%nItems /= 0) then
+      if (list%nItems /= MPAS_STREAM_LIST_NOERR) then
          err = err + 1
       end if
 
@@ -76,11 +75,10 @@ contains
       call MPAS_stream_list_create(list)
       allocate(stream)
       stream%name = 'stream1'
-      nullify(stream%next)
 
       call MPAS_stream_list_insert(list, stream, ierr)
 
-      if (ierr /= 0) then
+      if (ierr /= MPAS_STREAM_LIST_NOERR) then
          err = err + 1
       end if
 
@@ -121,7 +119,6 @@ contains
       call MPAS_stream_list_create(list)
       allocate(stream)
       stream%name = 'stream1'
-      nullify(stream%next)
       call MPAS_stream_list_insert(list, stream)
       found => null()
 
@@ -161,7 +158,6 @@ contains
       call MPAS_stream_list_create(list)
       allocate(stream)
       stream%name = 'stream1'
-      nullify(stream%next)
       call MPAS_stream_list_insert(list, stream)
 
       call MPAS_stream_list_remove(list, 'stream1', removed)
@@ -179,6 +175,7 @@ contains
       end if
 
       call MPAS_stream_list_destroy(list)
+      deallocate(removed)
    end subroutine mpas_test_remove_head
 
    !**************************************************************************************
@@ -202,17 +199,20 @@ contains
       err = 0
       call MPAS_stream_list_create(list)
 
-      allocate(s1);       s1%name = 'stream1';      nullify(s1%next)
-      allocate(s2);       s2%name = 'stream2';      nullify(s2%next)
-      allocate(s1_dup);   s1_dup%name = 'stream1';  nullify(s1_dup%next)
+      allocate(s1)
+      s1%name = 'stream1'
+      allocate(s2)
+      s2%name = 'stream2'
+      allocate(s1_dup)
+      s1_dup%name = 'stream1'
 
       call MPAS_stream_list_insert(list, s1, ierr)
-      if (ierr /= 0) then
+      if (ierr /= MPAS_STREAM_LIST_NOERR) then
          err = err + 1
       end if
 
       call MPAS_stream_list_insert(list, s2, ierr)
-      if (ierr /= 0) then
+      if (ierr /= MPAS_STREAM_LIST_NOERR) then
          err = err + 1
       end if
 
@@ -222,28 +222,33 @@ contains
       end if
 
       call MPAS_stream_list_destroy(list)
+      deallocate(s1_dup)
    end subroutine mpas_test_insert_duplicate_at_begin_and_end
 
    !**************************************************************************************
    !  Subroutine mpas_test_remove_not_found
    !
-   !> \brief   Test attempting to remove a stream not found in the list, expect error.
+   !> \brief   Test attempting to remove a stream from an empty list, expect error.
    !>
    !> \details This subroutine tests the behavior of attempting to remove a stream
-   !>          that does not exist in the list. It ensures that the correct error
+   !>          from an empty list. It ensures that the correct error
    !>          is returned when the stream is not found.
    !>
    !> \param err  The error code that indicates the result of the test.
    !
    !--------------------------------------------------------------------------------------
-   subroutine mpas_test_remove_not_found(err)
+   subroutine mpas_test_remove_from_empty_list(err)
       integer, intent(out) :: err
-      type(MPAS_stream_list_type), pointer :: list, removed
+      type(MPAS_stream_list_type), pointer :: list, s1, removed
       integer :: ierr
 
       err = 0
+      allocate(s1)
+      s1%name = 'stream1'
+
       call MPAS_stream_list_create(list)
-      call MPAS_stream_list_remove(list, 'notfound', removed, ierr)
+
+      call MPAS_stream_list_remove(list, 'stream1', removed, ierr)
       if (ierr /= MPAS_STREAM_LIST_NOT_FOUND) then
          err = err + 1
       end if
@@ -251,6 +256,57 @@ contains
          err = err + 1
       end if
       call MPAS_stream_list_destroy(list)
+      deallocate(s1)
+   end subroutine mpas_test_remove_from_empty_list
+
+   !**************************************************************************************
+   !  Subroutine mpas_test_remove_not_found
+   !
+   !> \brief   Attempt to remove a stream not in a non-empty list; expect NOT_FOUND.
+   !>
+   !> \details This subroutine populates the list with a couple of streams, then
+   !>          attempts to remove a stream name that does not exist. It verifies that
+   !>          MPAS_STREAM_LIST_NOT_FOUND is returned and that no node is returned.
+   !>
+   !> \param err  The error code that indicates the result of the test.
+   !--------------------------------------------------------------------------------------
+   subroutine mpas_test_remove_not_found(err)
+      integer, intent(out) :: err
+      type(MPAS_stream_list_type), pointer :: list, removed
+      type(MPAS_stream_list_type), pointer :: s1, s2, s3
+      integer :: ierr
+
+      err = 0
+
+      allocate(s1)
+      s1%name = 'stream1'
+      allocate(s2)
+      s2%name = 'stream2'
+      allocate(s3)
+      s3%name = 'stream3'
+
+      call MPAS_stream_list_create(list)
+
+      call MPAS_stream_list_insert(list, s1, ierr)
+      if (ierr /= MPAS_STREAM_LIST_NOERR) then
+         err = err + 1
+      end if
+
+      call MPAS_stream_list_insert(list, s2, ierr)
+      if (ierr /= MPAS_STREAM_LIST_NOERR) then
+         err = err + 1
+      end if
+
+      call MPAS_stream_list_remove(list, 'stream3', removed, ierr)
+      if (ierr /= MPAS_STREAM_LIST_NOT_FOUND) then
+         err = err + 1
+      end if
+      if (associated(removed)) then
+         err = err + 1
+      end if
+
+      call MPAS_stream_list_destroy(list)
+      deallocate(s3)
    end subroutine mpas_test_remove_not_found
 
    !**************************************************************************************
@@ -273,9 +329,12 @@ contains
       err = 0
       call MPAS_stream_list_create(list)
 
-      allocate(s1); s1%name = 'stream1'; nullify(s1%next)
-      allocate(s2); s2%name = 'stream2'; nullify(s2%next)
-      allocate(s3); s3%name = 'stream3'; nullify(s3%next)
+      allocate(s1)
+      s1%name = 'stream1'
+      allocate(s2)
+      s2%name = 'stream2'
+      allocate(s3)
+      s3%name = 'stream3'
 
       call MPAS_stream_list_insert(list, s1)
       call MPAS_stream_list_insert(list, s2)
@@ -308,7 +367,8 @@ contains
 
       err = 0
       call MPAS_stream_list_create(list)
-      allocate(stream); stream%name = 'stream1'; nullify(stream%next)
+      allocate(stream)
+      stream%name = 'stream1'
       call MPAS_stream_list_insert(list, stream)
 
       matched = MPAS_stream_list_query(list, 'stream', found, ierr)
@@ -343,14 +403,12 @@ contains
 
       allocate(s1)
       s1%name = 'stream1'
-      nullify(s1%next)
 
       allocate(s1_dup)
       s1_dup%name = 'stream1'
-      nullify(s1_dup%next)
 
       call MPAS_stream_list_insert(list, s1, ierr)
-      if (ierr /= 0) then
+      if (ierr /= MPAS_STREAM_LIST_NOERR) then
          err = err + 1
       end if
 
@@ -360,6 +418,7 @@ contains
       end if
 
       call MPAS_stream_list_destroy(list)
+      deallocate(s1_dup)
    end subroutine mpas_test_insert_duplicate_at_begin
 
    !**************************************************************************************
@@ -385,23 +444,20 @@ contains
 
       allocate(s1)
       s1%name = 'stream1'
-      nullify(s1%next)
 
       allocate(s2)
       s2%name = 'stream2'
-      nullify(s2%next)
 
       allocate(s2_dup)
       s2_dup%name = 'stream2'
-      nullify(s2_dup%next)
 
       call MPAS_stream_list_insert(list, s1, ierr)
-      if (ierr /= 0) then
+      if (ierr /= MPAS_STREAM_LIST_NOERR) then
          err = err + 1
       end if
 
       call MPAS_stream_list_insert(list, s2, ierr)
-      if (ierr /= 0) then
+      if (ierr /= MPAS_STREAM_LIST_NOERR) then
          err = err + 1
       end if
 
@@ -411,6 +467,7 @@ contains
       end if
 
       call MPAS_stream_list_destroy(list)
+      deallocate(s2_dup)
    end subroutine mpas_test_insert_duplicate_at_end
 
 
@@ -479,6 +536,15 @@ contains
       else
          err = err + test_err
          call mpas_log_write('   mpas_test_insert_duplicate_at_begin_and_end: FAILURE')
+      end if
+
+      ! Test attempting to remove a non-existent stream from an empty list, expect error.
+      call mpas_test_remove_from_empty_list(test_err)
+      if (test_err == 0) then
+         call mpas_log_write('   mpas_test_remove_from_empty_list: SUCCESS')
+      else
+         err = err + test_err
+         call mpas_log_write('   mpas_test_remove_from_empty_list: FAILURE')
       end if
 
       ! Test attempting to remove a stream not found in the list, expect error.
