@@ -41,7 +41,7 @@ contains
          err = err + 1
       end if
 
-      if (list%nItems /= MPAS_STREAM_LIST_NOERR) then
+      if (list%nItems /= 0) then
          err = err + 1
       end if
 
