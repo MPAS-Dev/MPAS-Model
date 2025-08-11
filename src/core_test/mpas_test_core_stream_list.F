@@ -226,7 +226,7 @@ contains
    end subroutine mpas_test_insert_duplicate_at_begin_and_end
 
    !**************************************************************************************
-   !  Subroutine mpas_test_remove_not_found
+   !  Subroutine mpas_test_remove_from_empty_list
    !
    !> \brief   Test attempting to remove a stream from an empty list, expect error.
    !>
@@ -282,8 +282,6 @@ contains
       s1%name = 'stream1'
       allocate(s2)
       s2%name = 'stream2'
-      allocate(s3)
-      s3%name = 'stream3'
 
       call MPAS_stream_list_create(list)
 
@@ -306,7 +304,6 @@ contains
       end if
 
       call MPAS_stream_list_destroy(list)
-      deallocate(s3)
    end subroutine mpas_test_remove_not_found
 
    !**************************************************************************************
@@ -337,13 +334,18 @@ contains
       s3%name = 'stream3'
 
       call MPAS_stream_list_insert(list, s1)
-      call MPAS_stream_list_insert(list, s2)
-      call MPAS_stream_list_insert(list, s3)
-
-      len = MPAS_stream_list_length(list)
-      if (len /= 3) then
+      if (MPAS_stream_list_length(list) /= 1) then
          err = err + 1
       end if
+      call MPAS_stream_list_insert(list, s2)
+      if (MPAS_stream_list_length(list) /= 2) then
+         err = err + 1
+      end if
+      call MPAS_stream_list_insert(list, s3)
+      if (MPAS_stream_list_length(list) /= 3) then
+         err = err + 1
+      end if
+
       call MPAS_stream_list_destroy(list)
    end subroutine mpas_test_list_length
 
