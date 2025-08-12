@@ -2194,6 +2194,15 @@
                         <var name="lbc_volh" name_in_code="volh" array_group="volume" packages="mp_nssl2m_in" units="m^{3} s^{-1}"
                              description="Lateral boundary tendency of hail particle volume"/>
 
+                        <var name="lbc_zgw" name_in_code="zgw" array_group="reflectivity" packages="nssl3m_in" units="m^6 m^{-3} s^{-1}"
+                             description="Lateral boundary tendency of graupel reflectivity"/>
+
+                        <var name="lbc_zhw" name_in_code="zhw" array_group="reflectivity" packages="nssl3m_in" units="m^6 m^{-3} s^{-1}"
+                             description="Lateral boundary tendency of hail reflectivity"/>
+
+                        <var name="lbc_zrw" name_in_code="zrw" array_group="reflectivity" packages="nssl3m_in" units="m^6 m^{-3} s^{-1}"
+                             description="Lateral boundary tendency of rain reflectivity"/>
+
                         <var name="lbc_nifa" name_in_code="nifa" array_group="number" packages="mp_thompson_aers_in"
                              units="m^{-3} s^{-1}"
                              description="Lateral boundary tendency of ice-friendly aerosol number concentration"/>
