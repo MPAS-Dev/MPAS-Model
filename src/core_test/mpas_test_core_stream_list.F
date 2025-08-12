@@ -227,20 +227,21 @@ contains
       deallocate(removed2)
       deallocate(removed3)
    end subroutine mpas_test_remove_existing_streams
-
    !**************************************************************************************
-   !  Subroutine mpas_test_insert_duplicate_at_begin_and_end
+   !  Subroutine mpas_test_insert_non_adjacent_duplicate
    !
-   !> \brief   Test inserting a duplicate stream at both the beginning and the end of the list.
+   !> \brief   Test inserting a non-adjacent duplicate of the first item added to the list.
    !>
-   !> \details This subroutine tests the insertion of a duplicate stream at both the
-   !>          beginning and end of an MPAS stream list. It ensures that the correct
-   !>          error is returned when attempting to insert a duplicate stream.
+   !> \details This subroutine verifies that inserting a duplicate of the first stream
+   !>          added to an MPAS stream list results in the correct duplicate error
+   !>          code when the duplicate is not inserted immediately after the original.
+   !>          It does so by inserting two unique streams into the list, then attempting
+   !>          to insert the first stream again. This confirms that duplicate detection
+   !>          works for non-adjacent duplicates in insertion order.
    !>
    !> \param err  The error code that indicates the result of the test.
-   !
-   !--------------------------------------------------------------------------------------
-   subroutine mpas_test_insert_duplicate_at_begin_and_end(err)
+   !**************************************************************************************
+   subroutine mpas_test_insert_non_adjacent_duplicate(err)
       integer, intent(out) :: err
       type(MPAS_stream_list_type), pointer :: list
       type(MPAS_stream_list_type), pointer :: s1, s2
@@ -270,7 +271,7 @@ contains
       end if
 
       call MPAS_stream_list_destroy(list)
-   end subroutine mpas_test_insert_duplicate_at_begin_and_end
+   end subroutine mpas_test_insert_non_adjacent_duplicate
 
    !**************************************************************************************
    !  Subroutine mpas_test_remove_from_empty_list
@@ -301,7 +302,6 @@ contains
          err = err + 1
       end if
       call MPAS_stream_list_destroy(list)
-      deallocate(s1)
    end subroutine mpas_test_remove_from_empty_list
 
    !**************************************************************************************
@@ -568,13 +568,13 @@ contains
          call mpas_log_write('   mpas_test_remove_existing_streams: FAILURE')
       end if
 
-      ! Test inserting a duplicate stream at both the beginning and the end of the list.
-      call mpas_test_insert_duplicate_at_begin_and_end(test_err)
+      ! Test inserting a non-adjacent duplicate of the first stream added.
+      call mpas_test_insert_non_adjacent_duplicate(test_err)
       if (test_err == 0) then
-         call mpas_log_write('   mpas_test_insert_duplicate_at_begin_and_end: SUCCESS')
+         call mpas_log_write('   mpas_test_insert_non_adjacent_duplicate: SUCCESS')
       else
          err = err + test_err
-         call mpas_log_write('   mpas_test_insert_duplicate_at_begin_and_end: FAILURE')
+         call mpas_log_write('   mpas_test_insert_non_adjacent_duplicate: FAILURE')
       end if
 
       ! Test attempting to remove a non-existent stream from an empty list, expect error.
