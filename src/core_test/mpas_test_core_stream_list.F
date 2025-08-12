@@ -150,7 +150,7 @@ contains
    !>
    !> \param err  The error code that indicates the result of the test.
    !>
-   !**************************************************************************************
+   !--------------------------------------------------------------------------------------
    subroutine mpas_test_remove_existing_streams(err)
       integer, intent(out) :: err
       type(MPAS_stream_list_type), pointer :: list, s1, s2, s3, &
@@ -286,12 +286,10 @@ contains
    !--------------------------------------------------------------------------------------
    subroutine mpas_test_remove_from_empty_list(err)
       integer, intent(out) :: err
-      type(MPAS_stream_list_type), pointer :: list, s1, removed
+      type(MPAS_stream_list_type), pointer :: list, removed
       integer :: ierr
 
       err = 0
-      allocate(s1)
-      s1%name = 'stream1'
 
       call MPAS_stream_list_create(list)
 
