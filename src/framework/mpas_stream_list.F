@@ -121,6 +121,7 @@ module mpas_stream_list
             do while (associated(node))
                 if (node % name == stream % name) then
                     if (present(ierr)) ierr = MPAS_STREAM_LIST_DUPLICATE
+                    LIST_ERROR_WRITE('Found duplicate item '//trim(stream % name)//' in list.')
                     return
                 end if
                 if (.not. associated(node % next)) then
