@@ -314,6 +314,7 @@ contains
    !>          MPAS_STREAM_LIST_NOT_FOUND is returned and that no node is returned.
    !>
    !> \param err  The error code that indicates the result of the test.
+   !>
    !--------------------------------------------------------------------------------------
    subroutine mpas_test_remove_not_found(err)
       integer, intent(out) :: err
