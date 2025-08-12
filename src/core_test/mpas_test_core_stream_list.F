@@ -366,7 +366,6 @@ contains
    subroutine mpas_test_list_length(err)
       integer, intent(out) :: err
       type(MPAS_stream_list_type), pointer :: list, s1, s2, s3
-      integer :: len
 
       err = 0
       call MPAS_stream_list_create(list)
