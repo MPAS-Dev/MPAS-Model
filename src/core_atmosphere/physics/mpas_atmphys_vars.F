@@ -300,6 +300,9 @@
     resnow_p,         &!
     refl10cm_p         !
 
+ real(kind=RKIND),dimension(:,:),allocatable:: &
+    refl10cm_1km_p
+
 !... for Thompson cloud microphysics parameterization, including aerosol-aware option:
  real(kind=RKIND),dimension(:,:),allocatable:: &
     ntc_p,            &!

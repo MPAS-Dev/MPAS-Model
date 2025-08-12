@@ -190,6 +190,7 @@
           if(.not.allocated(volh_p)) allocate(volh_p(ims:ime,kms:kme,jms:jme))
 
           if(.not.allocated(refl10cm_p)) allocate(refl10cm_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(refl10cm_1km_p)  ) allocate(refl10cm_1km_p(ims:ime,jms:jme) )
 
             if(.not.allocated(zrw_p) ) allocate(zrw_p(ims:ime,kms:kme,jms:jme))
             if(.not.allocated(zgw_p) ) allocate(zgw_p(ims:ime,kms:kme,jms:jme))
@@ -298,6 +299,7 @@
           if(allocated(volh_p) ) deallocate(volh_p )
 
           if(allocated(refl10cm_p)) deallocate(refl10cm_p)
+          if(allocated(refl10cm_1km_p)) deallocate(refl10cm_1km_p)
 
             if(allocated(zrw_p) ) deallocate(zrw_p)
             if(allocated(zgw_p) ) deallocate(zgw_p)
@@ -378,6 +380,7 @@
      case("mp_nssl2m")
        i = 1 ! always treat CCN as CCNA (for now)
        call mp_nssl_init( errflg=errflg, errmsg=errmsg, threads=1, restart=.false., &
+                              fn_nml='namelist.atmosphere',                         & ! at some point need to get name if -n option is used
                               mpirank = dminfo%my_proc_id, mpiroot = IO_NODE,    &
                               con_g=gravity, con_rd=R_d, con_cp=cp, con_rv=R_v,  &
                               con_t0c=t00, con_cliq=cliq, con_csol=cice, con_eps=ep_2,   &
@@ -422,9 +425,11 @@
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
  logical,pointer:: config_nssl_ccn_on
+ integer,dimension(:,:),allocatable:: kdbz1km
 
 !local variables and arrays:
- integer:: istep
+ integer:: istep, i,j,k
+ logical :: do_diag_dbz_flag
 
 !CCPP-compliant flags:
  character(len=StrKIND):: errmsg
@@ -440,6 +445,8 @@
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
  call mpas_pool_get_config(configs,'config_nssl_ccn_on',config_nssl_ccn_on)
+
+ do_diag_dbz_flag = .true.
 
 !... allocation of microphysics arrays:
 !$OMP MASTER
@@ -555,6 +562,22 @@
 
     case ("mp_nssl2m")
        call mpas_timer_start('NSSL2M')
+          IF ( do_diag_dbz_flag ) THEN
+            allocate( kdbz1km(ims:ime,jms:jme) )
+            kdbz1km(:,:) = 1
+
+          do j = jts,jte ! Assuming here that jts == jte (2D arrays)
+          do i = its,ite
+          do k = 2,kte
+            ! find closest kz to 1km
+             if ( z_p(i,k,j) - z_p(i,1,j) .gt. 1000.) THEN
+                kdbz1km(i,j) = k - 1
+                exit
+             endif
+          enddo
+          enddo
+          enddo
+          ENDIF
           call nssl_2mom_driver( &
                   th        = th_p        , qv         = qv_p         , qc         = qc_p         , &
                   qr        = qr_p        , qi         = qi_p         , qs         = qs_p         , &
@@ -573,11 +596,17 @@
                   has_reqc  = has_reqc    , has_reqi   = has_reqi     , has_reqs   = has_reqs     , &
                   diagflag  = l_diags     , dbz        = refl10cm_p   , &
                   ntmul      = n_microp   , ntcnt      = 1            , lastloop   = .true.       , &
+                  refl_diagnostic = refl10cm_1km_p, diag_dbz = do_diag_dbz_flag, kdbz1km=kdbz1km  , &
                   f_cn       =  config_nssl_ccn_on, &
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde           , &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme           , &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte           , &
                   errmsg    = errmsg      , errflg     = errflg    )
+
+          IF ( do_diag_dbz_flag ) THEN
+            deallocate( kdbz1km )
+            ! find closest kz to 1km
+          ENDIF
 
        call mpas_timer_stop('NSSL2M')
 
@@ -634,6 +663,7 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
+ logical,pointer:: config_nssl_hail_on
  integer,pointer:: nCellsSolve
  real,dimension(:),pointer:: graupelncv,rainncv,snowncv,sr,hailncv
 
@@ -643,6 +673,7 @@
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
+ call mpas_pool_get_config(configs,'config_nssl_hail_on',config_nssl_hail_on)
 
  call mpas_pool_get_array(diag_physics,'graupelncv',graupelncv)
  call mpas_pool_get_array(diag_physics,'rainncv'   ,rainncv   )
@@ -714,6 +745,7 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
+ logical,pointer:: config_nssl_hail_on
  integer,dimension(:),pointer:: i_rainnc
 
  real(kind=RKIND),pointer:: config_bucket_rainnc
@@ -728,6 +760,7 @@
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme       )
+ call mpas_pool_get_config(configs,'config_nssl_hail_on',config_nssl_hail_on)
  call mpas_pool_get_config(configs,'config_bucket_rainnc',config_bucket_rainnc)
 
  call mpas_pool_get_array(diag_physics,'i_rainnc'  ,i_rainnc  )
@@ -740,7 +773,7 @@
  call mpas_pool_get_array(diag_physics,'snowncv'   ,snowncv   )
  call mpas_pool_get_array(diag_physics,'sr'        ,sr        )
 
- IF ( microp_scheme == "mp_nssl2m" ) THEN
+ IF ( microp_scheme == "mp_nssl2m" .and. config_nssl_hail_on ) THEN
  call mpas_pool_get_array(diag_physics,'hailnc' ,hailnc )
  call mpas_pool_get_array(diag_physics,'hailncv',hailncv)
  ENDIF
@@ -790,7 +823,7 @@
        enddo
        enddo
 
-       IF ( microp_scheme == "mp_nssl2m" ) THEN
+       IF ( microp_scheme == "mp_nssl2m" .and. config_nssl_hail_on ) THEN
        do j = jts,jte
        do i = its,ite
           !time-step precipitation:
@@ -850,11 +883,11 @@
        do j = jts,jte ! Assuming here that jts == jte (2D arrays)
        do i = its,ite
 
-          do k = kts,kte
-             dBZ1d(k) = -10._RKIND
-             zp(k) = z_p(i,k,j) - z_p(i,1,j)+0.5*dz_p(i,1,j) ! height AGL
-          enddo
-
+!           do k = kts,kte
+!              dBZ1d(k) = -10._RKIND
+!              zp(k) = z_p(i,k,j) - z_p(i,1,j)+0.5*dz_p(i,k,j) ! height AGL at mid-layer
+!           enddo
+! 
           kp = 1
           do k = kts,kte
              dBZ1d(k) = max(-10._RKIND,refl10cm_p(i,k,j))
@@ -862,9 +895,9 @@
           enddo
 
           refl10cm_max(i) = maxval(dBZ1d(:))
-          w1 = (zp(kp+1)-1000.)/(zp(kp+1)-zp(kp))
-          w2 = 1.0 - w1
-          refl10cm_1km(i) = w1*dBZ1d(kp) + w2*dBZ1d(kp+1)
+       !   w1 = (zp(kp+1)-1000.)/(zp(kp+1)-zp(kp))
+       !   w2 = 1.0 - w1
+          refl10cm_1km(i) = refl10cm_1km_p(i,1) ! w1*dBZ1d(kp) + w2*dBZ1d(kp+1)
           refl10cm_1km_max(i) = max(refl10cm_1km_max(i),refl10cm_1km(i))
           
         enddo

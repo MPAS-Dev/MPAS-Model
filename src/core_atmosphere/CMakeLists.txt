@@ -158,6 +158,28 @@ set(ATMOSPHERE_CORE_PHYSICS_NOAA_SOURCES
 
 list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_NOAA_SOURCES PREPEND physics/physics_noaa/UGWP/)
 
+set(ATMOSPHERE_CORE_PHYSICS_NSSL-MP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/physics/physics_noaa/NSSL-MP)
+
+if(NOT EXISTS ${ATMOSPHERE_CORE_PHYSICS_NSSL-MP_DIR})
+    set(PHYSICS_NSSL-MP_REPO_URL "https://github.com/NOAA-National-Severe-Storms-Laboratory/NSSL-MP.git")
+    execute_process(COMMAND git clone ${PHYSICS_NSSL-MP_REPO_URL} ${ATMOSPHERE_CORE_PHYSICS_NSSL-MP_DIR}
+                    RESULT_VARIABLE GIT_CLONE_RESULT
+                    OUTPUT_VARIABLE GIT_CLONE_OUTPUT
+                    ERROR_VARIABLE GIT_CLONE_ERROR)
+    if(NOT GIT_CLONE_RESULT EQUAL 0)
+        message(FATAL_ERROR "Git clone failed with error: ${GIT_CLONE_ERROR}")
+    endif()
+
+else()
+    message(STATUS "Directory ${DIR_TO_CHECK} already exists, skipping clone")
+endif()
+
+set(ATMOSPHERE_CORE_PHYSICS_NSSL-MP_SOURCES
+    module_mp_nssl_2mom.F90
+    MPAS/mp_nssl.F90
+)
+list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_NSSL-MP_SOURCES PREPEND physics/physics_noaa/NSSL-MP/)
+
 set(ATMOSPHERE_CORE_PHYSICS_NOAMP_UTILITY_SOURCES
     CheckNanMod.F90
     Machine.F90
@@ -374,6 +396,7 @@ add_library(core_atmosphere ${ATMOSPHERE_CORE_SOURCES}
             ${ATMOSPHERE_CORE_PHYSICS_MMM_SOURCES}
             ${ATMOSPHERE_CORE_PHYSICS_WRF_SOURCES}
             ${ATMOSPHERE_CORE_PHYSICS_NOAA_SOURCES}
+            ${ATMOSPHERE_CORE_PHYSICS_NSSL-MP_SOURCES}
             ${ATMOSPHERE_CORE_DIAGNOSTIC_SOURCES}
             ${ATMOSPHERE_CORE_DYNAMICS_SOURCES})
 
