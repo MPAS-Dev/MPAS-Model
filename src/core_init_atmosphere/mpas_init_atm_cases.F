@@ -6267,6 +6267,7 @@ call mpas_log_write('Done with soil consistency check')
       use mpas_dmpar, only : mpas_dmpar_exch_halo_field, mpas_dmpar_min_real, mpas_dmpar_max_real
       use mpas_stream_manager, only : MPAS_stream_mgr_stream_exists, MPAS_stream_mgr_read
       use mpas_derived_types, only : MPAS_STREAM_MGR_NOERR
+      use mpas_vector_operations, only : mpas_initialize_vectors
 
       implicit none
 
@@ -6436,6 +6437,13 @@ call mpas_log_write('Done with soil consistency check')
       !
       call atm_initialize_advection_rk(mesh, nCells, nEdges, maxEdges, on_a_sphere, sphere_radius)
       call atm_initialize_deformation_weights(mesh, nCells, on_a_sphere, sphere_radius)
+
+
+      !
+      ! Compute edgeNormalVectors, cellTangentPlane, and localVerticalUnitVectors
+      ! (NB: these are the same fields computed by the mpas_rbf_interp_initialize routine)
+      !
+      call mpas_initialize_vectors(mesh)
 
 
       !

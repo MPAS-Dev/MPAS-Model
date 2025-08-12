@@ -164,11 +164,12 @@ module test_core
       end if
       !$omp end parallel
 
+      ! Run stream tests
       call test_core_streams_test(domain, threadErrs, iErr)
       if ( iErr == 0 ) then
-         call mpas_log_write('Stream I/O tests: SUCCESS')
+         call mpas_log_write('Stream tests: SUCCESS')
       else
-         call mpas_log_write('Stream I/O tests: FAILURE', MPAS_LOG_ERR)
+         call mpas_log_write('Stream tests: FAILURE', MPAS_LOG_ERR)
       end if
 
       ! Run string util tests

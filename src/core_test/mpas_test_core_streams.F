@@ -19,7 +19,7 @@ module test_core_streams
 
    !***********************************************************************
    !
-   !  routine test_core_streams_test
+   !  routine test_read_write_real_streams
    !
    !> \brief   tests reading/writing single- and double-precision streams
    !> \author  Michael Duda
@@ -35,7 +35,7 @@ module test_core_streams
    !>  that are created by this routine.
    !
    !-----------------------------------------------------------------------
-   subroutine test_core_streams_test(domain, threadErrs, ierr)
+   subroutine test_read_write_real_streams(domain, threadErrs, ierr)
 
       use mpas_stream_manager
 
@@ -389,6 +389,171 @@ module test_core_streams
          ierr = 1
          call mpas_log_write('Error destroying ''R8_stream''.', MPAS_LOG_ERR)
          return
+      end if
+
+   end subroutine test_read_write_real_streams
+
+   !***********************************************************************
+   !  Subroutine test_remove_alarm
+   !
+   !> \brief   Tests the functionality of adding and removing alarms from
+   !>          input and output streams in the stream manager.
+   !>
+   !> \details This subroutine creates a stream, adds an alarm to both
+   !>          the stream and the clock, and verifies the correct handling
+   !>          of alarms in different scenarios. It ensures that alarms
+   !>          cannot be removed from the opposite list and can be removed
+   !>          from the correct list. The stream type (input or output)
+   !>          is passed as an argument to test both scenarios.
+   !>
+   !> \param domain      The domain object that contains the stream manager
+   !>                    and clock.
+   !> \param streamType  The type of the stream being tested (input or output).
+   !> \param ierr        The error code that indicates the result of the test.
+   !
+   !-----------------------------------------------------------------------
+   subroutine test_remove_alarm(domain, streamType, ierr)
+      use mpas_stream_manager
+      use mpas_timekeeping
+
+      implicit none
+
+      ! Arguments
+      type (domain_type), intent(inout) :: domain
+      integer, intent(in) :: streamType  ! MPAS_STREAM_INPUT or MPAS_STREAM_OUTPUT
+      integer, intent(out) :: ierr
+
+      ! Local variables
+      character(len = :), allocatable :: streamID
+      character(len = :), allocatable :: alarmID
+      character(len = :), allocatable :: fileName
+      integer :: oppositeType
+      type(MPAS_Time_type) :: alarmTime
+      integer :: err
+
+      ierr = 0
+      err = 0
+
+      ! Assign IDs and file name based on type
+      if (streamType == MPAS_STREAM_INPUT) then
+         streamID = 'test_input_alarm_stream'
+         alarmID = 'test_input_alarm'
+         fileName = 'test_input_alarm_stream.nc'
+         oppositeType = MPAS_STREAM_OUTPUT
+      else if (streamType == MPAS_STREAM_OUTPUT) then
+         streamID = 'test_output_alarm_stream'
+         alarmID = 'test_output_alarm'
+         fileName = 'test_output_alarm_stream.nc'
+         oppositeType = MPAS_STREAM_INPUT
+      else
+         call mpas_log_write('Invalid stream type passed to test_remove_alarm.', MPAS_LOG_ERR)
+         ierr = 1
+         return
+      end if
+
+      ! Create the stream
+      call MPAS_stream_mgr_create_stream(domain % streamManager, streamID, streamType, fileName, &
+            realPrecision = MPAS_IO_SINGLE_PRECISION, &
+            clobberMode = MPAS_STREAM_CLOBBER_TRUNCATE, &
+            ierr = err)
+      if (err /= MPAS_STREAM_MGR_NOERR) then
+         call mpas_log_write('Error creating stream.', MPAS_LOG_ERR)
+         ierr = ierr + abs(err)
+      end if
+
+      ! Add alarm to the clock
+      call mpas_add_clock_alarm(domain % clock, alarmID, alarmTime, ierr = err)
+      if (err /= 0) then
+         call mpas_log_write('Error adding alarm to clock.', MPAS_LOG_ERR)
+         ierr = ierr + abs(err)
+      end if
+
+      ! Add alarm to the stream
+      call MPAS_stream_mgr_add_alarm(domain % streamManager, streamID, alarmID, streamType, ierr = err)
+      if (err /= MPAS_STREAM_MGR_NOERR) then
+         call mpas_log_write('Error adding alarm to stream.', MPAS_LOG_ERR)
+         ierr = ierr + abs(err)
+      end if
+
+      ! Try removing from opposite list — should fail
+      call MPAS_stream_mgr_remove_alarm(domain % streamManager, streamID, alarmID, oppositeType, ierr = err)
+      if (err /= MPAS_STREAM_MGR_ERROR) then
+         if (streamType == MPAS_STREAM_INPUT) then
+            call mpas_log_write('Expected error when removing input alarm from output alarm list.', MPAS_LOG_ERR)
+         else
+            call mpas_log_write('Expected error when removing output alarm from input alarm list.', MPAS_LOG_ERR)
+         end if
+         err = 1
+         ierr = ierr + abs(err)
+      end if
+
+      ! Remove from correct list — should succeed
+      call MPAS_stream_mgr_remove_alarm(domain % streamManager, streamID, alarmID, streamType, ierr = err)
+      if (err /= MPAS_STREAM_MGR_NOERR) then
+         call mpas_log_write('Error removing alarm from stream.', MPAS_LOG_ERR)
+         ierr = ierr + abs(err)
+      end if
+
+   end subroutine test_remove_alarm
+
+   !***********************************************************************
+   !  Subroutine test_core_streams_test
+   !
+   !> \brief   Core test suite for stream I/O and alarm management in MPAS.
+   !>
+   !> \details This subroutine tests the functionality of reading/writing
+   !>          real-valued streams and managing alarms in streams. It calls
+   !>          individual tests for stream I/O operations and for adding/removing
+   !>          alarms from input and output streams. The results of each test
+   !>          are logged with a success or failure message.
+   !>
+   !> \param domain      The domain object that contains the stream manager
+   !>                    and clock.
+   !> \param threadErrs  An array to store any errors encountered during
+   !>                    the test.
+   !> \param ierr        The error code that indicates the result of the test.
+   !
+   !-----------------------------------------------------------------------
+   subroutine test_core_streams_test(domain, threadErrs, ierr)
+
+      use mpas_log
+
+      implicit none
+
+      type (domain_type), intent(inout) :: domain
+      integer, dimension(:), intent(out) :: threadErrs
+      integer, intent(out) :: ierr
+
+      integer :: test_status
+
+      ierr = 0
+      test_status = 0
+
+      call mpas_log_write('Testing reading/writing real-valued streams')
+      call test_read_write_real_streams(domain, threadErrs, test_status)
+      if (test_status == 0) then
+         call mpas_log_write('Stream I/O tests: SUCCESS')
+      else
+         call mpas_log_write('Stream I/O tests: FAILURE', MPAS_LOG_ERR)
+         ierr = ierr + abs(test_status)
+      end if
+
+      call mpas_log_write('Testing removing an output alarm from a stream.')
+      call test_remove_alarm(domain, MPAS_STREAM_OUTPUT, test_status)
+      if (test_status == 0) then
+         call mpas_log_write('Removing output alarm test: SUCCESS')
+      else
+         call mpas_log_write('Removing output alarm test: FAILURE', MPAS_LOG_ERR)
+         ierr = ierr + abs(test_status)
+      end if
+
+      call mpas_log_write('Testing removing an input alarm from a stream.')
+      call test_remove_alarm(domain, MPAS_STREAM_INPUT, test_status)
+      if (test_status == 0) then
+         call mpas_log_write('Removing input alarm test: SUCCESS')
+      else
+         call mpas_log_write('Removing input alarm test: FAILURE', MPAS_LOG_ERR)
+         ierr = ierr + abs(test_status)
       end if
 
    end subroutine test_core_streams_test

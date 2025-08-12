@@ -2,8 +2,8 @@ module mpas_stream_list
 
 #define COMMA ,
 #define LIST_DEBUG_WRITE(M) ! call mpas_log_write(M)
-#define LIST_WARN_WRITE(M) call mpas_log_write( M , messageType=MPAS_LOG_WARN)
-#define LIST_ERROR_WRITE(M) call mpas_log_write( M , messageType=MPAS_LOG_ERR)
+#define LIST_WARN_WRITE(M) ! call mpas_log_write( M , messageType=MPAS_LOG_WARN)
+#define LIST_ERROR_WRITE(M) ! call mpas_log_write( M , messageType=MPAS_LOG_ERR)
 
     use mpas_kind_types, only : StrKIND
     use mpas_log
