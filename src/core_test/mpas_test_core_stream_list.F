@@ -138,45 +138,95 @@ contains
    end subroutine mpas_test_query_exact_match
 
    !**************************************************************************************
-   !  Subroutine mpas_test_remove_head
+   !  Subroutine mpas_test_remove_existing_streams
    !
-   !> \brief   Test removing the head stream from the list and verify removal.
+   !> \brief   Test removing streams from the beginning, middle, and end of a list.
    !>
-   !> \details This subroutine tests the removal of the head stream from an MPAS
-   !>          stream list. It ensures that the correct stream is removed and that
-   !>          the list's state is properly updated after removal.
+   !> \details This subroutine verifies that removing streams from different positions
+   !>          in an MPAS stream list works as expected. It inserts three streams into
+   !>          the list, then removes one from the middle, one from the end, and one
+   !>          from the beginning, checking that the correct stream is removed in each
+   !>          case and that the operation returns a success code.
    !>
    !> \param err  The error code that indicates the result of the test.
-   !
-   !--------------------------------------------------------------------------------------
-   subroutine mpas_test_remove_head(err)
+   !>
+   !**************************************************************************************
+   subroutine mpas_test_remove_existing_streams(err)
       integer, intent(out) :: err
-      type(MPAS_stream_list_type), pointer :: list, stream, removed
+      type(MPAS_stream_list_type), pointer :: list, s1, s2, s3, &
+            removed1, removed2, removed3
+      integer :: ierr
 
       err = 0
 
-      call MPAS_stream_list_create(list)
-      allocate(stream)
-      stream%name = 'stream1'
-      call MPAS_stream_list_insert(list, stream)
+      allocate(s1)
+      s1%name = 'stream1'
+      allocate(s2)
+      s2%name = 'stream2'
+      allocate(s3)
+      s3%name = 'stream3'
 
-      call MPAS_stream_list_remove(list, 'stream1', removed)
-
-      if (.not. associated(removed)) then
+      call MPAS_stream_list_create(list, ierr=ierr)
+      if (ierr /= MPAS_STREAM_LIST_NOERR) then
          err = err + 1
       end if
 
-      if (trim(removed%name) /= 'stream1') then
+      call MPAS_stream_list_insert(list, s1, ierr=ierr)
+      if (ierr /= MPAS_STREAM_LIST_NOERR) then
          err = err + 1
       end if
 
-      if (list%nItems /= 0) then
+      call MPAS_stream_list_insert(list, s2, ierr=ierr)
+      if (ierr /= MPAS_STREAM_LIST_NOERR) then
+         err = err + 1
+      end if
+
+      call MPAS_stream_list_insert(list, s3, ierr=ierr)
+      if (ierr /= MPAS_STREAM_LIST_NOERR) then
+         err = err + 1
+      end if
+
+      ! Remove from the middle
+      call MPAS_stream_list_remove(list, 'stream2', removed2, ierr=ierr)
+      if (ierr /= MPAS_STREAM_LIST_NOERR) then
+         err = err + 1
+      end if
+      if (.not. associated(removed2)) then
+         err = err + 1
+      end if
+      if (trim(removed2%name) /= 'stream2') then
+         err = err + 1
+      end if
+
+      ! Remove from the end
+      call MPAS_stream_list_remove(list, 'stream3', removed3, ierr=ierr)
+      if (ierr /= MPAS_STREAM_LIST_NOERR) then
+         err = err + 1
+      end if
+      if (.not. associated(removed3)) then
+         err = err + 1
+      end if
+      if (trim(removed3%name) /= 'stream3') then
+         err = err + 1
+      end if
+
+      ! Remove from the beginning
+      call MPAS_stream_list_remove(list, 'stream1', removed1, ierr=ierr)
+      if (ierr /= MPAS_STREAM_LIST_NOERR) then
+         err = err + 1
+      end if
+      if (.not. associated(removed1)) then
+         err = err + 1
+      end if
+      if (trim(removed1%name) /= 'stream1') then
          err = err + 1
       end if
 
       call MPAS_stream_list_destroy(list)
-      deallocate(removed)
-   end subroutine mpas_test_remove_head
+      deallocate(removed1)
+      deallocate(removed2)
+      deallocate(removed3)
+   end subroutine mpas_test_remove_existing_streams
 
    !**************************************************************************************
    !  Subroutine mpas_test_insert_duplicate_at_begin_and_end
@@ -193,7 +243,7 @@ contains
    subroutine mpas_test_insert_duplicate_at_begin_and_end(err)
       integer, intent(out) :: err
       type(MPAS_stream_list_type), pointer :: list
-      type(MPAS_stream_list_type), pointer :: s1, s2, s1_dup
+      type(MPAS_stream_list_type), pointer :: s1, s2
       integer :: ierr
 
       err = 0
@@ -203,8 +253,6 @@ contains
       s1%name = 'stream1'
       allocate(s2)
       s2%name = 'stream2'
-      allocate(s1_dup)
-      s1_dup%name = 'stream1'
 
       call MPAS_stream_list_insert(list, s1, ierr)
       if (ierr /= MPAS_STREAM_LIST_NOERR) then
@@ -216,13 +264,12 @@ contains
          err = err + 1
       end if
 
-      call MPAS_stream_list_insert(list, s1_dup, ierr)
+      call MPAS_stream_list_insert(list, s1, ierr)
       if (ierr /= MPAS_STREAM_LIST_DUPLICATE) then
          err = err + 1
       end if
 
       call MPAS_stream_list_destroy(list)
-      deallocate(s1_dup)
    end subroutine mpas_test_insert_duplicate_at_begin_and_end
 
    !**************************************************************************************
@@ -397,7 +444,7 @@ contains
    subroutine mpas_test_insert_duplicate_at_begin(err)
       integer, intent(out) :: err
       type(MPAS_stream_list_type), pointer :: list
-      type(MPAS_stream_list_type), pointer :: s1, s1_dup
+      type(MPAS_stream_list_type), pointer :: s1
       integer :: ierr
 
       err = 0
@@ -406,21 +453,17 @@ contains
       allocate(s1)
       s1%name = 'stream1'
 
-      allocate(s1_dup)
-      s1_dup%name = 'stream1'
-
       call MPAS_stream_list_insert(list, s1, ierr)
       if (ierr /= MPAS_STREAM_LIST_NOERR) then
          err = err + 1
       end if
 
-      call MPAS_stream_list_insert(list, s1_dup, ierr)
+      call MPAS_stream_list_insert(list, s1, ierr)
       if (ierr /= MPAS_STREAM_LIST_DUPLICATE) then
          err = err + 1
       end if
 
       call MPAS_stream_list_destroy(list)
-      deallocate(s1_dup)
    end subroutine mpas_test_insert_duplicate_at_begin
 
    !**************************************************************************************
@@ -438,7 +481,7 @@ contains
    subroutine mpas_test_insert_duplicate_at_end(err)
       integer, intent(out) :: err
       type(MPAS_stream_list_type), pointer :: list
-      type(MPAS_stream_list_type), pointer :: s1, s2, s2_dup
+      type(MPAS_stream_list_type), pointer :: s1, s2
       integer :: ierr
 
       err = 0
@@ -450,9 +493,6 @@ contains
       allocate(s2)
       s2%name = 'stream2'
 
-      allocate(s2_dup)
-      s2_dup%name = 'stream2'
-
       call MPAS_stream_list_insert(list, s1, ierr)
       if (ierr /= MPAS_STREAM_LIST_NOERR) then
          err = err + 1
@@ -463,13 +503,12 @@ contains
          err = err + 1
       end if
 
-      call MPAS_stream_list_insert(list, s2_dup, ierr)
+      call MPAS_stream_list_insert(list, s2, ierr)
       if (ierr /= MPAS_STREAM_LIST_DUPLICATE) then
          err = err + 1
       end if
 
       call MPAS_stream_list_destroy(list)
-      deallocate(s2_dup)
    end subroutine mpas_test_insert_duplicate_at_end
 
 
@@ -522,13 +561,13 @@ contains
          call mpas_log_write('   mpas_test_query_exact_match: FAILURE')
       end if
 
-      ! Test removing the head stream from the list and verify removal.
-      call mpas_test_remove_head(test_err)
+      ! Test removing streams at beginning, middle, and end of a list.
+      call mpas_test_remove_existing_streams(test_err)
       if (test_err == 0) then
-         call mpas_log_write('   mpas_test_remove_head: SUCCESS')
+         call mpas_log_write('   mpas_test_remove_existing_streams: SUCCESS')
       else
          err = err + test_err
-         call mpas_log_write('   mpas_test_remove_head: FAILURE')
+         call mpas_log_write('   mpas_test_remove_existing_streams: FAILURE')
       end if
 
       ! Test inserting a duplicate stream at both the beginning and the end of the list.
