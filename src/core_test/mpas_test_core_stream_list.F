@@ -227,6 +227,7 @@ contains
       deallocate(removed2)
       deallocate(removed3)
    end subroutine mpas_test_remove_existing_streams
+
    !**************************************************************************************
    !  Subroutine mpas_test_insert_non_adjacent_duplicate
    !
@@ -240,7 +241,7 @@ contains
    !>          works for non-adjacent duplicates in insertion order.
    !>
    !> \param err  The error code that indicates the result of the test.
-   !**************************************************************************************
+   !--------------------------------------------------------------------------------------
    subroutine mpas_test_insert_non_adjacent_duplicate(err)
       integer, intent(out) :: err
       type(MPAS_stream_list_type), pointer :: list
@@ -269,6 +270,7 @@ contains
       if (ierr /= MPAS_STREAM_LIST_DUPLICATE) then
          err = err + 1
       end if
+      ! Verify that inserting s1 again does not break the linkage bewtween s1 and s2
       if (.not. associated(s1%next)) then
          err = err + 1
       end if
@@ -511,7 +513,6 @@ contains
 
       call MPAS_stream_list_destroy(list)
    end subroutine mpas_test_insert_duplicate_at_end
-
 
    !**************************************************************************************
    !  Subroutine mpas_test_stream_list

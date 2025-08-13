@@ -114,6 +114,7 @@ module mpas_stream_list
 
         if (.not. associated(list % head)) then
             list % head => stream
+            nullify(stream % next)
         else
             node => list % head
             do while (associated(node))
@@ -124,11 +125,11 @@ module mpas_stream_list
                 end if
                 if (.not. associated(node % next)) then
                     node % next => stream
+                    nullify(stream % next)
                     exit
                 end if
                 node => node % next
             end do
-            nullify(stream % next)
         end if
 
         list % nItems = list % nItems + 1
