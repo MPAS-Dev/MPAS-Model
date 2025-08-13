@@ -269,6 +269,9 @@ contains
       if (ierr /= MPAS_STREAM_LIST_DUPLICATE) then
          err = err + 1
       end if
+      if (.not. associated(s1%next)) then
+         err = err + 1
+      end if
 
       call MPAS_stream_list_destroy(list)
    end subroutine mpas_test_insert_non_adjacent_duplicate

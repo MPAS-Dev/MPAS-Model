@@ -112,8 +112,6 @@ module mpas_stream_list
 
         if (present(ierr)) ierr = MPAS_STREAM_LIST_NOERR
 
-        nullify(stream % next)
-
         if (.not. associated(list % head)) then
             list % head => stream
         else
@@ -130,6 +128,7 @@ module mpas_stream_list
                 end if
                 node => node % next
             end do
+            nullify(stream % next)
         end if
 
         list % nItems = list % nItems + 1
