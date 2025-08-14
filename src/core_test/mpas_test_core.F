@@ -98,6 +98,7 @@ module test_core
       use mpas_test_core_dmpar, only : mpas_test_dmpar
       use mpas_test_core_stream_inquiry, only : mpas_test_stream_inquiry
       use mpas_test_core_openacc, only : mpas_test_openacc
+      use test_core_alarm_tests_mod, only : mpas_alarm_tests
 
       implicit none
    
@@ -180,6 +181,15 @@ module test_core
           call mpas_log_write('Stream list tests: SUCCESS')
       else
           call mpas_log_write('Stream list tests: FAILURE', MPAS_LOG_ERR)
+      end if
+      call mpas_log_write('')
+
+      ! Run alarm tests
+      call mpas_alarm_tests(domain, iErr)
+      if (iErr == 0) then
+         call mpas_log_write('Alarm tests: SUCCESS')
+      else
+         call mpas_log_write('Alarm tests: FAILURE', MPAS_LOG_ERR)
       end if
       call mpas_log_write('')
 

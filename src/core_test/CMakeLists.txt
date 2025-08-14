@@ -19,6 +19,7 @@ set(test_core_srcs
         mpas_test_core_sorting.F
         mpas_test_core_streams.F
         mpas_test_core_timekeeping_tests.F
+        mpas_test_core_alarm_tests.F
         mpas_test_openacc.F
         mpas_test_core_string_utils.F
         mpas_test_core_stream_list.F
