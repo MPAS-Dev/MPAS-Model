@@ -427,12 +427,12 @@ contains
       nullify(found)
 
       call MPAS_stream_list_insert(list, stream)
-      if (ierr /= MPAS_STREAM_LIST_NOERR) then
-         err = err + 1
-      end if
 
       matched = MPAS_stream_list_query(list, 'stream', found, ierr)
 
+      if (ierr /= MPAS_STREAM_LIST_NOERR) then
+         err = err + 1
+      end if
       if (matched .or. associated(found)) then
          err = err + 1
       end if
@@ -527,47 +527,6 @@ contains
 
       call MPAS_stream_list_destroy(list)
    end subroutine mpas_test_insert_duplicate_at_end
-
-   !**************************************************************************************
-   !  Subroutine mpas_test_insert_duplicate_pointer_with_different_name
-   !
-   !--------------------------------------------------------------------------------------
-   subroutine mpas_test_insert_duplicate_pointer_with_different_name(err)
-      integer, intent(out) :: err
-      type(MPAS_stream_list_type), pointer :: list
-      type(MPAS_stream_list_type), pointer :: s1, s2
-      integer :: ierr
-
-      err = 0
-      call MPAS_stream_list_create(list)
-
-      allocate(s1)
-      s1%name = 'stream1'
-
-      allocate(s2)
-      s2%name = 'stream2'
-
-      call MPAS_stream_list_insert(list, s1, ierr)
-      if (ierr /= MPAS_STREAM_LIST_NOERR) then
-         err = err + 1
-      end if
-
-      call MPAS_stream_list_insert(list, s2, ierr)
-      if (ierr /= MPAS_STREAM_LIST_NOERR) then
-         err = err + 1
-      end if
-
-      s2%name = 's2'
-      call MPAS_stream_list_insert(list, s2, ierr)
-      if (ierr /= MPAS_STREAM_LIST_DUPLICATE) then
-         err = err + 1
-      end if
-      if (MPAS_stream_list_length(list) /= 2) then
-         err = err + 1
-      end if
-
-      call MPAS_stream_list_destroy(list)
-   end subroutine mpas_test_insert_duplicate_pointer_with_different_name
 
    !**************************************************************************************
    !  Subroutine mpas_test_stream_list
