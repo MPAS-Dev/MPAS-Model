@@ -22,7 +22,9 @@ module test_core_alarm_tests_mod
 
    contains
 
-   subroutine mpas_alarm_tests(domain, ierr)
+      subroutine mpa
+
+   subroutine mpas_test_alarm_rings(domain, ierr)
 
       use mpas_derived_types, only : domain_type, MPAS_Clock_type, MPAS_Time_type, MPAS_TimeInterval_type
       use mpas_kind_types, only : StrKIND
@@ -46,27 +48,34 @@ module test_core_alarm_tests_mod
       type (MPAS_Time_type) :: test_refTime
       type (MPAS_TimeInterval_type) :: test_timeStep
       type (MPAS_TimeInterval_type) :: test_alarmTimeInterval
+      integer :: i
 
       ierr = 0
 
       call mpas_set_time(test_startTime, YYYY=2000, MM=01, DD=01, H=0, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
       call mpas_set_time(test_stopTime, YYYY=2100, MM=01, DD=01, H=0, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
-      call mpas_set_timeInterval(test_timeStep, dt=3600.0_RKIND, ierr=ierr_local)
+      call mpas_set_timeInterval(test_timeStep, dt=1800.0_RKIND, ierr=ierr_local)
       call mpas_create_clock(test_clock, test_startTime, test_timeStep, test_stopTime, ierr=ierr_local)
 
       call mpas_set_time(test_alarmTime, YYYY=2000, MM=01, DD=01, H=0, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
-      call mpas_set_timeInterval(test_alarmTimeInterval, dt=86400.0_RKIND, ierr=ierr_local)
+      call mpas_set_timeInterval(test_alarmTimeInterval, dt=3600.0_RKIND, ierr=ierr_local)
       call mpas_add_clock_alarm(test_clock, 'test', test_alarmTime, test_alarmTimeInterval, ierr_local)
+      call mpas_reset_clock_alarm(test_clock, 'test', ierr=ierr_local)
 
-      call mpas_advance_clock(test_clock, ierr=ierr_local)
-      if (mpas_is_alarm_ringing(test_clock, 'test', ierr=ierr_local)) then
-         test_mesg = 'Alarm should not be ringing after first advance'
-         call mpas_log_write(test_mesg, err=ierr_local)
-         ierr = ierr + ierr_local
-      end if
-
-
-
+      do i = 1, 12
+         call mpas_advance_clock(test_clock, ierr=ierr_local)
+         if (mod(i, 2) == 0) then
+            if (.not. mpas_is_alarm_ringing(test_clock, 'test', ierr=ierr_local)) then
+               ierr = ierr + 1
+            end if
+         end if
+         if (mod(i, 2) /= 0) then
+            if (mpas_is_alarm_ringing(test_clock, 'test', ierr=ierr_local)) then
+               ierr = ierr + 1
+            end if
+         end if
+         call mpas_reset_clock_alarm(test_clock, 'test', ierr=ierr_local)
+      end do
    end subroutine mpas_alarm_tests
 
 end module test_core_alarm_tests_mod
