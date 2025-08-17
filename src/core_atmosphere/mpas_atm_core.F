@@ -1067,7 +1067,7 @@ module atm_core
       endif
 #endif
 
-      call atm_timestep(domain, dt, currTime, itimestep, exchange_halo_group)
+      call atm_timestep(domain, dt, currTime, itimestep, xtime_s, exchange_halo_group)
 
    end subroutine atm_do_timestep
    
