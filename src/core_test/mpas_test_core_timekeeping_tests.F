@@ -252,7 +252,7 @@ module test_core_timekeeping_tests
       call mpas_set_time(test_alarmTime, YYYY=2000, MM=01, DD=01, H=0, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
       call mpas_set_timeInterval(test_alarmTimeInterval, dt=86400.0_RKIND, ierr=ierr_local)
 
-      call mpas_add_clock_alarm(test_clock, 'foobar', test_alarmTime, test_alarmTimeInterval, ierr_local)
+      call mpas_add_clock_alarm(test_clock, 'foobar', test_alarmTime, alarmTimeInterval=test_alarmTimeInterval, ierr=ierr_local)
 
 #ifdef MPAS_ADVANCE_TEST_CLOCK
       do istep = 1, 24*365
