@@ -23,10 +23,8 @@
       character (len=ShortStrKIND) :: alarmID
       logical :: isRecurring
       logical :: isSet
-      logical :: hasStopTime
       type (MPAS_Time_type) :: ringTime
       type (MPAS_Time_type) :: prevRingTime
-      type (MPAS_Time_type) :: stopTime
       type (MPAS_TimeInterval_type) :: ringTimeInterval
       type (MPAS_Alarm_type), pointer :: next => null()
    end type
