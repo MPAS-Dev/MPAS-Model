@@ -251,6 +251,46 @@ module test_core
          call mpas_log_write('mpas_alarm_ringing_tests: FAILED')
       end if
 
+      ! Test functionality of alarms with defined stop time
+      call mpas_log_write('')
+      call mpas_log_write('Testing mpas_alarm_stop_time:')
+      call mpas_alarm_stop_time_tests(domain, iErr)
+      if (iErr == 0) then
+         call mpas_log_write('mpas_alarm_stop_time_tests: SUCCESS')
+      else
+         call mpas_log_write('mpas_alarm_stop_time_tests: FAILED')
+      end if
+
+      ! Test functionality of alarms with defined stop time when alarm is not reset
+      call mpas_log_write('')
+      call mpas_log_write('Testing mpas_alarm_stop_time_no_reset:')
+      call mpas_alarm_stop_time_no_reset_tests(domain, iErr)
+      if (iErr == 0) then
+         call mpas_log_write('mpas_alarm_stop_time_no_reset_tests: SUCCESS')
+      else
+         call mpas_log_write('mpas_alarm_stop_time_no_reset_tests: FAILED')
+      end if
+
+      ! Test functionality of alarms with defined stop time when alarm is reset
+      call mpas_log_write('')
+      call mpas_log_write('Testing mpas_alarm_start_tests:')
+      call mpas_alarm_start_time_tests(domain, iErr)
+      if (iErr == 0) then
+         call mpas_log_write('mpas_alarm_start_tests: SUCCESS')
+      else
+         call mpas_log_write('mpas_alarm_start_tests: FAILED')
+      end if
+
+      ! Test functionality of alarms with defined start time and stop time
+      call mpas_log_write('')
+      call mpas_log_write('Testing mpas_alarm_start_stop_time:')
+      call mpas_alarm_start_stop_time_tests(domain, iErr)
+      if (iErr == 0) then
+         call mpas_log_write('mpas_alarm_start_stop_time_tests: SUCCESS')
+      else
+         call mpas_log_write('mpas_alarm_start_stop_time_tests: FAILED')
+      end if
+
       !
       ! Test functionality of adjustments to alarm reference time
       !
