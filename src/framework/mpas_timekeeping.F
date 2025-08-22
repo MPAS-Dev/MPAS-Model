@@ -495,8 +495,8 @@ module mpas_timekeeping
       character (len=*), intent(in) :: alarmID
       type (MPAS_Time_type), intent(in) :: alarmTime
       type (MPAS_TimeInterval_type), intent(in), optional :: alarmTimeInterval
-      type (MPAS_Time_type), intent(in), optional :: alarmStopTime
       type (MPAS_Time_type), intent(in), optional :: alarmStartTime
+      type (MPAS_Time_type), intent(in), optional :: alarmStopTime
       integer, intent(out), optional :: ierr
 
       type (MPAS_Alarm_type), pointer :: alarmPtr
@@ -557,17 +557,17 @@ module mpas_timekeeping
             alarmPtr % isRecurring = .false.
             alarmPtr % prevRingTime = alarmTime
          end if
-         if (present(alarmStopTime)) then
-            alarmPtr % stopTime = alarmStopTime
-            alarmPtr % hasStopTime = .true.
-         else
-            alarmPtr % hasStopTime = .false.
-         end if
          if (present(alarmStartTime)) then
             alarmPtr % startTime = alarmStartTime
             alarmPtr % hasStartTime = .true.
          else
             alarmPtr % hasStartTime = .false.
+         end if
+         if (present(alarmStopTime)) then
+            alarmPtr % stopTime = alarmStopTime
+            alarmPtr % hasStopTime = .true.
+         else
+            alarmPtr % hasStopTime = .false.
          end if
          if (present(ierr)) then
             if (ierr == ESMF_SUCCESS) ierr = 0
@@ -903,14 +903,14 @@ module mpas_timekeeping
       
       mpas_in_ringing_envelope = .false.
 
-      if (alarmPtr % hasStopTime) then
-         if (alarmNow > alarmPtr % stopTime .and. .not. alarmPtr % isSet) then
+      if (alarmPtr % hasStartTime) then
+         if (alarmNow < alarmPtr % startTime) then
             return
          end if
       end if
 
-      if (alarmPtr % hasStartTime) then
-         if (alarmNow < alarmPtr % startTime) then
+      if (alarmPtr % hasStopTime) then
+         if (alarmNow > alarmPtr % stopTime .and. .not. alarmPtr % isSet) then
             return
          end if
       end if
