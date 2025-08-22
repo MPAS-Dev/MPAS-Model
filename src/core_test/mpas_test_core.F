@@ -98,6 +98,7 @@ module test_core
       use mpas_test_core_dmpar, only : mpas_test_dmpar
       use mpas_test_core_stream_inquiry, only : mpas_test_stream_inquiry
       use mpas_test_core_openacc, only : mpas_test_openacc
+      use test_core_timekeeping_tests
 
       implicit none
    
@@ -252,6 +253,19 @@ module test_core
          call mpas_log_write('* mpas_adjust_alarm_tests tests - $i failed tests: FAILURE', intArgs=[iErr])
       end if
       call mpas_log_write('')
+
+      ! Test functionality of alarms
+      call mpas_log_write('')
+      call mpas_log_write('Testing backwards clock functionality:')
+      call mpas_alarm_ringing_tests(domain, iErr)
+      if (iErr == 0) then
+         call mpas_log_write('mpas_backwards_clock tests: SUCCESS')
+      else
+         call mpas_log_write('mpas_backwards_clock tests: FAILED')
+      end if
+
+
+
 
       deallocate(threadErrs)
 
