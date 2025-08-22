@@ -477,16 +477,18 @@ contains
       type (MPAS_TimeInterval_type) :: alarm2TimeInterval
       type (MPAS_Clock_type) :: clock
       character(len = :), allocatable :: alarm1Id, alarm2Id
+      character(len= StrKIND) :: currentTimeString, previousRingTimeString
+      type (MPAS_Alarm_type), pointer :: alarm2
       integer :: hour, numHours
 
       ierr = 0
       alarm1Id = 'alarm1'
       alarm2Id = 'alarm2'
-      numHours = 2400
+      numHours = 240
 
       call mpas_set_time(clockStartTime, YYYY = 2000, MM = 01, DD = 01, H = 0, &
             M = 0, S = 0, S_n = 0, S_d = 0, ierr = ierr_local)
-      call mpas_set_time(clockStopTime, YYYY = 2100, MM = 01, DD = 10, H = 0, &
+      call mpas_set_time(clockStopTime, YYYY = 2100, MM = 01, DD = 11, H = 0, &
             M = 0, S = 0, S_n = 0, S_d = 0, ierr = ierr_local)
       call mpas_set_timeInterval(clockTimeStep, dt = 3600.0_RKIND, ierr = ierr_local)
       call mpas_create_clock(clock, clockStartTime, clockTimeStep, clockStopTime, ierr = ierr_local)
@@ -521,9 +523,11 @@ contains
          call mpas_advance_clock(clock, ierr = ierr_local)
       end do
 
+!      call mpas_advance_clock(clock, ierr = ierr_local)
       call mpas_set_clock_direction(clock, MPAS_BACKWARD, ierr = ierr_local)
+!      call mpas_advance_clock(clock, ierr = ierr_local)
 
-      do hour = numHours, numHours-1, -1
+      do hour = numHours - 1, 0, -1
          ! Alarm1 should always ring
          if (.not. mpas_is_alarm_ringing(clock, 'alarm1', ierr = ierr_local)) then
             ierr = ierr + 1
