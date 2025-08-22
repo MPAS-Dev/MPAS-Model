@@ -486,8 +486,8 @@ module mpas_timekeeping
    end function mpas_get_clock_time
 
 
-   subroutine mpas_add_clock_alarm(clock, alarmID, alarmTime, alarmTimeInterval, alarmStartTime, alarmStopTime, ierr)
-! TODO: possibly add a stop time for recurring alarms
+   subroutine mpas_add_clock_alarm(clock, alarmID, alarmTime, alarmTimeInterval, &
+         alarmStartTime, alarmStopTime, ierr)
 
       implicit none
 
