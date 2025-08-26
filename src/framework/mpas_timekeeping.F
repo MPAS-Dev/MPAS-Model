@@ -486,8 +486,8 @@ module mpas_timekeeping
    end function mpas_get_clock_time
 
 
-   subroutine mpas_add_clock_alarm(clock, alarmID, alarmTime, alarmTimeInterval, ierr)
-! TODO: possibly add a stop time for recurring alarms
+   subroutine mpas_add_clock_alarm(clock, alarmID, alarmTime, alarmTimeInterval, &
+         alarmStartTime, alarmStopTime, ierr)
 
       implicit none
 
@@ -495,6 +495,8 @@ module mpas_timekeeping
       character (len=*), intent(in) :: alarmID
       type (MPAS_Time_type), intent(in) :: alarmTime
       type (MPAS_TimeInterval_type), intent(in), optional :: alarmTimeInterval
+      type (MPAS_Time_type), intent(in), optional :: alarmStartTime
+      type (MPAS_Time_type), intent(in), optional :: alarmStopTime
       integer, intent(out), optional :: ierr
 
       type (MPAS_Alarm_type), pointer :: alarmPtr
@@ -554,6 +556,18 @@ module mpas_timekeeping
          else
             alarmPtr % isRecurring = .false.
             alarmPtr % prevRingTime = alarmTime
+         end if
+         if (present(alarmStartTime)) then
+            alarmPtr % startTime = alarmStartTime
+            alarmPtr % hasStartTime = .true.
+         else
+            alarmPtr % hasStartTime = .false.
+         end if
+         if (present(alarmStopTime)) then
+            alarmPtr % stopTime = alarmStopTime
+            alarmPtr % hasStopTime = .true.
+         else
+            alarmPtr % hasStopTime = .false.
          end if
          if (present(ierr)) then
             if (ierr == ESMF_SUCCESS) ierr = 0
@@ -887,8 +901,20 @@ module mpas_timekeeping
       alarmNow = mpas_get_clock_time(clock, MPAS_NOW, ierr)
       alarmThreshold = alarmPtr % ringTime 
       
-      mpas_in_ringing_envelope = .false.      
-               
+      mpas_in_ringing_envelope = .false.
+
+      if (alarmPtr % hasStartTime) then
+         if (alarmNow < alarmPtr % startTime) then
+            return
+         end if
+      end if
+
+      if (alarmPtr % hasStopTime) then
+         if (alarmNow > alarmPtr % stopTime .and. .not. alarmPtr % isSet) then
+            return
+         end if
+      end if
+
       if(clock % direction == MPAS_FORWARD) then
 
          if (present(interval)) then
@@ -971,6 +997,11 @@ module mpas_timekeeping
                         call mpas_interval_division(alarmPtr % prevRingTime, nowInterval, alarmPtr % ringTimeInterval, nDivs, nowRemainder)
                         alarmPtr % prevRingTime = alarmNow + nowRemainder
                      end if
+                  end if
+               end if
+               if (alarmPtr % hasStopTime) then
+                  if (alarmNow >= alarmPtr % stopTime) then
+                     alarmPtr % isSet = .false.   ! permanently disable
                   end if
                end if
                exit
