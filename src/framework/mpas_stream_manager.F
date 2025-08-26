@@ -6192,8 +6192,35 @@ subroutine stream_mgr_add_immutable_stream_fields_c(manager_c, streamID_c, refSt
 
 end subroutine stream_mgr_add_immutable_stream_fields_c !}}}
 
+subroutine set_alarm_bound_time(alarmBoundTime_c, alarmBoundTime, referenceTime, hasBoundTime)
+      use iso_c_binding, only : c_char, c_ptr, c_f_pointer, c_associated
+      use mpas_kind_types, only : StrKIND
+      use mpas_timekeeping
+      use mpas_c_interfacing
+      implicit none
 
-subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmTime_c, alarmInterval_c, ierr_c) bind(c) !{{{
+      type (c_ptr), intent(in) :: alarmBoundTime_c
+      type (MPAS_Time_type), intent(out)  :: alarmBoundTime
+      type (MPAS_Time_type), intent(in)  :: referenceTime
+      logical, intent(out) :: hasBoundTime
+      character(kind=c_char), pointer :: alarmBoundTime_ptr(:)
+      character(len=StrKIND) :: alarmBoundTimeString
+      type (MPAS_TimeInterval_type) :: alarmBoundTimeInterval
+      type (MPAS_Time_type) :: mpasStartTime
+      integer :: ierr_tmp
+
+      hasBoundTime = .false.
+      if (c_associated(alarmBoundTime_c)) then
+         call c_f_pointer(alarmBoundTime_c, alarmBoundTime_ptr, [huge(0)])
+         call mpas_c_to_f_string(alarmBoundTime_ptr, alarmBoundTimeString)
+         call mpas_set_timeInterval(alarmBoundTimeInterval, timeString=alarmBoundTimeString)
+         alarmBoundTime = add_t_ti(referenceTime, alarmBoundTimeInterval)
+         hasBoundTime = .true.
+      end if
+end subroutine set_alarm_bound_time
+
+subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmTime_c, alarmInterval_c, &
+      alarmStartTime_c, alarmStopTime_c, ierr_c) bind(c) !{{{
 
     use mpas_c_interfacing, only : mpas_c_to_f_string
     use iso_c_binding, only : c_char, c_int, c_ptr, c_f_pointer
@@ -6204,7 +6231,7 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmTime_
                                     MPAS_stream_mgr_get_property
     use mpas_kind_types, only : StrKIND
     use mpas_timekeeping, only : mpas_add_clock_alarm, mpas_set_time, mpas_get_time, mpas_set_timeInterval, mpas_get_clock_time, &
-                                 mpas_adjust_alarm_to_reference_time
+                                 mpas_adjust_alarm_to_reference_time, add_t_ti
 
     implicit none
 
@@ -6213,17 +6240,21 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmTime_
     character(kind=c_char) :: direction_c(*)
     character(kind=c_char) :: alarmTime_c(*)
     character(kind=c_char) :: alarmInterval_c(*)
+    type (c_ptr), value ::    alarmStartTime_c
+    type(c_ptr), value ::     alarmStopTime_c
     integer(kind=c_int) :: ierr_c
 
     type (MPAS_streamManager_type), pointer :: manager
     type (MPAS_Clock_type), pointer :: clock
-    character(len=StrKIND) :: streamID, direction, alarmID, alarmTime, alarmInterval, alarmString
-    type (MPAS_Time_type) :: alarmTime_local
+    character(len=StrKIND) :: streamID, direction, alarmID, alarmTime, alarmInterval, alarmString, alarmStartTime, &
+          alarmStopTime
+    type (MPAS_Time_type) :: alarmTime_local, startTime_local, stopTime_local, mpasStartTime
     type (MPAS_TimeInterval_type) :: alarmInterval_local
     character(len=StrKIND) :: streamReferenceTimeString
     type (MPAS_Time_type) :: streamReferenceTime
     integer :: idirection
     integer :: ierr, ierr_tmp
+    logical :: hasStart, hasStop
 
 
     ierr = 0
@@ -6267,7 +6298,21 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmTime_
         ierr = ior(ierr, ierr_tmp)
     else
         call mpas_set_timeInterval(alarmInterval_local, timeString=alarmInterval)
-        call mpas_add_clock_alarm(clock, alarmID, alarmTime_local, alarmTimeInterval=alarmInterval_local, ierr=ierr_tmp)
+        mpasStartTime = mpas_get_clock_time(clock, MPAS_STOP_TIME, ierr=ierr_tmp)
+        call set_alarm_bound_time(alarmStartTime_c, startTime_local, mpasStartTime, hasStart)
+        call set_alarm_bound_time(alarmStopTime_c, stopTime_local, mpasStartTime, hasStop)
+        if (hasStart .and. hasStop) then
+           call mpas_add_clock_alarm(clock, alarmID, alarmTime_local, alarmInterval_local, &
+                 alarmStartTime=startTime_local, alarmStopTime=stopTime_local, ierr=ierr_tmp)
+        else if (hasStart) then
+           call mpas_add_clock_alarm(clock, alarmID, alarmTime_local, alarmInterval_local, &
+                 alarmStartTime=startTime_local, ierr=ierr_tmp)
+        else if (hasStop) then
+           call mpas_add_clock_alarm(clock, alarmID, alarmTime_local, alarmInterval_local, &
+                 alarmStopTime=stopTime_local, ierr=ierr_tmp)
+        else
+            call mpas_add_clock_alarm(clock, alarmID, alarmTime_local, alarmInterval_local, ierr=ierr_tmp)
+        end if
         ierr = ior(ierr, ierr_tmp)
         ! Now calibrate alarm to use the stream's reference time as the time coordinate origin for the stream's output alarm.
         call MPAS_stream_mgr_get_property(manager, streamID, MPAS_STREAM_PROPERTY_REF_TIME, streamReferenceTimeString, ierr=ierr_tmp)

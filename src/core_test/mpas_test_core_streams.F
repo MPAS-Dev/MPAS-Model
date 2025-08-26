@@ -497,6 +497,87 @@ module test_core_streams
    end subroutine test_remove_alarm
 
    !***********************************************************************
+   !  Subroutine test_set_alarm_bound_time
+   !
+   !> \brief   Tests the functionality of set_alarm_bound_time for both
+   !>          null and valid C string inputs.
+   !>
+   !> \details This subroutine verifies that when the input C pointer is
+   !>          NULL, the routine sets hasBoundTime to false and does not
+   !>          modify the alarm time. It also checks that when a valid
+   !>          relative time string is passed, the correct absolute bound
+   !>          time is computed relative to the given reference time.
+   !>
+   !> \param ierr  The error code that indicates the result of the test.
+   !-----------------------------------------------------------------------
+   subroutine test_set_alarm_bound_time(ierr)
+      use iso_c_binding, only : c_ptr, c_null_ptr, c_char, c_loc
+      use mpas_timekeeping
+      use mpas_c_interfacing
+      use mpas_kind_types, only : StrKIND
+      use mpas_log
+
+      implicit none
+
+      ! Arguments
+      integer, intent(out) :: ierr
+
+      ! Local variables
+      type(MPAS_Time_type) :: referenceTime
+      type(MPAS_Time_type) :: boundTime
+      type(MPAS_Time_type) :: expectedTime
+      logical :: hasBound
+      character(kind=c_char,len=12), target :: cString
+      type(c_ptr) :: cptr
+      type(MPAS_TimeInterval_type) :: oneHour
+      integer :: err
+
+      ierr = 0
+      err  = 0
+
+      ! Initialize reference time to 2000-01-01 00:00:00
+      call mpas_set_time(referenceTime, YYYY=2000, MM=1, DD=1, H=0, M=0, S=0, ierr=err)
+      if (err /= 0) then
+         call mpas_log_write('Error setting reference time in test_set_alarm_bound_time.', MPAS_LOG_ERR)
+         ierr = ierr + abs(err)
+      end if
+
+      !--------------------------------------------------------------------
+      ! Case 1: NULL pointer -> hasBoundTime should be false
+      !--------------------------------------------------------------------
+      call set_alarm_bound_time(c_null_ptr, boundTime, referenceTime, hasBound)
+      if (hasBound) then
+         call mpas_log_write('Expected hasBoundTime=.false. for NULL pointer.', MPAS_LOG_ERR)
+         ierr = ierr + 1
+      end if
+
+      !--------------------------------------------------------------------
+      ! Case 2: Valid string "0_01:00:00" (1 hour relative time)
+      !--------------------------------------------------------------------
+      cString = '0_01:00:00'
+      cptr = c_loc(cString)
+
+      call mpas_set_timeInterval(oneHour, H=1, ierr=err)
+      if (err /= 0) then
+         call mpas_log_write('Error creating 1-hour interval.', MPAS_LOG_ERR)
+         ierr = ierr + abs(err)
+      end if
+
+      expectedTime = add_t_ti(referenceTime, oneHour)
+
+      call set_alarm_bound_time(cptr, boundTime, referenceTime, hasBound)
+
+      if (.not. hasBound) then
+         call mpas_log_write('Expected hasBoundTime=.true. for valid string.', MPAS_LOG_ERR)
+         ierr = ierr + 1
+      else if (boundTime /= expectedTime) then
+         call mpas_log_write('Computed bound time does not match expected 1-hour offset.', MPAS_LOG_ERR)
+         ierr = ierr + 1
+      end if
+
+   end subroutine test_set_alarm_bound_time
+
+   !***********************************************************************
    !  Subroutine test_core_streams_test
    !
    !> \brief   Core test suite for stream I/O and alarm management in MPAS.
@@ -553,6 +634,15 @@ module test_core_streams
          call mpas_log_write('Removing input alarm test: SUCCESS')
       else
          call mpas_log_write('Removing input alarm test: FAILURE', MPAS_LOG_ERR)
+         ierr = ierr + abs(test_status)
+      end if
+
+      call mpas_log_write('Testing set_alarm_bound_time with NULL and valid C strings.')
+      call test_set_alarm_bound_time(test_status)
+      if (test_status == 0) then
+         call mpas_log_write('set_alarm_bound_time test: SUCCESS')
+      else
+         call mpas_log_write('set_alarm_bound_time test: FAILURE', MPAS_LOG_ERR)
          ierr = ierr + abs(test_status)
       end if
 

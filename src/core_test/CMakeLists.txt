@@ -42,3 +42,14 @@ else ()
     message(WARNING "MPAS_TEST_DATA_DIR is not set or does not exist; "
             "skipping test_mpas registration.")
 endif ()
+
+add_executable(test_xml_stream_parser test_xml_stream_parser.c)
+set_target_properties(test_xml_stream_parser PROPERTIES
+        LINKER_LANGUAGE C
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test/unity
+)
+target_link_libraries(test_xml_stream_parser PUBLIC
+        unity::framework ezxml framework
+)
+add_test(NAME test_xml_stream_parser
+        COMMAND test_xml_stream_parser)
