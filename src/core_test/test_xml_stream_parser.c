@@ -31,46 +31,46 @@ void tearDown(void) {
 }
 
 /* Test with both attributes present */
-void test_extract_stream_times_start_and_stop(void) {
+void test_extract_stream_time_bounds_start_and_stop(void) {
     ezxml_t stream = ezxml_child(streams, "start_and_stop");
-    stream_times times = extract_stream_times(stream);
+    stream_time_bounds times = extract_stream_time_bounds(stream);
     TEST_ASSERT_NOT_NULL(times.start_time);
     TEST_ASSERT_NOT_NULL(times.stop_time);
     TEST_ASSERT_EQUAL_STRING("0_00:00:00", times.start_time);
     TEST_ASSERT_EQUAL_STRING("1_00:00:00", times.stop_time);
-    free_stream_times(&times);
+    free_stream_time_bounds(&times);
     TEST_ASSERT_NULL(times.start_time);
     TEST_ASSERT_NULL(times.stop_time);
 }
 
-void test_extract_stream_times_start(void) {
+void test_extract_stream_time_bounds_start(void) {
     ezxml_t stream = ezxml_child(streams, "start");
-    stream_times times = extract_stream_times(stream);
+    stream_time_bounds times = extract_stream_time_bounds(stream);
     TEST_ASSERT_NOT_NULL(times.start_time);
     TEST_ASSERT_NULL(times.stop_time);
     TEST_ASSERT_EQUAL_STRING("0_00:00:00", times.start_time);
-    free_stream_times(&times);
+    free_stream_time_bounds(&times);
     TEST_ASSERT_NULL(times.start_time);
     TEST_ASSERT_NULL(times.stop_time);
 }
 
-void test_extract_stream_times_stop(void) {
+void test_extract_stream_time_bounds_stop(void) {
     ezxml_t stream = ezxml_child(streams, "stop");
-    stream_times times = extract_stream_times(stream);
+    stream_time_bounds times = extract_stream_time_bounds(stream);
     TEST_ASSERT_NULL(times.start_time);
     TEST_ASSERT_NOT_NULL(times.stop_time);
     TEST_ASSERT_EQUAL_STRING("1_00:00:00", times.stop_time);
-    free_stream_times(&times);
+    free_stream_time_bounds(&times);
     TEST_ASSERT_NULL(times.start_time);
     TEST_ASSERT_NULL(times.stop_time);
 }
 
-void test_extract_stream_times_none(void) {
+void test_extract_stream_time_bounds_none(void) {
     ezxml_t stream = ezxml_child(streams, "none");
-    stream_times times = extract_stream_times(stream);
+    stream_time_bounds times = extract_stream_time_bounds(stream);
     TEST_ASSERT_NULL(times.start_time);
     TEST_ASSERT_NULL(times.stop_time);
-    free_stream_times(&times);
+    free_stream_time_bounds(&times);
     TEST_ASSERT_NULL(times.start_time);
     TEST_ASSERT_NULL(times.stop_time);
 }
@@ -78,9 +78,9 @@ void test_extract_stream_times_none(void) {
 
 int main(void) {
     UNITY_BEGIN();
-    RUN_TEST(test_extract_stream_times_start_and_stop);
-    RUN_TEST(test_extract_stream_times_start);
-    RUN_TEST(test_extract_stream_times_stop);
-    RUN_TEST(test_extract_stream_times_none);
+    RUN_TEST(test_extract_stream_time_bounds_start_and_stop);
+    RUN_TEST(test_extract_stream_time_bounds_start);
+    RUN_TEST(test_extract_stream_time_bounds_stop);
+    RUN_TEST(test_extract_stream_time_bounds_none);
     return UNITY_END();
 }

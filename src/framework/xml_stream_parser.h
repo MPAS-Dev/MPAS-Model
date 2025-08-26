@@ -13,11 +13,11 @@ struct stacknode {
 typedef struct {
     char *start_time;
     char *stop_time;
-} stream_times;
+} stream_time_bounds;
 
-stream_times extract_stream_times(ezxml_t stream_xml);
+stream_time_bounds extract_stream_time_bounds(ezxml_t stream_xml);
 
-void free_stream_times(stream_times *times);
+void free_stream_time_bounds(stream_time_bounds *times);
 
 int uniqueness_check(ezxml_t stream1, ezxml_t stream2);
 

@@ -1020,8 +1020,8 @@ int extract_stream_interval(const char *interval, const char *interval_type, con
 }
 
 
-stream_times extract_stream_times(ezxml_t stream_xml) {
-	stream_times times;
+stream_time_bounds extract_stream_time_bounds(ezxml_t stream_xml) {
+	stream_time_bounds times;
 	times.start_time = NULL;
 	times.stop_time = NULL;
 
@@ -1042,7 +1042,7 @@ stream_times extract_stream_times(ezxml_t stream_xml) {
 }
 
 
-void free_stream_times(stream_times *times) {
+void free_stream_time_bounds(stream_time_bounds *times) {
 	if (!times) return;
 	free(times->start_time);
 	times->start_time = NULL;
@@ -1142,7 +1142,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		packagelist = ezxml_attr(stream_xml, "packages");
 		clobber = ezxml_attr(stream_xml, "clobber_mode");
 		iotype = ezxml_attr(stream_xml, "io_type");
-		stream_times times = extract_stream_times(stream_xml);
+		stream_time_bounds times = extract_stream_time_bounds(stream_xml);
 
 		/* Extract the input interval, if it refer to other streams */
 		if ( interval_in ) {
@@ -1433,6 +1433,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 			free(packages);
 		}
+		free_stream_time_bounds(&times);
 	}
 
 	/* Next, handle modifications to mutable streams as well as new stream definitions */
@@ -1452,7 +1453,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		packagelist = ezxml_attr(stream_xml, "packages");
 		clobber = ezxml_attr(stream_xml, "clobber_mode");
 		iotype = ezxml_attr(stream_xml, "io_type");
-		stream_times times = extract_stream_times(stream_xml);
+		stream_time_bounds times = extract_stream_time_bounds(stream_xml);
 
 		/* Extract the input interval, if it refer to other streams */
 		if ( interval_in ) {
@@ -1875,6 +1876,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 				}
 			}
 		}
+		free_stream_time_bounds(&times);
 	}
 
 	free(xml_buf);
