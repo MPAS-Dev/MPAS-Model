@@ -10,13 +10,48 @@ struct stacknode {
     struct stacknode *next;
 };
 
+/**
+ * @struct stream_time_bounds
+ * @brief  Holds optional start and stop time bounds for a stream.
+ *
+ * This structure encapsulates the optional `start_time` and `stop_time`
+ * attributes that may be defined in a `<stream>` or `<immutable_stream>`
+ * XML element. Both fields are dynamically allocated strings (via strdup)
+ * when extracted, and must be freed by the caller with
+ * free_stream_time_bounds().
+ */
 typedef struct {
     char *start_time;
     char *stop_time;
 } stream_time_bounds;
 
+/**
+ * @brief Extract start and stop time bounds from a stream XML element.
+ *
+ * Given an ezXML element corresponding to a stream, this function
+ * retrieves the values of the `start_time` and `stop_time` attributes.
+ * If present, the attribute strings are duplicated with strdup and
+ * stored in a newly constructed stream_time_bounds struct.
+ * If absent, the corresponding fields are left as NULL.
+ *
+ * @param[in]  stream_xml   ezXML handle for a `<stream>` or
+ *                          `<immutable_stream>` element.
+ *
+ * @return A stream_time_bounds struct with dynamically allocated
+ *         `start_time` and/or `stop_time` strings (caller must free).
+ */
 stream_time_bounds extract_stream_time_bounds(ezxml_t stream_xml);
 
+/**
+ * @brief Free the memory associated with a stream_time_bounds struct.
+ *
+ * This routine frees the dynamically allocated strings in a
+ * stream_time_bounds struct, if they are non-NULL, and resets
+ * the fields to NULL. The struct pointer itself is not freed.
+ *
+ * @param[in,out] times Pointer to a stream_time_bounds struct whose
+ *                      fields should be deallocated. May be NULL.
+ */
 void free_stream_time_bounds(stream_time_bounds *times);
 
 int uniqueness_check(ezxml_t stream1, ezxml_t stream2);
