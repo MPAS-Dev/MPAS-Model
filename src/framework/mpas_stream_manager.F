@@ -6320,6 +6320,7 @@ subroutine stream_mgr_add_alarm_c(manager_c, streamID_c, direction_c, alarmTime_
         call mpas_add_clock_alarm(clock, alarmID, alarmTime_local, ierr=ierr_tmp)
         ierr = ior(ierr, ierr_tmp)
     else
+        call mpas_set_timeInterval(alarmInterval_local, timeString=alarmInterval)
         mpasStartTime = mpas_get_clock_time(clock, MPAS_START_TIME, ierr=ierr_tmp)
         call set_alarm_bound_time(alarmStartTime_c, startTime_local, mpasStartTime, hasStart)
         call set_alarm_bound_time(alarmStopTime_c, stopTime_local, mpasStartTime, hasStop)
