@@ -32,9 +32,10 @@ set_target_properties(mpas_test
         PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test"
 )
+target_link_libraries(core_test PUBLIC framework Fortest::fortest)
 if (DEFINED MPAS_TEST_DATA_DIR AND EXISTS "${MPAS_TEST_DATA_DIR}")
     message(STATUS "MPAS_TEST_DATA_DIR is set and exists: ${MPAS_TEST_DATA_DIR}")
-    setup_mpas_test_core(${CMAKE_BINARY_DIR}/test)
+    mpas_setup_test_core(${CMAKE_BINARY_DIR}/test)
     add_test(NAME mpas_test
             COMMAND mpas_test
             WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/test")
@@ -53,3 +54,18 @@ target_link_libraries(test_xml_stream_parser PUBLIC
 )
 add_test(NAME test_xml_stream_parser
         COMMAND test_xml_stream_parser)
+
+add_library(test_clock_alarm_fixture SHARED
+        clock_alarm.fixture.f90
+)
+target_link_libraries(test_clock_alarm_fixture PUBLIC
+        Fortest::fortest core_test )
+
+add_executable(test_clock_alarm clock_alarm.test.f90)
+set_target_properties(test_clock_alarm PROPERTIES
+        LINKER_LANGUAGE Fortran
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test
+)
+target_link_libraries(test_clock_alarm PUBLIC
+        test_clock_alarm_fixture Fortest::fortest core_test
+)
