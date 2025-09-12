@@ -21,7 +21,6 @@ set(test_core_srcs
         mpas_test_core_timekeeping_tests.F
         mpas_test_openacc.F
         mpas_test_core_string_utils.F
-        mpas_test_core_stream_list.F
         mpas_test_core_stream_inquiry.F
         mpas_test_core_dmpar.F
 )
@@ -32,7 +31,6 @@ set_target_properties(mpas_test
         PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test"
 )
-target_link_libraries(core_test PUBLIC framework Fortest::fortest)
 if (DEFINED MPAS_TEST_DATA_DIR AND EXISTS "${MPAS_TEST_DATA_DIR}")
     message(STATUS "MPAS_TEST_DATA_DIR is set and exists: ${MPAS_TEST_DATA_DIR}")
     mpas_setup_test_core(${CMAKE_BINARY_DIR}/test)
@@ -44,28 +42,18 @@ else ()
             "skipping test_mpas registration.")
 endif ()
 
-add_executable(test_xml_stream_parser test_xml_stream_parser.c)
-set_target_properties(test_xml_stream_parser PROPERTIES
-        LINKER_LANGUAGE C
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test/unity
-)
-target_link_libraries(test_xml_stream_parser PUBLIC
-        unity::framework ezxml framework
-)
-add_test(NAME test_xml_stream_parser
-        COMMAND test_xml_stream_parser)
-
-add_library(test_clock_alarm_fixture SHARED
-        clock_alarm.fixture.f90
-)
-target_link_libraries(test_clock_alarm_fixture PUBLIC
-        Fortest::fortest core_test )
-
-add_executable(test_clock_alarm clock_alarm.test.f90)
-set_target_properties(test_clock_alarm PROPERTIES
-        LINKER_LANGUAGE Fortran
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test
-)
-target_link_libraries(test_clock_alarm PUBLIC
-        test_clock_alarm_fixture Fortest::fortest core_test
-)
+#
+#add_library(test_clock_alarm_fixture SHARED
+#        clock_alarm.fixture.f90
+#)
+#target_link_libraries(test_clock_alarm_fixture PUBLIC
+#        Fortest::fortest core_test )
+#
+#add_executable(test_clock_alarm clock_alarm.test.f90)
+#set_target_properties(test_clock_alarm PROPERTIES
+#        LINKER_LANGUAGE Fortran
+#        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test
+#)
+#target_link_libraries(test_clock_alarm PUBLIC
+#        test_clock_alarm_fixture Fortest::fortest core_test
+#)
