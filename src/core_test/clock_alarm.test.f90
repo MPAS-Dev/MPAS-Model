@@ -1,271 +1,262 @@
 module test_clock_alarm_mod
-   use mpi
-   use test_suite_mod
-   use assert_mod
-   use iso_c_binding, only: c_ptr, c_f_pointer
-   use mpas_subdriver
-   use mpas_timekeeping
-   use mpas_derived_types, only: core_type, domain_type
-   use test_clock_alarm_fixture_mod
-   implicit none
+    use mpi
+    use fortest_test_session, only : test_session_t
+    use fortest_assert, only : assert_true, assert_false, assert_equal
+    use iso_c_binding, only : c_ptr, c_f_pointer
+    use mpas_subdriver
+    use mpas_timekeeping
+    use mpas_derived_types, only : core_type, domain_type
+    use test_clock_alarm_fixture_mod
+    implicit none
 contains
 
-   subroutine start_stop_time_test1(t_ptr, ts_ptr, s_ptr)
-      implicit none
-      type(c_ptr), value :: t_ptr, ts_ptr, s_ptr
-      type(clock_alarm_test_fixture_t), pointer :: t
+    subroutine start_stop_time_test1(test_ptr, ts_ptr, s_ptr)
+        use iso_c_binding, only : c_ptr, c_f_pointer
+        implicit none
+        type(c_ptr), value :: test_ptr, ts_ptr, s_ptr
+        type(clock_alarm_test_fixture_t), pointer :: fixture
 
-      call c_f_pointer(t_ptr, t)
-      call assert_true(t%alarm % hasStartTime)
-      call assert_true(t%alarm % hasStopTime)
-   end subroutine start_stop_time_test1
+        call c_f_pointer(test_ptr, fixture)
+        call assert_true(fixture%alarm%hasStartTime)
+        call assert_true(fixture%alarm%hasStopTime)
+    end subroutine start_stop_time_test1
 
-   subroutine start_stop_time_test2(t_ptr, ts_ptr, s_ptr)
-      implicit none
-      type(c_ptr), value :: t_ptr, ts_ptr, s_ptr
-      type(clock_alarm_test_fixture_t), pointer :: t
-      integer :: hour, ierr
+    subroutine start_stop_time_test2(test_ptr, ts_ptr, s_ptr)
+        use iso_c_binding, only : c_ptr, c_f_pointer
+        implicit none
+        type(c_ptr), value :: test_ptr, ts_ptr, s_ptr
+        type(clock_alarm_test_fixture_t), pointer :: fixture
+        integer :: hour, ierr
 
-      call c_f_pointer(t_ptr, t)
-      do hour = 1, t%numHours
-         call assert_false(mpas_is_alarm_ringing(t%clock, t%alarmStartStopID, ierr = ierr))
-         call mpas_reset_clock_alarm(t%clock, t%alarmStartStopID, ierr = ierr)
-         call mpas_advance_clock(t%clock, ierr = ierr)
-      end do
-   end subroutine start_stop_time_test2
+        call c_f_pointer(test_ptr, fixture)
+        do hour = 1, fixture%num_hours
+            call assert_false(mpas_is_alarm_ringing(fixture%clock, fixture%alarm_id, ierr = ierr))
+            call mpas_reset_clock_alarm(fixture%clock, fixture%alarm_id, ierr = ierr)
+            call mpas_advance_clock(fixture%clock, ierr = ierr)
+        end do
+    end subroutine start_stop_time_test2
 
-   subroutine start_stop_time_test3(t_ptr, ts_ptr, s_ptr)
-      implicit none
-      type(c_ptr), value :: t_ptr, ts_ptr, s_ptr
-      type(clock_alarm_test_fixture_t), pointer :: t
-      integer :: hour, ierr
+    subroutine start_stop_time_test3(test_ptr, ts_ptr, s_ptr)
+        use iso_c_binding, only : c_ptr, c_f_pointer
+        implicit none
+        type(c_ptr), value :: test_ptr, ts_ptr, s_ptr
+        type(clock_alarm_test_fixture_t), pointer :: fixture
+        integer :: hour, ierr
 
-      call c_f_pointer(t_ptr, t)
-      do hour = 1, t%numHours
-         call mpas_reset_clock_alarm(t%clock, t%alarmStartStopID, ierr = ierr)
-         call mpas_advance_clock(t%clock, ierr = ierr)
-      end do
-      t%currentTime = mpas_get_clock_time(t%clock, MPAS_NOW, ierr = ierr)
-      call assert_true(eq_t_t(t%currentTime, t%alarmStartTime))
-   end subroutine start_stop_time_test3
+        call c_f_pointer(test_ptr, fixture)
+        do hour = 1, fixture%num_hours
+            call mpas_reset_clock_alarm(fixture%clock, fixture%alarm_id, ierr = ierr)
+            call mpas_advance_clock(fixture%clock, ierr = ierr)
+        end do
+        fixture%current_time = mpas_get_clock_time(fixture%clock, MPAS_NOW, ierr = ierr)
+        call assert_true(eq_t_t(fixture%current_time, fixture%alarm_start_time))
+    end subroutine start_stop_time_test3
 
-   subroutine start_stop_time_test4(t_ptr, ts_ptr, s_ptr)
-      implicit none
-      type(c_ptr), value :: t_ptr, ts_ptr, s_ptr
-      type(clock_alarm_test_fixture_t), pointer :: t
-      integer :: hour, ierr
+    subroutine start_stop_time_test4(test_ptr, ts_ptr, s_ptr)
+        use iso_c_binding, only : c_ptr, c_f_pointer
+        implicit none
+        type(c_ptr), value :: test_ptr, ts_ptr, s_ptr
+        type(clock_alarm_test_fixture_t), pointer :: fixture
+        integer :: hour, ierr
 
-      call c_f_pointer(t_ptr, t)
-      do hour = 1, t%numHours
-         call mpas_reset_clock_alarm(t%clock, t%alarmStartStopID, ierr = ierr)
-         call mpas_advance_clock(t%clock, ierr = ierr)
-      end do
-      do hour = 1, t%numHours
-         call assert_true(mpas_is_alarm_ringing(t%clock, t%alarmStartStopID, ierr = ierr))
-         call mpas_reset_clock_alarm(t%clock, t%alarmStartStopID, ierr = ierr)
-         call mpas_advance_clock(t%clock, ierr = ierr)
-      end do
-   end subroutine start_stop_time_test4
+        call c_f_pointer(test_ptr, fixture)
+        do hour = 1, fixture%num_hours
+            call mpas_reset_clock_alarm(fixture%clock, fixture%alarm_id, ierr = ierr)
+            call mpas_advance_clock(fixture%clock, ierr = ierr)
+        end do
+        do hour = 1, fixture%num_hours
+            call assert_true(mpas_is_alarm_ringing(fixture%clock, fixture%alarm_id, ierr = ierr))
+            call mpas_reset_clock_alarm(fixture%clock, fixture%alarm_id, ierr = ierr)
+            call mpas_advance_clock(fixture%clock, ierr = ierr)
+        end do
+    end subroutine start_stop_time_test4
 
-   subroutine start_stop_time_test5(t_ptr, ts_ptr, s_ptr)
-      implicit none
-      type(c_ptr), value :: t_ptr, ts_ptr, s_ptr
-      type(clock_alarm_test_fixture_t), pointer :: t
-      integer :: hour, ierr
+    subroutine start_stop_time_test5(test_ptr, ts_ptr, s_ptr)
+        use iso_c_binding, only : c_ptr, c_f_pointer
+        implicit none
+        type(c_ptr), value :: test_ptr, ts_ptr, s_ptr
+        type(clock_alarm_test_fixture_t), pointer :: fixture
+        integer :: hour, ierr
 
-      call c_f_pointer(t_ptr, t)
-      do hour = 1, t%numHours
-         call mpas_reset_clock_alarm(t%clock, t%alarmStartStopID, ierr = ierr)
-         call mpas_advance_clock(t%clock, ierr = ierr)
-      end do
-      do hour = 1, t%numHours
-         call mpas_reset_clock_alarm(t%clock, t%alarmStartStopID, ierr = ierr)
-         call mpas_advance_clock(t%clock, ierr = ierr)
-      end do
-      call mpas_reset_clock_alarm(t%clock, t%alarmStartStopID, ierr = ierr)
-      call mpas_advance_clock(t%clock, ierr = ierr)
-      do hour = 1, t%numHours
-         call assert_false(mpas_is_alarm_ringing(t%clock, t%alarmStartStopID, ierr = ierr))
-         call mpas_reset_clock_alarm(t%clock, t%alarmStartStopID, ierr = ierr)
-         call mpas_advance_clock(t%clock, ierr = ierr)
-      end do
-   end subroutine start_stop_time_test5
+        call c_f_pointer(test_ptr, fixture)
+        do hour = 1, fixture%num_hours
+            call mpas_reset_clock_alarm(fixture%clock, fixture%alarm_id, ierr = ierr)
+            call mpas_advance_clock(fixture%clock, ierr = ierr)
+        end do
+        do hour = 1, fixture%num_hours
+            call mpas_reset_clock_alarm(fixture%clock, fixture%alarm_id, ierr = ierr)
+            call mpas_advance_clock(fixture%clock, ierr = ierr)
+        end do
+        call mpas_reset_clock_alarm(fixture%clock, fixture%alarm_id, ierr = ierr)
+        call mpas_advance_clock(fixture%clock, ierr = ierr)
+        do hour = 1, fixture%num_hours
+            call assert_false(mpas_is_alarm_ringing(fixture%clock, fixture%alarm_id, ierr = ierr))
+            call mpas_reset_clock_alarm(fixture%clock, fixture%alarm_id, ierr = ierr)
+            call mpas_advance_clock(fixture%clock, ierr = ierr)
+        end do
+    end subroutine start_stop_time_test5
 
-   subroutine test_set_clock_direction(t_ptr, ts_ptr, s_ptr)
-      implicit none
-      type(c_ptr), value :: t_ptr, ts_ptr, s_ptr
-      type(clock_alarm_test_fixture_t), pointer :: t
-      integer :: hour, ierr
+    subroutine test_set_clock_direction(test_ptr, ts_ptr, s_ptr)
+        use iso_c_binding, only : c_ptr, c_f_pointer
+        implicit none
+        type(c_ptr), value :: test_ptr, ts_ptr, s_ptr
+        type(clock_alarm_test_fixture_t), pointer :: fixture
+        integer :: ierr
 
-      call c_f_pointer(t_ptr, t)
-      call assert_equal(mpas_get_clock_direction(t%clock, ierr = ierr), MPAS_FORWARD)
-      call mpas_set_clock_direction(t%clock, MPAS_BACKWARD, ierr = ierr)
-      call assert_equal(mpas_get_clock_direction(t%clock, ierr = ierr), MPAS_BACKWARD)
-   end subroutine
+        call c_f_pointer(test_ptr, fixture)
+        call assert_equal(mpas_get_clock_direction(fixture%clock, ierr = ierr), MPAS_FORWARD)
+        call mpas_set_clock_direction(fixture%clock, MPAS_BACKWARD, ierr = ierr)
+        call assert_equal(mpas_get_clock_direction(fixture%clock, ierr = ierr), MPAS_BACKWARD)
+    end subroutine test_set_clock_direction
 
+    subroutine test_prev_ring_time_forward(test_ptr, ts_ptr, s_ptr)
+        use iso_c_binding, only : c_ptr, c_f_pointer
+        implicit none
+        type(c_ptr), value :: test_ptr, ts_ptr, s_ptr
+        type(clock_alarm_test_fixture_t), pointer :: fixture
+        integer :: hour, ierr
 
-   !=============================================================
-   ! Test: prevRingTime updates correctly in forward direction
-   !=============================================================
-   subroutine test_prev_ring_time_forward(t_ptr, ts_ptr, s_ptr)
-      implicit none
-      type(c_ptr), value :: t_ptr, ts_ptr, s_ptr
-      type(clock_alarm_test_fixture_t), pointer :: t
-      integer :: hour, ierr
+        call c_f_pointer(test_ptr, fixture)
 
-      call c_f_pointer(t_ptr, t)
+        do hour = 1, 2 * fixture%num_hours
+            call mpas_reset_clock_alarm(fixture%clock, fixture%alarm_id, ierr = ierr)
+            call mpas_advance_clock(fixture%clock, ierr = ierr)
+        end do
 
-      ! Advance forward through numHours twice
-      do hour = 1, 2 * t%numHours
-         call mpas_reset_clock_alarm(t%clock, t%alarmStartStopID, ierr = ierr)
-         call mpas_advance_clock(t%clock, ierr = ierr)
-      end do
+        call assert_true(eq_t_t(fixture%alarm%prevRingTime, &
+                mpas_get_clock_time(fixture%clock, MPAS_NOW, ierr = ierr) - &
+                        fixture%alarm%ringTimeInterval))
+    end subroutine test_prev_ring_time_forward
 
-      ! Verify prevRingTime is one interval behind current time
-      call assert_true(eq_t_t(t%alarm%prevRingTime, &
-            mpas_get_clock_time(t%clock, MPAS_NOW, ierr = ierr) - &
-                  t%alarm%ringTimeInterval))
-   end subroutine
+    subroutine test_prev_ring_time_backward(test_ptr, ts_ptr, s_ptr)
+        use iso_c_binding, only : c_ptr, c_f_pointer
+        implicit none
+        type(c_ptr), value :: test_ptr, ts_ptr, s_ptr
+        type(clock_alarm_test_fixture_t), pointer :: fixture
+        integer :: ierr
 
+        call c_f_pointer(test_ptr, fixture)
 
-   !=============================================================
-   ! Test: prevRingTime flips correctly when clock goes backward
-   !=============================================================
-   subroutine test_prev_ring_time_backward(t_ptr, ts_ptr, s_ptr)
-      implicit none
-      type(c_ptr), value :: t_ptr, ts_ptr, s_ptr
-      type(clock_alarm_test_fixture_t), pointer :: t
-      integer :: ierr
+        call mpas_set_clock_direction(fixture%clock, MPAS_BACKWARD, ierr = ierr)
 
-      call c_f_pointer(t_ptr, t)
+        call assert_true(eq_t_t(fixture%alarm%prevRingTime, &
+                mpas_get_clock_time(fixture%clock, MPAS_NOW, ierr = ierr) + &
+                        fixture%alarm%ringTimeInterval))
+    end subroutine test_prev_ring_time_backward
 
-      call mpas_set_clock_direction(t%clock, MPAS_BACKWARD, ierr = ierr)
+    subroutine test_prev_ring_time_backward_step(test_ptr, ts_ptr, s_ptr)
+        use iso_c_binding, only : c_ptr, c_f_pointer
+        implicit none
+        type(c_ptr), value :: test_ptr, ts_ptr, s_ptr
+        type(clock_alarm_test_fixture_t), pointer :: fixture
+        integer :: ierr
 
-      ! In backward mode, prevRingTime should be current + interval
-      call assert_true(eq_t_t(t%alarm%prevRingTime, &
-            mpas_get_clock_time(t%clock, MPAS_NOW, ierr = ierr) + &
-                  t%alarm%ringTimeInterval))
-   end subroutine
+        call c_f_pointer(test_ptr, fixture)
 
+        call mpas_set_clock_direction(fixture%clock, MPAS_BACKWARD, ierr = ierr)
+        call mpas_advance_clock(fixture%clock, ierr = ierr)
 
-   !=============================================================
-   ! Test: prevRingTime after stepping one tick backwards
-   !=============================================================
-   subroutine test_prev_ring_time_backward_step(t_ptr, ts_ptr, s_ptr)
-      implicit none
-      type(c_ptr), value :: t_ptr, ts_ptr, s_ptr
-      type(clock_alarm_test_fixture_t), pointer :: t
-      integer :: ierr
+        call assert_true(eq_t_t(fixture%alarm%prevRingTime, &
+                mpas_get_clock_time(fixture%clock, MPAS_NOW, ierr = ierr) - &
+                        mpas_get_clock_timestep(fixture%clock) + &
+                        fixture%alarm%ringTimeInterval))
+    end subroutine test_prev_ring_time_backward_step
 
-      call c_f_pointer(t_ptr, t)
+    subroutine test_prev_ring_time_reset(test_ptr, ts_ptr, s_ptr)
+        use iso_c_binding, only : c_ptr, c_f_pointer
+        implicit none
+        type(c_ptr), value :: test_ptr, ts_ptr, s_ptr
+        type(clock_alarm_test_fixture_t), pointer :: fixture
+        integer :: ierr, i
 
-      call mpas_set_clock_direction(t%clock, MPAS_BACKWARD, ierr = ierr)
-      call mpas_advance_clock(t%clock, ierr = ierr)
+        call c_f_pointer(test_ptr, fixture)
 
-      call assert_true(eq_t_t(t%alarm%prevRingTime, &
-            mpas_get_clock_time(t%clock, MPAS_NOW, ierr = ierr) - &
-                  mpas_get_clock_timestep(t%clock) + &
-                  t%alarm%ringTimeInterval))
-   end subroutine
+        call assert_true(eq_t_t(fixture%alarm%prevRingTime, fixture%alarm_time - fixture%alarm%ringTimeInterval))
+        do i = 1, 2 * fixture%num_hours
+            call mpas_advance_clock(fixture%clock, ierr = ierr)
+        end do
+        call assert_true(eq_t_t(fixture%alarm%prevRingTime, fixture%alarm_time - fixture%alarm%ringTimeInterval))
+        call mpas_reset_clock_alarm(fixture%clock, fixture%alarm_id, ierr = ierr)
+        call assert_true(eq_t_t(fixture%alarm%prevRingTime, mpas_get_clock_time(fixture%clock, MPAS_NOW, ierr = ierr)))
+    end subroutine test_prev_ring_time_reset
 
+    subroutine test_alarm_reactivates_when_reversed(test_ptr, ts_ptr, s_ptr)
+        use iso_c_binding, only : c_ptr, c_f_pointer
+        implicit none
+        type(c_ptr), value :: test_ptr, ts_ptr, s_ptr
+        type(clock_alarm_test_fixture_t), pointer :: fixture
+        integer :: ierr, i
 
-   !=============================================================
-   ! Test: prevRingTime resets to now and is idempotent
-   !=============================================================
-   subroutine test_prev_ring_time_reset(t_ptr, ts_ptr, s_ptr)
-      implicit none
-      type(c_ptr), value :: t_ptr, ts_ptr, s_ptr
-      type(clock_alarm_test_fixture_t), pointer :: t
-      integer :: ierr, i
-
-      call c_f_pointer(t_ptr, t)
-
-      call assert_true(eq_t_t(t%alarm%prevRingTime, t%alarmTime - t%alarm%ringTimeInterval))
-      do i = 1, 2 * t%numHours
-         call mpas_advance_clock(t%clock, ierr = ierr)
-      end do
-      call assert_true(eq_t_t(t%alarm%prevRingTime, t%alarmTime - t%alarm%ringTimeInterval))
-      call mpas_reset_clock_alarm(t%clock, t%alarmStartStopID, ierr = ierr)
-      call assert_true(eq_t_t(t%alarm%prevRingTime, mpas_get_clock_time(t%clock, MPAS_NOW, ierr = ierr)))
-
-   end subroutine
-
-   subroutine test_alarm_reactivates_when_reversed(t_ptr, ts_ptr, s_ptr)
-      implicit none
-      type(c_ptr), value :: t_ptr, ts_ptr, s_ptr
-      type(clock_alarm_test_fixture_t), pointer :: t
-      integer :: ierr, i
-
-      call c_f_pointer(t_ptr, t)
-      do i = 1, 2 * t%numHours
-         call mpas_reset_clock_alarm(t%clock, t%alarmStartStopID, ierr = ierr)
-         call mpas_advance_clock(t%clock, ierr = ierr)
-      end do
-      call assert_true(mpas_is_alarm_ringing(t%clock, t%alarmStartStopID, ierr = ierr))
-   end subroutine
+        call c_f_pointer(test_ptr, fixture)
+        do i = 1, 2 * fixture%num_hours
+            call mpas_reset_clock_alarm(fixture%clock, fixture%alarm_id, ierr = ierr)
+            call mpas_advance_clock(fixture%clock, ierr = ierr)
+        end do
+        call mpas_set_clock_direction(fixture%clock, MPAS_BACKWARD, ierr = ierr)
+        call mpas_reset_clock_alarm(fixture%clock, fixture%alarm_id, ierr = ierr)
+        call mpas_advance_clock(fixture%clock, ierr = ierr)
+        call mpas_advance_clock(fixture%clock, ierr = ierr)
+        call mpas_advance_clock(fixture%clock, ierr = ierr)
+        call assert_true(mpas_is_alarm_ringing(fixture%clock, fixture%alarm_id, ierr = ierr))
+    end subroutine test_alarm_reactivates_when_reversed
 
 end module test_clock_alarm_mod
-
-
 program test_clock_alarm
-   use test_clock_alarm_mod
-   use test_clock_alarm_fixture_mod
-   use iso_c_binding, only: c_loc, c_ptr
-   implicit none
-   type(test_suite_t) :: clock_alarm_suite
-   type(clock_alarm_suite_fixture_t), target :: clock_alarm_suite_fixture
-   type(clock_alarm_test_fixture_t), target :: clock_alarm_test_fixture
-   type(c_ptr) :: clock_alarm_suite_fixture_ptr, clock_alarm_test_fixture_ptr
+    use fortest_test_session, only : test_session_t
+    use test_clock_alarm_mod, only : &
+            start_stop_time_test1, start_stop_time_test2, start_stop_time_test3, &
+            start_stop_time_test4, start_stop_time_test5, test_set_clock_direction, &
+            test_prev_ring_time_forward, test_prev_ring_time_backward, &
+            test_prev_ring_time_backward_step, test_prev_ring_time_reset, &
+            test_alarm_reactivates_when_reversed
+    use test_clock_alarm_fixture_mod, only : &
+            clock_alarm_suite_fixture_t, &
+            clock_alarm_test_fixture_t, &
+            setup_clock_alarm_suite, teardown_clock_alarm_suite, &
+            setup_clock_alarm_test, teardown_clock_alarm_test
+    use iso_c_binding, only : c_loc, c_ptr
+    implicit none
 
-   clock_alarm_suite_fixture_ptr = c_loc(clock_alarm_suite_fixture)
-   clock_alarm_test_fixture_ptr = c_loc(clock_alarm_test_fixture)
+    type(test_session_t) :: session
+    type(clock_alarm_suite_fixture_t), target :: suite_fixture
+    type(clock_alarm_test_fixture_t),  target :: test_fixture
+    type(c_ptr) :: suite_fixture_ptr, test_fixture_ptr
 
-   clock_alarm_suite = test_suite_t(name = "test_clock_alarm")
-   call clock_alarm_suite%register_fixture(&
-         name = "clock_alarm_suite_fixture", &
-         setup = setup_clock_alarm_suite, &
-         teardown = teardown_clock_alarm_suite, &
-         args = clock_alarm_suite_fixture_ptr, &
-         scope = "suite")
-   call clock_alarm_suite%register_fixture(&
-         name = "clock_alarm_test_fixture", &
-         setup = setup_clock_alarm_test, &
-         teardown = teardown_clock_alarm_test, &
-         args = clock_alarm_test_fixture_ptr, &
-         scope = "test")
-   call clock_alarm_suite%register_test(&
-         name = "start_stop_time_test1", &
-         test = start_stop_time_test1)
-   call clock_alarm_suite%register_test(&
-         name = "start_stop_time_test2", &
-         test = start_stop_time_test2)
-   call clock_alarm_suite%register_test(&
-         name = "start_stop_time_test3", &
-         test = start_stop_time_test3)
-   call clock_alarm_suite%register_test(&
-         name = "start_stop_time_test4", &
-         test = start_stop_time_test4)
-   call clock_alarm_suite%register_test(&
-         name = "start_stop_time_test5", &
-         test = start_stop_time_test5)
-   call clock_alarm_suite%register_test(&
-         name = "test_set_clock_direction", &
-         test = test_set_clock_direction)
-   call clock_alarm_suite%register_test(&
-         name = "test_prev_ring_time_forward", &
-         test = test_prev_ring_time_forward)
-   call clock_alarm_suite%register_test(&
-         name = "test_prev_ring_time_backward", &
-         test = test_prev_ring_time_backward)
-   call clock_alarm_suite%register_test(&
-         name = "test_prev_ring_time_backward_step", &
-         test = test_prev_ring_time_backward_step)
-   call clock_alarm_suite%register_test(&
-         name = "test_prev_ring_time_reset", &
-         test = test_prev_ring_time_reset)
-   call clock_alarm_suite%register_test(&
-         name = "test_alarm_reactivates_when_reversed", &
-         test = test_alarm_reactivates_when_reversed)
+    ! Create C pointers to fixtures
+    suite_fixture_ptr = c_loc(suite_fixture)
+    test_fixture_ptr  = c_loc(test_fixture)
 
-   call clock_alarm_suite%run()
+    ! Register suite
+    call session%register_test_suite("clock_alarm_test")
+
+    ! Register fixtures
+    call session%register_fixture(&
+            setup    = setup_clock_alarm_suite, &
+            teardown = teardown_clock_alarm_suite, &
+            args     = suite_fixture_ptr, &
+            scope    = "session")
+
+    call session%register_fixture(&
+            test_suite_name = "clock_alarm_test", &
+            setup           = setup_clock_alarm_test, &
+            teardown        = teardown_clock_alarm_test, &
+            args            = test_fixture_ptr, &
+            scope           = "test")
+
+    ! Register tests
+    call session%register_test("clock_alarm_test", "start_stop_time_test1", start_stop_time_test1)
+    call session%register_test("clock_alarm_test", "start_stop_time_test2", start_stop_time_test2)
+    call session%register_test("clock_alarm_test", "start_stop_time_test3", start_stop_time_test3)
+    call session%register_test("clock_alarm_test", "start_stop_time_test4", start_stop_time_test4)
+    call session%register_test("clock_alarm_test", "start_stop_time_test5", start_stop_time_test5)
+    call session%register_test("clock_alarm_test", "test_set_clock_direction", test_set_clock_direction)
+    call session%register_test("clock_alarm_test", "test_prev_ring_time_forward", test_prev_ring_time_forward)
+    call session%register_test("clock_alarm_test", "test_prev_ring_time_backward", test_prev_ring_time_backward)
+    call session%register_test("clock_alarm_test", "test_prev_ring_time_backward_step", test_prev_ring_time_backward_step)
+    call session%register_test("clock_alarm_test", "test_prev_ring_time_reset", test_prev_ring_time_reset)
+    call session%register_test("clock_alarm_test", "test_alarm_reactivates_when_reversed", test_alarm_reactivates_when_reversed)
+
+    ! Run session
+    call session%run()
+    call session%finalize()
 end program test_clock_alarm

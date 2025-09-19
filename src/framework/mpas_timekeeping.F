@@ -19,7 +19,7 @@ module mpas_timekeeping
    private :: mpas_calibrate_alarms
    private :: mpas_in_ringing_envelope
 
-   integer :: TheCalendar 
+   integer :: TheCalendar
    integer :: yearWidth
 
    integer, dimension(12), parameter :: daysInMonth     = (/31,28,31,30,31,30,31,31,30,31,30,31/)
@@ -88,7 +88,7 @@ module mpas_timekeeping
 
       implicit none
 
-      character (len=*), intent(in) :: calendar 
+      character (len=*), intent(in) :: calendar
 
       if (trim(calendar) == 'gregorian') then
          TheCalendar = MPAS_GREGORIAN
@@ -198,7 +198,7 @@ module mpas_timekeeping
                   return
                end if
             end if
-         else if (present(stopTime)) then 
+         else if (present(stopTime)) then
             stop_time = stopTime
          else
             if (present(ierr)) ierr = 1   ! neither stopTime nor runDuration are specified
@@ -543,7 +543,7 @@ module mpas_timekeeping
 
          alarmPtr % isSet = .true.
          alarmPtr % ringTime = alarmTime
-         
+
 
          if (present(alarmTimeInterval)) then
             alarmPtr % isRecurring = .true.
@@ -551,7 +551,7 @@ module mpas_timekeeping
             if(clock % direction == MPAS_FORWARD) then
                alarmPtr % prevRingTime = alarmTime - alarmTimeInterval
             else
-               alarmPtr % prevRingTime = alarmTime + alarmTimeInterval         
+               alarmPtr % prevRingTime = alarmTime + alarmTimeInterval
             end if
          else
             alarmPtr % isRecurring = .false.
@@ -648,7 +648,7 @@ module mpas_timekeeping
             mpas_is_alarm_defined = .true.
             return
          end if
-         alarmPtr => alarmPtr % next 
+         alarmPtr => alarmPtr % next
       end do
 
    end function mpas_is_alarm_defined
@@ -687,7 +687,7 @@ module mpas_timekeeping
             end if
             return
          end if
-         alarmPtr => alarmPtr % next 
+         alarmPtr => alarmPtr % next
       end do
 
    end function mpas_alarm_interval
@@ -838,7 +838,7 @@ module mpas_timekeeping
       if (present(ierr)) ierr = 0
 
       mpas_is_alarm_ringing = .false.
-      
+
       alarmPtr => clock % alarmListHead
       do while (associated(alarmPtr))
          if (trim(alarmPtr % alarmID) == trim(alarmID)) then
@@ -889,18 +889,18 @@ module mpas_timekeeping
    logical function mpas_in_ringing_envelope(clock, alarmPtr, interval, ierr)
 
       implicit none
-      
+
       type (MPAS_Clock_type), intent(in) :: clock
       type (MPAS_Alarm_type), pointer :: alarmPtr
       type (MPAS_TimeInterval_type), intent(in), optional :: interval
       integer, intent(out), optional :: ierr
-      
+
       type (MPAS_Time_type) :: alarmNow
       type (MPAS_Time_type) :: alarmThreshold
 
       alarmNow = mpas_get_clock_time(clock, MPAS_NOW, ierr)
-      alarmThreshold = alarmPtr % ringTime 
-      
+      alarmThreshold = alarmPtr % ringTime
+
       mpas_in_ringing_envelope = .false.
 
       if (alarmPtr % hasStartTime) then
@@ -918,7 +918,7 @@ module mpas_timekeeping
       if(clock % direction == MPAS_FORWARD) then
 
          if (present(interval)) then
-            alarmNow = alarmNow + interval; 
+            alarmNow = alarmNow + interval;
          end if
 
          if (alarmPtr % isRecurring) then
@@ -931,13 +931,13 @@ module mpas_timekeeping
       else
 
          if (present(interval)) then
-            alarmNow = alarmNow - interval; 
+            alarmNow = alarmNow - interval;
          end if
 
          if (alarmPtr % isRecurring) then
             alarmThreshold = alarmPtr % prevRingTime - alarmPtr % ringTimeInterval
          end if
-            
+
          if (alarmThreshold >= alarmNow) then
             mpas_in_ringing_envelope = .true.
          end if
@@ -945,9 +945,41 @@ module mpas_timekeeping
 
    end function mpas_in_ringing_envelope
 
+      !-----------------------------------------------------------------------
+      !  routine mpas_update_alarm_stop_status
+      !
+      !> \brief Update an alarm's active status based on its stop time.
+      !> \author Andy Stokely
+      !> \date   09/19/2025
+      !> \details This routine checks whether an alarm has reached or passed
+      !>   its configured stop time, and updates its status accordingly:
+      !>   * If the clock is running forward and the current time is at or
+      !>     beyond the stop time, the alarm is permanently disabled.
+      !>   * If the clock is running backward and the current time is at or
+      !>     beyond the stop time, the alarm is re-enabled.
+      !>
+      !>   This logic is applied to alarms that have the `hasStopTime` flag set.
+      !-----------------------------------------------------------------------
+      subroutine mpas_update_alarm_stop_status(clock, alarm_ptr, alarm_now)
+         implicit none
+
+         type(MPAS_Clock_type), intent(in) :: clock
+         type(MPAS_Alarm_type), pointer, intent(inout) :: alarm_ptr
+         type(MPAS_Time_type), intent(in) :: alarm_now
+
+         if (alarm_ptr%hasStopTime) then
+            if (alarm_now >= alarm_ptr%stopTime) then
+               if (clock%direction == MPAS_FORWARD) then
+                  alarm_ptr%isSet = .false. ! disable alarm unless clock direction changes
+               else
+                  alarm_ptr%isSet = .true. ! re-enable alarm if clock is running backward
+               end if
+            end if
+         end if
+      end subroutine mpas_update_alarm_stop_status
 
 
-   subroutine mpas_reset_clock_alarm(clock, alarmID, interval, ierr)
+      subroutine mpas_reset_clock_alarm(clock, alarmID, interval, ierr)
 
       implicit none
 
@@ -970,13 +1002,13 @@ module mpas_timekeeping
       if ( threadNum == 0 ) then
          alarmPtr => clock % alarmListHead
          do while (associated(alarmPtr))
-         
+
             if (trim(alarmPtr % alarmID) == trim(alarmID)) then
 
                if (mpas_in_ringing_envelope(clock, alarmPtr, interval, ierr)) then
 
                   if (.not. alarmPtr % isRecurring) then
-                     alarmPtr % isSet = .false. 
+                     alarmPtr % isSet = .false.
                   else
                      alarmNow = mpas_get_clock_time(clock, MPAS_NOW, ierr)
 
@@ -999,12 +1031,7 @@ module mpas_timekeeping
                      end if
                   end if
                end if
-               if (alarmPtr % hasStopTime) then
-                  if (alarmNow >= alarmPtr % stopTime) then
-                     alarmPtr % isSet = .false.   ! permanently disable
-                  end if
-               end if
-               exit
+               call mpas_update_alarm_stop_status(clock, alarmPtr, alarmNow)
             end if
             alarmPtr => alarmPtr % next
          end do
@@ -1111,29 +1138,29 @@ module mpas_timekeeping
       threadNum = mpas_threading_get_thread_num()
 
       now = mpas_get_clock_time(clock, MPAS_NOW, ierr)
-      
+
       if ( threadNum == 0 ) then
          alarmPtr => clock % alarmListHead
          do while (associated(alarmPtr))
-            
+
             if (.not. alarmPtr % isRecurring) then
-               alarmPtr % isSet = .true.            
+               alarmPtr % isSet = .true.
             else
-            
+
                previousRingTime = alarmPtr % prevRingTime
 
                if (previousRingTime <= now) then
-               
+
                   do while(previousRingTime <= now)
                      previousRingTime = previousRingTime + alarmPtr % ringTimeInterval
                   end do
                   positiveNeighborRingTime = previousRingTime
-               
+
                   do while(previousRingTime >= now)
                      previousRingTime = previousRingTime - alarmPtr % ringTimeInterval
                   end do
                   negativeNeighborRingTime = previousRingTime
-               
+
                else
 
                   do while(previousRingTime >= now)
@@ -1145,7 +1172,7 @@ module mpas_timekeeping
                      previousRingTime = previousRingTime + alarmPtr % ringTimeInterval
                   end do
                   positiveNeighborRingTime = previousRingTime
-            
+
                end if
 
                if (clock % direction == MPAS_FORWARD) then
@@ -1155,18 +1182,18 @@ module mpas_timekeeping
                end if
 
             end if
-   
+
             alarmPtr => alarmPtr % next
-            
+
          end do
-   
+
          if (present(ierr)) then
             if (ierr == ESMF_SUCCESS) ierr = 0
          end if
       end if
 
       !$omp barrier
-   
+
    end subroutine mpas_calibrate_alarms
 
 
@@ -1210,7 +1237,7 @@ module mpas_timekeeping
             deallocate(subStrings)
             denominatorPower = len_trim(secDecSubString)
             if(denominatorPower > 0) then
-               read(secDecSubString,*) numerator 
+               read(secDecSubString,*) numerator
                if(numerator > 0) then
                   denominator = 10**denominatorPower
                end if
@@ -1230,13 +1257,13 @@ module mpas_timekeeping
             dateSubString = subStrings(1)
             timeSubString = subStrings(2)
             deallocate(subStrings)
-            
+
             call mpas_split_string(timeSubString, ":", subStrings)
-            
+
             if (size(subStrings) == 3) then
-               read(subStrings(1),*) hour 
-               read(subStrings(2),*) min 
-               read(subStrings(3),*) sec 
+               read(subStrings(1),*) hour
+               read(subStrings(2),*) min
+               read(subStrings(3),*) sec
                deallocate(subStrings)
             else
                deallocate(subStrings)
@@ -1245,14 +1272,14 @@ module mpas_timekeeping
                return
             end if
 
-         else if(size(subStrings) == 1) then   ! contains only a date- assume all time values are 0 
+         else if(size(subStrings) == 1) then   ! contains only a date- assume all time values are 0
             dateSubString = subStrings(1)
             deallocate(subStrings)
-           
+
             hour = 0
             min = 0
             sec = 0
-         
+
          else
             deallocate(subStrings)
             if (present(ierr)) ierr = 1
@@ -1261,9 +1288,9 @@ module mpas_timekeeping
          end if
 
          call mpas_split_string(dateSubString, "-", subStrings)
-            
+
          if (size(subStrings) == 3) then
-            read(subStrings(1),*) year 
+            read(subStrings(1),*) year
             read(subStrings(2),*) month
             read(subStrings(3),*) day
             deallocate(subStrings)
@@ -1277,10 +1304,10 @@ module mpas_timekeeping
          call ESMF_TimeSet(curr_time % t, YY=year, MM=month, DD=day, H=hour, M=min, S=sec, Sn=numerator, Sd=denominator, rc=ierr)
 
       else
-      
+
          if (present(DoY)) then
             call mpas_get_month_day(YYYY, DoY, month, day)
-         
+
             ! consistency check
             if (present(MM)) then
                if (MM /= month) then
@@ -1318,9 +1345,9 @@ module mpas_timekeeping
          end if
 
          call ESMF_TimeSet(curr_time % t, YY=YYYY, MM=month, DD=day, H=H, M=M, S=S, Sn=S_n, Sd=S_d, rc=ierr)
-      
+
       end if
-      
+
       if (present(ierr)) then
          if (ierr == ESMF_SUCCESS) ierr = 0
       end if
@@ -1510,7 +1537,7 @@ module mpas_timekeeping
          denominator = 1
 
          call mpas_split_string(timeString_, ".", subStrings)
-         
+
          if (size(subStrings) == 2) then ! contains second decimals
             timeString_ = subStrings(1)
             secDecSubString = subStrings(2)(:integerMaxDigits)
@@ -1518,7 +1545,7 @@ module mpas_timekeeping
 
             denominatorPower = len_trim(secDecSubString)
             if(denominatorPower > 0) then
-               read(secDecSubString,*) numerator 
+               read(secDecSubString,*) numerator
                if(numerator > 0) then
                   denominator = 10**denominatorPower
                end if
@@ -1575,21 +1602,21 @@ module mpas_timekeeping
          end if
 
          call mpas_split_string(timeSubString, ":", subStrings)
-            
+
          if (size(subStrings) == 3) then
-            read(subStrings(1),*) hour 
-            read(subStrings(2),*) min 
-            read(subStrings(3),*) sec 
+            read(subStrings(1),*) hour
+            read(subStrings(2),*) min
+            read(subStrings(3),*) sec
             deallocate(subStrings)
          else if (size(subStrings) == 2) then
             hour = 0
-            read(subStrings(1),*) min 
-            read(subStrings(2),*) sec 
+            read(subStrings(1),*) min
+            read(subStrings(2),*) sec
             deallocate(subStrings)
          else if (size(subStrings) == 1) then
             hour = 0
             min = 0
-            read(subStrings(1),*) sec 
+            read(subStrings(1),*) sec
             deallocate(subStrings)
          else
             deallocate(subStrings)
@@ -1603,7 +1630,7 @@ module mpas_timekeeping
       else
 
          call ESMF_TimeIntervalSet(interval % ti, YY=YY, MM=MM, D=DD, H=H, M=M, S_i8=S_i8, S=S, Sn=S_n, Sd=S_d, rc=ierr)
-      
+
       end if
 
 !     ! verify that time interval is positive
@@ -1614,10 +1641,10 @@ module mpas_timekeeping
 !     end if
 
 !     if (interval <= zeroInterval) then
-!        if (present(ierr)) ierr = 1   
+!        if (present(ierr)) ierr = 1
 !        call mpas_log_write('TimeInterval must be greater than zero: '// trim(timeString), MPAS_LOG_ERR) !'ERROR: TimeInterval cannot be negative'
 !     end if
-      
+
    end subroutine mpas_set_timeInterval
 
 
@@ -1867,7 +1894,7 @@ module mpas_timekeeping
    !> \brief This routine computes the number intervals that fit into another interval.
    !> \author Michael Duda, Doug Jacobsen, Daniel Henderson
    !> \date   4 October 2016
-   !> \details 
+   !> \details
    !> This routine performs time-interval division on any intervals with cost
    !> that is proportional to the log of the result, n.
    !> It works by first performing a forward search, doubling intervals, until
@@ -2104,8 +2131,8 @@ module mpas_timekeeping
       integer :: D, S, Sn, Sd
 
       call ESMF_TimeIntervalGet(ti % ti, D=D, S=S, Sn=Sn, Sd=Sd, rc=rc)
-      D    = -D 
-      S    = -S 
+      D    = -D
+      S    = -S
       Sn   = -Sn
       call ESMF_TimeIntervalSet(neg_ti % ti, D=D, S=S, Sn=Sn, Sd=Sd, rc=rc)
 
@@ -2126,8 +2153,8 @@ module mpas_timekeeping
 
       if(ti < zeroInterval) then
          call ESMF_TimeIntervalGet(ti % ti, D=D, S=S, Sn=Sn, Sd=Sd, rc=rc)
-         D    = -D 
-         S    = -S 
+         D    = -D
+         S    = -S
          Sn   = -Sn
          call ESMF_TimeIntervalSet(abs_ti % ti, D=D, S=S, Sn=Sn, Sd=Sd, rc=rc)
       else
@@ -2149,14 +2176,14 @@ module mpas_timekeeping
 !   end function mod
 
     subroutine mpas_get_month_day(YYYY, DoY, month, day)
-       
+
        implicit none
 
        integer, intent(in) :: YYYY, DoY
        integer, intent(out) :: month, day
 
        integer, dimension(12) :: dpm
-       
+
        if (isLeapYear(YYYY)) then
           dpm(:) = daysInMonthLeap
        else
@@ -2167,20 +2194,20 @@ module mpas_timekeeping
        day = DoY
        do while (day > dpm(month))
           day = day -  dpm(month)
-          month = month + 1       
+          month = month + 1
        end do
 
     end subroutine mpas_get_month_day
 
 
    logical function isValidDate(YYYY, MM, DD)
-   
+
       integer, intent(in) :: YYYY, MM, DD
       integer :: daysInMM
-      
+
       isValidDate = .true.
 
-      ! TODO: ???? Gregorian calendar has no year zero, but perhaps 0 = 1 BC ??? 
+      ! TODO: ???? Gregorian calendar has no year zero, but perhaps 0 = 1 BC ???
       !if (YYYY == 0) then
       !   isValidDate = .false.
       !   return
@@ -2202,10 +2229,10 @@ module mpas_timekeeping
          if (TheCalendar == MPAS_GREGORIAN .and. isLeapYear(YYYY)) then
             daysInMM = daysInMonthLeap(MM)
          else
-            daysInMM = daysInMonth(MM)        
+            daysInMM = daysInMonth(MM)
          end if
       end if
-     
+
       if (DD > daysInMM) then
          isValidDate = .false.
          return
@@ -2213,7 +2240,7 @@ module mpas_timekeeping
 
    end function
 
-    
+
     logical function isLeapYear(year)
 
        implicit none
@@ -2221,7 +2248,7 @@ module mpas_timekeeping
        integer, intent(in) :: year
 
        isLeapYear = .false.
-       
+
        if (mod(year,4) == 0) then
           if (mod(year,100) == 0) then
              if (mod(year,400) == 0) then
@@ -2352,6 +2379,6 @@ module mpas_timekeeping
         end do
 
     end subroutine mpas_expand_string!}}}
- 
+
 
 end module mpas_timekeeping

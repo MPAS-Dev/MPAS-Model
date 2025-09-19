@@ -42,18 +42,18 @@ else ()
             "skipping test_mpas registration.")
 endif ()
 
-#
-#add_library(test_clock_alarm_fixture SHARED
-#        clock_alarm.fixture.f90
-#)
-#target_link_libraries(test_clock_alarm_fixture PUBLIC
-#        Fortest::fortest core_test )
-#
-#add_executable(test_clock_alarm clock_alarm.test.f90)
-#set_target_properties(test_clock_alarm PROPERTIES
-#        LINKER_LANGUAGE Fortran
-#        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test
-#)
-#target_link_libraries(test_clock_alarm PUBLIC
-#        test_clock_alarm_fixture Fortest::fortest core_test
-#)
+
+add_library(test_clock_alarm_fixture SHARED
+        clock_alarm.fixture.f90
+)
+target_link_libraries(test_clock_alarm_fixture PUBLIC
+        Fortest::fortest core_test )
+
+add_executable(test_clock_alarm clock_alarm.test.f90)
+set_target_properties(test_clock_alarm PROPERTIES
+        LINKER_LANGUAGE Fortran
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test
+)
+target_link_libraries(test_clock_alarm PUBLIC
+        test_clock_alarm_fixture Fortest::fortest core_test
+)

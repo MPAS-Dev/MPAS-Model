@@ -71,7 +71,7 @@ if(CMAKE_Fortran_COMPILER_ID MATCHES NVHPC)
 endif()
 find_package(MPI REQUIRED COMPONENTS Fortran)
 
-set(Fortest_DIR "/home/astokely/software/fortest/lib/cmake/Fortest")
+set(Fortest_DIR "/Users/astokely/software/fortest/lib/cmake/Fortest")
 find_package(Fortest)
 
 find_package(PnetCDF REQUIRED COMPONENTS Fortran)
