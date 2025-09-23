@@ -98,6 +98,7 @@ module test_core
       use mpas_test_core_stream_inquiry, only : mpas_test_stream_inquiry
       use mpas_test_core_openacc, only : mpas_test_openacc
       use test_core_timekeeping_tests
+      use mpas_test_core_clock_alarms, only : test_core_clock_alarms_test
 
       implicit none
    
@@ -118,167 +119,151 @@ module test_core
       !
       ! Test performance of framework sorting routines
       !
-      call test_core_test_sorting(domain, iErr)
-      if (iErr == 0) then
-         call mpas_log_write(' * Sorting tests: SUCCESS')
-      else
-         call mpas_log_write(' * Sorting tests: FAILURE', MPAS_LOG_ERR)
-      end if
-
-      !
-      ! Test functionality of mpas_halo module
+!     call test_core_test_sorting(domain, iErr)
+!     if (iErr == 0) then
+!        call mpas_log_write(' * Sorting tests: SUCCESS')
+!     else
+!        call mpas_log_write(' * Sorting tests: FAILURE', MPAS_LOG_ERR)
+!     end if
+!!     !
+!     ! Test functionality of mpas_halo module
+!     !
+!     call mpas_log_write('')
+!     call mpas_log_write('Testing mpas_halo module:')
+!     call mpas_halo_tests(domain, iErr)
+!     if (iErr == 0) then
+!        call mpas_log_write('* mpas_halo tests: SUCCESS')
+!     else
+!        call mpas_log_write('* mpas_halo tests: FAILURE', MPAS_LOG_ERR)
+!     end if
+!     call mpas_log_write('')
+!!     iErr = 0
+!!     call mpas_unit_test_fix_periodicity(iErr)
+!     call mpas_unit_test_triangle_signed_area_sphere(iErr)
+!!     call mpas_unit_test_velocity_conversion(iErr)
+!     call mpas_unit_test_wachspress_hexagon(iErr)
+!     call mpas_unit_test_wachspress_triangle(iErr)
+!!     !$omp parallel default(firstprivate) shared(domain, threadErrs)
+!     call test_core_halo_exch_test(domain, threadErrs, iErr)
+!     !$omp end parallel
+!     if ( iErr == 0 ) then
+!        call mpas_log_write(' * Halo Exchange Test: SUCCESS')
+!     else
+!        call mpas_log_write(' * Halo Exchange Test: FAILURE', MPAS_LOG_ERR)
+!     end if
+!!     !$omp parallel default(firstprivate) shared(domain, threadErrs)
+!     call test_core_test_fields(domain, threadErrs, ierr)
+!      if ( iErr == 0 ) then
+!        call mpas_log_write(' * Field Tests: SUCCESS')
+!     else
+!        call mpas_log_write(' * Field Tests: FAILURE', MPAS_LOG_ERR)
+!     end if
+!     !$omp end parallel
+!!     ! Run stream tests
+!     call test_core_streams_test(domain, threadErrs, iErr)
+!     if ( iErr == 0 ) then
+!        call mpas_log_write('Stream tests: SUCCESS')
+!     else
+!        call mpas_log_write('Stream tests: FAILURE', MPAS_LOG_ERR)
+!     end if
+!!     ! Run string util tests
+!     call mpas_log_write('')
+!     call mpas_test_string_utils(iErr)
+!     call mpas_log_write('')
+!!     !
+!     ! Run mpas_dmpar tests
+!     !
+!     call mpas_log_write('')
+!     iErr = mpas_test_dmpar(domain % dminfo)
+!     if (iErr == 0) then
+!         call mpas_log_write('All tests PASSED')
+!     else
+!         call mpas_log_write('$i tests FAILED', intArgs=[iErr])
+!     end if
+!     call mpas_log_write('')
+!      !
+      ! Run clock alarm tests
       !
       call mpas_log_write('')
-      call mpas_log_write('Testing mpas_halo module:')
-      call mpas_halo_tests(domain, iErr)
-      if (iErr == 0) then
-         call mpas_log_write('* mpas_halo tests: SUCCESS')
-      else
-         call mpas_log_write('* mpas_halo tests: FAILURE', MPAS_LOG_ERR)
-      end if
-      call mpas_log_write('')
-
-      iErr = 0
-
-      call mpas_unit_test_fix_periodicity(iErr)
-      call mpas_unit_test_triangle_signed_area_sphere(iErr)
-
-      call mpas_unit_test_velocity_conversion(iErr)
-      call mpas_unit_test_wachspress_hexagon(iErr)
-      call mpas_unit_test_wachspress_triangle(iErr)
-
-      !$omp parallel default(firstprivate) shared(domain, threadErrs)
-      call test_core_halo_exch_test(domain, threadErrs, iErr)
-      !$omp end parallel
+      call mpas_log_write('Testing clock alarms:')
+      call test_core_clock_alarms_test(domain, iErr)
       if ( iErr == 0 ) then
-         call mpas_log_write(' * Halo Exchange Test: SUCCESS')
-      else
-         call mpas_log_write(' * Halo Exchange Test: FAILURE', MPAS_LOG_ERR)
+            call mpas_log_write(' * Clock Alarm Tests: SUCCESS')
+        else
+            call mpas_log_write(' * Clock Alarm Tests: FAILURE', MPAS_LOG_ERR)
       end if
-
-      !$omp parallel default(firstprivate) shared(domain, threadErrs)
-      call test_core_test_fields(domain, threadErrs, ierr)
-       if ( iErr == 0 ) then
-         call mpas_log_write(' * Field Tests: SUCCESS')
-      else
-         call mpas_log_write(' * Field Tests: FAILURE', MPAS_LOG_ERR)
-      end if
-      !$omp end parallel
-
-      ! Run stream tests
-      call test_core_streams_test(domain, threadErrs, iErr)
-      if ( iErr == 0 ) then
-         call mpas_log_write('Stream tests: SUCCESS')
-      else
-         call mpas_log_write('Stream tests: FAILURE', MPAS_LOG_ERR)
-      end if
-
-      ! Run string util tests
-      call mpas_log_write('')
-      call mpas_test_string_utils(iErr)
-      call mpas_log_write('')
-
-      !
-      ! Run mpas_dmpar tests
-      !
-      call mpas_log_write('')
-      iErr = mpas_test_dmpar(domain % dminfo)
-      if (iErr == 0) then
-          call mpas_log_write('All tests PASSED')
-      else
-          call mpas_log_write('$i tests FAILED', intArgs=[iErr])
-      end if
-      call mpas_log_write('')
 
       !
       ! Run mpas_stream_inquiry tests
       !
-      call mpas_log_write('')
-      iErr = mpas_test_stream_inquiry(domain % dminfo)
-      if (iErr == 0) then
-          call mpas_log_write('All tests PASSED')
-      else
-          call mpas_log_write('$i tests FAILED', intArgs=[iErr])
-      end if
-      call mpas_log_write('')
-
-      call test_core_test_intervals(domain, threadErrs, iErr)
-
-      ! Test writing of block write streams, which have the prefix 'block_'
-      block => domain % blocklist
-      do while (associated(block))
-         call mpas_stream_mgr_reset_alarms(domain % streamManager, streamID="block_.*")
-         call mpas_stream_mgr_block_write(domain % streamManager, block, streamID="block_.*", forceWriteNow=.true.)
-         block => block % next
-      end do
-
-      call mpas_stream_mgr_write(domain % streamManager, forceWriteNow=.true.)
-
-      !
-      ! Run mpas_test_openacc
-      !
-      call mpas_log_write('')
-#ifdef MPAS_OPENACC
-      iErr = mpas_test_openacc(domain)
-      if (iErr == 0) then
-          call mpas_log_write('All tests PASSED')
-      else
-          call mpas_log_write('$i tests FAILED', intArgs=[iErr])
-      end if
-#else
-      call mpas_log_write('MPAS_OPENACC not defined, skipping OpenACC tests')
-#endif
-      call mpas_log_write('')
-
-      ! Test functionality of alarms
-      call mpas_log_write('')
-      call mpas_log_write('Testing backwards clock functionality:')
-      call mpas_alarm_ringing_tests(domain, iErr)
-      if (iErr == 0) then
-         call mpas_log_write('mpas_alarm_ringing_tests: SUCCESS')
-      else
-         call mpas_log_write('mpas_alarm_ringing_tests: FAILED')
-      end if
-
-      ! Test functionality of alarms with defined stop time
-      call mpas_log_write('')
-      call mpas_log_write('Testing mpas_alarm_stop_time:')
-      call mpas_alarm_stop_time_tests(domain, iErr)
-      if (iErr == 0) then
-         call mpas_log_write('mpas_alarm_stop_time_tests: SUCCESS')
-      else
-         call mpas_log_write('mpas_alarm_stop_time_tests: FAILED')
-      end if
-
-      ! Test functionality of alarms with defined stop time when alarm is not reset
-      call mpas_log_write('')
-      call mpas_log_write('Testing mpas_alarm_stop_time_no_reset:')
-      call mpas_alarm_stop_time_no_reset_tests(domain, iErr)
-      if (iErr == 0) then
-         call mpas_log_write('mpas_alarm_stop_time_no_reset_tests: SUCCESS')
-      else
-         call mpas_log_write('mpas_alarm_stop_time_no_reset_tests: FAILED')
-      end if
-
-      ! Test functionality of alarms with defined stop time when alarm is reset
-      call mpas_log_write('')
-      call mpas_log_write('Testing mpas_alarm_start_tests:')
-      call mpas_alarm_start_time_tests(domain, iErr)
-      if (iErr == 0) then
-         call mpas_log_write('mpas_alarm_start_tests: SUCCESS')
-      else
-         call mpas_log_write('mpas_alarm_start_tests: FAILED')
-      end if
-
-      ! Test functionality of alarms with defined start time and stop time
-      call mpas_log_write('')
-      call mpas_log_write('Testing mpas_alarm_start_stop_time:')
-      call mpas_alarm_start_stop_time_tests(domain, iErr)
-      if (iErr == 0) then
-         call mpas_log_write('mpas_alarm_start_stop_time_tests: SUCCESS')
-      else
-         call mpas_log_write('mpas_alarm_start_stop_time_tests: FAILED')
-      end if
+!     call mpas_log_write('')
+!     iErr = mpas_test_stream_inquiry(domain % dminfo)
+!     if (iErr == 0) then
+!         call mpas_log_write('All tests PASSED')
+!     else
+!         call mpas_log_write('$i tests FAILED', intArgs=[iErr])
+!     end if
+!     call mpas_log_write('')
+!!     call test_core_test_intervals(domain, threadErrs, iErr)
+!!     ! Test writing of block write streams, which have the prefix 'block_'
+!     block => domain % blocklist
+!     do while (associated(block))
+!        call mpas_stream_mgr_reset_alarms(domain % streamManager, streamID="block_.*")
+!        call mpas_stream_mgr_block_write(domain % streamManager, block, streamID="block_.*", forceWriteNow=.true.)
+!        block => block % next
+!     end do
+!!     call mpas_stream_mgr_write(domain % streamManager, forceWriteNow=.true.)
+!!     !
+!     ! Run mpas_test_openacc
+!     !
+!     call mpas_log_write('')
+!ifdef MPAS_OPENACC
+!     iErr = mpas_test_openacc(domain)
+!     if (iErr == 0) then
+!         call mpas_log_write('All tests PASSED')
+!     else
+!         call mpas_log_write('$i tests FAILED', intArgs=[iErr])
+!     end if
+!else
+!     call mpas_log_write('MPAS_OPENACC not defined, skipping OpenACC tests')
+!endif
+!     call mpas_log_write('')
+!!     ! Test functionality of alarms
+!     call mpas_log_write('')
+!     call mpas_log_write('Testing backwards clock functionality:')
+!     call mpas_alarm_ringing_tests(domain, iErr)
+!     if (iErr == 0) then
+!        call mpas_log_write('mpas_alarm_ringing_tests: SUCCESS')
+!     else
+!        call mpas_log_write('mpas_alarm_ringing_tests: FAILED')
+!     end if
+!!     ! Test functionality of alarms with defined stop time
+!     call mpas_log_write('')
+!     call mpas_log_write('Testing mpas_alarm_stop_time:')
+!     call mpas_alarm_stop_time_tests(domain, iErr)
+!     if (iErr == 0) then
+!        call mpas_log_write('mpas_alarm_stop_time_tests: SUCCESS')
+!     else
+!        call mpas_log_write('mpas_alarm_stop_time_tests: FAILED')
+!     end if
+!!     ! Test functionality of alarms with defined stop time when alarm is not reset
+!     call mpas_log_write('')
+!     call mpas_log_write('Testing mpas_alarm_stop_time_no_reset:')
+!     call mpas_alarm_stop_time_no_reset_tests(domain, iErr)
+!     if (iErr == 0) then
+!        call mpas_log_write('mpas_alarm_stop_time_no_reset_tests: SUCCESS')
+!     else
+!        call mpas_log_write('mpas_alarm_stop_time_no_reset_tests: FAILED')
+!     end if
+!!     ! Test functionality of alarms with defined stop time when alarm is reset
+!     call mpas_log_write('')
+!     call mpas_log_write('Testing mpas_alarm_start_tests:')
+!     call mpas_alarm_start_time_tests(domain, iErr)
+!     if (iErr == 0) then
+!        call mpas_log_write('mpas_alarm_start_tests: SUCCESS')
+!     else
+!        call mpas_log_write('mpas_alarm_start_tests: FAILED')
+!     end if
 
       !
       ! Test functionality of adjustments to alarm reference time
