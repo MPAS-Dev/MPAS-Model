@@ -6,6 +6,7 @@ OBJS = mpas_test_core.o \
        mpas_test_core_streams.o \
        mpas_test_core_field_tests.o \
        mpas_test_core_timekeeping_tests.o \
+       mpas_test_core_clock_alarms.o \
        mpas_test_core_sorting.o \
        mpas_halo_testing.o \
        mpas_test_core_string_utils.o \
@@ -42,7 +43,8 @@ mpas_test_core.o: mpas_test_core_halo_exch.o mpas_test_core_streams.o \
                   mpas_test_core_field_tests.o mpas_test_core_timekeeping_tests.o \
                   mpas_test_core_sorting.o mpas_halo_testing.o \
                   mpas_test_core_string_utils.o mpas_test_core_dmpar.o \
-                  mpas_test_core_stream_inquiry.o mpas_test_openacc.o
+                  mpas_test_core_stream_inquiry.o mpas_test_openacc.o \
+                  mpas_test_core_clock_alarms.o
 
 mpas_test_core_halo_exch.o:
 
@@ -51,6 +53,8 @@ mpas_test_core_field_tests.o:
 mpas_test_core_streams.o:
 
 mpas_test_core_sorting.o:
+
+mpas_test_core_clock_alarms.o:
 
 clean:
 	$(RM) *.o *.mod *.f90 libdycore.a

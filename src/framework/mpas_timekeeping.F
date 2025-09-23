@@ -945,38 +945,52 @@ module mpas_timekeeping
 
    end function mpas_in_ringing_envelope
 
+
       !-----------------------------------------------------------------------
-      !  routine mpas_update_alarm_stop_status
+      !  routine mpas_update_alarm_active_state
       !
-      !> \brief Update an alarm's active status based on its stop time.
+      !> \brief Update whether an alarm is active, based on its stop time.
+      !>
       !> \author Andy Stokely
       !> \date   09/19/2025
-      !> \details This routine checks whether an alarm has reached or passed
-      !>   its configured stop time, and updates its status accordingly:
-      !>   * If the clock is running forward and the current time is at or
-      !>     beyond the stop time, the alarm is permanently disabled.
-      !>   * If the clock is running backward and the current time is at or
-      !>     beyond the stop time, the alarm is re-enabled.
       !>
-      !>   This logic is applied to alarms that have the `hasStopTime` flag set.
+      !> \details
+      !>   This routine determines whether an alarm should remain active
+      !>   given the clock direction and the alarm's configured stop time:
+      !>
+      !>   * If the alarm has no stop time, nothing is changed.
+      !>   * If the clock is running forward:
+      !>       - When the current time reaches or exceeds the stop time,
+      !>         the alarm is permanently disabled (`isSet = .false.`).
+      !>   * If the clock is running backward:
+      !>       - When the current time is at or beyond the stop time,
+      !>         the alarm is re-enabled (`isSet = .true.`), allowing
+      !>         it to become active again as the clock re-enters its window.
+      !>
+      !>   This routine is typically called inside alarm management logic
+      !>   such as `mpas_reset_clock_alarm` to ensure alarms obey their
+      !>   stop-time rules consistently.
       !-----------------------------------------------------------------------
-      subroutine mpas_update_alarm_stop_status(clock, alarm_ptr, alarm_now)
+      subroutine mpas_update_alarm_active_state(clock, alarm_ptr, alarm_now)
          implicit none
 
-         type(MPAS_Clock_type), intent(in) :: clock
+         type(MPAS_Clock_type), intent(in)    :: clock
          type(MPAS_Alarm_type), pointer, intent(inout) :: alarm_ptr
-         type(MPAS_Time_type), intent(in) :: alarm_now
+         type(MPAS_Time_type), intent(in)     :: alarm_now
 
-         if (alarm_ptr%hasStopTime) then
-            if (alarm_now >= alarm_ptr%stopTime) then
-               if (clock%direction == MPAS_FORWARD) then
-                  alarm_ptr%isSet = .false. ! disable alarm unless clock direction changes
-               else
-                  alarm_ptr%isSet = .true. ! re-enable alarm if clock is running backward
-               end if
-            end if
+         ! If no stop time is defined, the alarm remains unchanged.
+         if (.not. alarm_ptr%hasStopTime) return
+
+         ! Only act if we've crossed the stop time.
+         if (alarm_now >= alarm_ptr%stopTime) then
+            select case (clock%direction)
+            case (MPAS_FORWARD)
+               alarm_ptr%isSet = .false.  ! Disable permanently while forward
+            case (MPAS_BACKWARD)
+               alarm_ptr%isSet = .true.   ! Re-enable when running backward
+            end select
          end if
-      end subroutine mpas_update_alarm_stop_status
+      end subroutine mpas_update_alarm_active_state
 
 
       subroutine mpas_reset_clock_alarm(clock, alarmID, interval, ierr)
@@ -1031,7 +1045,7 @@ module mpas_timekeeping
                      end if
                   end if
                end if
-               call mpas_update_alarm_stop_status(clock, alarmPtr, alarmNow)
+               call mpas_update_alarm_active_state(clock, alarmPtr, alarmNow)
             end if
             alarmPtr => alarmPtr % next
          end do
