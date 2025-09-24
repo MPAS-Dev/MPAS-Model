@@ -974,9 +974,9 @@ module mpas_timekeeping
       subroutine mpas_update_alarm_active_state(clock, alarm_ptr, alarm_now)
          implicit none
 
-         type(MPAS_Clock_type), intent(in)    :: clock
+         type(MPAS_Clock_type), intent(in) :: clock
          type(MPAS_Alarm_type), pointer, intent(inout) :: alarm_ptr
-         type(MPAS_Time_type), intent(in)     :: alarm_now
+         type(MPAS_Time_type), intent(in) :: alarm_now
 
          ! If no stop time is defined, the alarm remains unchanged.
          if (.not. alarm_ptr%hasStopTime) return
