@@ -81,8 +81,10 @@ module atm_core_interface
    !>  MPAS_DYNAMICS_RANKS_PER_NODE, which will be used to determine how
    !>  roles are assigned to MPI ranks.
    !>
-   !>  If MPAS-A was compiled with OpenACC support, this routine will also
-   !>  set OpenACC devices for each MPI rank on its first invocation.
+   !>  If MPAS-A was compiled with OpenACC support, this routine will not
+   !>  set OpenACC devices for each MPI rank on its first invocation. 
+   !>  The OpenACC devices needs to be set in a wrapper script during
+   !>  execution.
    !
    !-----------------------------------------------------------------------
    integer function atm_component_role(self)
@@ -96,11 +98,6 @@ module atm_core_interface
 #ifndef NOMPIMOD
       use mpi, only : MPI_COMM_TYPE_SHARED, MPI_INFO_NULL
 #endif
-#endif
-
-#ifdef MPAS_OPENACC
-      use openacc, only : acc_get_num_devices, acc_set_device_num, acc_set_device_type, &
-                          acc_device_nvidia, acc_device_host
 #endif
 
       implicit none
@@ -126,12 +123,6 @@ module atm_core_interface
       integer :: local_size
       integer :: on_node_comm
       integer :: socket_rank
-
-#ifdef MPAS_OPENACC
-      integer :: num_devices, my_device
-      integer :: role_comm, role_rank, role_size
-#endif
-
 
       !
       ! If this routine has not yet been called, attempt to read environment variables,
@@ -185,87 +176,37 @@ module atm_core_interface
               ! equal, all "excess" ranks on a socket beyond min(dynamics_ranks_per_node, radiation_ranks_per_node)
               ! will be assigned either ROLE_INTEGRATE or ROLE_RADIATION as needed.
               !
-!!!              if (socket_rank >= min(dynamics_ranks_per_node, radiation_ranks_per_node)) then
-!!!                  if (dynamics_ranks_per_node > radiation_ranks_per_node) then
-!!!                      role = ROLE_INTEGRATE
-!!!                  else
-!!!                      role = ROLE_RADIATION
-!!!                  end if
-!!!              end if
-              if (socket_rank >= dynamics_ranks_per_node) then
-                  role = ROLE_RADIATION
-              endif
-
-              if (dynamics_ranks_per_node == 1 .and. local_rank == 1) then
-                  role = ROLE_INTEGRATE
+              if (socket_rank >= min(dynamics_ranks_per_node, radiation_ranks_per_node)) then
+                  if (dynamics_ranks_per_node > radiation_ranks_per_node) then
+                      role = ROLE_INTEGRATE
+                  else
+                      role = ROLE_RADIATION
+                  end if
               end if
 
-              !
-              ! Assign devices based on rank in the role within a shared-memory node
-              !
-#ifdef MPAS_OPENACC
-#ifdef _MPI
-              call MPI_Comm_split(on_node_comm, role, local_rank, role_comm, ierr)
-              call MPI_Comm_rank(role_comm, role_rank, ierr)
-              call MPI_Comm_size(role_comm, role_size, ierr)
-#else
-              role_rank = 0
-              role_size = 1
-#endif
-
-              if (role == ROLE_INTEGRATE) then
-                  num_devices = acc_get_num_devices(acc_device_nvidia)
-!!! Version 1
-!!!                  if(local_rank<local_size/2) then
-!!!                      my_device = mod(socket_rank,num_devices)
-!!!                  else
-!!!                      my_device = mod(socket_rank,num_devices) + (num_devices/2)
-!!!                  endif
-
-!!! Version 2
-!!!                  my_device = (role_rank * num_devices) / role_size
-
-!!! Version 3
-                  if(dynamics_ranks_per_node == 8) then
-                      if(local_rank==1) then
-                          my_device = 0
-                      else if (local_rank==3) then
-                          my_device = 1
-                      else if (local_rank==5) then
-                          my_device = 2
-                      else if (local_rank==7) then
-                          my_device = 3
-                      else if (local_rank==57) then
-                          my_device = 4
-                      else if (local_rank==59) then
-                          my_device = 5
-                      else if (local_rank==61) then
-                          my_device = 6
-                      else if (local_rank==63) then
-                          my_device = 7
-                      endif
-                  else if(dynamics_ranks_per_node == 4) then
-                      if(local_rank==1) then
-                          my_device = 1
-                      else if (local_rank==3) then
-                          my_device = 3
-                      else if (local_rank==57) then
-                          my_device = 5
-                      else if (local_rank==59) then
-                          my_device = 7
-                      endif
-                  else if(dynamics_ranks_per_node == 1) then
-                      if(local_rank==1) then
-                          my_device = 0
-                      endif
-                  endif
-
-                  call acc_set_device_num(my_device, acc_device_nvidia)
-              else
-                  call acc_set_device_type(acc_device_host)
+              ! Special case where either of the Dynamics or Radiation is only 1
+              if (DYNAMICS_RANKS_PER_NODE == 1 .and. RADIATION_RANKS_PER_NODE == 1) then
+                  ! Special case: 1+1 ranks
+                  if (local_rank == 0) then
+                      role = ROLE_RADIATION
+                  else
+                      role = ROLE_INTEGRATE
+                  end if
+              else if (DYNAMICS_RANKS_PER_NODE == 1) then
+                  ! Special case: 1 dynamics rank
+                  if (local_rank == 1) then
+                      role = ROLE_INTEGRATE
+                  else
+                      role = ROLE_RADIATION
+                  end if
+              else if (RADIATION_RANKS_PER_NODE == 1) then
+                  ! Special case: 1 radiation rank
+                  if (local_rank == 0) then
+                      role = ROLE_RADIATION
+                  else
+                      role = ROLE_INTEGRATE
+                  end if
               end if
-
-#endif
 
           else ! At least one environment variable could not be successfully read
 
