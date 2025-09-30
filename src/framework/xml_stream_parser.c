@@ -14,7 +14,6 @@
 #include <string.h>
 #include <errno.h>
 #include "ezxml.h"
-#include "xml_stream_parser.h"
 
 #ifdef _MPI
 #include "mpi.h"
@@ -30,7 +29,7 @@ void stream_mgr_create_stream_c(void *, const char *, int *, const char *, const
 void stream_mgr_add_field_c(void *, const char *, const char *, const char *, int *);
 void stream_mgr_add_immutable_stream_fields_c(void *, const char *, const char *, const char *, int *);
 void stream_mgr_add_pool_c(void *, const char *, const char *, const char *, int *);
-void stream_mgr_add_alarm_c(void *, const char *, const char *, const char *, const char *,const char *, const char *, int *);
+void stream_mgr_add_alarm_c(void *, const char *, const char *, const char *, const char *, int *);
 void stream_mgr_add_pkg_c(void *, const char *, const char *, int *);
 
 
@@ -44,6 +43,11 @@ void mpas_log_write_c(const char *message_c, const char *messageType_c);
 /*
  *  Stack node type used for basic syntax checking of XML
  */
+struct stacknode {
+	int line;
+	char name[MSGSIZE];
+	struct stacknode *next;
+};
 
 struct stacknode *head = NULL;
 
@@ -310,7 +314,7 @@ int par_read(char *fname, int *mpi_comm, char **xml_buf, size_t *bufsize)
 #ifdef _MPI
 		err = MPI_Bcast((void *)bufsize, (int)sizeof(size_t), MPI_BYTE, 0, comm);
 #endif
-
+	
 		*xml_buf = (char *)malloc(*bufsize);
 		err = read(iofd, (void *)(*xml_buf), *bufsize);
 
@@ -448,7 +452,7 @@ int attribute_check(ezxml_t stream)
 				fmt_err(msgbuf);
 				return 1;
 			}
-		}
+		}	
 	}
 
 	return 0;
@@ -517,7 +521,7 @@ int check_streams(ezxml_t streams)
 	for (stream_xml = ezxml_child(streams, "immutable_stream"); stream_xml; stream_xml = ezxml_next(stream_xml)) {
 		if (attribute_check(stream_xml) != 0) {
 			return 1;
-		}
+		}	
 
 		/* Check that users are not attempting to add fields to an immutable stream */
 		test_xml = ezxml_child(stream_xml, "var");
@@ -536,7 +540,7 @@ int check_streams(ezxml_t streams)
 
 		if (attribute_check(stream_xml) != 0) {
 			return 1;
-		}
+		}	
 
 		/* If fields are specified in a separate file, that file should exist */
 		for (test_xml = ezxml_child(stream_xml, "file"); test_xml; test_xml = ezxml_next(test_xml)) {
@@ -569,7 +573,7 @@ int check_streams(ezxml_t streams)
 		}
 	}
 
-	return 0;
+	return 0;	
 }
 
 
@@ -736,7 +740,7 @@ int xml_syntax_check(char *xml_buf, size_t bufsize)
 
 					while ((node = pop_tag()) != NULL)
 						free(node);
-					return 1;
+					return 1;	
 				}
 				free(node);
 			}
@@ -747,7 +751,7 @@ int xml_syntax_check(char *xml_buf, size_t bufsize)
 			}
 			/* Probable syntax error? */
 			else {
-
+				
 			}
 
 		}
@@ -759,10 +763,10 @@ int xml_syntax_check(char *xml_buf, size_t bufsize)
 	if (node != NULL) {
 		snprintf(msgbuf, MSGSIZE, "line %i, unclosed or badly nested XML tag \"%s\".", node->line, node->name);
 		fmt_err(msgbuf);
-
+		
 		while ((node = pop_tag()) != NULL)
 			free(node);
-		return 1;
+		return 1;	
 	}
 
 	free(tag_buf);
@@ -846,7 +850,7 @@ int build_stream_path(const char *stream, const char *template, int *mpi_comm)
 #ifdef _MPI
 							err = MPI_Bcast(&retval, 1, MPI_INT, 0, comm);
 #endif
-							return retval;
+							return retval;						
 						}
 					}
 				}
@@ -863,7 +867,7 @@ int build_stream_path(const char *stream, const char *template, int *mpi_comm)
 					fmt_err(msgbuf);
 					free(filename_path);
 					free(directory);
-
+	
 					retval = 1;
 #ifdef _MPI
 					err = MPI_Bcast(&retval, 1, MPI_INT, 0, comm);
@@ -882,7 +886,7 @@ int build_stream_path(const char *stream, const char *template, int *mpi_comm)
 #ifdef _MPI
 					err = MPI_Bcast(&retval, 1, MPI_INT, 0, comm);
 #endif
-					return retval;
+					return retval;						
 			}
 		}
 
@@ -912,18 +916,18 @@ int build_stream_path(const char *stream, const char *template, int *mpi_comm)
  *
  *  Function: extract_stream_interval
  *
- *  Given an interval specification for a stream (interval) that references
- *  an interval in another stream (e.g., "stream:history:output_interval"), and
- *  an interval type (interval_type, either "input_interval" or "output_interval"),
- *  extracts the value of the interval from the other stream and returns it in
+ *  Given an interval specification for a stream (interval) that references 
+ *  an interval in another stream (e.g., "stream:history:output_interval"), and 
+ *  an interval type (interval_type, either "input_interval" or "output_interval"), 
+ *  extracts the value of the interval from the other stream and returns it in 
  *  the output argument interval2.
  *
- *  If the interval specification in the interval argument does not reference
- *  another stream, the contents of interval2 are unchanged upon return from
+ *  If the interval specification in the interval argument does not reference 
+ *  another stream, the contents of interval2 are unchanged upon return from 
  *  this function.
  *
- *  In case the input interval references an interval in another stream and this
- *  interval cannot found, this function returns a value of 1; otherwise, this
+ *  In case the input interval references an interval in another stream and this 
+ *  interval cannot found, this function returns a value of 1; otherwise, this 
  *  function returns 0.
  *
  *********************************************************************************/
@@ -996,7 +1000,7 @@ int extract_stream_interval(const char *interval, const char *interval_type, con
 
 		if ( stream_found == 1 ) {
 			*interval2 = ezxml_attr(streammatch_xml, interval_name);
-		}
+		} 
 		else {
 			snprintf(msgbuf, MSGSIZE, "The '%s' attribute of stream '%s' refers to an undefined stream named '%s'.", interval_type, streamID, match_stream_name);
 			mpas_log_write_c(msgbuf, "MPAS_LOG_ERR");
@@ -1008,7 +1012,7 @@ int extract_stream_interval(const char *interval, const char *interval_type, con
 			snprintf(msgbuf, MSGSIZE, "The '%s' attribute of stream '%s' refers to an undefined attribute named '%s' of stream '%s'.", interval_type, streamID, interval_name, match_stream_name);
 			mpas_log_write_c(msgbuf, "MPAS_LOG_ERR");
 			return 1;
-		}
+		} 
 		else if ( strcmp(*interval2, "input_interval") == 0 || strcmp(*interval2, "output_interval") == 0 || strncmp(*interval2, "stream:", 7) == 0 ) {
 			snprintf(msgbuf, MSGSIZE, "The '%s' attribute of stream '%s' contains an unexpandable value: '%s'.", interval_type, streamID, *interval2);
 			mpas_log_write_c(msgbuf, "MPAS_LOG_ERR");
@@ -1017,37 +1021,6 @@ int extract_stream_interval(const char *interval, const char *interval_type, con
 	}
 
 	return 0;
-}
-
-
-stream_time_bounds extract_stream_time_bounds(ezxml_t stream_xml) {
-	stream_time_bounds times;
-	times.start_time = NULL;
-	times.stop_time = NULL;
-
-	if (stream_xml == NULL) {
-		return times;
-	}
-
-	const char *start_time = ezxml_attr(stream_xml, "start_time");
-	const char *stop_time  = ezxml_attr(stream_xml, "stop_time");
-
-	if (start_time) {
-		times.start_time = strdup(start_time);
-	}
-	if (stop_time) {
-		times.stop_time = strdup(stop_time);
-	}
-	return times;
-}
-
-
-void free_stream_time_bounds(stream_time_bounds *times) {
-	if (!times) return;
-	free(times->start_time);
-	times->start_time = NULL;
-	free(times->stop_time);
-	times->stop_time = NULL;
 }
 
 
@@ -1121,7 +1094,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		mpas_log_write_c(msgbuf, "MPAS_LOG_ERR");
 		*status = 1;
 		return;
-	}
+	}	
 
 	err = 0;
 
@@ -1142,7 +1115,6 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		packagelist = ezxml_attr(stream_xml, "packages");
 		clobber = ezxml_attr(stream_xml, "clobber_mode");
 		iotype = ezxml_attr(stream_xml, "io_type");
-		stream_time_bounds times = extract_stream_time_bounds(stream_xml);
 
 		/* Extract the input interval, if it refer to other streams */
 		if ( interval_in ) {
@@ -1373,7 +1345,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 		/* Possibly add an input alarm for this stream */
 		if (itype == 3 || itype == 1) {
-			stream_mgr_add_alarm_c(manager, streamID, "input", "start", interval_in2, times.start_time, times.stop_time, &err);
+			stream_mgr_add_alarm_c(manager, streamID, "input", "start", interval_in2, &err);
 			if (err != 0) {
 				*status = 1;
 				return;
@@ -1389,7 +1361,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 		/* Possibly add an output alarm for this stream */
 		if (itype == 3 || itype == 2) {
-			stream_mgr_add_alarm_c(manager, streamID, "output", "start", interval_out2, times.start_time, times.stop_time, &err);
+			stream_mgr_add_alarm_c(manager, streamID, "output", "start", interval_out2, &err);
 			if (err != 0) {
 				*status = 1;
 				return;
@@ -1433,7 +1405,6 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 			free(packages);
 		}
-		free_stream_time_bounds(&times);
 	}
 
 	/* Next, handle modifications to mutable streams as well as new stream definitions */
@@ -1453,7 +1424,6 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		packagelist = ezxml_attr(stream_xml, "packages");
 		clobber = ezxml_attr(stream_xml, "clobber_mode");
 		iotype = ezxml_attr(stream_xml, "io_type");
-		stream_time_bounds times = extract_stream_time_bounds(stream_xml);
 
 		/* Extract the input interval, if it refer to other streams */
 		if ( interval_in ) {
@@ -1684,7 +1654,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 		/* Possibly add an input alarm for this stream */
 		if (itype == 3 || itype == 1) {
-			stream_mgr_add_alarm_c(manager, streamID, "input", "start", interval_in2, times.start_time, times.stop_time, &err);
+			stream_mgr_add_alarm_c(manager, streamID, "input", "start", interval_in2, &err);
 			if (err != 0) {
 				*status = 1;
 				return;
@@ -1700,7 +1670,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 
 		/* Possibly add an output alarm for this stream */
 		if (itype == 3 || itype == 2) {
-			stream_mgr_add_alarm_c(manager, streamID, "output", "start", interval_out2, times.start_time, times.stop_time, &err);
+			stream_mgr_add_alarm_c(manager, streamID, "output", "start", interval_out2, &err);
 			if (err != 0) {
 				*status = 1;
 				return;
@@ -1876,7 +1846,6 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 				}
 			}
 		}
-		free_stream_time_bounds(&times);
 	}
 
 	free(xml_buf);
@@ -1909,6 +1878,7 @@ void xml_stream_get_attributes(char *fname, char *streamname, int *mpi_comm, cha
 	char msgbuf[MSGSIZE];
 
 	*status = 0;
+
 	global_file = fname;
 	if (par_read(fname, mpi_comm, &xml_buf, &bufsize) != 0) {
 		*status = 1;
@@ -1926,7 +1896,7 @@ void xml_stream_get_attributes(char *fname, char *streamname, int *mpi_comm, cha
 		mpas_log_write_c(msgbuf, "MPAS_LOG_ERR");
 		*status = 1;
 		return;
-	}
+	}	
 
 	if (check_streams(streams) != 0) {
 		*status = 1;

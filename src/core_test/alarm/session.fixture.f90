@@ -1,8 +1,11 @@
 module session_fixture_mod
     use mpi
-    use test_suite_mod
+    use fortest_test_suite
     use mpas_subdriver
-    use mpas_derived_types, only : core_type, domain_type
+    use mpas_derived_types
+    use mpas_timekeeping
+    use mpas_stream_manager
+
     implicit none
 
     type session_fixture_t
@@ -23,6 +26,7 @@ contains
         type(MPAS_Time_Type) :: start_time
         type(mpas_pool_type), pointer :: model_pool
         character(len = StrKIND), pointer :: xtime
+        type(MPAS_Clock_type), pointer :: clock
 
         ierr = 0
         call c_f_pointer(f_ptr, fixture)
