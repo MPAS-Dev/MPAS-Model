@@ -242,6 +242,18 @@ module test_core
       end if
       call mpas_log_write('')
 
+      !
+      ! Test functionality of alarms with user-defined active windows
+      !
+      call mpas_log_write('')
+      call mpas_log_write('Testing mpas_window_alarms:')
+      iErr = mpas_window_alarm_tests(domain)
+      if (iErr == 0) then
+         call mpas_log_write('* mpas_window_alarm tests - all tests passed: SUCCESS')
+      else
+         call mpas_log_write('* mpas_window_alarm tests - $i failed tests: FAILURE', intArgs=[iErr])
+      end if
+
       deallocate(threadErrs)
 
    end function test_core_run!}}}
