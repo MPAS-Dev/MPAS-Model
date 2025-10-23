@@ -39,4 +39,4 @@ else ()
             "skipping test_mpas registration.")
 endif ()
 
-add_subdirectory(alarm)
+add_subdirectory(fortest)

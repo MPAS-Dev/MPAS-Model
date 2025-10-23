@@ -182,3 +182,9 @@ install(EXPORT ${PROJECT_NAME}Exports NAMESPACE ${PROJECT_NAME}::
 install(EXPORT ${PROJECT_NAME}ExportsCore NAMESPACE ${PROJECT_NAME}::core::
         FILE ${PROJECT_NAME_LOWER}-targets-core.cmake
         DESTINATION ${CONFIG_INSTALL_DESTINATION})
+add_executable(main test.f90)
+set_target_properties(main PROPERTIES
+        LINKER_LANGUAGE Fortran
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+target_link_libraries(main PRIVATE core_test framework)

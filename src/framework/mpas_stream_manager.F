@@ -45,7 +45,8 @@ module mpas_stream_manager
               MPAS_stream_mgr_stream_exists, &
               MPAS_stream_mgr_get_stream_interval, &
               MPAS_get_stream_filename, &
-              MPAS_build_stream_filename
+              MPAS_build_stream_filename, &
+              stream_active_pkg_check
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !
@@ -402,14 +403,14 @@ module mpas_stream_manager
                if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
                STREAM_ERROR_WRITE('Problems while creating input alarm list')
                deallocate(new_stream)
-               return 
+               return
            end if
            call MPAS_stream_list_create(new_stream % alarmList_out, ierr=err_local)
            if (err_local /= MPAS_STREAM_LIST_NOERR) then
                if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
                STREAM_ERROR_WRITE('Problems while creating output alarm list')
                deallocate(new_stream)
-               return 
+               return
            end if
            call mpas_pool_create_pool(new_stream % att_pool)
            call mpas_pool_clone_pool(manager % defaultAtts, new_stream % att_pool)
@@ -428,7 +429,6 @@ module mpas_stream_manager
                STREAM_ERROR_WRITE('Problems while adding stream to list')
                return
            end if
-           
            manager % numStreams = manager % numStreams + 1
         end if
 
@@ -926,7 +926,6 @@ module mpas_stream_manager
                call mpas_log_write(' * Requested field '//trim(fieldName)//' is deactivated due to packages, or is a scratch variable.')
            end if
         end if
-
     end subroutine MPAS_stream_mgr_add_field!}}}
 
 
