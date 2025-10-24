@@ -497,10 +497,12 @@ module mpas_timekeeping
       type (MPAS_TimeInterval_type), intent(in), optional :: alarmTimeInterval
       type (MPAS_Time_type), intent(in), optional :: alarmStartTime
       type (MPAS_Time_type), intent(in), optional :: alarmStopTime
-      integer, intent(out), optional :: ierr
+      integer, intent(out),  optional :: ierr
 
       type (MPAS_Alarm_type), pointer :: alarmPtr
       integer :: threadNum
+
+      if (present(ierr)) ierr = ESMF_SUCCESS
 
       threadNum = mpas_threading_get_thread_num()
 
@@ -553,6 +555,11 @@ module mpas_timekeeping
          else
             alarmPtr % activeStopTime = mpas_get_clock_time(clock, MPAS_STOP_TIME)
          end if
+         if (alarmPtr % activeStartTime > alarmPtr % activeStopTime) then
+            call mpas_log_write('Invalid alarm times: start > stop for ' // trim(alarmID), MPAS_LOG_ERR)
+            if (present(ierr)) ierr = 1
+         end if
+
 
          if (present(alarmTimeInterval)) then
             alarmPtr % isRecurring = .true.
@@ -565,9 +572,6 @@ module mpas_timekeeping
          else
             alarmPtr % isRecurring = .false.
             alarmPtr % prevRingTime = alarmTime
-         end if
-         if (present(ierr)) then
-            if (ierr == ESMF_SUCCESS) ierr = 0
          end if
       end if
 

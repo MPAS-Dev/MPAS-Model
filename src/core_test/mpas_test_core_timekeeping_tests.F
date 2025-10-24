@@ -251,9 +251,11 @@ contains
       integer, intent(inout) :: ierr
       type(alarm_fixture_t), pointer :: f
       logical :: ringing
+      integer :: local_ierr
 
       call setup_alarm_fixture(f)
       ierr = 0
+      local_ierr = 0
 
       select case (case_idx)
 
@@ -536,6 +538,43 @@ contains
             call mpas_log_write('PASS: Alarm is not ringing outside of window after direction change')
          end if
 
+         !-----------------------------------------------------------------------
+         !  Case 18: Invalid window ordering test
+         !> \details
+         !>   This test verifies that mpas_add_clock_alarm correctly handles
+         !>   window time validation:
+         !>     1. It must reject alarms where the start time occurs after the stop time.
+         !>     2. It must allow alarms where the start time equals the stop time.
+         !-----------------------------------------------------------------------
+      case(18)
+         ! Start time after stop time rejected
+         call mpas_remove_clock_alarm(f%clock, f%alarm_id)
+         call mpas_add_clock_alarm(f%clock, f%alarm_id, f%alarm_time, &
+               alarmTimeInterval = f%alarm_interval, &
+               alarmStartTime    = f%window_stop_time, &
+               alarmStopTime     = f%window_start_time, ierr=local_ierr)
+
+         if (local_ierr == 0) then
+            call mpas_log_write('FAIL: Alarm with start time after stop time did not return error')
+            ierr = ierr + 1
+         else
+            call mpas_log_write('PASS: Alarm with start time after stop time correctly returned error')
+         end if
+
+         ! Start time equals stop time accepted
+         call mpas_remove_clock_alarm(f%clock, f%alarm_id)
+         call mpas_add_clock_alarm(f%clock, f%alarm_id, f%alarm_time, &
+               alarmTimeInterval = f%alarm_interval, &
+               alarmStartTime    = f%window_start_time, &
+               alarmStopTime     = f%window_start_time, ierr=local_ierr)
+
+         if (local_ierr /= 0) then
+            call mpas_log_write('FAIL: Alarm with equal start/stop times incorrectly returned error', MPAS_LOG_ERR)
+            ierr = ierr + 1
+         else
+            call mpas_log_write('PASS: Alarm with equal start/stop times correctly accepted')
+         end if
+
       end select
 
       call teardown_alarm_fixture(f)
@@ -557,7 +596,7 @@ contains
       integer :: i, ierr_local
 
       ierr = 0
-      do i = 1, 17
+      do i = 1, 18
          ierr_local = 0
          call test_window_alarm(i, ierr_local)
          ierr = ierr + ierr_local
