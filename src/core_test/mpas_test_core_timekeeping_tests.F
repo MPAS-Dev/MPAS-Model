@@ -206,7 +206,6 @@ contains
       integer                        :: ierr
 
       call mpas_remove_clock_alarm(fixture%clock, fixture%alarm_id, ierr=ierr)
-
       call mpas_destroy_clock(fixture%clock, ierr=ierr)
 
       nullify(fixture%alarm)
@@ -232,7 +231,7 @@ contains
    !>   Timeline:
    !>      A ---------------- B ----- C ---------------- D --------- E
    !>
-   !>   The test covers 16 cases, including behavior:
+   !>   The test covers 18 cases, including behavior:
    !>   - Before anchor (A → B)
    !>   - Between anchor and window start (B → C)
    !>   - At window boundaries (C, D)
@@ -241,6 +240,8 @@ contains
    !>   - After reset operations at various points
    !>   - With anchor times shifted into the window
    !>   - When the clock direction changes (forward/backward)
+   !>   - When the window start time is after the stop time (invalid)
+   !>   - When the window start time equals the stop time (valid)
    !>
    !>   Each case checks whether the alarm rings at the correct times and
    !>   uses mpas_log_write to log PASS/FAIL outcomes.
@@ -574,7 +575,6 @@ contains
          else
             call mpas_log_write('PASS: Alarm with equal start/stop times correctly accepted')
          end if
-
       end select
 
       call teardown_alarm_fixture(f)
