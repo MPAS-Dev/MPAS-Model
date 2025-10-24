@@ -402,7 +402,7 @@ contains
          end if
 
          !-----------------------------------------------------------------------
-         ! Case 11: After leaving window (D → E) before reset
+         ! Case 11: After leaving window (D → E) before reset outside of window
          ! Alarm should ring once more just after window ends.
          !-----------------------------------------------------------------------
       case(11)
@@ -418,7 +418,7 @@ contains
          end if
 
          !-----------------------------------------------------------------------
-         ! Case 12: After leaving window (D → E) after reset
+         ! Case 12: After leaving window (D → E) after reset outside of window
          ! Alarm should not ring after reset outside window.
          !-----------------------------------------------------------------------
       case(12)
