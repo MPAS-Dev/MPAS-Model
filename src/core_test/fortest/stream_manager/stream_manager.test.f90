@@ -14,7 +14,6 @@ contains
     subroutine test_create_stream(f_ptr, ts_ptr, s_ptr, param_idx) bind(C)
         use mpas_stream_manager
         use iso_c_binding, only : c_ptr, c_f_pointer, c_int
-        use stream_manager_session_fixture, only : stream_manager_session_fixture_t
         use stream_manager_fixture, only : stream_manager_fixture_t
         type(c_ptr), value :: f_ptr, ts_ptr, s_ptr
         integer(c_int), value :: param_idx
@@ -413,18 +412,40 @@ contains
 
             call MPAS_stream_mgr_add_field(f%manager, 'stream', 'field1', ierr=ierr)
             call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
+            call MPAS_stream_mgr_add_field(f%manager, 'stream', 'field2', ierr=ierr)
+            call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
+            call MPAS_stream_mgr_add_field(f%manager, 'stream', 'field3', ierr=ierr)
+            call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
 
-            ! Verify field exists
+            ! Verify field1 exists
             ok = MPAS_stream_list_query(f%manager%streams, 'stream', stream)
             call mpas_pool_get_config(stream%field_pool, 'field1', value=test_ptr)
             call assert_true(associated(test_ptr), verbosity=2)
+            ! Verify field2 exists
+            call mpas_pool_get_config(stream%field_pool, 'field2', value=test_ptr)
+            call assert_true(associated(test_ptr), verbosity=2)
+            ! Verify field3 exists
+            call mpas_pool_get_config(stream%field_pool, 'field3', value=test_ptr)
+            call assert_true(associated(test_ptr), verbosity=2)
 
-            ! Remove field
+            ! Remove field1
             call MPAS_stream_mgr_remove_field(f%manager, 'stream', 'field1', ierr=ierr)
             call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
+            ! Remove field3
+            call MPAS_stream_mgr_remove_field(f%manager, 'stream', 'field3', ierr=ierr)
+            call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
+            ! Remove field2
+            call MPAS_stream_mgr_remove_field(f%manager, 'stream', 'field2', ierr=ierr)
+            call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
 
-            ! Verify field no longer exists
+            ! Verify field1 no longer exists
             call mpas_pool_get_config(stream%field_pool, 'field1', value=test_ptr)
+            call assert_false(associated(test_ptr), verbosity=2)
+            ! Verify field2 no longer exists
+            call mpas_pool_get_config(stream%field_pool, 'field2', value=test_ptr)
+            call assert_false(associated(test_ptr), verbosity=2)
+            ! Verify field3 no longer exists
+            call mpas_pool_get_config(stream%field_pool, 'field3', value=test_ptr)
             call assert_false(associated(test_ptr), verbosity=2)
 
             !------------------------------------------------------------

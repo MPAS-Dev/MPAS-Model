@@ -5,7 +5,7 @@ set_target_properties(session_fixture PROPERTIES
 )
 target_link_libraries(session_fixture PRIVATE core_test Fortest::fortest)
 target_include_directories(session_fixture INTERFACE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
         $<INSTALL_INTERFACE:include/fortest/fortest>
 )
 
