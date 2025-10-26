@@ -203,7 +203,15 @@ function(mpas_core_target)
 
     #Per-core generated output and tables directory location
     set(CORE_DATADIR ${CMAKE_BINARY_DIR}/${PROJECT_NAME}/${ARG_TARGET})
-    file(MAKE_DIRECTORY ${CORE_DATADIR})
+    # Special handling for core_test to setup test data
+    if (${ARG_TARGET} STREQUAL "core_test")
+        set(CORE_DATADIR ${CMAKE_BINARY_DIR}/test)
+        setup_mpas_test_core()
+        set_target_properties(mpas_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CORE_DATADIR})
+    endif()
+    if (NOT EXISTS ${CORE_DATADIR})
+        file(MAKE_DIRECTORY ${CORE_DATADIR})
+    endif()
 
     #Process registry and generate includes, namelists, and streams
     get_git_version(git_version)

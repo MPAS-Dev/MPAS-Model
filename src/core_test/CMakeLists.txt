@@ -25,13 +25,4 @@ set(test_core_srcs
 
 add_library(core_test ${test_core_srcs})
 mpas_core_target(CORE test TARGET core_test INCLUDES ${test_core_inc})
-set_target_properties(mpas_test
-        PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test"
-)
-mpas_setup_test_core(${CMAKE_BINARY_DIR}/test)
-add_test(NAME mpas_test
-        COMMAND mpas_test
-        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/test")
-
 add_subdirectory(fortest)

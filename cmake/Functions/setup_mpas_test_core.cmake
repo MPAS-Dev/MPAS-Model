@@ -1,11 +1,20 @@
+#------------------------------------------------------------------------------
+# download_mpas_test_data(dst_dir)
+#
+# Downloads the MPAS test data tarball to the specified destination directory.
+# If the tarball already exists, it is not re-downloaded.
+#------------------------------------------------------------------------------
 function(download_mpas_test_data dst_dir)
     set(url "https://www2.mmm.ucar.edu/mpas_test_data/mpas_test_data.tar.gz")
     set(output_file "${dst_dir}/mpas_test_data.tar.gz")
-    message(STATUS "dst_dir: ${dst_dir}")
+
+    file(MAKE_DIRECTORY "${dst_dir}")
+
     message(STATUS "Downloading MPAS test data from ${url}")
+
     execute_process(
-            COMMAND wget -O ${output_file} ${url}
-            WORKING_DIRECTORY ${dst_dir}
+            COMMAND wget -O "${output_file}" "${url}"
+            WORKING_DIRECTORY "${dst_dir}"
             RESULT_VARIABLE result
     )
 
@@ -16,12 +25,17 @@ function(download_mpas_test_data dst_dir)
     endif()
 endfunction()
 
+
+#------------------------------------------------------------------------------
+# untar_tarball(tarball_path dest_dir)
+#
+# Extracts a tarball into the specified destination directory.
+#------------------------------------------------------------------------------
 function(untar_tarball tarball_path dest_dir)
     if(NOT EXISTS "${tarball_path}")
         message(FATAL_ERROR "Tarball not found: ${tarball_path}")
     endif()
 
-    # Ensure the destination directory exists
     file(MAKE_DIRECTORY "${dest_dir}")
 
     message(STATUS "Extracting ${tarball_path} → ${dest_dir}")
@@ -42,47 +56,32 @@ endfunction()
 #------------------------------------------------------------------------------
 # mpas_link_file_force(src dst)
 #
-# Create a symbolic link from `src` to `dst`, overwriting `dst` if it exists.
-#
-# Arguments:
-#   src - Path to the source file to link to (must exist).
-#   dst - Path where the symbolic link should be created.
-#
-# Behavior:
-#   - Removes any existing file/symlink at `dst`.
-#   - Fails with FATAL_ERROR if `src` does not exist.
+# Creates a symbolic link from `src` to `dst`, overwriting if it exists.
 #------------------------------------------------------------------------------
 function(mpas_link_file_force src dst)
     if(NOT EXISTS "${src}")
         message(FATAL_ERROR "Link source does not exist: ${src}")
     endif()
+
     if(EXISTS "${dst}" OR IS_SYMLINK "${dst}")
         file(REMOVE "${dst}")
     endif()
+
     file(CREATE_LINK "${src}" "${dst}" SYMBOLIC)
 endfunction()
+
 
 #------------------------------------------------------------------------------
 # mpas_link_directory(src_dir dst_dir)
 #
-# Create symbolic links in `dst_dir` for all files in `src_dir`.
-#
-# Arguments:
-#   src_dir - Directory containing files to link from.
-#   dst_dir - Directory where symlinks will be created.
-#
-# Behavior:
-#   - Ensures `dst_dir` exists.
-#   - Links every file in `src_dir` (non-recursive).
-#   - Uses mpas_link_file_force to overwrite existing symlinks.
+# Creates symbolic links in `dst_dir` for all files in `src_dir` (non-recursive).
 #------------------------------------------------------------------------------
 function(mpas_link_directory src_dir dst_dir)
     if(NOT IS_DIRECTORY "${src_dir}")
-        message(FATAL_ERROR "mpas_link_directory: src_dir is not a directory: ${src_dir}")
+        message(FATAL_ERROR "mpas_link_directory: Source is not a directory: ${src_dir}")
     endif()
 
     file(MAKE_DIRECTORY "${dst_dir}")
-
     file(GLOB files CONFIGURE_DEPENDS LIST_DIRECTORIES false "${src_dir}/*")
 
     foreach(file_path IN LISTS files)
@@ -91,37 +90,23 @@ function(mpas_link_directory src_dir dst_dir)
     endforeach()
 endfunction()
 
+
 #------------------------------------------------------------------------------
-# mpas_setup_test_core([dst_dir])
+# setup_mpas_test_core()
 #
-# Prepare the MPAS test core directory with symlinks to required files.
-#
-# Arguments:
-#   dst_dir - Optional destination directory for test core setup.
-#             Defaults to `${CMAKE_BINARY_DIR}/test`.
-#
-# Behavior:
-#   - Creates `dst_dir` if it doesn’t exist.
-#   - Symlinks all files from:
-#       * `${CMAKE_BINARY_DIR}/MPAS/core_atmosphere`
-#       * `${CMAKE_BINARY_DIR}/MPAS/core_test`
-#       * `${MPAS_TEST_DATA_DIR}` (if defined and valid)
-#   - Ensures `${dst_dir}/grid.nc` exists via mpas_link_grid.
+# Prepares the MPAS test core environment:
+#   - Downloads and extracts MPAS test data if missing.
+#   - Symlinks all extracted test data into the test directory.
 #------------------------------------------------------------------------------
-function(mpas_setup_test_core dst_dir)
-    # Default destination directory if not provided
-    if(ARGC LESS 1 OR "${dst_dir}" STREQUAL "")
-        set(dst_dir "${CMAKE_BINARY_DIR}/test")
-    endif()
+function(setup_mpas_test_core)
+    set(dst_dir "${CMAKE_BINARY_DIR}/test")
 
     file(MAKE_DIRECTORY "${dst_dir}")
     message(STATUS "Setting up MPAS test core in: ${dst_dir}")
 
-    # Symlink core directories
-    mpas_link_directory("${CMAKE_BINARY_DIR}/MPAS/core_atmosphere" "${dst_dir}")
-    mpas_link_directory("${CMAKE_BINARY_DIR}/MPAS/core_test" "${dst_dir}")
-
-    # Download tarball only if missing
+    #--------------------------------------------------------------------------
+    # Download test data tarball (if missing)
+    #--------------------------------------------------------------------------
     set(tarball_path "${dst_dir}/mpas_test_data.tar.gz")
     if(EXISTS "${tarball_path}")
         message(STATUS "MPAS test data tarball already exists: ${tarball_path}")
@@ -140,17 +125,19 @@ function(mpas_setup_test_core dst_dir)
         endif()
     endif()
 
-    # Extract the tarball
+    #--------------------------------------------------------------------------
+    # Extract the test data
+    #--------------------------------------------------------------------------
     message(STATUS "Extracting MPAS test data...")
     untar_tarball("${tarball_path}" "${dst_dir}")
 
-    # Create symlink to extracted data
+    #--------------------------------------------------------------------------
+    # Link extracted data into the test directory
+    #--------------------------------------------------------------------------
     set(extracted_dir "${dst_dir}/mpas_test_data")
-    if(EXISTS "${dst_dir}/test_data")
-        file(REMOVE "${dst_dir}/test_data")
+    if(EXISTS "${extracted_dir}")
+        mpas_link_directory("${extracted_dir}" "${dst_dir}")
     endif()
 
-    mpas_link_directory("${extracted_dir}" "${dst_dir}")
     message(STATUS "MPAS test core setup complete.")
 endfunction()
-
