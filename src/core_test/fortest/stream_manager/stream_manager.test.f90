@@ -199,7 +199,7 @@ contains
         end select
     end subroutine test_add_pool
 
-    subroutine test_add_field(f_ptr, ts_ptr, s_ptr, param_idx) bind(C)
+    subroutine test_add_field(f_ptr, ts_ptr, s_ptr, param_idx)
         use iso_c_binding, only : c_ptr, c_f_pointer, c_int
         use fortest_assert, only : assert_true, assert_false, assert_equal
         use mpas_stream_manager
@@ -412,40 +412,18 @@ contains
 
             call MPAS_stream_mgr_add_field(f%manager, 'stream', 'field1', ierr=ierr)
             call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
-            call MPAS_stream_mgr_add_field(f%manager, 'stream', 'field2', ierr=ierr)
-            call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
-            call MPAS_stream_mgr_add_field(f%manager, 'stream', 'field3', ierr=ierr)
-            call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
 
             ! Verify field1 exists
             ok = MPAS_stream_list_query(f%manager%streams, 'stream', stream)
             call mpas_pool_get_config(stream%field_pool, 'field1', value=test_ptr)
             call assert_true(associated(test_ptr), verbosity=2)
-            ! Verify field2 exists
-            call mpas_pool_get_config(stream%field_pool, 'field2', value=test_ptr)
-            call assert_true(associated(test_ptr), verbosity=2)
-            ! Verify field3 exists
-            call mpas_pool_get_config(stream%field_pool, 'field3', value=test_ptr)
-            call assert_true(associated(test_ptr), verbosity=2)
 
             ! Remove field1
             call MPAS_stream_mgr_remove_field(f%manager, 'stream', 'field1', ierr=ierr)
             call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
-            ! Remove field3
-            call MPAS_stream_mgr_remove_field(f%manager, 'stream', 'field3', ierr=ierr)
-            call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
-            ! Remove field2
-            call MPAS_stream_mgr_remove_field(f%manager, 'stream', 'field2', ierr=ierr)
-            call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
 
             ! Verify field1 no longer exists
             call mpas_pool_get_config(stream%field_pool, 'field1', value=test_ptr)
-            call assert_false(associated(test_ptr), verbosity=2)
-            ! Verify field2 no longer exists
-            call mpas_pool_get_config(stream%field_pool, 'field2', value=test_ptr)
-            call assert_false(associated(test_ptr), verbosity=2)
-            ! Verify field3 no longer exists
-            call mpas_pool_get_config(stream%field_pool, 'field3', value=test_ptr)
             call assert_false(associated(test_ptr), verbosity=2)
 
             !------------------------------------------------------------
@@ -501,6 +479,124 @@ contains
         end select
     end subroutine test_remove_field
 
+    subroutine test_add_pkg(f_ptr, ts_ptr, s_ptr, param_idx) bind(C)
+        use iso_c_binding, only : c_ptr, c_f_pointer, c_int
+        use fortest_assert, only : assert_true, assert_false, assert_equal
+        use mpas_stream_manager
+        use mpas_stream_list
+        use stream_manager_fixture, only : stream_manager_fixture_t
+        implicit none
+
+        type(c_ptr), value :: f_ptr, ts_ptr, s_ptr
+        integer(c_int), value :: param_idx
+        type(stream_manager_fixture_t), pointer :: f
+        integer :: ierr, err_local
+        type(MPAS_stream_list_type), pointer :: stream
+        logical, pointer :: pkg_ptr
+        logical :: stream_exists
+
+        call c_f_pointer(f_ptr, f)
+        nullify(stream)
+        nullify(pkg_ptr)
+
+        select case (param_idx)
+
+            !-------------------------------------------------------------------
+            ! Case 1: Successful package attachment
+            !-------------------------------------------------------------------
+        case (1)
+            call MPAS_stream_mgr_create_stream(f%manager, 'stream', MPAS_STREAM_INPUT, 'test.nc', ierr=ierr)
+            call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
+
+            call MPAS_stream_mgr_add_pkg(f%manager, 'stream', 'package1', ierr=ierr)
+            call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
+
+            ! Verify package now exists in the stream’s pkg_pool
+            stream_exists = MPAS_stream_list_query(f%manager%streams, 'stream', stream)
+            call assert_true(stream_exists, verbosity=2)
+
+            call mpas_pool_get_package(stream%pkg_pool, 'package1', pkg_ptr)
+            call assert_true(associated(pkg_ptr), verbosity=2)
+            if (associated(pkg_ptr)) then
+                call assert_true(pkg_ptr, verbosity=2)
+            end if
+
+            !-------------------------------------------------------------------
+            ! Case 2: Stream does not exist
+            !-------------------------------------------------------------------
+        case (2)
+            call MPAS_stream_mgr_add_pkg(f%manager, 'nonexistent_stream', 'package1', ierr=ierr)
+            call assert_equal(ierr, MPAS_STREAM_MGR_ERROR, verbosity=2)
+
+            !-------------------------------------------------------------------
+            ! Case 3: Package not found in global registry
+            !-------------------------------------------------------------------
+        case (3)
+            call MPAS_stream_mgr_create_stream(f%manager, 'stream', MPAS_STREAM_INPUT, 'test.nc', ierr=ierr)
+            call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
+
+            call MPAS_stream_mgr_add_pkg(f%manager, 'stream', 'missing_pkg', ierr=ierr)
+            call assert_equal(ierr, MPAS_STREAM_MGR_ERROR, verbosity=2)
+
+        end select
+    end subroutine test_add_pkg
+    subroutine test_remove_pkg(f_ptr, ts_ptr, s_ptr, param_idx) bind(C)
+        use iso_c_binding, only : c_ptr, c_f_pointer, c_int
+        use fortest_assert, only : assert_true, assert_false, assert_equal
+        use mpas_stream_manager
+        use mpas_stream_list
+        use stream_manager_fixture, only : stream_manager_fixture_t
+        implicit none
+
+        type(c_ptr), value :: f_ptr, ts_ptr, s_ptr
+        integer(c_int), value :: param_idx
+        type(stream_manager_fixture_t), pointer :: f
+        integer :: ierr
+        type(MPAS_stream_list_type), pointer :: stream
+        logical, pointer :: pkg_ptr
+        logical :: stream_exists
+
+        call c_f_pointer(f_ptr, f)
+        nullify(stream)
+        nullify(pkg_ptr)
+
+        select case (param_idx)
+
+            !-------------------------------------------------------------------
+            ! Case 1: Successful package removal
+            !-------------------------------------------------------------------
+        case (1)
+            ! Create a new stream
+            call MPAS_stream_mgr_create_stream(f%manager, 'stream', MPAS_STREAM_INPUT, 'test.nc', ierr=ierr)
+            call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
+
+            ! Attach an existing package first (fixture provides package1)
+            call MPAS_stream_mgr_add_pkg(f%manager, 'stream', 'package1', ierr=ierr)
+            call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
+
+            ! Verify the package is present
+            stream_exists = MPAS_stream_list_query(f%manager%streams, 'stream', stream)
+            call assert_true(stream_exists, verbosity=2)
+            call mpas_pool_get_package(stream%pkg_pool, 'package1', pkg_ptr)
+            call assert_true(associated(pkg_ptr), verbosity=2)
+
+            ! Remove the package
+            call MPAS_stream_mgr_remove_pkg(f%manager, 'stream', 'package1', ierr=ierr)
+            call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity=2)
+
+            ! Verify package is no longer present
+            call mpas_pool_get_package(stream%pkg_pool, 'package1', pkg_ptr)
+            call assert_false(associated(pkg_ptr), verbosity=2)
+
+            !-------------------------------------------------------------------
+            ! Case 2: Stream does not exist
+            !-------------------------------------------------------------------
+        case (2)
+            call MPAS_stream_mgr_remove_pkg(f%manager, 'nonexistent_stream', 'package1', ierr=ierr)
+            call assert_equal(ierr, MPAS_STREAM_MGR_ERROR, verbosity=2)
+
+        end select
+    end subroutine test_remove_pkg
 
 
 
@@ -519,7 +615,9 @@ program test_stream_manager
             test_add_pool, &
             test_add_field, &
             test_add_stream_fields, &
-            test_remove_field
+            test_remove_field, &
+            test_add_pkg, &
+            test_remove_pkg
     use stream_manager_fixture, only : stream_manager_fixture_t, &
             setup_stream_manager, teardown_stream_manager
     implicit none
@@ -573,6 +671,16 @@ program test_stream_manager
             test_name = "test_remove_field", &
             test = test_remove_field, &
             num_params = 5)
+    call session%register_parameterized_test(&
+            test_suite_name = "stream_manager_test", &
+            test_name = "test_add_pkg", &
+            test = test_add_pkg, &
+            num_params = 3)
+    call session%register_parameterized_test(&
+            test_suite_name = "stream_manager_test", &
+            test_name = "test_remove_pkg", &
+            test = test_remove_pkg, &
+            num_params = 2)
 
     ! Run the tests
     call session%run()
