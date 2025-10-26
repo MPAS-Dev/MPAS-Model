@@ -1,3 +1,44 @@
+function(download_mpas_test_data dst_dir)
+    set(url "https://www2.mmm.ucar.edu/mpas_test_data/mpas_test_data.tar.gz")
+    set(output_file "${dst_dir}/mpas_test_data.tar.gz")
+    message(STATUS "dst_dir: ${dst_dir}")
+    message(STATUS "Downloading MPAS test data from ${url}")
+    execute_process(
+            COMMAND wget -O ${output_file} ${url}
+            WORKING_DIRECTORY ${dst_dir}
+            RESULT_VARIABLE result
+    )
+
+    if(result EQUAL 0)
+        message(STATUS "MPAS test data saved to: ${output_file}")
+    else()
+        message(FATAL_ERROR "Failed to download MPAS test data (wget exit code: ${result})")
+    endif()
+endfunction()
+
+function(untar_tarball tarball_path dest_dir)
+    if(NOT EXISTS "${tarball_path}")
+        message(FATAL_ERROR "Tarball not found: ${tarball_path}")
+    endif()
+
+    # Ensure the destination directory exists
+    file(MAKE_DIRECTORY "${dest_dir}")
+
+    message(STATUS "Extracting ${tarball_path} → ${dest_dir}")
+    execute_process(
+            COMMAND ${CMAKE_COMMAND} -E tar xzf "${tarball_path}"
+            WORKING_DIRECTORY "${dest_dir}"
+            RESULT_VARIABLE untar_result
+    )
+
+    if(NOT untar_result EQUAL 0)
+        message(FATAL_ERROR "Failed to extract ${tarball_path} (exit code ${untar_result})")
+    else()
+        message(STATUS "Successfully extracted ${tarball_path} to ${dest_dir}")
+    endif()
+endfunction()
+
+
 #------------------------------------------------------------------------------
 # mpas_link_file_force(src dst)
 #
@@ -51,47 +92,6 @@ function(mpas_link_directory src_dir dst_dir)
 endfunction()
 
 #------------------------------------------------------------------------------
-# mpas_link_grid(dir)
-#
-# Ensure that `${dir}/grid.nc` exists. If missing, create a symlink to a file
-# in `dir` matching `*grid.nc`.
-#
-# Arguments:
-#   dir - Directory to check for grid files.
-#
-# Behavior:
-#   - If `grid.nc` already exists, nothing is changed.
-#   - If multiple *grid.nc files exist, the first is used (warning issued).
-#   - Fails with FATAL_ERROR if no grid file is found.
-#------------------------------------------------------------------------------
-function(mpas_link_grid dir)
-    if(NOT IS_DIRECTORY "${dir}")
-        message(FATAL_ERROR "mpas_link_grid: dir is not a directory: ${dir}")
-    endif()
-
-    set(grid_exact "${dir}/grid.nc")
-    if(EXISTS "${grid_exact}" OR IS_SYMLINK "${grid_exact}")
-        message(STATUS "Found existing grid.nc at ${grid_exact}")
-        return()
-    endif()
-
-    file(GLOB grid_files CONFIGURE_DEPENDS LIST_DIRECTORIES false "${dir}/*grid.nc")
-
-    list(LENGTH grid_files num_files)
-    if(num_files EQUAL 0)
-        message(FATAL_ERROR "No file ending in 'grid.nc' found in ${dir}")
-    endif()
-
-    list(GET grid_files 0 target_file)
-    if(num_files GREATER 1)
-        message(WARNING "Multiple *grid.nc files found in ${dir}; using: ${target_file}")
-    endif()
-
-    message(STATUS "Linking grid.nc -> ${target_file}")
-    mpas_link_file_force("${target_file}" "${grid_exact}")
-endfunction()
-
-#------------------------------------------------------------------------------
 # mpas_setup_test_core([dst_dir])
 #
 # Prepare the MPAS test core directory with symlinks to required files.
@@ -109,20 +109,48 @@ endfunction()
 #   - Ensures `${dst_dir}/grid.nc` exists via mpas_link_grid.
 #------------------------------------------------------------------------------
 function(mpas_setup_test_core dst_dir)
+    # Default destination directory if not provided
     if(ARGC LESS 1 OR "${dst_dir}" STREQUAL "")
         set(dst_dir "${CMAKE_BINARY_DIR}/test")
     endif()
 
     file(MAKE_DIRECTORY "${dst_dir}")
+    message(STATUS "Setting up MPAS test core in: ${dst_dir}")
 
+    # Symlink core directories
     mpas_link_directory("${CMAKE_BINARY_DIR}/MPAS/core_atmosphere" "${dst_dir}")
-    mpas_link_directory("${CMAKE_BINARY_DIR}/MPAS/core_test"       "${dst_dir}")
+    mpas_link_directory("${CMAKE_BINARY_DIR}/MPAS/core_test" "${dst_dir}")
 
-    if(DEFINED MPAS_TEST_DATA_DIR AND IS_DIRECTORY "${MPAS_TEST_DATA_DIR}")
-        mpas_link_directory("${MPAS_TEST_DATA_DIR}" "${dst_dir}")
+    # Download tarball only if missing
+    set(tarball_path "${dst_dir}/mpas_test_data.tar.gz")
+    if(EXISTS "${tarball_path}")
+        message(STATUS "MPAS test data tarball already exists: ${tarball_path}")
     else()
-        message(WARNING "MPAS_TEST_DATA_DIR not set or not a directory; skipping.")
+        message(STATUS "Downloading MPAS test data to: ${tarball_path}")
+        file(DOWNLOAD
+                "https://www2.mmm.ucar.edu/mpas_test_data/mpas_test_data.tar.gz"
+                "${tarball_path}"
+                SHOW_PROGRESS
+                STATUS status
+                LOG log
+        )
+        list(GET status 0 status_code)
+        if(NOT status_code EQUAL 0)
+            message(FATAL_ERROR "Failed to download MPAS test data: ${log}")
+        endif()
     endif()
 
-    mpas_link_grid("${dst_dir}")
+    # Extract the tarball
+    message(STATUS "Extracting MPAS test data...")
+    untar_tarball("${tarball_path}" "${dst_dir}")
+
+    # Create symlink to extracted data
+    set(extracted_dir "${dst_dir}/mpas_test_data")
+    if(EXISTS "${dst_dir}/test_data")
+        file(REMOVE "${dst_dir}/test_data")
+    endif()
+
+    mpas_link_directory("${extracted_dir}" "${dst_dir}")
+    message(STATUS "MPAS test core setup complete.")
 endfunction()
+

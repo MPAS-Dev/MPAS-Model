@@ -1,4 +1,5 @@
 include(${CMAKE_SOURCE_DIR}/cmake/Functions/setup_mpas_test_core.cmake)
+
 set(test_core_inc
         block_dimension_routines.inc
         core_variables.inc
@@ -28,15 +29,9 @@ set_target_properties(mpas_test
         PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/test"
 )
-if (DEFINED MPAS_TEST_DATA_DIR AND EXISTS "${MPAS_TEST_DATA_DIR}")
-    message(STATUS "MPAS_TEST_DATA_DIR is set and exists: ${MPAS_TEST_DATA_DIR}")
-    mpas_setup_test_core(${CMAKE_BINARY_DIR}/test)
-    add_test(NAME mpas_test
-            COMMAND mpas_test
-            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/test")
-else ()
-    message(WARNING "MPAS_TEST_DATA_DIR is not set or does not exist; "
-            "skipping test_mpas registration.")
-endif ()
+mpas_setup_test_core(${CMAKE_BINARY_DIR}/test)
+add_test(NAME mpas_test
+        COMMAND mpas_test
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/test")
 
 add_subdirectory(fortest)

@@ -18,7 +18,6 @@ if(MPAS_CORES MATCHES " ") #Convert strings separated with spaces to CMake list 
     string(REPLACE " " ";" MPAS_CORES ${MPAS_CORES})
     set(MPAS_CORES ${MPAS_CORES} CACHE STRING "MPAS cores to build. Options: ${MPAS_ALL_CORES}" FORCE)
 endif()
-set(MPAS_TEST_DATA_DIR "" CACHE PATH "Path to MPAS test data directory.")
 option(DO_PHYSICS "Use built-in physics schemes." TRUE)
 option(MPAS_DOUBLE_PRECISION "Use double precision 64-bit Floating point." TRUE)
 option(MPAS_PROFILE "Enable GPTL profiling" OFF)
