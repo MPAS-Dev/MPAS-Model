@@ -425,7 +425,6 @@ module mpas_stream_manager
            call MPAS_stream_list_insert(manager % streams, new_stream, ierr=err_local)
            if (err_local /= MPAS_STREAM_LIST_NOERR) then
                if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
-               STREAM_ERROR_WRITE('Problems while adding stream to list')
                return
            end if
            manager % numStreams = manager % numStreams + 1
@@ -434,47 +433,202 @@ module mpas_stream_manager
     end subroutine MPAS_stream_mgr_create_stream!}}}
 
 
-    !-----------------------------------------------------------------------
-    !  routine MPAS_stream_mgr_validate_streams
-    !
-    !> \brief Validate all streams or one stream, if optional argument streamID is present.
-    !> \author Dom Heinzeller
-    !> \date   12 September 2017
-    !> \details
-    !>  Validates all streams of a stream manager, or one stream if optional argument
-    !>  streamID is specified. A low-level validation of streams happens within
-    !>  xml_stream_parser in xml_stream_parser.c (e.g. immutable streams must not be
-    !>  specified as mutable streams etc.). MPAS_stream_mgr_validate_streams performs
-    !>  higher-level checks that should stay separate from the low-level checks and
-    !>  that may require additional logic or settings not necessarily present when
-    !>  calling xml_stream_parser.
-    !
-    !-----------------------------------------------------------------------
-    subroutine MPAS_stream_mgr_validate_streams(manager, ierr)!{{{
+       !-----------------------------------------------------------------------
+       !  routine MPAS_stream_mgr_validate_streams
+       !
+       !> \brief Validate all streams or one stream, if optional argument streamID is present.
+       !> \author Dom Heinzeller, updated by Andy Stokely
+       !> \date   27 October 2025
+       !> \details
+       !>  Ensures that no two active streams share the same filename template
+       !>  if their associated alarm active windows overlap. Streams with
+       !>  inactive packages or non-overlapping alarms are permitted to reuse
+       !>  filename templates.
+       !-----------------------------------------------------------------------
+       subroutine MPAS_stream_mgr_validate_streams(manager, ierr)
+          implicit none
 
-        implicit none
+          type(MPAS_streamManager_type), intent(inout) :: manager
+          integer, intent(out), optional :: ierr
 
-        type (MPAS_streamManager_type), intent(inout) :: manager
-        integer, intent(out), optional :: ierr
+          if (present(ierr)) ierr = MPAS_STREAM_MGR_NOERR
 
-        character(len=StrKIND) :: stream_name
-        character(len=StrKIND) :: filename_interval
-        integer :: direction
-        integer :: err_local
+          call validate_all_stream_pairs(manager, ierr)
 
-        if (present(ierr)) ierr = MPAS_STREAM_MGR_NOERR
+       contains
+
+          !===================================================================
+          !  validate_all_stream_pairs
+          !
+          !  Iterate over all pairs of streams in the manager.
+          !===================================================================
+          subroutine validate_all_stream_pairs(manager, ierr)
+             implicit none
+             type(MPAS_streamManager_type), intent(inout) :: manager
+             integer, intent(out), optional :: ierr
+
+             type(MPAS_stream_list_type), pointer :: stream_i, stream_j
+
+             stream_i => manager%streams%head
+
+             do while (associated(stream_i))
+                stream_j => manager%streams%head
+                do while (associated(stream_j))
+                   if (.not. associated(stream_i, stream_j)) then
+                      call validate_stream_pair(manager, stream_i, stream_j, ierr)
+                      if (present(ierr)) then
+                         if (ierr /= MPAS_STREAM_MGR_NOERR) return
+                      end if
+                   end if
+                   stream_j => stream_j%next
+                end do
+                stream_i => stream_i%next
+             end do
+          end subroutine validate_all_stream_pairs
 
 
-        call MPAS_stream_mgr_begin_iteration(manager)
-        do while (MPAS_stream_mgr_get_next_stream(manager, streamID = stream_name, directionProperty = direction, &
-                                                  filenameIntervalProperty = filename_interval))
+          !===================================================================
+          !  validate_stream_pair
+          !
+          !  Compare two streams. If both are active and share a filename
+          !  template, ensure their alarm windows do not overlap.
+          !===================================================================
+          subroutine validate_stream_pair(manager, streamA, streamB, ierr)
+             implicit none
+             type(MPAS_streamManager_type), intent(inout) :: manager
+             type(MPAS_stream_list_type), pointer :: streamA, streamB
+             integer, intent(out), optional :: ierr
 
-        end do
+             logical :: overlap
 
-    end subroutine MPAS_stream_mgr_validate_streams!}}}
+             if (present(ierr)) ierr = MPAS_STREAM_MGR_NOERR
+
+             ! Skip if either stream is inactive
+             if (.not. stream_active_pkg_check(streamA) .or. &
+                   .not. stream_active_pkg_check(streamB)) return
+
+             ! Only check if filename templates match
+             if (trim(streamA%filename_template) /= trim(streamB%filename_template)) return
+
+             ! Compare their alarms
+             call compare_stream_alarms(manager, streamA, streamB,  overlap, ierr)
+
+             if (overlap) then
+                if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
+             end if
+          end subroutine validate_stream_pair
 
 
-    !-----------------------------------------------------------------------
+          !===================================================================
+          !  compare_stream_alarms
+          !
+          !  Check whether any alarms between two streams overlap.
+          !===================================================================
+          subroutine compare_stream_alarms(manager, streamA, streamB, overlap, ierr)
+             implicit none
+             type(MPAS_streamManager_type), intent(in) :: manager
+             type(MPAS_stream_list_type), pointer :: streamA, streamB
+             integer, intent(in) :: directionA, directionB
+             logical, intent(out) :: overlap
+             integer, intent(out), optional :: ierr
+
+             type(MPAS_stream_list_type), pointer :: alarm_i, alarm_j
+             type(MPAS_Alarm_type), pointer :: alarmA, alarmB
+             integer :: err_local
+
+             if (present(ierr)) ierr = MPAS_STREAM_MGR_NOERR
+             overlap = .false.
+
+             if (directionA == MPAS_STREAM_INPUT) then
+                alarm_i => streamA%alarmList_in%head
+             else
+                alarm_i => streamA%alarmList_out%head
+             end if
+             do while (associated(alarm_i))
+                call mpas_get_alarm_ptr(manager%streamClock, alarm_i%name, alarmA, err_local)
+                if (.not. associated(alarmA)) then
+                   alarm_i => alarm_i%next
+                   cycle
+                end if
+
+                if (directionB == MPAS_STREAM_INPUT) then
+                   alarm_j => streamB%alarmList_in%head
+                else
+                   alarm_j => streamB%alarmList_out%head
+                end if
+                do while (associated(alarm_j))
+                   call mpas_get_alarm_ptr(manager%streamClock, alarm_j%name, alarmB, err_local)
+                   if (.not. associated(alarmB)) then
+                      alarm_j => alarm_j%next
+                      cycle
+                   end if
+
+                   call mpas_alarms_overlap(alarmA, alarmB, overlap, err_local)
+                   if (overlap) return
+                   alarm_j => alarm_j%next
+                end do
+                alarm_i => alarm_i%next
+             end do
+          end subroutine compare_stream_alarms
+
+
+          !===================================================================
+          !  mpas_get_alarm_ptr
+          !
+          !  Return a pointer to a clock alarm by ID.
+          !===================================================================
+          subroutine mpas_get_alarm_ptr(clock, alarmID, alarmPtr, ierr)
+             implicit none
+             type(MPAS_Clock_type), intent(in) :: clock
+             character(len=*), intent(in)      :: alarmID
+             type(MPAS_Alarm_type), pointer    :: alarmPtr
+             integer, intent(out), optional    :: ierr
+
+             type(MPAS_Alarm_type), pointer :: node
+
+             if (present(ierr)) ierr = 0
+             nullify(alarmPtr)
+
+             node => clock%alarmListHead
+             do while (associated(node))
+                if (trim(node%alarmID) == trim(alarmID)) then
+                   alarmPtr => node
+                   return
+                end if
+                node => node%next
+             end do
+
+             if (present(ierr)) ierr = 1
+             nullify(alarmPtr)
+          end subroutine mpas_get_alarm_ptr
+
+
+          !===================================================================
+          !  mpas_alarms_overlap
+          !
+          !  Determine whether two alarm active windows overlap.
+          !===================================================================
+          subroutine mpas_alarms_overlap(alarmA, alarmB, overlap, ierr)
+             implicit none
+             type(MPAS_Alarm_type), intent(in) :: alarmA
+             type(MPAS_Alarm_type), intent(in) :: alarmB
+             logical, intent(out) :: overlap
+             integer, intent(out), optional :: ierr
+
+             if (present(ierr)) ierr = 0
+             overlap = .false.
+
+             ! Inclusive overlap check
+             if ((alarmA%activeStartTime <= alarmB%activeStopTime) .and. &
+                   (alarmB%activeStartTime <= alarmA%activeStopTime)) then
+                overlap = .true.
+             end if
+          end subroutine mpas_alarms_overlap
+
+       end subroutine MPAS_stream_mgr_validate_streams
+
+
+       !-----------------------------------------------------------------------
     !  routine MPAS_stream_mgr_destroy_stream
     !
     !> \brief Free all memory associated with a stream in an MPAS stream manager.

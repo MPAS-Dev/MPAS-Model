@@ -17,6 +17,10 @@ module stream_manager_fixture
         type(MPAS_Time_Type) :: clock_start_time
         type(MPAS_Time_Type) :: clock_stop_time
         type(MPAS_TimeInterval_Type) :: clock_time_step
+         type(MPAS_Time_Type) :: stream1_start_time
+         type(MPAS_Time_Type) :: stream1_stop_time
+         type(MPAS_Time_Type) :: stream2_start_time
+         type(MPAS_Time_Type) :: stream2_stop_time
     end type stream_manager_fixture_t
 
     type field_ptr_t
@@ -181,6 +185,14 @@ contains
                 M=0, S=0, S_n=0, S_d=0, ierr=ierr)
         call mpas_set_time(f%clock_stop_time,  YYYY=2000, MM=01, DD=01, H=20, &
                 M=0, S=0, S_n=0, S_d=0, ierr=ierr)
+        call mpas_set_time(f%stream1_start_time, YYYY=2000, MM=01, DD=01, H=0,  &
+              M=0, S=0, S_n=0, S_d=0, ierr=ierr)
+        call mpas_set_time(f%stream1_stop_time,  YYYY=2000, MM=01, DD=01, H=04, &
+              M=0, S=0, S_n=0, S_d=0, ierr=ierr)
+        call mpas_set_time(f%stream2_start_time, YYYY=2000, MM=01, DD=01, H=05,  &
+              M=0, S=0, S_n=0, S_d=0, ierr=ierr)
+         call mpas_set_time(f%stream2_stop_time,  YYYY=2000, MM=01, DD=01, H=20, &
+              M=0, S=0, S_n=0, S_d=0, ierr=ierr)
 
         call mpas_set_timeInterval(f%clock_time_step, dt=3600.0_RKIND, ierr=ierr)
         call mpas_create_clock(clock, f%clock_start_time, f%clock_time_step, &
