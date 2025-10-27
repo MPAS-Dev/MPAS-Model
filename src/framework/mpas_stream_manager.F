@@ -45,8 +45,7 @@ module mpas_stream_manager
               MPAS_stream_mgr_stream_exists, &
               MPAS_stream_mgr_get_stream_interval, &
               MPAS_get_stream_filename, &
-              MPAS_build_stream_filename, &
-              stream_active_pkg_check
+              MPAS_build_stream_filename
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !
@@ -451,90 +450,24 @@ module mpas_stream_manager
     !>  calling xml_stream_parser.
     !
     !-----------------------------------------------------------------------
-    subroutine MPAS_stream_mgr_validate_streams(manager, streamID, ierr)!{{{
+    subroutine MPAS_stream_mgr_validate_streams(manager, ierr)!{{{
 
         implicit none
 
         type (MPAS_streamManager_type), intent(inout) :: manager
-        character (len=*), intent(in), optional :: streamID
         integer, intent(out), optional :: ierr
 
         character(len=StrKIND) :: stream_name
         character(len=StrKIND) :: filename_interval
-        integer :: direction, io_type
-        character (len=StrKIND) :: message
+        integer :: direction
         integer :: err_local
 
-        ! For future validation of SIONlib data - need to check that there is only one timestamp per file
-        type (MPAS_TimeInterval_type) :: time_interval_zero, time_interval_file, time_interval_input, time_interval_output
-
-        if (present(streamID)) then
-           STREAM_DEBUG_WRITE('-- Called MPAS_stream_mgr_validate_streams() for '//trim(streamID))
-        else
-           STREAM_DEBUG_WRITE('-- Called MPAS_stream_mgr_validate_streams() for all streams')
-        end if
-
         if (present(ierr)) ierr = MPAS_STREAM_MGR_NOERR
-        call mpas_set_timeInterval(time_interval_zero, dt = 0.0_RKIND)
 
-        if (present(streamID)) then
-           call MPAS_stream_mgr_begin_iteration(manager, streamID, ierr=err_local)
-           if (err_local .eq. MPAS_STREAM_MGR_ERROR) then
-              if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
-              return
-           end if
-        end if
 
         call MPAS_stream_mgr_begin_iteration(manager)
         do while (MPAS_stream_mgr_get_next_stream(manager, streamID = stream_name, directionProperty = direction, &
                                                   filenameIntervalProperty = filename_interval))
-           if (present(streamID)) then
-              if (trim(streamID) .ne. trim(stream_name)) cycle
-           end if
-           STREAM_DEBUG_WRITE('-- Validating stream '//trim(stream_name))
-           call MPAS_stream_mgr_get_property(manager, stream_name, MPAS_STREAM_PROPERTY_IOTYPE, io_type)
-
-#if 0
-           ! Placeholder for testing additional consistency checks for future SIONlib implementation,
-           ! and demo of how to use MPAS_stream_mgr_get_stream_interval for directions input/output.
-           if (io_type == MPAS_IO_SIONLIB) then
-
-               if (trim(filename_interval) /= 'none') then
-                  call mpas_set_timeInterval(time_interval_file, timeString=filename_interval)
-               else
-                  call mpas_set_timeInterval(time_interval_file, dt = 0.0_RKIND)
-               end if
-
-               if (direction == MPAS_STREAM_INPUT .or. direction == MPAS_STREAM_INPUT_OUTPUT) then
-                  time_interval_input = MPAS_stream_mgr_get_stream_interval(manager, stream_name, MPAS_STREAM_INPUT, err_local)
-                  if (err_local /= MPAS_STREAM_MGR_NOERR) then
-                     if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
-                     return
-                  end if
-                  if (time_interval_input .gt. time_interval_zero) then
-                     if ( (time_interval_file .eq. time_interval_zero) .or. (time_interval_file .gt. time_interval_input) ) then
-                        message = 'Filename interval is larger than input interval for SIONlib stream ''' // trim(stream_name) //''' (only one time stamp per file allowed).'
-                        call mpas_log_write(message, MPAS_LOG_CRIT)
-                     end if
-                  end if
-               end if
-
-               if (direction == MPAS_STREAM_OUTPUT .or. direction == MPAS_STREAM_INPUT_OUTPUT) then
-                  time_interval_output = MPAS_stream_mgr_get_stream_interval(manager, stream_name, MPAS_STREAM_OUTPUT, err_local)
-                  if (err_local /= MPAS_STREAM_MGR_NOERR) then
-                     if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
-                     return
-                  end if
-                  if (time_interval_output .gt. time_interval_zero) then
-                     if ( (time_interval_file .eq. time_interval_zero) .or. (time_interval_file .gt. time_interval_output) ) then
-                        message = 'Filename interval is larger than output interval for SIONlib stream ''' // trim(stream_name) //''' (only one time stamp per file allowed).'
-                        call mpas_log_write(message, MPAS_LOG_CRIT)
-                     end if
-                  end if
-               end if
-
-           end if
-#endif
 
         end do
 

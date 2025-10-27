@@ -14,6 +14,9 @@ module stream_manager_fixture
         type(MPAS_streamManager_type), pointer :: manager
         integer, pointer :: external_comm
         type(MPAS_Clock_type), pointer :: clock
+        type(MPAS_Time_Type) :: clock_start_time
+        type(MPAS_Time_Type) :: clock_stop_time
+        type(MPAS_TimeInterval_Type) :: clock_time_step
     end type stream_manager_fixture_t
 
     type field_ptr_t
@@ -25,6 +28,26 @@ module stream_manager_fixture
     end type pool_ptr_t
 
 contains
+    ! Utility: advance clock n steps, optionally resetting an alarm each step
+    subroutine advance_clock_n_times(clock, n, alarm_id, reset)
+        use mpas_derived_types, only : MPAS_Clock_type
+        implicit none
+        type(MPAS_Clock_type), intent(inout) :: clock
+        integer, intent(in) :: n
+        character(len = *), optional, intent(in) :: alarm_id
+        logical, intent(in), optional :: reset
+        integer :: i
+        do i = 1, n
+            if (present(alarm_id) .and. present(reset)) then
+                if (reset) call mpas_reset_clock_alarm(clock, alarm_id)
+            end if
+            if (present(reset)) then
+                if (reset) call mpas_reset_clock_alarm(clock, alarm_id)
+            end if
+            call mpas_reset_clock_alarm(clock, alarm_id)
+            call mpas_advance_clock(clock)
+        end do
+    end subroutine advance_clock_n_times
 
     subroutine setup_stream_manager(f_ptr)
         implicit none
@@ -54,8 +77,7 @@ contains
         call setup_allFields_pool(f, allFields, fields)
         call setup_allStructs_pool(f, allStructs, structs, fields)
         call setup_allPackages_pool(f, allPackages, packages, package_names)
-        allocate(ioContext)
-        call MPAS_stream_mgr_init(f%manager, ioContext, stream_manager_clock, &
+        call MPAS_stream_mgr_init(f%manager, f%domain%ioContext, stream_manager_clock, &
                 allFields, allPackages, allStructs, ierr = ierr)
     end subroutine setup_stream_manager
 
@@ -151,18 +173,18 @@ contains
         type(stream_manager_fixture_t), pointer :: f
         type(MPAS_Clock_type), pointer :: clock
         integer :: ierr
-        type(MPAS_Time_type) :: clock_start_time, clock_stop_time
-        type(MPAS_TimeInterval_type) :: clock_time_step
 
         ierr = 0
 
         allocate(clock)
-        clock_start_time = mpas_get_clock_time(f%clock, MPAS_START_TIME)
-        clock_stop_time = mpas_get_clock_time(f%clock, MPAS_STOP_TIME)
-        clock_time_step = mpas_get_clock_timestep(f%clock)
+        call mpas_set_time(f%clock_start_time, YYYY=2000, MM=01, DD=01, H=0,  &
+                M=0, S=0, S_n=0, S_d=0, ierr=ierr)
+        call mpas_set_time(f%clock_stop_time,  YYYY=2000, MM=01, DD=01, H=20, &
+                M=0, S=0, S_n=0, S_d=0, ierr=ierr)
 
-        call mpas_create_clock(clock, clock_start_time, clock_time_step, &
-                clock_stop_time, ierr = ierr)
+        call mpas_set_timeInterval(f%clock_time_step, dt=3600.0_RKIND, ierr=ierr)
+        call mpas_create_clock(clock, f%clock_start_time, f%clock_time_step, &
+                f%clock_stop_time, ierr = ierr)
     end subroutine setup_clock
 
 
@@ -181,15 +203,15 @@ contains
 
         f%clock => f%domain%clock
 
-!        start_time = mpas_get_clock_time(f%clock, MPAS_START_TIME)
-!        call mpas_get_time(start_time, dateTimeString = start_time_str)
-!
-!        call mpas_pool_get_subpool(f%domain%blocklist%structs, 'model', model_pool)
-!        call mpas_pool_get_array(model_pool, 'xtime', xtime)
-!        xtime = start_time_str
-!
-!        call mpas_stream_mgr_read(f%domain%streamManager)
-!        call mpas_stream_mgr_reset_alarms(f%domain%streamManager, direction = MPAS_STREAM_INPUT)
+        start_time = mpas_get_clock_time(f%clock, MPAS_START_TIME)
+        call mpas_get_time(start_time, dateTimeString = start_time_str)
+
+        call mpas_pool_get_subpool(f%domain%blocklist%structs, 'model', model_pool)
+        call mpas_pool_get_array(model_pool, 'xtime', xtime)
+        xtime = start_time_str
+
+        call mpas_stream_mgr_read(f%domain%streamManager)
+        call mpas_stream_mgr_reset_alarms(f%domain%streamManager, direction = MPAS_STREAM_INPUT)
     end subroutine setup_mpas
 
     subroutine init_fields(fields)
