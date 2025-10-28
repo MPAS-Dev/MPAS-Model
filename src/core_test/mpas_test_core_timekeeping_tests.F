@@ -158,7 +158,6 @@ contains
       integer, intent(out) :: status
 
       if (condition) then
-         call mpas_log_write('PASS: ' // trim(message))
          status = 0
       else
          call mpas_log_write('FAIL: ' // trim(message))
@@ -192,7 +191,6 @@ contains
       integer, intent(out) :: status
 
       if (.not. condition) then
-         call mpas_log_write('PASS: ' // trim(message))
          status = 0
       else
          call mpas_log_write('FAIL: ' // trim(message))
