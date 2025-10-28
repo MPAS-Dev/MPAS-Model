@@ -247,7 +247,7 @@ module test_core
       !
       call mpas_log_write('')
       call mpas_log_write('Testing mpas_window_alarms:')
-      iErr = mpas_window_alarm_tests(domain)
+      iErr = mpas_window_alarm_tests()
       if (iErr == 0) then
          call mpas_log_write('* mpas_window_alarm tests - all tests passed: SUCCESS')
       else

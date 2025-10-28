@@ -77,9 +77,6 @@ module test_core_timekeeping_tests
       !> Identifier string for the alarm
       character(len=:), allocatable  :: alarm_id
 
-      !> Total number of steps the clock will run
-      integer :: num_clock_steps        = 120
-
       !> Number of substeps per interval (clock resolution)
       integer :: num_steps_per_interval = 6
 
@@ -137,6 +134,74 @@ contains
 
 
    !-----------------------------------------------------------------------
+   !  subroutine assert_true
+   !
+   !> \brief Assert that a condition is true; logs PASS/FAIL accordingly.
+   !> \author Andy Stokely
+   !> \date   10/28/2025
+   !> \details
+   !>   Verifies that the provided logical expression evaluates to `.true.`.
+   !>   If the condition is true, a PASS message is logged; otherwise, a FAIL
+   !>   message is logged and the status is set to 1.
+   !>
+   !>   This routine is used throughout test cases to simplify repetitive
+   !>   PASS/FAIL logic and ensure consistent logging and error tracking.
+   !>
+   !> \param condition  Logical expression expected to be `.true.`
+   !> \param message    Description of the test condition
+   !> \param status     Integer status flag (0 = pass, 1 = fail)
+   !-----------------------------------------------------------------------
+   subroutine assert_true(condition, message, status)
+      implicit none
+      logical, intent(in) :: condition
+      character(len=*), intent(in) :: message
+      integer, intent(out) :: status
+
+      if (condition) then
+         call mpas_log_write('PASS: ' // trim(message))
+         status = 0
+      else
+         call mpas_log_write('FAIL: ' // trim(message))
+         status = 1
+      end if
+   end subroutine assert_true
+
+
+   !-----------------------------------------------------------------------
+   !  subroutine assert_false
+   !
+   !> \brief Assert that a condition is false; logs PASS/FAIL accordingly.
+   !> \author Andy Stokely
+   !> \date   10/28/2025
+   !> \details
+   !>   Verifies that the provided logical expression evaluates to `.false.`.
+   !>   If the condition is false, a PASS message is logged; otherwise, a FAIL
+   !>   message is logged and the status is set to 1.
+   !>
+   !>   This routine complements `assert_true` and is used when the expected
+   !>   behavior requires a logical expression to remain false.
+   !>
+   !> \param condition  Logical expression expected to be `.false.`
+   !> \param message    Description of the test condition
+   !> \param status     Integer status flag (0 = pass, 1 = fail)
+   !-----------------------------------------------------------------------
+   subroutine assert_false(condition, message, status)
+      implicit none
+      logical, intent(in) :: condition
+      character(len=*), intent(in) :: message
+      integer, intent(out) :: status
+
+      if (.not. condition) then
+         call mpas_log_write('PASS: ' // trim(message))
+         status = 0
+      else
+         call mpas_log_write('FAIL: ' // trim(message))
+         status = 1
+      end if
+   end subroutine assert_false
+
+
+   !-----------------------------------------------------------------------
    !  subroutine setup_alarm_fixture
    !
    !> \brief Initialize a test fixture with a clock and alarms.
@@ -147,7 +212,7 @@ contains
    !-----------------------------------------------------------------------
    subroutine setup_alarm_fixture(fixture)
       implicit none
-      type(alarm_fixture_t), pointer :: fixture
+      type(alarm_fixture_t), intent(out), pointer :: fixture
       integer                        :: ierr
 
       allocate(fixture)
@@ -266,12 +331,8 @@ contains
          !-----------------------------------------------------------------------
       case(1)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (ringing) then
-            call mpas_log_write('FAIL: Alarm is ringing before anchor time')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is not ringing before anchor time')
-         end if
+         call assert_false(ringing, 'Alarm is ringing before anchor time', local_ierr)
+         ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
          ! Case 2: Before anchor after reset (A → B)
@@ -280,12 +341,8 @@ contains
       case(2)
          call mpas_reset_clock_alarm(f%clock, f%alarm_id)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (ringing) then
-            call mpas_log_write('FAIL: Alarm is ringing before anchor time after reset')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is not ringing before anchor time after reset')
-         end if
+         call assert_false(ringing, 'Alarm is ringing before anchor time after reset', local_ierr)
+         ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
          ! Case 3: After anchor but before window (B → C)
@@ -294,12 +351,8 @@ contains
       case(3)
          call advance_clock_n_times(f%clock, f%steps_to_anchor + 2*f%num_steps_per_interval)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (ringing) then
-            call mpas_log_write('FAIL: Alarm is ringing after anchor, before window')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is not ringing after anchor, before window')
-         end if
+         call assert_false(ringing, 'Alarm is ringing after anchor, before window', local_ierr)
+         ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
          ! Case 4: At window start (C)
@@ -308,12 +361,8 @@ contains
       case(4)
          call advance_clock_n_times(f%clock, f%steps_to_window_start)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (.not. ringing) then
-            call mpas_log_write('FAIL: Alarm is not ringing at start of window')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is ringing at start of window')
-         end if
+         call assert_true(ringing, 'Alarm is not ringing at start of window', local_ierr)
+         ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
          ! Case 5: At window start (C) after reset
@@ -323,12 +372,8 @@ contains
          call advance_clock_n_times(f%clock, f%steps_to_window_start)
          call mpas_reset_clock_alarm(f%clock, f%alarm_id)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (ringing) then
-            call mpas_log_write('FAIL: Alarm is ringing at start of window after reset')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is not ringing at start of window after reset')
-         end if
+         call assert_false(ringing, 'Alarm is ringing at start of window after reset', local_ierr)
+         ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
          ! Case 6: Middle of window (C → D)
@@ -337,12 +382,8 @@ contains
       case(6)
          call advance_clock_n_times(f%clock, f%steps_to_window_midpoint)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (.not. ringing) then
-            call mpas_log_write('FAIL: Alarm is not ringing in middle of window')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is ringing in middle of window')
-         end if
+         call assert_true(ringing, 'Alarm is not ringing in middle of window', local_ierr)
+         ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
          ! Case 7: Middle of window after reset at window start
@@ -353,12 +394,8 @@ contains
          call mpas_reset_clock_alarm(f%clock, f%alarm_id)
          call advance_clock_n_times(f%clock, f%num_steps_window/2)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (.not. ringing) then
-            call mpas_log_write('FAIL: Alarm is not ringing in middle of window after reset')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is ringing in middle of window after reset')
-         end if
+         call assert_true(ringing, 'Alarm is not ringing in middle of window after reset', local_ierr)
+         ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
          ! Case 8: Middle of window after reset inside window
@@ -368,12 +405,8 @@ contains
          call advance_clock_n_times(f%clock, f%steps_to_window_midpoint)
          call mpas_reset_clock_alarm(f%clock, f%alarm_id)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (ringing) then
-            call mpas_log_write('FAIL: Alarm is ringing in middle of window after reset')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is not ringing in middle of window after reset')
-         end if
+         call assert_false(ringing, 'Alarm is ringing in middle of window after reset', local_ierr)
+         ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
          ! Case 9: At window end (D)
@@ -382,12 +415,8 @@ contains
       case(9)
          call advance_clock_n_times(f%clock, f%steps_to_window_end)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (.not. ringing) then
-            call mpas_log_write('FAIL: Alarm is not ringing at end of window')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is ringing at end of window')
-         end if
+         call assert_true(ringing, 'Alarm is not ringing at end of window', local_ierr)
+         ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
          ! Case 10: At window end (D) after reset
@@ -397,12 +426,8 @@ contains
          call advance_clock_n_times(f%clock, f%steps_to_window_end)
          call mpas_reset_clock_alarm(f%clock, f%alarm_id)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (ringing) then
-            call mpas_log_write('FAIL: Alarm is ringing at end of window after reset')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is not ringing at end of window after reset')
-         end if
+         call assert_false(ringing, 'Alarm is ringing at end of window after reset', local_ierr)
+         ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
          ! Case 11: After leaving window (D → E) before reset outside of window
@@ -413,12 +438,8 @@ contains
          call mpas_reset_clock_alarm(f%clock, f%alarm_id)
          call advance_clock_n_times(f%clock, f%num_steps_window/2 + f%num_steps_post_window/2)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (.not. ringing) then
-            call mpas_log_write('FAIL: Alarm is not ringing after window')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is ringing after window')
-         end if
+         call assert_true(ringing, 'Alarm is not ringing after window', local_ierr)
+         ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
          ! Case 12: After leaving window (D → E) after reset outside of window
@@ -428,12 +449,8 @@ contains
          call advance_clock_n_times(f%clock, f%steps_to_window_end + f%num_steps_post_window/2)
          call mpas_reset_clock_alarm(f%clock, f%alarm_id)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (ringing) then
-            call mpas_log_write('FAIL: Alarm is ringing after window after reset')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is not ringing after window after reset')
-         end if
+         call assert_false(ringing, 'Alarm is ringing after window after reset', local_ierr)
+         ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
          ! Case 13: Anchor after window start (B > C)
@@ -443,25 +460,18 @@ contains
          call mpas_remove_clock_alarm(f%clock, f%alarm_id)
          call mpas_set_time(f%alarm_time, YYYY=2000, MM=01, DD=01, H=9, M=0, S=0, S_n=0, S_d=0, ierr=ierr)
          call mpas_add_clock_alarm(f%clock, f%alarm_id, f%alarm_time, &
-               alarmTimeInterval = f%alarm_interval, &
-               alarmStartTime    = f%window_start_time, &
-               alarmStopTime     = f%window_stop_time)
+                 alarmTimeInterval = f%alarm_interval, &
+                 alarmStartTime = f%window_start_time, &
+                 alarmStopTime = f%window_stop_time)
          call advance_clock_n_times(f%clock, f%steps_to_window_start)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (ringing) then
-            call mpas_log_write('FAIL: Alarm is ringing before anchor (after window start)')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is not ringing before anchor (after window start)')
-         end if
+         call assert_false(ringing, 'Alarm is ringing before anchor (after window start)', local_ierr)
+         ierr = ierr + local_ierr
+
          call advance_clock_n_times(f%clock, 2*f%num_steps_per_interval)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (.not. ringing) then
-            call mpas_log_write('FAIL: Alarm is not ringing after anchor (after window start)')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is ringing after anchor (after window start)')
-         end if
+         call assert_true(ringing, 'Alarm is not ringing after anchor (after window start)', local_ierr)
+         ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
          ! Case 14: Clock direction change inside window (forward → backward)
@@ -471,12 +481,8 @@ contains
          call advance_clock_n_times(f%clock, f%steps_to_window_midpoint)
          call mpas_set_clock_direction(f%clock, MPAS_BACKWARD)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (.not. ringing) then
-            call mpas_log_write('FAIL: Alarm is not ringing in window after direction change')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is ringing in window after direction change')
-         end if
+         call assert_true(ringing, 'Alarm is not ringing in window after direction change', local_ierr)
+         ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
          ! Case 15: Re-entering window boundary after direction change
@@ -487,21 +493,14 @@ contains
          call mpas_reset_clock_alarm(f%clock, f%alarm_id)
          call advance_clock_n_times(f%clock, f%num_steps_post_window/2)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (ringing) then
-            call mpas_log_write('FAIL: Alarm is ringing after leaving window before re-entering')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is not ringing after leaving window before re-entering')
-         end if
+         call assert_false(ringing, 'Alarm is ringing after leaving window before re-entering', local_ierr)
+         ierr = ierr + local_ierr
+
          call mpas_set_clock_direction(f%clock, MPAS_BACKWARD)
          call advance_clock_n_times(f%clock, f%num_steps_post_window/2)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (.not. ringing) then
-            call mpas_log_write('FAIL: Alarm is not ringing at boundary after re-entering')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is ringing at boundary after re-entering')
-         end if
+         call assert_true(ringing, 'Alarm is not ringing at boundary after re-entering', local_ierr)
+         ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
          ! Case 16: Reset at window start and reverse direction to exit window
@@ -515,14 +514,9 @@ contains
          call advance_clock_n_times(f%clock, f%num_steps_window / 2)
          call mpas_reset_clock_alarm(f%clock, f%alarm_id)
          call advance_clock_n_times(f%clock, f%steps_to_window_start / 2)
-
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (ringing) then
-            call mpas_log_write('FAIL: Alarm rang after reset when moving backward out of window')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm did not ring after reset when moving backward out of window')
-         end if
+         call assert_false(ringing, 'Alarm rang after reset when moving backward out of window', local_ierr)
+         ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
          ! Case 17: Outside window after direction change (D → E → backward)
@@ -532,12 +526,8 @@ contains
          call advance_clock_n_times(f%clock, f%steps_to_window_end + f%num_steps_post_window/2)
          call mpas_set_clock_direction(f%clock, MPAS_BACKWARD)
          ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
-         if (ringing) then
-            call mpas_log_write('FAIL: Alarm is ringing outside of window after direction change')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm is not ringing outside of window after direction change')
-         end if
+         call assert_false(ringing, 'Alarm is ringing outside of window after direction change', local_ierr)
+         ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
          !  Case 18: Invalid window ordering test
@@ -551,30 +541,19 @@ contains
          ! Start time after stop time rejected
          call mpas_remove_clock_alarm(f%clock, f%alarm_id)
          call mpas_add_clock_alarm(f%clock, f%alarm_id, f%alarm_time, &
-               alarmTimeInterval = f%alarm_interval, &
-               alarmStartTime    = f%window_stop_time, &
-               alarmStopTime     = f%window_start_time, ierr=local_ierr)
+                 alarmTimeInterval = f%alarm_interval, &
+                 alarmStartTime    = f%window_stop_time, &
+                 alarmStopTime     = f%window_start_time, ierr=local_ierr)
+         call assert_true(local_ierr /= 0, 'Alarm with start time after stop time did not return error', local_ierr)
+         ierr = ierr + local_ierr
 
-         if (local_ierr == 0) then
-            call mpas_log_write('FAIL: Alarm with start time after stop time did not return error')
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm with start time after stop time correctly returned error')
-         end if
-
-         ! Start time equals stop time accepted
          call mpas_remove_clock_alarm(f%clock, f%alarm_id)
          call mpas_add_clock_alarm(f%clock, f%alarm_id, f%alarm_time, &
-               alarmTimeInterval = f%alarm_interval, &
-               alarmStartTime    = f%window_start_time, &
-               alarmStopTime     = f%window_start_time, ierr=local_ierr)
-
-         if (local_ierr /= 0) then
-            call mpas_log_write('FAIL: Alarm with equal start/stop times incorrectly returned error', MPAS_LOG_ERR)
-            ierr = ierr + 1
-         else
-            call mpas_log_write('PASS: Alarm with equal start/stop times correctly accepted')
-         end if
+                 alarmTimeInterval = f%alarm_interval, &
+                 alarmStartTime    = f%window_start_time, &
+                 alarmStopTime     = f%window_start_time, ierr=local_ierr)
+         call assert_false(local_ierr /= 0, 'Alarm with equal start/stop times incorrectly returned error', local_ierr)
+         ierr = ierr + local_ierr
       end select
 
       call teardown_alarm_fixture(f)
@@ -590,8 +569,7 @@ contains
    !> \details This driver function executes the suite of test cases
    !>   implemented in test_window_alarm, aggregating any errors encountered.
    !-----------------------------------------------------------------------
-   integer function mpas_window_alarm_tests(domain) result(ierr)
-      type(domain_type), intent(inout) :: domain
+   integer function mpas_window_alarm_tests() result(ierr)
 
       integer :: i, ierr_local
 
