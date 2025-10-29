@@ -80,16 +80,16 @@ module test_core_timekeeping_tests
       !> Number of substeps per interval (clock resolution)
       integer :: num_steps_per_interval = 6
 
-      !> Steps from clock start to alarm anchor (A→B)
+      !> Steps from clock start to alarm anchor (A->B)
       integer :: num_steps_before_anchor = 12
 
-      !> Steps from anchor to window start (B→C)
+      !> Steps from anchor to window start (B->C)
       integer :: num_steps_before_window = 36
 
-      !> Steps covering full window duration (C→D)
+      !> Steps covering full window duration (C->D)
       integer :: num_steps_window        = 36
 
-      !> Steps from window end to clock end (D→E)
+      !> Steps from window end to clock end (D->E)
       integer :: num_steps_post_window   = 36
 
       !> Absolute step index at anchor (B)
@@ -295,11 +295,11 @@ contains
    !>      A ---------------- B ----- C ---------------- D --------- E
    !>
    !>   The test covers 18 cases, including behavior:
-   !>   - Before anchor (A → B)
-   !>   - Between anchor and window start (B → C)
+   !>   - Before anchor (A -> B)
+   !>   - Between anchor and window start (B -> C)
    !>   - At window boundaries (C, D)
-   !>   - Inside the window (C → D)
-   !>   - After leaving the window (D → E)
+   !>   - Inside the window (C -> D)
+   !>   - After leaving the window (D -> E)
    !>   - After reset operations at various points
    !>   - With anchor times shifted into the window
    !>   - When the clock direction changes (forward/backward)
@@ -324,7 +324,7 @@ contains
       select case (case_idx)
 
          !-----------------------------------------------------------------------
-         ! Case 1: Before anchor (A → B)
+         ! Case 1: Before anchor (A -> B)
          ! Alarm should not ring before the anchor time.
          !-----------------------------------------------------------------------
       case(1)
@@ -333,7 +333,7 @@ contains
          ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
-         ! Case 2: Before anchor after reset (A → B)
+         ! Case 2: Before anchor after reset (A -> B)
          ! Reset should not cause false ringing before anchor.
          !-----------------------------------------------------------------------
       case(2)
@@ -343,7 +343,7 @@ contains
          ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
-         ! Case 3: After anchor but before window (B → C)
+         ! Case 3: After anchor but before window (B -> C)
          ! Alarm should not ring after anchor until the window begins.
          !-----------------------------------------------------------------------
       case(3)
@@ -374,7 +374,7 @@ contains
          ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
-         ! Case 6: Middle of window (C → D)
+         ! Case 6: Middle of window (C -> D)
          ! Alarm should ring inside the window.
          !-----------------------------------------------------------------------
       case(6)
@@ -428,7 +428,7 @@ contains
          ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
-         ! Case 11: After leaving window (D → E) before reset outside of window
+         ! Case 11: After leaving window (D -> E) before reset outside of window
          ! Alarm should ring once more just after window ends.
          !-----------------------------------------------------------------------
       case(11)
@@ -440,7 +440,7 @@ contains
          ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
-         ! Case 12: After leaving window (D → E) after reset outside of window
+         ! Case 12: After leaving window (D -> E) after reset outside of window
          ! Alarm should not ring after reset outside window.
          !-----------------------------------------------------------------------
       case(12)
@@ -472,7 +472,7 @@ contains
          ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
-         ! Case 14: Clock direction change inside window (forward → backward)
+         ! Case 14: Clock direction change inside window (forward -> backward)
          ! Alarm should still ring in window after direction change.
          !-----------------------------------------------------------------------
       case(14)
@@ -517,7 +517,7 @@ contains
          ierr = ierr + local_ierr
 
          !-----------------------------------------------------------------------
-         ! Case 17: Outside window after direction change (D → E → backward)
+         ! Case 17: Outside window after direction change (D -> E -> backward)
          ! Alarm should not ring outside window when clock direction flips.
          !-----------------------------------------------------------------------
       case(17)
@@ -529,7 +529,7 @@ contains
 
          !-----------------------------------------------------------------------
          !  Case 18: Invalid window ordering test
-         !> \details
+         !>
          !>   This test verifies that mpas_add_clock_alarm correctly handles
          !>   window time validation:
          !>     1. It must reject alarms where the start time occurs after the stop time.
