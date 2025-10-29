@@ -141,8 +141,8 @@ contains
    !> \date   10/28/2025
    !> \details
    !>   Verifies that the provided logical expression evaluates to `.true.`.
-   !>   If the condition is true, a PASS message is logged; otherwise, a FAIL
-   !>   message is logged and the status is set to 1.
+   !>   If the condition is false, a FAIL message is logged and the status
+   !    is set to 1.
    !>
    !>   This routine is used throughout test cases to simplify repetitive
    !>   PASS/FAIL logic and ensure consistent logging and error tracking.
@@ -174,8 +174,8 @@ contains
    !> \date   10/28/2025
    !> \details
    !>   Verifies that the provided logical expression evaluates to `.false.`.
-   !>   If the condition is false, a PASS message is logged; otherwise, a FAIL
-   !>   message is logged and the status is set to 1.
+   !>   If the condition is true, a FAIL message is logged and the status
+   !>   is set to 1.
    !>
    !>   This routine complements `assert_true` and is used when the expected
    !>   behavior requires a logical expression to remain false.
@@ -572,6 +572,7 @@ contains
       integer :: i, ierr_local
 
       ierr = 0
+      call mpas_log_write('Running 18 window alarm tests')
       do i = 1, 18
          ierr_local = 0
          call test_window_alarm(i, ierr_local)
