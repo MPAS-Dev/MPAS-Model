@@ -294,7 +294,7 @@ contains
    !>   Timeline:
    !>      A ---------------- B ----- C ---------------- D --------- E
    !>
-   !>   The test covers 18 cases, including behavior:
+   !>   The test covers 19 cases, including behavior:
    !>   - Before anchor (A -> B)
    !>   - Between anchor and window start (B -> C)
    !>   - At window boundaries (C, D)
@@ -305,6 +305,7 @@ contains
    !>   - When the clock direction changes (forward/backward)
    !>   - When the window start time is after the stop time (invalid)
    !>   - When the window start time equals the stop time (valid)
+   !>   - When the window start time is before the clock start time (valid)
    !>
    !>   Each case checks whether the alarm rings at the correct times and
    !>   uses mpas_log_write to log PASS/FAIL outcomes.
@@ -456,7 +457,7 @@ contains
          !-----------------------------------------------------------------------
       case(13)
          call mpas_remove_clock_alarm(f%clock, f%alarm_id)
-         call mpas_set_time(f%alarm_time, YYYY=2000, MM=01, DD=01, H=9, M=0, S=0, S_n=0, S_d=0, ierr=ierr)
+         call mpas_set_time(f%alarm_time, YYYY=2000, MM=01, DD=01, H=9, M=0, S=0, S_n=0, S_d=0)
          call mpas_add_clock_alarm(f%clock, f%alarm_id, f%alarm_time, &
                  alarmTimeInterval = f%alarm_interval, &
                  alarmStartTime = f%window_start_time, &
@@ -552,6 +553,39 @@ contains
                  alarmStopTime     = f%window_start_time, ierr=local_ierr)
          call assert_false(local_ierr /= 0, 'Alarm with equal start/stop times incorrectly returned error', local_ierr)
          ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         !  Case 19: Alarm starting before clock start test
+         !>
+         !>   This test verifies that mpas_add_clock_alarm allows alarms whose
+         !>   active window begins before the clock start time:
+         !>     1. It must not return an error when the activeStartTime occurs
+         !>        before the clock start time.
+         !>     2. The alarm should ring immediately when the clock begins,
+         !>        since its anchor time equals the clock start time.
+         !-----------------------------------------------------------------------
+      case(19)
+         call mpas_remove_clock_alarm(f%clock, f%alarm_id)
+
+         ! Set the alarm anchor time equal to the clock start time so it can ring immediately
+         f%alarm_time = f%clock_start_time
+
+         ! Add an alarm whose active window begins before the clock start time
+         call mpas_add_clock_alarm(f%clock, f%alarm_id, f%alarm_time, &
+                 alarmTimeInterval = f%alarm_interval, &
+                 alarmStartTime    = f%clock_start_time - mul_ti_n(f%alarm_interval, 4), &
+                 alarmStopTime     = f%window_stop_time, ierr=local_ierr)
+
+         ! Verify that adding the alarm does not return an error
+         call assert_false(local_ierr /= 0, &
+                 'Alarm with start time before clock start time incorrectly returned error', local_ierr)
+
+         ! Check whether the alarm rings immediately at clock start
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_true(ringing, &
+                 'Alarm is not ringing inside window with start time before clock start', local_ierr)
+         ierr = ierr + local_ierr
+
       end select
 
       call teardown_alarm_fixture(f)
@@ -572,8 +606,8 @@ contains
       integer :: i, ierr_local
 
       ierr = 0
-      call mpas_log_write('Running 18 window alarm tests')
-      do i = 1, 18
+      call mpas_log_write('Running 19 window alarm tests')
+      do i = 1, 19
          ierr_local = 0
          call test_window_alarm(i, ierr_local)
          ierr = ierr + ierr_local
