@@ -35,11 +35,78 @@ module mpas_subdriver
    use test_core_interface
 #endif
 
+   private :: make_stream_update_config
+
+   interface stream_update_config_t
+      module procedure make_stream_update_config
+   end interface stream_update_config_t
+
+
+   type stream_update_config_t
+      !> Stream manager to be modified.
+      type(MPAS_streamManager_Type) :: manager
+
+      !> Configuration filename associated with the update operation.
+      character(len = :), allocatable :: filename
+
+      !> Procedure pointer implementing the update behavior.
+      procedure(apply_stream_update_i), pointer :: apply
+   end type stream_update_config_t
+
+
+   !-----------------------------------------------------------------------
+   !  abstract interface apply_stream_update_i
+   !
+   !> \brief Interface for user-defined stream update routines.
+   !>
+   !> \details
+   !>  Any procedure assigned to `stream_update_config_t%apply` must
+   !>  match this interface.
+   !-----------------------------------------------------------------------
+   abstract interface
+      subroutine apply_stream_update_i(this, ierr)
+         import :: stream_update_config_t
+         class(stream_update_config_t), intent(inout) :: this
+         integer, intent(out), optional :: ierr
+      end subroutine apply_stream_update_i
+   end interface
+
 
    contains
 
 
-   subroutine mpas_init(corelist, domain_ptr, external_comm, namelistFileParam, streamsFileParam)
+   !-----------------------------------------------------------------------
+   !  function make_stream_update_config
+   !
+   !> \brief Construct and initialize a `stream_update_config_t` object.
+   !> \author Andy Stokely
+   !> \date   11/05/2025
+   !>
+   !> \details
+   !>  Returns a `stream_update_config_t` instance initialized using the
+   !>  provided manager, filename, and update procedure pointer.
+   !-----------------------------------------------------------------------
+   type(stream_update_config_t) function make_stream_update_config( &
+         manager, filename, apply) result(stream_update_config)
+      implicit none
+      type(MPAS_streamManager_Type), intent(in) :: manager
+      character(len = *), intent(in), optional :: filename
+      procedure(apply_stream_update_i), pointer, intent(in) :: apply
+
+      nullify(stream_update_config % apply)
+      stream_update_config % manager = manager
+      if (present(filename)) then
+         stream_update_config % filename = filename
+      else
+         stream_update_config % filename = ''
+      end if
+      stream_update_config % filename = filename
+      stream_update_config % apply => apply
+   end function make_stream_update_config
+
+
+
+   subroutine mpas_init(corelist, domain_ptr, external_comm, namelistFileParam, streamsFileParam, stream_update_config)
 
 #ifdef MPAS_USE_MPI_F08
       use mpi_f08, only : MPI_Comm
@@ -63,6 +130,7 @@ module mpas_subdriver
 #endif
       character(len=*), intent(in), optional :: namelistFileParam
       character(len=*), intent(in), optional :: streamsFileParam
+      type(stream_update_config_t), intent(inout), optional :: stream_update_config
 
       integer :: iArg, nArgs
       logical :: readNamelistArg, readStreamsArg
@@ -374,7 +442,17 @@ module mpas_subdriver
          call mpas_log_write('xml stream parser failed: '//trim(domain_ptr % streams_filename), messageType=MPAS_LOG_CRIT)
       end if
 
-      !
+         if (present(stream_update_config)) then
+            if (associated(stream_update_config % apply)) then
+               call stream_update_config % apply(ierr)
+               if (ierr /= 0) then
+                  call mpas_log_write('Stream update procedure failed for core '//trim(domain_ptr % core % coreName), &
+                        messageType=MPAS_LOG_CRIT)
+               end if
+            end if
+
+         end if
+         !
       ! Validate streams after set-up
       !
       call mpas_log_write(' ** Validating streams')
