@@ -50,8 +50,7 @@ module mpas_subdriver
    !-----------------------------------------------------------------------
    type, abstract :: stream_update_callback_type
    contains
-      procedure(stream_update_callback), private, deferred :: apply
-      procedure :: update
+      procedure(stream_update_callback), deferred :: apply
    end type stream_update_callback_type
 
    !***********************************************************************
