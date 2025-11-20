@@ -4770,6 +4770,8 @@ module mpas_pool_routines
 
       type (mpas_pool_data_type), pointer :: mem
 
+      nullify(value)
+
       if ( present(record) ) then
          call mpas_pool_get_subpool(inPool, record, recordPool)
          mem => pool_get_member(recordPool, key, MPAS_POOL_CONFIG)
@@ -4811,6 +4813,8 @@ module mpas_pool_routines
       type (mpas_pool_type), pointer :: recordPool
 
       type (mpas_pool_data_type), pointer :: mem
+
+      nullify(value)
 
       if ( present(record) ) then
          call mpas_pool_get_subpool(inPool, record, recordPool)
@@ -4854,6 +4858,8 @@ module mpas_pool_routines
 
       type (mpas_pool_data_type), pointer :: mem
 
+      nullify(value)
+
       if ( present(record) ) then
          call mpas_pool_get_subpool(inPool, record, recordPool)
          mem => pool_get_member(recordPool, key, MPAS_POOL_CONFIG)
@@ -4896,6 +4902,8 @@ module mpas_pool_routines
       type (mpas_pool_type), pointer :: recordPool
 
       type (mpas_pool_data_type), pointer :: mem
+
+      nullify(value)
 
       if ( present(record) ) then
          call mpas_pool_get_subpool(inPool, record, recordPool)
@@ -5149,6 +5157,7 @@ module mpas_pool_routines
 
       type (mpas_pool_data_type), pointer :: mem
 
+      nullify(subPool)
 
       mem => pool_get_member(inPool, key, MPAS_POOL_SUBPOOL)
 
@@ -5228,6 +5237,7 @@ module mpas_pool_routines
 
       type (mpas_pool_data_type), pointer :: mem
 
+      nullify(package)
 
       mem => pool_get_member(inPool, key, MPAS_POOL_PACKAGE)
 

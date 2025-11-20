@@ -144,6 +144,7 @@ module mpas_field_routines
        logical :: single_block, init_array
        type (field1dInteger), pointer :: f_cursor
        integer :: threadNum
+       integer :: i
 
        if(f % isPersistent) then
           return
@@ -232,6 +233,7 @@ module mpas_field_routines
        logical :: single_block, init_array
        type (field2dInteger), pointer :: f_cursor
        integer :: threadNum
+       integer :: i,j
 
        if(f % isPersistent) then
           return
@@ -324,6 +326,7 @@ module mpas_field_routines
        logical :: single_block, init_array
        type (field3dInteger), pointer :: f_cursor
        integer :: threadNum
+       integer :: i,j,k
 
        if(f % isPersistent) then
           return
@@ -416,6 +419,7 @@ module mpas_field_routines
        logical :: single_block, init_array
        type (field1dReal), pointer :: f_cursor
        integer :: threadNum
+       integer :: i
 
        if(f % isPersistent) then
           return
@@ -504,6 +508,7 @@ module mpas_field_routines
        logical :: single_block, init_array
        type (field2dReal), pointer :: f_cursor
        integer :: threadNum
+       integer :: i,j
 
        if(f % isPersistent) then
           return
@@ -594,6 +599,7 @@ module mpas_field_routines
        logical :: single_block, init_array
        type (field3dReal), pointer :: f_cursor
        integer :: threadNum
+       integer :: i,j,k
 
        if(f % isPersistent) then
           return
@@ -686,6 +692,7 @@ module mpas_field_routines
        logical :: single_block, init_array
        type (field4dReal), pointer :: f_cursor
        integer :: threadNum
+       integer :: i,j,k,l
 
        if(f % isPersistent) then
           return
@@ -782,6 +789,7 @@ module mpas_field_routines
        logical :: single_block, init_array
        type (field5dReal), pointer :: f_cursor
        integer :: threadNum
+       integer :: i,j,k,l,m
 
        if(f % isPersistent) then
           return
@@ -882,6 +890,7 @@ module mpas_field_routines
        logical :: single_block, init_array
        type (field1dChar), pointer :: f_cursor
        integer :: threadNum
+       integer :: i
 
        if(f % isPersistent) then
           return

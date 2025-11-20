@@ -31,7 +31,9 @@ module mpas_framework
    use musica_util, only : string_t
 #endif
 
+#ifdef MPAS_OPENACC
    private :: report_acc_devices
+#endif
 
 
    contains
