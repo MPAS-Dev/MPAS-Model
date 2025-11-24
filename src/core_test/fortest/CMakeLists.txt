@@ -12,3 +12,4 @@ target_include_directories(session_fixture INTERFACE
 
 add_subdirectory(alarm)
 add_subdirectory(stream_manager)
+add_subdirectory(pool)

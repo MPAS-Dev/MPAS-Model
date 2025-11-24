@@ -1386,9 +1386,10 @@ contains
 
    end subroutine test_add_att
 
-   subroutine test_stream_mgr_write(f_ptr, ts_ptr, s_ptr, param_idx) bind(C)
+   subroutine test_pool_hash_table(f_ptr, ts_ptr, s_ptr, param_idx) bind(C)
+
       use mpas_stream_manager
-      use mpas_timekeeping
+      use mpas_pool_routines
       use iso_c_binding, only: c_ptr, c_f_pointer, c_int
       use stream_manager_fixture, only: stream_manager_fixture_t
       use fortest_assert, only: assert_equal, assert_true, assert_false
@@ -1397,318 +1398,35 @@ contains
       type(c_ptr), value :: f_ptr, ts_ptr, s_ptr
       integer(c_int), value :: param_idx
       type(stream_manager_fixture_t), pointer :: f
+      type(mpas_pool_type), pointer :: pool
       integer :: ierr
-      character(len = StrKIND) :: alarm_id
-      character(len = StrKIND) :: stream_in, stream_out
-      logical :: wrote_flag
-      type(MPAS_Time_type) :: custom_time
+      character(len=:), allocatable :: key
+      integer, pointer :: value
 
       call c_f_pointer(f_ptr, f)
-      alarm_id = 'alarm_write'
-      stream_in = 'stream_input'
-      stream_out = 'stream_output'
 
-      !-----------------------------------------------------------------------
-      ! Common setup for all valid cases (1–7)
-      !-----------------------------------------------------------------------
-      if (param_idx >= 1 .and. param_idx <= 7) then
-         call MPAS_stream_mgr_create_stream(f%manager, stream_in, MPAS_STREAM_INPUT, &
-               'input.$Y-$M-$D_$h.$m.$s.nc', clobberMode = MPAS_STREAM_CLOBBER_OVERWRITE, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-
-         call MPAS_stream_mgr_create_stream(f%manager, stream_out, MPAS_STREAM_OUTPUT, &
-               'output.$Y-$M-$D_$h.$m.$s.nc', clobberMode = MPAS_STREAM_CLOBBER_OVERWRITE, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-
-         ! Add an alarm to trigger a write event
-         call mpas_add_clock_alarm(f%manager%streamClock, alarm_id, f%clock_start_time, f%clock_time_step, ierr = ierr)
-         call assert_equal(ierr, 0, verbosity = 2)
-         call MPAS_stream_mgr_add_alarm(f%manager, stream_out, alarm_id, MPAS_STREAM_OUTPUT, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-      end if
-
-      !-----------------------------------------------------------------------
-      ! Case-specific tests
-      !-----------------------------------------------------------------------
+      allocate(pool)
+      call mpas_pool_create_pool(pool, 3)
       select case (param_idx)
 
-         !-----------------------------------------------------------------------
-         ! Case 1: Default call — write all ringing output streams
-         !-----------------------------------------------------------------------
-      case (1)
-         call MPAS_stream_mgr_write(f%manager, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
+      case(1)
+         call mpas_pool_add_config(pool, 'a', 1)
+         call mpas_pool_add_config(pool, 'b', 2)
+         call mpas_pool_add_config(pool, 'c', 3)
+         call mpas_pool_add_config(pool, 'd', 3)
+         call mpas_pool_add_config(pool, 'e', 4)
+         call mpas_pool_add_config(pool, 'f', 5)
+         call mpas_pool_add_config(pool, 'd', 5)
 
-         ! Output stream should have been written (blockWrite = .false.)
-         call assert_false(f%manager%streams%head%next%blockWrite, verbosity = 2)
-
-         !-----------------------------------------------------------------------
-         ! Case 2: Write only the specified stream (regex filter)
-         !-----------------------------------------------------------------------
-      case (2)
-         call MPAS_stream_mgr_write(f%manager, streamID = stream_out, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-
-         ! The requested stream is output, so write_stream should have been called
-         call assert_false(f%manager%streams%head%next%blockWrite, verbosity = 2)
-
-         !-----------------------------------------------------------------------
-         ! Case 3: Specified stream does not exist (should return error)
-         !-----------------------------------------------------------------------
-      case (3)
-         call MPAS_stream_mgr_write(f%manager, streamID = 'nonexistent', ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_ERROR, verbosity = 2)
-
-         !-----------------------------------------------------------------------
-         ! Case 4: forceWriteNow = .true. should write even if alarms not ringing
-         !-----------------------------------------------------------------------
-      case (4)
-         ! Reset and advance clock so no alarms are ringing
-         call MPAS_stream_mgr_reset_alarms(f%manager, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-
-         call MPAS_stream_mgr_write(f%manager, forceWriteNow = .true., ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-
-         ! Verify the output stream was written forcibly
-         call assert_false(f%manager%streams%head%next%blockWrite, verbosity = 2)
-
-         !-----------------------------------------------------------------------
-         ! Case 5: forceWriteNow = .false. with no ringing alarms should skip
-         !-----------------------------------------------------------------------
-      case (5)
-         call MPAS_stream_mgr_reset_alarms(f%manager, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-
-         ! Should not attempt a write since no alarms are ringing
-         call MPAS_stream_mgr_write(f%manager, forceWriteNow = .false., ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-
-         ! Check that blockWrite remains default (not explicitly modified)
-         call assert_true(f%manager%streams%head%next%blockWrite .or. .not. f%manager%streams%head%next%blockWrite, verbosity = 2)
-         ! (We just ensure it did not crash; state is not strictly deterministic)
-
-         !-----------------------------------------------------------------------
-         ! Case 6: Specify a custom writeTime string
-         !-----------------------------------------------------------------------
-      case (6)
-         call MPAS_stream_mgr_write(f%manager, streamID = stream_out, &
-               writeTime = '2025-10-27_00:00:00', ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-
-         ! Verify output stream write call executed successfully
-         call assert_false(f%manager%streams%head%next%blockWrite, verbosity = 2)
-
-      case (7)
-         call MPAS_stream_mgr_write(f%manager, streamID = stream_in, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_ERROR, verbosity = 2)
-
-         ! Input stream should not have been written
-         call assert_true(f%manager%streams%head%blockWrite .or. .not. f%manager%streams%head%blockWrite, verbosity = 2)
+         call mpas_pool_get_config(pool, 'a', value)
+         call assert_true(associated(value), verbosity = 2)
+         if (associated(value)) then
+            call assert_equal(value, 1, verbosity = 2)
+         end if
 
       end select
 
-      !-----------------------------------------------------------------------
-      ! Common teardown
-      !-----------------------------------------------------------------------
-      if (param_idx >= 1 .and. param_idx <= 7) then
-         call mpas_remove_clock_alarm(f%manager%streamClock, alarm_id, ierr = ierr)
-      end if
-
-   end subroutine test_stream_mgr_write
-   subroutine test_stream_mgr_read(f_ptr, ts_ptr, s_ptr, param_idx) bind(C)
-      use mpas_stream_manager
-      use mpas_timekeeping
-      use iso_c_binding, only: c_ptr, c_f_pointer, c_int
-      use stream_manager_fixture, only: stream_manager_fixture_t
-      use fortest_assert, only: assert_equal, assert_true, assert_false
-      implicit none
-
-      type(c_ptr), value :: f_ptr, ts_ptr, s_ptr
-      integer(c_int), value :: param_idx
-      type(stream_manager_fixture_t), pointer :: f
-      integer :: ierr
-      character(len = StrKIND) :: alarm_id
-      character(len = StrKIND) :: stream_in, stream_out
-      character(len = StrKIND) :: actualWhen
-      logical :: result
-
-      call c_f_pointer(f_ptr, f)
-      alarm_id = 'alarm_read'
-      stream_in = 'stream_input'
-      stream_out = 'stream_output'
-
-      !-----------------------------------------------------------------------
-      ! Common setup for all valid cases (1–7)
-      !-----------------------------------------------------------------------
-      if (param_idx >= 1 .and. param_idx <= 7) then
-         call MPAS_stream_mgr_create_stream(f%manager, stream_in, MPAS_STREAM_INPUT, 'output.2000-01-01_00.00.00.nc', ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-
-         call MPAS_stream_mgr_create_stream(f%manager, stream_out, MPAS_STREAM_OUTPUT, 'output.nc', ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-
-         ! Add an alarm to trigger a read event
-         call mpas_add_clock_alarm(f%manager%streamClock, alarm_id, f%clock_start_time, f%clock_time_step, ierr = ierr)
-         call assert_equal(ierr, 0, verbosity = 2)
-         call MPAS_stream_mgr_add_alarm(f%manager, stream_in, alarm_id, MPAS_STREAM_INPUT, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-      end if
-
-      !-----------------------------------------------------------------------
-      ! Case-specific tests
-      !-----------------------------------------------------------------------
-      select case (param_idx)
-
-         !-----------------------------------------------------------------------
-         ! Case 1: Default call — read all ringing input streams
-         !-----------------------------------------------------------------------
-      case (1)
-         call MPAS_stream_mgr_read(f%manager, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-
-         !-----------------------------------------------------------------------
-         ! Case 2: Read only the specified input stream by streamID
-         !-----------------------------------------------------------------------
-      case (2)
-         call MPAS_stream_mgr_read(f%manager, streamID = stream_in, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-
-         !-----------------------------------------------------------------------
-         ! Case 3: Specified stream does not exist (should return error)
-         !-----------------------------------------------------------------------
-      case (3)
-         call MPAS_stream_mgr_read(f%manager, streamID = 'nonexistent', ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_ERROR, verbosity = 2)
-
-         !-----------------------------------------------------------------------
-         ! Case 4: rightNow = .true. — should trigger immediate read
-         !-----------------------------------------------------------------------
-      case (4)
-         call MPAS_stream_mgr_read(f%manager, rightNow = .true., ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-
-         !-----------------------------------------------------------------------
-         ! Case 6: Non-input stream specified (should skip silently)
-         !-----------------------------------------------------------------------
-      case (5)
-         call MPAS_stream_mgr_read(f%manager, streamID = stream_out, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_ERROR, verbosity = 2)
-
-         !-----------------------------------------------------------------------
-         ! Case 7: Invalid timeLevel and mgLevel inputs (edge sanity check)
-         !-----------------------------------------------------------------------
-      case (6)
-         call MPAS_stream_mgr_read(f%manager, streamID = stream_in, timeLevel = -1, mgLevel = -1, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-
-      end select
-
-      !-----------------------------------------------------------------------
-      ! Common teardown
-      !-----------------------------------------------------------------------
-      if (param_idx >= 1 .and. param_idx <= 7) then
-         call mpas_remove_clock_alarm(f%manager%streamClock, alarm_id, ierr = ierr)
-      end if
-
-   end subroutine test_stream_mgr_read
-
-   subroutine test_validate_streams(f_ptr, ts_ptr, s_ptr, param_idx) bind(C)
-      use mpas_stream_manager
-      use mpas_timekeeping
-      use iso_c_binding, only: c_ptr, c_f_pointer, c_int
-      use stream_manager_fixture, only: stream_manager_fixture_t
-      use fortest_assert, only: assert_equal, assert_true, assert_false
-      implicit none
-
-      type(c_ptr), value :: f_ptr, ts_ptr, s_ptr
-      integer(c_int), value :: param_idx
-      type(stream_manager_fixture_t), pointer :: f
-      integer :: ierr
-      character(len = StrKIND) :: stream_in1, stream_in2, stream_out1, stream_out2
-      character(len = StrKIND) :: alarm_in1, alarm_in2, alarm_in3
-
-      call c_f_pointer(f_ptr, f)
-      stream_in1 = 'stream_in1'
-      stream_in2 = 'stream_in2'
-      stream_in1 = 'stream_out1'
-      stream_in2 = 'stream_out2'
-      alarm_in1 = 'alarm_in1'
-      alarm_in2 = 'alarm_in2'
-      alarm_in3 = 'alarm_in3'
-
-
-      !-----------------------------------------------------------------------
-      ! Common setup for all valid cases (1–7)
-      !-----------------------------------------------------------------------
-      if (param_idx >= 1 .and. param_idx <= 7) then
-         call MPAS_stream_mgr_create_stream(f%manager, stream_in1, MPAS_STREAM_INPUT, &
-               'stream.nc', clobberMode = MPAS_STREAM_CLOBBER_OVERWRITE, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-         call MPAS_stream_mgr_create_stream(f%manager, stream_in2, MPAS_STREAM_INPUT, &
-               'stream.nc', clobberMode = MPAS_STREAM_CLOBBER_OVERWRITE, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-         call MPAS_stream_mgr_create_stream(f%manager, stream_out1, MPAS_STREAM_OUTPUT, &
-               'stream.nc', clobberMode = MPAS_STREAM_CLOBBER_OVERWRITE, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-         call MPAS_stream_mgr_create_stream(f%manager, stream_out2, MPAS_STREAM_OUTPUT, &
-               'stream.nc', clobberMode = MPAS_STREAM_CLOBBER_OVERWRITE, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-
-
-         ! Add alarms to both streams
-         call mpas_add_clock_alarm(f%manager%streamClock, alarm_in1, f%clock_start_time , f%clock_time_step, &
-               alarmStartTime=f%stream1_start_time, alarmStopTime=f%stream1_stop_time, ierr = ierr)
-         call assert_equal(ierr, 0, verbosity = 2)
-         call mpas_add_clock_alarm(f%manager%streamClock, alarm_in2, f%clock_start_time , f%clock_time_step, &
-               alarmStartTime=f%stream2_start_time, alarmStopTime=f%stream2_stop_time, ierr = ierr)
-         call assert_equal(ierr, 0, verbosity = 2)
-         call mpas_add_clock_alarm(f%manager%streamClock, alarm_in3, f%clock_start_time , f%clock_time_step, ierr = ierr)
-         call assert_equal(ierr, 0, verbosity = 2)
-      end if
-
-      !-----------------------------------------------------------------------
-      ! Case-specific tests
-      !-----------------------------------------------------------------------
-      select case (param_idx)
-
-         !-----------------------------------------------------------------------
-         ! Case 1: Default call — write all ringing output streams
-         !-----------------------------------------------------------------------
-      case (1)
-         call MPAS_stream_mgr_add_alarm(f%manager, stream_in1, alarm_in1, MPAS_STREAM_INPUT, ierr = ierr)
-         call MPAS_stream_mgr_add_alarm(f%manager, stream_in2, alarm_in2, MPAS_STREAM_INPUT, ierr = ierr)
-         call MPAS_stream_mgr_validate_streams(f%manager, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-      case (2)
-         call MPAS_stream_mgr_add_alarm(f%manager, stream_in1, alarm_in1, MPAS_STREAM_INPUT, ierr = ierr)
-         call MPAS_stream_mgr_add_alarm(f%manager, stream_in2, alarm_in3, MPAS_STREAM_INPUT, ierr = ierr)
-         call MPAS_stream_mgr_add_pkg(f%manager, stream_in1, 'package3', ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-         call MPAS_stream_mgr_validate_streams(f%manager, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-      case (3)
-         call MPAS_stream_mgr_add_alarm(f%manager, stream_in1, alarm_in1, MPAS_STREAM_INPUT, ierr = ierr)
-         call MPAS_stream_mgr_add_alarm(f%manager, stream_in2, alarm_in3, MPAS_STREAM_INPUT, ierr = ierr)
-         call MPAS_stream_mgr_validate_streams(f%manager, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_ERROR, verbosity = 2)
-      case (4)
-         call MPAS_stream_mgr_add_alarm(f%manager, stream_in1, alarm_in1, MPAS_STREAM_INPUT, ierr = ierr)
-         call MPAS_stream_mgr_add_alarm(f%manager, stream_in2, alarm_in3, MPAS_STREAM_INPUT, ierr = ierr)
-         call MPAS_stream_mgr_validate_streams(f%manager, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_ERROR, verbosity = 2)
-         call MPAS_stream_mgr_add_pkg(f%manager, stream_in1, 'package3', ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-      case (5)
-         call MPAS_stream_mgr_add_alarm(f%manager, stream_out1, alarm_in1, MPAS_STREAM_INPUT, ierr = ierr)
-         call MPAS_stream_mgr_add_alarm(f%manager, stream_in2, alarm_in2, MPAS_STREAM_INPUT, ierr = ierr)
-         call MPAS_stream_mgr_validate_streams(f%manager, ierr = ierr)
-         call assert_equal(ierr, MPAS_STREAM_MGR_NOERR, verbosity = 2)
-
-      end select
-
-   end subroutine test_validate_streams
-
+   end subroutine test_pool_hash_table
 
 end module
 
@@ -1734,9 +1452,8 @@ program test_stream_manager
          test_ringing_alarms, &
          test_get_stream_interval, &
          test_add_att, &
-         test_stream_mgr_write, &
-         test_stream_mgr_read, &
-         test_validate_streams
+         test_pool_hash_table
+
    use stream_manager_fixture, only: stream_manager_fixture_t, &
          setup_stream_manager, teardown_stream_manager
    implicit none
@@ -1759,92 +1476,78 @@ program test_stream_manager
          args = test_fixture_ptr, &
          scope = "test", &
          test_suite_name = "stream_manager_test")
-   ! Register tests
-   !       call session%register_parameterized_test(&
-   !               test_suite_name = "stream_manager_test", &
-   !               test_name = "test_create_stream", &
-   !               test = test_create_stream, &
-   !               num_params = 1)
-   !       call session%register_parameterized_test(&
-   !               test_suite_name = "stream_manager_test", &
-   !               test_name = "test_destroy_stream", &
-   !               test = test_destroy_stream, &
-   !               num_params = 3)
-   !       call session%register_parameterized_test(&
-   !               test_suite_name = "stream_manager_test", &
-   !               test_name = "test_add_pool", &
-   !               test = test_add_pool, &
-   !               num_params = 6)
-   !       call session%register_parameterized_test(&
-   !               test_suite_name = "stream_manager_test", &
-   !               test_name = "test_add_field", &
-   !               test = test_add_field, &
-   !               num_params = 6)
-   !       call session%register_parameterized_test(&
-   !               test_suite_name = "stream_manager_test", &
-   !               test_name = "test_add_stream_fields", &
-   !               test = test_add_stream_fields, &
-   !               num_params = 6)
-   !       call session%register_parameterized_test(&
-   !               test_suite_name = "stream_manager_test", &
-   !               test_name = "test_remove_field", &
-   !               test = test_remove_field, &
-   !               num_params = 5)
-   !       call session%register_parameterized_test(&
-   !               test_suite_name = "stream_manager_test", &
-   !               test_name = "test_add_pkg", &
-   !               test = test_add_pkg, &
-   !               num_params = 3)
-   !       call session%register_parameterized_test(&
-   !               test_suite_name = "stream_manager_test", &
-   !               test_name = "test_remove_pkg", &
-   !               test = test_remove_pkg, &
-   !               num_params = 2)
-   !       call session%register_parameterized_test(&
-   !               test_suite_name = "stream_manager_test", &
-   !               test_name = "test_add_alarm", &
-   !               test = test_add_alarm, &
-   !               num_params = 4)
-   !       call session%register_parameterized_test(&
-   !               test_suite_name = "stream_manager_test", &
-   !               test_name = "test_remove_alarm", &
-   !               test = test_remove_alarm, &
-   !               num_params = 5)
-   !       call session%register_parameterized_test(&
-   !               test_suite_name = "stream_manager_test", &
-   !               test_name = "test_reset_alarms", &
-   !               test = test_reset_alarms, &
-   !               num_params = 6)
-   !       call session%register_parameterized_test(&
-   !               test_suite_name = "stream_manager_test", &
-   !               test_name = "test_ringing_alarms", &
-   !               test = test_ringing_alarms, &
-   !               num_params = 10)
-   !       call session%register_parameterized_test(&
-   !               test_suite_name = "stream_manager_test", &
-   !               test_name = "test_get_stream_interval", &
-   !               test = test_get_stream_interval, &
-   !               num_params = 6)
-   !       call session%register_parameterized_test(&
-   !               test_suite_name = "stream_manager_test", &
-   !               test_name = "test_add_att", &
-   !               test = test_add_att, &
-   !               num_params = 5)
-   !       call session%register_parameterized_test(&
-   !               test_suite_name = "stream_manager_test", &
-   !               test_name = "test_stream_mgr_write", &
-   !               test = test_stream_mgr_write, &
-   !               num_params = 7)
-   !       call session%register_parameterized_test(&
-   !               test_suite_name = "stream_manager_test", &
-   !               test_name = "test_stream_mgr_read", &
-   !               test = test_stream_mgr_read, &
-   !               num_params = 7)
-   call session%register_parameterized_test(&
-         test_suite_name = "stream_manager_test", &
-         test_name = "test_validate_streams", &
-         test = test_validate_streams, &
-         num_params = 5)
+!    Register tests
+             call session%register_parameterized_test(&
+                     test_suite_name = "stream_manager_test", &
+                     test_name = "test_create_stream", &
+                     test = test_create_stream, &
+                     num_params = 1)
+             call session%register_parameterized_test(&
+                     test_suite_name = "stream_manager_test", &
+                     test_name = "test_destroy_stream", &
+                     test = test_destroy_stream, &
+                     num_params = 3)
+             call session%register_parameterized_test(&
+                     test_suite_name = "stream_manager_test", &
+                     test_name = "test_add_pool", &
+                     test = test_add_pool, &
+                     num_params = 6)
+             call session%register_parameterized_test(&
+                     test_suite_name = "stream_manager_test", &
+                     test_name = "test_add_field", &
+                     test = test_add_field, &
+                     num_params = 6)
+             call session%register_parameterized_test(&
+                     test_suite_name = "stream_manager_test", &
+                     test_name = "test_add_stream_fields", &
+                     test = test_add_stream_fields, &
+                     num_params = 6)
+             call session%register_parameterized_test(&
+                     test_suite_name = "stream_manager_test", &
+                     test_name = "test_remove_field", &
+                     test = test_remove_field, &
+                     num_params = 5)
+             call session%register_parameterized_test(&
+                     test_suite_name = "stream_manager_test", &
+                     test_name = "test_add_pkg", &
+                     test = test_add_pkg, &
+                     num_params = 3)
+             call session%register_parameterized_test(&
+                     test_suite_name = "stream_manager_test", &
+                     test_name = "test_remove_pkg", &
+                     test = test_remove_pkg, &
+                     num_params = 2)
+             call session%register_parameterized_test(&
+                     test_suite_name = "stream_manager_test", &
+                     test_name = "test_add_alarm", &
+                     test = test_add_alarm, &
+                     num_params = 4)
+             call session%register_parameterized_test(&
+                     test_suite_name = "stream_manager_test", &
+                     test_name = "test_remove_alarm", &
+                     test = test_remove_alarm, &
+                     num_params = 5)
+             call session%register_parameterized_test(&
+                     test_suite_name = "stream_manager_test", &
+                     test_name = "test_reset_alarms", &
+                     test = test_reset_alarms, &
+                     num_params = 6)
+             call session%register_parameterized_test(&
+                     test_suite_name = "stream_manager_test", &
+                     test_name = "test_ringing_alarms", &
+                     test = test_ringing_alarms, &
+                     num_params = 10)
+             call session%register_parameterized_test(&
+                     test_suite_name = "stream_manager_test", &
+                     test_name = "test_get_stream_interval", &
+                     test = test_get_stream_interval, &
+                     num_params = 6)
+             call session%register_parameterized_test(&
+                     test_suite_name = "stream_manager_test", &
+                     test_name = "test_add_att", &
+                     test = test_add_att, &
+                     num_params = 5)
+
 
    ! Run the tests
    call session%run()

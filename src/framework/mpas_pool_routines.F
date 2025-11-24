@@ -4582,13 +4582,14 @@ module mpas_pool_routines
 !> This routine inserts a integer value as a config option into inPool.
 !
 !-----------------------------------------------------------------------
-   subroutine mpas_pool_add_config_int(inPool, key, value)!{{{
+   subroutine mpas_pool_add_config_int(inPool, key, value, ierr)!{{{
 
       implicit none
 
       type (mpas_pool_type), intent(inout) :: inPool
       character (len=*), intent(in) :: key
       integer, intent(in) :: value
+      integer, intent(inout), optional :: ierr
 
       type (mpas_pool_member_type), pointer :: newmem
       integer :: threadNum
@@ -4608,7 +4609,7 @@ module mpas_pool_routines
          allocate(newmem % data % simple_int)
          newmem % data % simple_int = value
    
-         if (.not. pool_add_member(inPool, key, newmem)) then
+         if (.not. pool_add_member(inPool, key, newmem, ierr)) then
             deallocate(newmem % data)
             deallocate(newmem)
          end if
@@ -5660,13 +5661,14 @@ module mpas_pool_routines
 
 !!!!!!!!!! Private subroutines !!!!!!!!!!
 
-   logical function pool_add_member(inPool, key, newmem)!{{{
+   logical function pool_add_member(inPool, key, newmem, ierr)!{{{
 
       implicit none
 
       type (mpas_pool_type), intent(inout) :: inPool
       character (len=*), intent(in) :: key
       type (mpas_pool_member_type), pointer :: newmem
+      integer, intent(out), optional :: ierr
 
       integer :: hash, oldLevel
       type (mpas_pool_member_type), pointer :: ptr
@@ -5687,8 +5689,12 @@ module mpas_pool_routines
                 ptr % keyLen == newmem % keyLen) then
                if (ptr % key(1:ptr%keyLen) == newmem % key(1:newmem%keyLen)) then
                   pool_add_member = .false.
-                  call mpas_pool_set_error_level(MPAS_POOL_FATAL)
-                  call pool_mesg('Error: Field '//trim(key)//' already exists in pool.')
+                  if (present(ierr)) then
+                     ierr = 1
+                  else
+                     call mpas_pool_set_error_level(MPAS_POOL_FATAL)
+                     call pool_mesg('Error: Field ' // trim(key) // ' already exists in pool.')
+                  end if
                   return
                end if
             end if
