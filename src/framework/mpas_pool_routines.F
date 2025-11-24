@@ -5661,8 +5661,7 @@ module mpas_pool_routines
 
 !!!!!!!!!! Private subroutines !!!!!!!!!!
 
-   logical function pool_add_member(inPool, key, newmem, ierr)!{{{
-
+   logical function pool_add_member(inPool, key, newmem, ierr)
       implicit none
 
       type (mpas_pool_type), intent(inout) :: inPool
@@ -5670,11 +5669,10 @@ module mpas_pool_routines
       type (mpas_pool_member_type), pointer :: newmem
       integer, intent(out), optional :: ierr
 
-      integer :: hash, oldLevel
+      integer :: hash
       type (mpas_pool_member_type), pointer :: ptr
 
       call pool_hash(hash, trim(newmem % key))
-
       hash = mod(hash, inPool % size) + 1
 
       pool_add_member = .true.
@@ -5683,30 +5681,35 @@ module mpas_pool_routines
          inPool % table(hash) % head => newmem
       else
          ptr => inPool % table(hash) % head
-         do while (associated(ptr % next))
 
+         do while (associated(ptr))
+            ! Check for duplicates
             if (ptr % contentsType == newmem % contentsType .and. &
-                ptr % keyLen == newmem % keyLen) then
+                  ptr % keyLen == newmem % keyLen) then
                if (ptr % key(1:ptr%keyLen) == newmem % key(1:newmem%keyLen)) then
                   pool_add_member = .false.
                   if (present(ierr)) then
                      ierr = 1
                   else
                      call mpas_pool_set_error_level(MPAS_POOL_FATAL)
-                     call pool_mesg('Error: Field ' // trim(key) // ' already exists in pool.')
+                     call pool_mesg('Error: Field ' // trim(key) // &
+                           ' already exists in pool.')
                   end if
                   return
                end if
             end if
+            ! If tail node reached, break so we can append
+            if (.not. associated(ptr%next)) exit
 
             ptr => ptr % next
          end do
+
+         ! Append new tail node
          ptr % next => newmem
       end if
-
-      !
-      ! Link the new member into the iteration list
-      !
+      ! --------------------------------------------------------------
+      ! Link into iteration list
+      ! --------------------------------------------------------------
       if (.not. associated(inPool % iteration_head)) then
          inPool % iteration_head => newmem
          inPool % iteration_tail => newmem
@@ -5715,8 +5718,7 @@ module mpas_pool_routines
          inPool % iteration_tail => newmem
          newmem % iteration_prev % iteration_next => newmem
       end if
-
-   end function pool_add_member!}}}
+   end function pool_add_member
 
 
    function pool_get_member(inPool, key, memType)!{{{

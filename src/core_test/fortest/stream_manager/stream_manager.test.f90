@@ -1408,8 +1408,7 @@ program test_stream_manager
          test_reset_alarms, &
          test_ringing_alarms, &
          test_get_stream_interval, &
-         test_add_att, &
-         test_pool_hash_table
+         test_add_att
 
    use stream_manager_fixture, only: stream_manager_fixture_t, &
          setup_stream_manager, teardown_stream_manager
