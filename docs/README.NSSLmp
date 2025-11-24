@@ -61,7 +61,7 @@ Droplet activation option method is controlled by the 'irenuc' option (internal 
                7 = ccn field must be ACTVIATED aerosol (new droplet activation) 
                    Must have nssl_ccn_on=1 for irenuc=7
 
-Excessive size sorting (common in 2-moment schemes) is effectively controlled by an adaptive breakup method that prevents reflectivity growth by sedimentation (Mansell 2010). For 2-moment, infall=4 (default; nssl_mp_params namelist) is recommended. For 3-moment, infall only really applies to droplets, cloud ice, and snow.
+Excessive size sorting (common in 2-moment schemes) is effectively controlled by an adaptive breakup method that prevents reflectivity growth by sedimentation (Mansell 2010). For 2-moment, infall=3 (default; nssl_mp_params namelist) is recommended. For 3-moment, infall only really applies to droplets, cloud ice, and snow, since no corrections are needed for the 3-moment species (rain, graupel, hail).
 
 Graupel -> hail conversion: The parameter ihlcnh selects the method of converting graupel (hail embryos) to the hail category. The default value is -1 for automatic setting. The original option (ihlcnh=1) is replaced by a new option (ihlcnh=3) as of May 2023. ihlcnh=3 converts from the graupel spectrum itself based on the wet growth diameter, which generally results in fewer initiated hailstones with larger diameters (and larger mean diameter at the ground).
 

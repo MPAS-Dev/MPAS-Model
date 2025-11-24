@@ -207,8 +207,8 @@
     qh_p               !hail mixing ratio                                                   [kg/kg]
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
-    nc_p,             &!cloud droplet number concentration                                   [#/kg]
-    ni_p,             &!cloud ice number concentration                                       [#/kg]
+    nc_p,             &!cloud water droplet number concentration                             [#/kg]
+    ni_p,             &!cloud ice crystal number concentration                               [#/kg]
     nr_p,             &!rain number concentration                                            [#/kg]
     ns_p,             &!snow number concentration                                            [#/kg]
     ng_p,             &!graupel number concentration                                         [#/kg]

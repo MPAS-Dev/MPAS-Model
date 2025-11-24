@@ -131,7 +131,7 @@
  if(.not.allocated(rainncv_p)) allocate(rainncv_p(ims:ime,jms:jme))
 
  microp_select: select case(trim(microp_scheme))
-    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_nssl2m")
+    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_nssl")
        !mass mixing ratios:
        if(.not.allocated(qi_p)) allocate(qi_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(qs_p)) allocate(qs_p(ims:ime,kms:kme,jms:jme))
@@ -160,8 +160,6 @@
           if(.not.allocated(ni_p) ) allocate(ni_p(ims:ime,kms:kme,jms:jme))
           if(.not.allocated(nr_p) ) allocate(nr_p(ims:ime,kms:kme,jms:jme))
 
-          if(.not.allocated(refl10cm_p)) allocate(refl10cm_p(ims:ime,kms:kme,jms:jme))
-
           microp3_select: select case(trim(microp_scheme))
              case("mp_thompson_aerosols")
                 if(.not.allocated(nifa2d_p)) allocate(nifa2d_p(ims:ime,jms:jme))
@@ -173,7 +171,7 @@
              case default
           end select microp3_select
 
-       case("mp_nssl2m")
+       case("mp_nssl")
          ! allocate all possible arrays even if not used since they are always passed to the driver
           if(.not.allocated(qh_p)        ) allocate(qh_p(ims:ime,kms:kme,jms:jme))
           !number concentrations:
@@ -242,7 +240,7 @@
  if(allocated(rainncv_p)) deallocate(rainncv_p)
 
  microp_select: select case(trim(microp_scheme))
-    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_nssl2m")
+    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_nssl")
        !mass mixing ratios:
        if(allocated(qi_p)) deallocate(qi_p)
        if(allocated(qs_p)) deallocate(qs_p)
@@ -271,8 +269,6 @@
           if(allocated(ni_p) ) deallocate(ni_p )
           if(allocated(nr_p) ) deallocate(nr_p )
 
-          if(allocated(refl10cm_p)) deallocate(refl10cm_p)
-
           microp3_select: select case(trim(microp_scheme))
              case("mp_thompson_aerosols")
                 if(allocated(nifa2d_p)) deallocate(nifa2d_p)
@@ -284,7 +280,7 @@
              case default
           end select microp3_select
 
-       case("mp_nssl2m")
+       case("mp_nssl")
           if(allocated(qh_p)         ) deallocate(qh_p         )
           !number concentrations:
           if(allocated(nc_p) ) deallocate(nc_p )
@@ -377,7 +373,7 @@
           case default
        end select microp2_select
 
-     case("mp_nssl2m")
+     case("mp_nssl")
        i = 1 ! always treat CCN as CCNA (for now)
        call mp_nssl_init( errflg=errflg, errmsg=errmsg, threads=1, restart=.false., &
                               fn_nml='namelist.atmosphere',                         & ! at some point need to get name if -n option is used
@@ -560,8 +556,8 @@
        call mpas_timer_stop('mp_wsm6')
 
 
-    case ("mp_nssl2m")
-       call mpas_timer_start('NSSL2M')
+    case ("mp_nssl")
+       call mpas_timer_start('mp_nssl')
           IF ( do_diag_dbz_flag ) THEN
             allocate( kdbz1km(ims:ime,jms:jme) )
             kdbz1km(:,:) = 1
@@ -608,7 +604,7 @@
             ! find closest kz to 1km
           ENDIF
 
-       call mpas_timer_stop('NSSL2M')
+       call mpas_timer_stop('mp_nssl')
 
     case default
  end select microp_select
@@ -620,7 +616,7 @@
     if(trim(microp_scheme) == "mp_wsm6"              .or. &
        trim(microp_scheme) == "mp_thompson"          .or. &
        trim(microp_scheme) == "mp_thompson_aerosols" .or. &
-       trim(microp_scheme) == "mp_nssl2m"   ) then
+       trim(microp_scheme) == "mp_nssl"   ) then
        call compute_radar_reflectivity(configs,diag_physics,its,ite)
     else
        call mpas_log_write('*** NOTICE: NOT computing simulated radar reflectivity')
@@ -680,7 +676,7 @@
  call mpas_pool_get_array(diag_physics,'snowncv'   ,snowncv   )
  call mpas_pool_get_array(diag_physics,'sr'        ,sr        )
 
- IF ( microp_scheme == "mp_nssl2m" ) THEN
+ IF ( microp_scheme == "mp_nssl" ) THEN
  call mpas_pool_get_array(diag_physics,'hailncv',hailncv)
  ENDIF
 
@@ -698,7 +694,7 @@
 
 !variables specific to different cloud microphysics schemes:
  microp_select: select case(trim(microp_scheme))
-    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_nssl2m")
+    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_nssl")
        do j = jts, jte
        do i = its, ite
           snowncv_p(i,j)    = 0._RKIND
@@ -715,7 +711,7 @@
           sr(i)         = 0._RKIND
        enddo
        
-       IF ( microp_scheme == "mp_nssl2m" ) THEN
+       IF ( microp_scheme == "mp_nssl" ) THEN
        do j = jts, jte
        do i = its, ite
           hailncv_p(i,j) = 0._RKIND
@@ -773,7 +769,7 @@
  call mpas_pool_get_array(diag_physics,'snowncv'   ,snowncv   )
  call mpas_pool_get_array(diag_physics,'sr'        ,sr        )
 
- IF ( microp_scheme == "mp_nssl2m" .and. config_nssl_hail_on ) THEN
+ IF ( microp_scheme == "mp_nssl" .and. config_nssl_hail_on ) THEN
  call mpas_pool_get_array(diag_physics,'hailnc' ,hailnc )
  call mpas_pool_get_array(diag_physics,'hailncv',hailncv)
  ENDIF
@@ -809,7 +805,7 @@
 
 !variables specific to different cloud microphysics schemes:
  microp_select: select case(trim(microp_scheme))
-    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_nssl2m")
+    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_nssl")
        do j = jts,jte
        do i = its,ite
           !time-step precipitation:
@@ -823,7 +819,7 @@
        enddo
        enddo
 
-       IF ( microp_scheme == "mp_nssl2m" .and. config_nssl_hail_on ) THEN
+       IF ( microp_scheme == "mp_nssl" .and. config_nssl_hail_on ) THEN
        do j = jts,jte
        do i = its,ite
           !time-step precipitation:
@@ -874,7 +870,7 @@
     case ("mp_kessler")
        call physics_error_fatal('--- calculation of radar reflectivity is not available' // &
                                  'with kessler cloud microphysics')
-    case ("mp_nssl2m")
+    case ("mp_nssl")
 
        ! Reflectivity is already computed in 3D in the refl10cm_p array, so just read out the values
        if(.not.allocated(dBz1d)) allocate(dBZ1d(kts:kte))

@@ -645,7 +645,7 @@
 
 !initialize cloud water species and aerosols as function of cloud microphysics scheme:
  mp_select: select case(trim(mp_scheme))
-    case("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_nssl2m")
+    case("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_nssl")
        call mpas_pool_get_dimension(state,'index_qi',index_qi)
        call mpas_pool_get_dimension(state,'index_qs',index_qs)
        call mpas_pool_get_dimension(state,'index_qg',index_qg)
@@ -679,7 +679,6 @@
           case("mp_thompson","mp_thompson_aerosols")
              call mpas_pool_get_dimension(state,'index_ni',index_ni)
              call mpas_pool_get_dimension(state,'index_nr',index_nr)
-             call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
              ni   => scalars(index_ni,:,:)
              nr   => scalars(index_nr,:,:)
 
@@ -694,7 +693,6 @@
              do i = its, ite
                 ni_p(i,k,j) = ni(k,i)
                 nr_p(i,k,j) = nr(k,i)
-                refl10cm_p(i,k,j) = refl10cm(k,i)
              enddo
              enddo
              enddo
@@ -728,7 +726,7 @@
           end select mp3_select
 
 
-          case("mp_nssl2m")
+          case("mp_nssl")
             call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
             call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
             call mpas_pool_get_dimension(state,'index_nr'  ,index_nr  )
@@ -1006,7 +1004,7 @@
 
 !update cloud water species and aerosols as functions of cloud microphysics schemes:
  mp_select: select case(trim(mp_scheme))
-    case("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_nssl2m")
+    case("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_nssl")
        call mpas_pool_get_dimension(state,'index_qi',index_qi)
        call mpas_pool_get_dimension(state,'index_qs',index_qs)
        call mpas_pool_get_dimension(state,'index_qg',index_qg)
@@ -1041,7 +1039,6 @@
           case("mp_thompson","mp_thompson_aerosols")
              call mpas_pool_get_dimension(state,'index_ni',index_ni)
              call mpas_pool_get_dimension(state,'index_nr',index_nr)
-             call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
              ni   => scalars(index_ni,:,:)
              nr   => scalars(index_nr,:,:)
 
@@ -1050,7 +1047,6 @@
              do i = its,ite
                 ni(k,i) = ni_p(i,k,j)
                 nr(k,i) = nr_p(i,k,j)
-                refl10cm(k,i) = refl10cm_p(i,k,j)
              enddo
              enddo
              enddo
@@ -1079,10 +1075,11 @@
                    enddo
                    enddo
                    enddo
+
                 case default
              end select mp3_select
 
-       case("mp_nssl2m")
+       case("mp_nssl")
 
          call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
          call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )

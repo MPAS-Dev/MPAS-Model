@@ -173,9 +173,16 @@
  end if
 
 !cloud microphysics scheme:
+ if( config_microp_scheme .eq. 'mp_nssl2m' ) then
+   config_microp_scheme = 'mp_nssl' ! backward compatibility
+    write(mpas_err_message,'(A)') &
+       'NOTE: config_microp_scheme: value of mp_nssl2m is obsolete, please use mp_nssl'
+    call physics_message(mpas_err_message)
+ end if
+
  if(.not. (config_microp_scheme .eq. 'off'                  .or. &
            config_microp_scheme .eq. 'mp_kessler'           .or. &
-           config_microp_scheme .eq. 'mp_nssl2m'            .or. &
+           config_microp_scheme .eq. 'mp_nssl'              .or. &
            config_microp_scheme .eq. 'mp_thompson'          .or. &
            config_microp_scheme .eq. 'mp_thompson_aerosols' .or. &
            config_microp_scheme .eq. 'mp_wsm6')) then

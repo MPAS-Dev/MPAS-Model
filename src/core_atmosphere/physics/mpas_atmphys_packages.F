@@ -39,7 +39,7 @@
  character(len=StrKIND),pointer:: config_convection_scheme
  character(len=StrKIND),pointer:: config_pbl_scheme
  character(len=StrKIND),pointer:: config_lsm_scheme
- logical,pointer:: mp_kessler_in,mp_thompson_in,mp_thompson_aers_in,mp_wsm6_in,mp_nssl2m_in,nssl3m_in,nssl_hail_in,nssl3m_hail_in,nssl_ccn_in
+ logical,pointer:: mp_kessler_in,mp_thompson_in,mp_thompson_aers_in,mp_wsm6_in,mp_nssl_in,nssl3m_in,nssl_hail_in,nssl3m_hail_in,nssl_ccn_in
  logical,pointer:: cu_grell_freitas_in,cu_kain_fritsch_in,cu_ntiedtke_in
  logical,pointer:: bl_mynn_in,bl_ysu_in
  logical,pointer:: sf_noahmp_in
@@ -75,8 +75,8 @@
  nullify(mp_wsm6_in)
  call mpas_pool_get_package(packages,'mp_wsm6_inActive',mp_wsm6_in)
 
- nullify(mp_nssl2m_in)
- call mpas_pool_get_package(packages,'mp_nssl2m_inActive',mp_nssl2m_in)
+ nullify(mp_nssl_in)
+ call mpas_pool_get_package(packages,'mp_nssl_inActive',mp_nssl_in)
 
  nullify(nssl3m_in)
  call mpas_pool_get_package(packages,'nssl3m_inActive',nssl3m_in)
@@ -93,7 +93,7 @@
  if(.not.associated(mp_kessler_in)       .or. &
     .not.associated(mp_thompson_in)      .or. &
     .not.associated(mp_thompson_aers_in) .or. &
-    .not.associated(mp_nssl2m_in) .or. &
+    .not.associated(mp_nssl_in) .or. &
     .not.associated(mp_wsm6_in)) then
     call mpas_log_write('====================================================================================',messageType=MPAS_LOG_ERR)
     call mpas_log_write('* Error while setting up packages for cloud microphysics options in atmosphere core.',messageType=MPAS_LOG_ERR)
@@ -106,7 +106,7 @@
  mp_thompson_in      = .false.
  mp_thompson_aers_in = .false.
  mp_wsm6_in          = .false.
- mp_nssl2m_in        = .false.
+ mp_nssl_in          = .false.
  nssl3m_in           = .false.
  nssl_hail_in        = .false.
  nssl3m_hail_in      = .false.
@@ -120,12 +120,11 @@
     mp_thompson_aers_in = .true.
  elseif(config_microp_scheme == 'mp_wsm6') then
     mp_wsm6_in = .true.
- elseif(config_microp_scheme == 'mp_nssl2m') then
+ elseif(config_microp_scheme == 'mp_nssl') then
    call mpas_log_write('    config_nssl_hail_on            = $l', logicArgs=(/config_nssl_hail_on/))
    call mpas_log_write('    config_nssl_ccn_on             = $l', logicArgs=(/config_nssl_ccn_on/))
    call mpas_log_write('    config_nssl_3moment            = $l', logicArgs=(/config_nssl_3moment/))
-   call mpas_log_write('    config_nssl_hail_on            = $l', logicArgs=(/config_nssl_hail_on/))
-   mp_nssl2m_in = .true.
+   mp_nssl_in = .true.
     if( config_nssl_hail_on ) then
       nssl_hail_in = .true.
     endif
@@ -144,7 +143,7 @@
  call mpas_log_write('    mp_thompson_in          = $l', logicArgs=(/mp_thompson_in/))
  call mpas_log_write('    mp_thompson_aers_in     = $l', logicArgs=(/mp_thompson_aers_in/))
  call mpas_log_write('    mp_wsm6_in              = $l', logicArgs=(/mp_wsm6_in/))
- call mpas_log_write('    mp_nssl2m_in            = $l', logicArgs=(/mp_nssl2m_in/))
+ call mpas_log_write('    mp_nssl_in              = $l', logicArgs=(/mp_nssl_in/))
  call mpas_log_write('    nssl_hail_in            = $l', logicArgs=(/nssl_hail_in/))
  call mpas_log_write('    nssl_ccn_in             = $l', logicArgs=(/nssl_ccn_in/))
  call mpas_log_write('    nssl3m_in               = $l', logicArgs=(/nssl3m_in/))

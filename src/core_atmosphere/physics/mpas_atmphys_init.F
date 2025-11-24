@@ -18,7 +18,7 @@
  use mpas_atmphys_driver_radiation_lw,only: init_radiation_lw
  use mpas_atmphys_driver_radiation_sw,only: init_radiation_sw
  use mpas_atmphys_driver_sfclayer,only: init_sfclayer
- use mpas_atmphys_vars,only: f_qc,f_qr,f_qi,f_qs,f_qg,f_qoz,f_nc,f_ni,f_nifa,f_nwfa,f_nbca
+ use mpas_atmphys_vars,only: f_qc,f_qr,f_qi,f_qs,f_qg,f_qh,f_qoz,f_nc,f_ni,f_nifa,f_nwfa,f_nbca
 
  use mpas_atmphys_landuse
  use mpas_atmphys_o3climatology
@@ -247,7 +247,7 @@ use mpas_stream_manager
 
 !initialization of logical flags for cloud mixing ratios and number concentrations, and aerosols
 !number concentrations from the Thompson cloud microphysics:
- call init_physics_flags(state,f_qc,f_qr,f_qi,f_qs,f_qg,f_qoz,f_nc,f_ni,f_nifa,f_nwfa,f_nbca)
+ call init_physics_flags(state,f_qc,f_qr,f_qi,f_qs,f_qg,f_qh,f_qoz,f_nc,f_ni,f_nifa,f_nwfa,f_nbca)
 
 !initialization of counters i_rainc and i_rainnc. i_rainc and i_rainnc track the number of
 !times the accumulated convective (rainc) and grid-scale (rainnc) rain exceed the prescribed
@@ -463,18 +463,18 @@ use mpas_stream_manager
  end subroutine physics_init
 
 !=================================================================================================================
- subroutine init_physics_flags(state,f_qc,f_qr,f_qi,f_qs,f_qg,f_qoz,f_nc,f_ni,f_nifa,f_nwfa,f_nbca)
+ subroutine init_physics_flags(state,f_qc,f_qr,f_qi,f_qs,f_qg,f_qh,f_qoz,f_nc,f_ni,f_nifa,f_nwfa,f_nbca)
 !=================================================================================================================
 
 !input arguments:
  type(mpas_pool_type),intent(in):: state
 
 !output arguments:
- logical,intent(out):: f_qc,f_qr,f_qi,f_qs,f_qg,f_qoz
+ logical,intent(out):: f_qc,f_qr,f_qi,f_qs,f_qg,f_qh,f_qoz
  logical,intent(out):: f_nc,f_ni,f_nifa,f_nwfa,f_nbca
 
 !local pointers:
- integer,pointer:: index_qc,index_qr,index_qi,index_qs,index_qg
+ integer,pointer:: index_qc,index_qr,index_qi,index_qs,index_qg,index_qh
  integer,pointer:: index_nc,index_ni,index_nifa,index_nwfa
 
 !-----------------------------------------------------------------------------------------------------------------
@@ -485,18 +485,21 @@ use mpas_stream_manager
  f_qi  = .false.
  f_qs  = .false.
  f_qg  = .false.
+ f_qh  = .false.
  f_qoz = .false. !qoz is not defined in Registry.xml and f_qoz is initialized to false.
  call mpas_pool_get_dimension(state,'index_qc',index_qc)
  call mpas_pool_get_dimension(state,'index_qr',index_qr)
  call mpas_pool_get_dimension(state,'index_qi',index_qi)
  call mpas_pool_get_dimension(state,'index_qs',index_qs)
  call mpas_pool_get_dimension(state,'index_qg',index_qg)
+ call mpas_pool_get_dimension(state,'index_qh',index_qh)
 
  if(index_qc .gt. -1) f_qc = .true.
  if(index_qr .gt. -1) f_qr = .true.
  if(index_qi .gt. -1) f_qi = .true.
  if(index_qs .gt. -1) f_qs = .true.
  if(index_qg .gt. -1) f_qg = .true.
+ if(index_qh .gt. -1) f_qh = .true.
 
 !initializes the logical assigned to number concentrations:
  f_nc   = .false.
