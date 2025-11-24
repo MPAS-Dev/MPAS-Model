@@ -1385,49 +1385,6 @@ contains
       end select
 
    end subroutine test_add_att
-
-   subroutine test_pool_hash_table(f_ptr, ts_ptr, s_ptr, param_idx) bind(C)
-
-      use mpas_stream_manager
-      use mpas_pool_routines
-      use iso_c_binding, only: c_ptr, c_f_pointer, c_int
-      use stream_manager_fixture, only: stream_manager_fixture_t
-      use fortest_assert, only: assert_equal, assert_true, assert_false
-      implicit none
-
-      type(c_ptr), value :: f_ptr, ts_ptr, s_ptr
-      integer(c_int), value :: param_idx
-      type(stream_manager_fixture_t), pointer :: f
-      type(mpas_pool_type), pointer :: pool
-      integer :: ierr
-      character(len=:), allocatable :: key
-      integer, pointer :: value
-
-      call c_f_pointer(f_ptr, f)
-
-      allocate(pool)
-      call mpas_pool_create_pool(pool, 3)
-      select case (param_idx)
-
-      case(1)
-         call mpas_pool_add_config(pool, 'a', 1)
-         call mpas_pool_add_config(pool, 'b', 2)
-         call mpas_pool_add_config(pool, 'c', 3)
-         call mpas_pool_add_config(pool, 'd', 3)
-         call mpas_pool_add_config(pool, 'e', 4)
-         call mpas_pool_add_config(pool, 'f', 5)
-         call mpas_pool_add_config(pool, 'd', 5)
-
-         call mpas_pool_get_config(pool, 'a', value)
-         call assert_true(associated(value), verbosity = 2)
-         if (associated(value)) then
-            call assert_equal(value, 1, verbosity = 2)
-         end if
-
-      end select
-
-   end subroutine test_pool_hash_table
-
 end module
 
 program test_stream_manager
@@ -1476,77 +1433,77 @@ program test_stream_manager
          args = test_fixture_ptr, &
          scope = "test", &
          test_suite_name = "stream_manager_test")
-!    Register tests
-             call session%register_parameterized_test(&
-                     test_suite_name = "stream_manager_test", &
-                     test_name = "test_create_stream", &
-                     test = test_create_stream, &
-                     num_params = 1)
-             call session%register_parameterized_test(&
-                     test_suite_name = "stream_manager_test", &
-                     test_name = "test_destroy_stream", &
-                     test = test_destroy_stream, &
-                     num_params = 3)
-             call session%register_parameterized_test(&
-                     test_suite_name = "stream_manager_test", &
-                     test_name = "test_add_pool", &
-                     test = test_add_pool, &
-                     num_params = 6)
-             call session%register_parameterized_test(&
-                     test_suite_name = "stream_manager_test", &
-                     test_name = "test_add_field", &
-                     test = test_add_field, &
-                     num_params = 6)
-             call session%register_parameterized_test(&
-                     test_suite_name = "stream_manager_test", &
-                     test_name = "test_add_stream_fields", &
-                     test = test_add_stream_fields, &
-                     num_params = 6)
-             call session%register_parameterized_test(&
-                     test_suite_name = "stream_manager_test", &
-                     test_name = "test_remove_field", &
-                     test = test_remove_field, &
-                     num_params = 5)
-             call session%register_parameterized_test(&
-                     test_suite_name = "stream_manager_test", &
-                     test_name = "test_add_pkg", &
-                     test = test_add_pkg, &
-                     num_params = 3)
-             call session%register_parameterized_test(&
-                     test_suite_name = "stream_manager_test", &
-                     test_name = "test_remove_pkg", &
-                     test = test_remove_pkg, &
-                     num_params = 2)
-             call session%register_parameterized_test(&
-                     test_suite_name = "stream_manager_test", &
-                     test_name = "test_add_alarm", &
-                     test = test_add_alarm, &
-                     num_params = 4)
-             call session%register_parameterized_test(&
-                     test_suite_name = "stream_manager_test", &
-                     test_name = "test_remove_alarm", &
-                     test = test_remove_alarm, &
-                     num_params = 5)
-             call session%register_parameterized_test(&
-                     test_suite_name = "stream_manager_test", &
-                     test_name = "test_reset_alarms", &
-                     test = test_reset_alarms, &
-                     num_params = 6)
-             call session%register_parameterized_test(&
-                     test_suite_name = "stream_manager_test", &
-                     test_name = "test_ringing_alarms", &
-                     test = test_ringing_alarms, &
-                     num_params = 10)
-             call session%register_parameterized_test(&
-                     test_suite_name = "stream_manager_test", &
-                     test_name = "test_get_stream_interval", &
-                     test = test_get_stream_interval, &
-                     num_params = 6)
-             call session%register_parameterized_test(&
-                     test_suite_name = "stream_manager_test", &
-                     test_name = "test_add_att", &
-                     test = test_add_att, &
-                     num_params = 5)
+   !    Register tests
+   call session%register_parameterized_test(&
+         test_suite_name = "stream_manager_test", &
+         test_name = "test_create_stream", &
+         test = test_create_stream, &
+         num_params = 1)
+   call session%register_parameterized_test(&
+         test_suite_name = "stream_manager_test", &
+         test_name = "test_destroy_stream", &
+         test = test_destroy_stream, &
+         num_params = 3)
+   call session%register_parameterized_test(&
+         test_suite_name = "stream_manager_test", &
+         test_name = "test_add_pool", &
+         test = test_add_pool, &
+         num_params = 6)
+   call session%register_parameterized_test(&
+         test_suite_name = "stream_manager_test", &
+         test_name = "test_add_field", &
+         test = test_add_field, &
+         num_params = 6)
+   call session%register_parameterized_test(&
+         test_suite_name = "stream_manager_test", &
+         test_name = "test_add_stream_fields", &
+         test = test_add_stream_fields, &
+         num_params = 6)
+   call session%register_parameterized_test(&
+         test_suite_name = "stream_manager_test", &
+         test_name = "test_remove_field", &
+         test = test_remove_field, &
+         num_params = 5)
+   call session%register_parameterized_test(&
+         test_suite_name = "stream_manager_test", &
+         test_name = "test_add_pkg", &
+         test = test_add_pkg, &
+         num_params = 3)
+   call session%register_parameterized_test(&
+         test_suite_name = "stream_manager_test", &
+         test_name = "test_remove_pkg", &
+         test = test_remove_pkg, &
+         num_params = 2)
+   call session%register_parameterized_test(&
+         test_suite_name = "stream_manager_test", &
+         test_name = "test_add_alarm", &
+         test = test_add_alarm, &
+         num_params = 4)
+   call session%register_parameterized_test(&
+         test_suite_name = "stream_manager_test", &
+         test_name = "test_remove_alarm", &
+         test = test_remove_alarm, &
+         num_params = 5)
+   call session%register_parameterized_test(&
+         test_suite_name = "stream_manager_test", &
+         test_name = "test_reset_alarms", &
+         test = test_reset_alarms, &
+         num_params = 6)
+   call session%register_parameterized_test(&
+         test_suite_name = "stream_manager_test", &
+         test_name = "test_ringing_alarms", &
+         test = test_ringing_alarms, &
+         num_params = 10)
+   call session%register_parameterized_test(&
+         test_suite_name = "stream_manager_test", &
+         test_name = "test_get_stream_interval", &
+         test = test_get_stream_interval, &
+         num_params = 6)
+   call session%register_parameterized_test(&
+         test_suite_name = "stream_manager_test", &
+         test_name = "test_add_att", &
+         test = test_add_att, &
+         num_params = 5)
 
 
    ! Run the tests
