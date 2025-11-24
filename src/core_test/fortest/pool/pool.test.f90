@@ -145,13 +145,13 @@ contains
       ! -------------------------------------------------------------------
       call when("you add three unique key-value pairs to the pool")
       ! -------------------------------------------------------------------
-      call mpas_pool_add_config(f%pool_size4, f%key1, f%val1)
-      call mpas_pool_add_config(f%pool_size4, f%key2, f%val2)
-      call mpas_pool_add_config(f%pool_size4, f%key3, f%val3)
+      call mpas_pool_add_config(f%pool_size1, f%key1, f%val1)
+      call mpas_pool_add_config(f%pool_size1, f%key2, f%val2)
+      call mpas_pool_add_config(f%pool_size1, f%key3, f%val3)
       ! -------------------------------------------------------------------
       call and_then("you attempt to add a duplicate key at the tail")
       ! -------------------------------------------------------------------
-      call mpas_pool_add_config(f%pool_size4, dup_key, f%val3, f%ierr)
+      call mpas_pool_add_config(f%pool_size1, dup_key, f%val3, f%ierr)
       ! -------------------------------------------------------------------
       call should("receive an error code indicating failure")
       ! -------------------------------------------------------------------
