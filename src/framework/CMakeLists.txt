@@ -24,6 +24,7 @@ set(MPAS_FRAMEWORK_SOURCES
         mpas_framework.F
         mpas_halo.F
         mpas_io.F
+        mpas_pio.f90
         mpas_io_streams.F
         mpas_log.F
         mpas_stream_inquiry.F
@@ -37,6 +38,7 @@ set(MPAS_FRAMEWORK_SOURCES
         stream_inquiry.c)
 
 add_library(framework ${MPAS_FRAMEWORK_SOURCES})
+target_link_libraries(framework PRIVATE PIO::PIO_Fortran)
 set_MPAS_DEBUG_flag(framework)
 set(FRAMEWORK_COMPILE_DEFINITIONS
     mpas=1

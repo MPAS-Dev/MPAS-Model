@@ -14,6 +14,7 @@ module mpas_io
 
 #ifdef MPAS_PIO_SUPPORT
    use pio
+   use mpas_pio
    use piolib_mod
    use pionfatt_mod
    use pio_types
@@ -6127,43 +6128,7 @@ module mpas_io
       end if
 
 #ifdef MPAS_PIO_SUPPORT
-      pio_ierr = PIO_put_att(handle % pio_file, varid, attName, trim(attValueLocal)) 
-      if (pio_ierr /= PIO_noerr) then
-
-         io_global_err = pio_ierr
-         if (present(ierr)) ierr = MPAS_IO_ERR_BACKEND
-
-         !
-         ! If we are working with a pre-existing file and the text attribute is larger than in the file, we need 
-         ! to enter define mode before writing the attribute. Note the PIO_redef documentation:
-         !     'Entering and leaving netcdf define mode causes a file sync operation to occur, 
-         !      these operations can be very expensive in parallel systems.'
-         !
-         if (handle % preexisting_file .and. .not. handle % data_mode) then
-            pio_ierr = PIO_redef(handle % pio_file)
-            if (pio_ierr /= PIO_noerr) then
-               io_global_err = pio_ierr
-               return
-            end if
-
-            pio_ierr = PIO_put_att(handle % pio_file, varid, attName, trim(attValueLocal)) 
-            if (pio_ierr /= PIO_noerr) then
-               io_global_err = pio_ierr
-               return
-            end if
-
-            pio_ierr = PIO_enddef(handle % pio_file)
-            if (pio_ierr /= PIO_noerr) then
-               io_global_err = pio_ierr
-               return
-            end if
-
-            if (present(ierr)) ierr = MPAS_IO_NOERR
-
-         end if
-
-         return
-      end if
+      pio_ierr = mpas_pio_put_att(handle % pio_file, varid, attName, trim(attValueLocal))
 #endif
 
 #ifdef MPAS_SMIOL_SUPPORT

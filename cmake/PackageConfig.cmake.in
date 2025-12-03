@@ -77,7 +77,6 @@ if(NOT NetCDF_Fortran_FOUND)
     find_package(NetCDF REQUIRED COMPONENTS Fortran)
 endif()
 find_package(PnetCDF REQUIRED COMPONENTS Fortran)
-find_package(PIO REQUIRED COMPONENTS Fortran C)
 if(@MPAS_PROFILE@) #MPAS_PROFILE
     if(NOT GPTL_FOUND)
         find_dependency(GPTL REQUIRED)

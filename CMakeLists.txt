@@ -8,6 +8,13 @@ project(MPAS LANGUAGES C CXX Fortran VERSION ${MPAS_VERSION} DESCRIPTION "MPAS -
 enable_testing()
 set(CMAKE_CXX_STANDARD 20)
 
+set(PIO_DIR "/Users/astokely/software/ParallelIO/build/install/lib/cmake/PIO")
+find_package(PIO REQUIRED COMPONENTS Fortran)
+
+set(PFUNIT_DIR "/Users/astokely/software/spack/opt/spack/darwin-m2/pfunit-4.12.0-2jjejxqfalsqxz7jbpl7j34zmlwp57ve/PFUNIT-4.12/cmake")
+find_package(PFUNIT REQUIRED)
+
+
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
 set(CMAKE_DIRECTORY_LABELS ${PROJECT_NAME})
 include(GNUInstallDirs)
@@ -74,7 +81,6 @@ find_package(Fortest)
 
 find_package(PnetCDF REQUIRED COMPONENTS Fortran)
 if(MPAS_USE_PIO)
-    find_package(PIO REQUIRED COMPONENTS Fortran C)
     find_package(NetCDF REQUIRED COMPONENTS Fortran C)
 endif()
 if(MPAS_PROFILE)
@@ -180,3 +186,5 @@ install(EXPORT ${PROJECT_NAME}Exports NAMESPACE ${PROJECT_NAME}::
 install(EXPORT ${PROJECT_NAME}ExportsCore NAMESPACE ${PROJECT_NAME}::core::
         FILE ${PROJECT_NAME_LOWER}-targets-core.cmake
         DESTINATION ${CONFIG_INSTALL_DESTINATION})
+
+add_subdirectory(test)

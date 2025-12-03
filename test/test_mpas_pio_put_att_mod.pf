@@ -1,0 +1,166 @@
+module test_mpas_pio_put_att_mod
+   use funit
+   use mpi
+   use pio, only : PIO_createfile, PIO_openfile, PIO_closefile, &
+        PIO_enddef, PIO_iotype_netcdf, PIO_clobber, PIO_write, PIO_noerr, PIO_redef, &
+        iosystem_desc_t, file_desc_t, PIO_put_att
+   use mpas_pio, only : mpas_pio_put_att
+   use mpas_test_utils_mod, only : mock_logger, delete_file
+   use mpas_pio_test_setup_mod, only : pio_test_setup, pio_test_finalize
+
+   implicit none
+
+   @TestCase
+   type, extends(TestCase) :: test_mpas_pio_put_att
+      type(iosystem_desc_t) :: iosys
+      type(file_desc_t)     :: existing_file, new_file
+      character(len=255)    :: existing_filename, new_filename
+      integer               :: myRank, ntasks, iotype
+   contains
+      procedure :: setUp
+      procedure :: tearDown
+
+
+      ! String tests
+      procedure :: test_overwrite_str_att_shorter
+      procedure :: test_overwrite_str_att_same_length
+      procedure :: test_overwrite_str_att_longer
+      procedure :: test_write_new_str_att
+      procedure :: test_write_new_file_str_att
+
+      ! Error-handling tests
+      procedure :: test_error_mode_reset_after_failure
+      procedure :: test_error_returned_for_invalid_varid
+      procedure :: test_initial_real_error_propagated
+   end type test_mpas_pio_put_att
+
+contains
+
+   !===============================================================================
+   ! setUp
+   !===============================================================================
+   subroutine setUp(this)
+      class(test_mpas_pio_put_att), intent(inout) :: this
+      integer :: ierr
+
+      this%iotype = PIO_iotype_netcdf
+
+      call pio_test_setup(this%iosys, this%myRank, this%ntasks, &
+            this%existing_filename, this%new_filename)
+
+      !----------------------------------------
+      ! Create & seed an initial existing file
+      !----------------------------------------
+      ierr = PIO_createfile(this%iosys, this%existing_file, this%iotype, &
+            trim(this%existing_filename), PIO_clobber)
+
+      ierr = PIO_put_att(this%existing_file, 0, "str_attr",  "abc")
+
+      ierr = PIO_enddef(this%existing_file)
+      call PIO_closefile(this%existing_file)
+
+      ! Open for writing tests
+      ierr = PIO_openfile(this%iosys, this%existing_file, this%iotype, &
+            trim(this%existing_filename), PIO_write)
+      ierr = PIO_createfile(this%iosys, this%new_file, this%iotype, &
+            trim(this%new_filename), PIO_clobber)
+   end subroutine setUp
+
+   !===============================================================================
+   ! tearDown
+   !===============================================================================
+   subroutine tearDown(this)
+      class(test_mpas_pio_put_att), intent(inout) :: this
+      integer :: ierr
+
+      call PIO_closefile(this%existing_file)
+      call pio_test_finalize(this%iosys)
+
+      call delete_file(this%existing_filename)
+      call delete_file(this%new_filename)
+   end subroutine tearDown
+
+   !===============================================================================
+   ! String attribute overwrite tests
+   !===============================================================================
+   @Test
+   subroutine test_overwrite_str_att_shorter(this)
+      class(test_mpas_pio_put_att), intent(inout) :: this
+      integer :: ret
+      ret = mpas_pio_put_att(this%existing_file, 0, 'str_attr', 'd')
+      @assertEqual(PIO_noerr, ret, "Overwriting string with shorter value failed")
+   end subroutine test_overwrite_str_att_shorter
+
+   !-------------------------------------------------------------------------------
+   @Test
+   subroutine test_overwrite_str_att_same_length(this)
+      class(test_mpas_pio_put_att), intent(inout) :: this
+      integer :: ret
+      ret = mpas_pio_put_att(this%existing_file, 0, 'str_attr', 'def')
+      @assertEqual(PIO_noerr, ret, "Overwriting string with same-length value failed")
+   end subroutine test_overwrite_str_att_same_length
+
+   !-------------------------------------------------------------------------------
+   @Test
+   subroutine test_overwrite_str_att_longer(this)
+      class(test_mpas_pio_put_att), intent(inout) :: this
+      integer :: ret
+      ret = mpas_pio_put_att(this%existing_file, 0, 'str_attr', 'defgh')
+      @assertEqual(PIO_noerr, ret, "Overwriting string with longer value failed")
+   end subroutine test_overwrite_str_att_longer
+
+   !-------------------------------------------------------------------------------
+   @Test
+   subroutine test_write_new_str_att(this)
+      class(test_mpas_pio_put_att), intent(inout) :: this
+      integer :: ret
+      ret = mpas_pio_put_att(this%existing_file, 0, 'new_str_attr', 'abc')
+      @assertEqual(PIO_noerr, ret, "Writing new string attribute failed")
+   end subroutine test_write_new_str_att
+
+   !-------------------------------------------------------------------------------
+   @Test
+   subroutine test_write_new_file_str_att(this)
+      class(test_mpas_pio_put_att), intent(inout) :: this
+      integer :: ret
+      ret = mpas_pio_put_att(this%new_file, 0, 'str_attr', 'abc')
+      @assertEqual(PIO_noerr, ret, "Writing string attribute to new file failed")
+   end subroutine test_write_new_file_str_att
+
+   !===============================================================================
+   ! Error-handling tests
+   !===============================================================================
+   @Test
+   subroutine test_error_mode_reset_after_failure(this)
+      class(test_mpas_pio_put_att), intent(inout) :: this
+      integer :: ret
+
+      ret = mpas_pio_put_att(this%existing_file, 1, 'str_attr', 'a', log_proc=mock_logger)
+      ret = PIO_redef(this%existing_file)
+
+      @assertEqual(PIO_noerr, ret, "File not returned to data mode after failed put_att")
+   end subroutine test_error_mode_reset_after_failure
+
+   !-------------------------------------------------------------------------------
+   @Test
+   subroutine test_error_returned_for_invalid_varid(this)
+      class(test_mpas_pio_put_att), intent(inout) :: this
+      integer :: ret
+
+      ret = mpas_pio_put_att(this%existing_file, 1, 'str_attr', 'a', log_proc=mock_logger)
+      @assertFalse(ret == PIO_noerr, "Invalid varid should return nonzero error code")
+   end subroutine test_error_returned_for_invalid_varid
+
+   !-------------------------------------------------------------------------------
+   @Test
+   subroutine test_initial_real_error_propagated(this)
+      class(test_mpas_pio_put_att), intent(inout) :: this
+      integer :: ret
+
+      ret = PIO_redef(this%existing_file)
+      ret = mpas_pio_put_att(this%existing_file, 2, 'str_attr', 'abc', log_proc=mock_logger)
+
+      @assertFalse(ret == PIO_noerr, "Initial real error should be propagated correctly")
+   end subroutine test_initial_real_error_propagated
+
+end module test_mpas_pio_put_att_mod
