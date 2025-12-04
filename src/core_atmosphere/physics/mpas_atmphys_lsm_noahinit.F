@@ -435,7 +435,7 @@
     endif
     if(sltype.eq.mminsl) then
        do lc = 1, slcats
-          read(read_unit,*) iindex,bb(lc),drysmc(lc),hc(lc), f11(lc),maxsmc(lc),refsmc(lc),satpsi(lc), &
+          read(read_unit,*) iindex,bb(lc),drysmc(lc),f11(lc),maxsmc(lc),refsmc(lc),satpsi(lc), &
                       satdk(lc),satdw(lc),wltsmc(lc),qtz(lc)
        enddo
     endif
