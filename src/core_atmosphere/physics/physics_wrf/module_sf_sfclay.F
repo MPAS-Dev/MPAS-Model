@@ -212,9 +212,14 @@ CONTAINS
 
       INTEGER ::  I,J
 
-!$acc data create(dz8w1d,U1D,V1D,QV1D,P1D,T1D)
+!$acc data present(U3D,V3D,T3D,QV3D,P3D,dz8w,PSFC,CHS,CHS2,CQS2,CPM, &
+!$acc              ZNT,UST,PBLH,MAVAIL,ZOL,MOL,REGIME,PSIM,PSIH,FM,FH, &
+!$acc              XLAND,HFX,QFX,LH,TSK,FLHC,FLQC,QGH,QSFC,RMOL, &
+!$acc              U10,V10,TH2,T2,Q2,GZ1OZ0,WSPD,BR,ustm,ck,cka,cd,cda) &
+!$acc      create(dz8w1d,U1D,V1D,QV1D,P1D,T1D,DX2D)
+
       DO J=jts,jte
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector
         DO i=its,ite
            DX2D(i)=DX(i,j)
@@ -393,13 +398,18 @@ CONTAINS
       REAL    ::  FLUXC,VSGD,Z0Q,VISC,RESTAR,CZIL,GZ0OZQ,GZ0OZT
       REAL    ::  ZW, ZN1, ZN2
       REAL    ::  Z0T, CZC
-!$acc data create(PSFC,TGDSA,THGB,SCR3,THX,SCR4,THVX,QX,ZQKLP1, &
-!$acc ZQKL,ZA,GOVRTH,RHOX,GZ2OZ0,GZ10OZ0,PSIM10,PSIH10,PSIM2, &
-!$acc PSIH2,WSPDI,DENOMQ,DENOMQ2,DENOMT2)
+
+!$acc data present(UX,VX,T1D,QV1D,P1D,dz8w1d,PSFCPA,CHS,CHS2,CQS2,CPM,PBLH,RMOL, &
+!$acc              ZNT,UST,MAVAIL,ZOL,MOL,REGIME,PSIM,PSIH,FM,FH,XLAND,HFX,QFX, &
+!$acc              TSK,U10,V10,TH2,T2,Q2,FLHC,FLQC,QGH,QSFC,LH,GZ1OZ0, &
+!$acc              WSPD,BR,ustm,ck,cka,cd,cda) &
+!$acc      create(PSFC,TGDSA,THGB,SCR3,THX,SCR4,THVX,QX,ZQKLP1, &
+!$acc             ZQKL,ZA,GOVRTH,RHOX,GZ2OZ0,GZ10OZ0,PSIM10,PSIH10,PSIM2, &
+!$acc             PSIH2,WSPDI,DENOMQ,DENOMQ2,DENOMT2)
 !-------------------------------------------------------------------
       KL=kte
 
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector
       DO i=its,ite
 ! PSFC cb
@@ -441,7 +451,7 @@ CONTAINS
 !     SCR4(I,K) STORE VIRTUAL TEMPERATURE.                                       
                                                                                  
 !!!       DO 30 I=its,ite
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector private(PL,THCON)
       DO I=its,ite
 ! PL cb
@@ -479,7 +489,7 @@ CONTAINS
 !!!   50 CONTINUE                                                                 
 !                                                                                
 !!!      DO 60 I=its,ite
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector private(E1,PL)
       DO I=its,ite
         E1=SVP1*EXP(SVP2*(TGDSA(I)-SVPT0)/(TGDSA(I)-SVP3))                       
@@ -534,7 +544,7 @@ CONTAINS
 !     AKB(1976), EQ(12).                                                         
                    
 !!!    DO 260 I=its,ite
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector private(ZL,TSKV,DTHVDZ,fluxc,VCONV,DTHVM, &
 !$acc VSGD)
       DO I=its,ite
@@ -612,7 +622,7 @@ CONTAINS
 !CCCCC                                                                           
 
 !!!      DO 320 I=its,ite
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector private(ZOL10,ZOL2,NZOL,RZOL,NZOL10,RZOL10,NZOL2,RZOL2)
       DO I=its,ite
 !CCCCC                                                                           
@@ -761,7 +771,7 @@ CONTAINS
 !     ZA(1982) EQS(2.60),(2.61).                                                 
 !                                                                                
 !!!      DO 330 I=its,ite
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector private(DTG,PSIX,PSIX10,PSIT,ZL,PSIQ,PSIT2, &
 !$acc PSIQ2,PSIQ10,VISC,RESTAR,Z0T,Z0Q,GZ0OZT,GZ0OZQ,CZIL)
       DO I=its,ite
@@ -921,7 +931,7 @@ CONTAINS
 !-----OVER WATER, ALTER ROUGHNESS LENGTH (ZNT) ACCORDING TO WIND (UST).
                                                                                  
 !!!      DO 360 I=its,ite
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector private(ZW,ZN1,ZN2,ZL,DTTHX)
       DO I=its,ite
         IF((XLAND(I)-1.5).GE.0)THEN                                            
@@ -982,7 +992,7 @@ CONTAINS
      IF ( .NOT. ( PRESENT(SCM_FORCE_FLUX) .AND. (SCM_FORCE_FLUX.EQ.1) ) ) THEN
 !                                                                               
 !!!      DO 370 I=its,ite
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector
         DO I=its,ite
           QFX(I)=FLQC(I)*(QSFC(I)-QX(I))                                     
@@ -1014,7 +1024,7 @@ CONTAINS
 !!!  400 CONTINUE                                                                 
     END IF
 !!!  405 CONTINUE                                                                 
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector private(ZL)         
         DO I=its,ite
           IF((XLAND(I)-1.5).GE.0)THEN

@@ -674,7 +674,7 @@
  end if
 
  do j = jts, jte
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector collapse(2)
  do k = kts, kte
  do i = its, ite
@@ -756,7 +756,7 @@
 
 !arrays located at w points:
  do j = jts, jte
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector collapse(2)
  do k = kts,kte+1
  do i = its,ite
@@ -1003,10 +1003,10 @@
 ! qc   => scalars(index_qc,:,:)
 ! qr   => scalars(index_qr,:,:)
 
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(3)
 !initialize variables needed in the cloud microphysics schemes:
  do j = jts, jte
+!$acc parallel
+!$acc loop gang vector collapse(2)
  do i = its, ite
  do k = kts, kte
     qv_p(i,k,j) = scalars(sindex_qv,k,i)
@@ -1024,8 +1024,8 @@
     w_p(i,k,j)    = w(k,i)
  enddo
  enddo
- enddo
  !$acc end parallel
+ enddo
 
 !additional initialization as function of cloud microphysics scheme:
  microp_select_init: select case(microp_scheme)
@@ -1035,11 +1035,11 @@
 !       qs   => scalars(index_qs,:,:)
 !       qg   => scalars(index_qg,:,:)
 
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(3)
        do j = jts, jte
-       do k = kts, kte
+!$acc parallel
+!$acc loop gang vector collapse(2)
        do i = its, ite
+       do k = kts, kte
           qi_p(i,k,j) = scalars(sindex_qi,k,i)
           qs_p(i,k,j) = scalars(sindex_qs,k,i)
           qg_p(i,k,j) = scalars(sindex_qg,k,i)
@@ -1048,8 +1048,8 @@
           resnow_p(i,k,j)  = re_snow(k,i)
        enddo
        enddo
-       enddo
 !$acc end parallel
+       enddo
 
     microp2_select: select case(microp_scheme)
 
@@ -1175,7 +1175,7 @@
 
 !update variables needed in the dynamical core:
  do j = jts,jte
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector collapse(2)
  do i = its,ite
  do k = kts,kte
@@ -1232,10 +1232,10 @@
 !       qs   => scalars(index_qs,:,:)
 !       qg   => scalars(index_qg,:,:)
        do j = jts, jte
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector collapse(2)
-       do k = kts, kte
        do i = its, ite
+       do k = kts, kte
           scalars(sindex_qi,k,i) = qi_p(i,k,j)
           scalars(sindex_qs,k,i) = qs_p(i,k,j)
           scalars(sindex_qg,k,i) = qg_p(i,k,j)

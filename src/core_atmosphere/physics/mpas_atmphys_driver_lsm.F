@@ -698,7 +698,7 @@
  enddo
 !$acc end parallel
 
-!$acc parallel vector_length(2)
+!$acc parallel
 !$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
@@ -755,7 +755,7 @@
 !!!$acc update device(chs_sea,chs2_sea,cqs2_sea,cpm_sea,      &
 !!!$acc        hfx_sea,lh_sea,qfx_sea,qgh_sea,qsfc_sea)
 
-!$acc update host(chs_sea,chs2_sea,cqs2_sea,cpm_sea,hfx_sea,lh_sea,qfx_sea,qgh_sea,qsfc_sea,tsk_sea)
+!!!$acc update host(chs_sea,chs2_sea,cqs2_sea,cpm_sea,hfx_sea,lh_sea,qfx_sea,qgh_sea,qsfc_sea,tsk_sea)
     do j = jts,jte
 !$acc parallel vector_length(128)
 !$acc loop gang vector
@@ -873,6 +873,7 @@
 
     case("noah")
        call mpas_timer_start('Noah')
+       call mpas_timer_start('lsm_gpu')
        call lsm_gpu( &
                 dz8w        = dz_p        , p8w3d       = pres2_hyd_p  , t3d       = t_p          , &
                 qv3d        = qv_p        , xland       = xland_p      , xice      = xice_p       , &
@@ -915,8 +916,10 @@
                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,             &
                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte               &
                )
+       call mpas_timer_stop('lsm_gpu')
 
        if(config_frac_seaice) then
+          call mpas_timer_start('seaice_noah_gpu')
           call seaice_noah_gpu( &
                 dz8w      = dz_p        , p8w3d   = pres2_hyd_p  , t3d      = t_p      , &
                 qv3d      = qv_p        , xice    = xice_p       , snoalb2d = snoalb_p , &
@@ -946,8 +949,10 @@
                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,  &
                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte    &
                           )
+           call mpas_timer_stop('seaice_noah_gpu')
        endif
 
+       call mpas_timer_start('sfcdiags_gpu')
        call sfcdiags_gpu( &
                 hfx   = hfx_p  , qfx     = qfx_p   , tsk  = tsk_p , qsfc = qsfc_p , chs = chs_p , &
                 chs2  = chs2_p , cqs2    = cqs2_p  , t2   = t2m_p , th2  = th2m_p , q2  = q2_p  , &
@@ -957,6 +962,7 @@
                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,           &
                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
                     )
+       call mpas_timer_stop('sfcdiags_gpu')
        call mpas_timer_stop('Noah')
                 
 

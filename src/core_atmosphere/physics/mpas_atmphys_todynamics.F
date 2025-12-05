@@ -217,7 +217,7 @@
 ! tend_rho_physics(:,:) = 0._RKIND       ! NB: rho tendency is not currently supplied by physics, but this
                                         !     field may be later filled with IAU or other tendencies
 
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector collapse(2)
  do i = 1, nCellsSolveScalar
  do k = 1, nVertLevels
@@ -455,7 +455,7 @@
 
           !MGD for PV budget? should a similar line be in the cumulus section below?
 !!!
- !$acc parallel vector_length(32)
+ !$acc parallel
  !$acc loop gang vector collapse(2)
           do i = 1, nEdges
           do k = 1, nVertLevels
@@ -469,7 +469,7 @@
        end if
 
 !!!
- !$acc parallel vector_length(32)
+ !$acc parallel
  !$acc loop gang vector collapse(2)
        do i = 1, nEdgesSolve
        do k  = 1, nVertLevels
@@ -480,7 +480,7 @@
  !$acc end parallel
 
 !!!
- !$acc parallel vector_length(32)
+ !$acc parallel
  !$acc loop gang vector collapse(2)
        do i = 1, nCellsSolve
        do k = 1, nVertLevels
@@ -498,7 +498,7 @@
           case("bl_mynn")
 
 !!!
- !$acc parallel vector_length(32)
+ !$acc parallel
  !$acc loop gang vector collapse(2)
              do i = 1, nCellsSolve
              do k = 1, nVertLevels
@@ -517,7 +517,7 @@
     if (config_convection_scheme .ne. 'off') then
 
 !!!
- !$acc parallel vector_length(32)
+ !$acc parallel
  !$acc loop gang vector collapse(2)
        do i = 1, nCellsSolve
        do k = 1, nVertLevels
@@ -534,7 +534,7 @@
 
            case('cu_kain_fritsch')
 !!!
- !$acc parallel vector_length(32)
+ !$acc parallel
  !$acc loop gang vector collapse(2)
               do i = 1, nCellsSolve
               do k = 1, nVertLevels
@@ -559,7 +559,7 @@
                                        gpu_compactHaloInfoSize_c_v )
                  
 !!!
- !$acc parallel vector_length(32)
+ !$acc parallel
  !$acc loop gang vector collapse(2)
                  do i = 1, nEdges
                  do k = 1, nVertLevels
@@ -571,7 +571,7 @@
  !$acc end parallel
               end if
 !!!
- !$acc parallel vector_length(32)
+ !$acc parallel
  !$acc loop gang vector collapse(2)
               do i = 1, nEdgesSolve
               do k  = 1, nVertLevels
@@ -588,7 +588,7 @@
     !add coupled tendencies due to longwave radiation:
     if (config_radt_lw_scheme .ne. 'off') then
 !!!
- !$acc parallel vector_length(32)
+ !$acc parallel
  !$acc loop gang vector collapse(2)
        do i = 1, nCellsSolve
        do k = 1, nVertLevels
@@ -602,7 +602,7 @@
     !add coupled tendencies due to shortwave radiation:
     if (config_radt_sw_scheme .ne. 'off') then
 !!!
- !$acc parallel vector_length(32)
+ !$acc parallel
  !$acc loop gang vector collapse(2)
        do i = 1, nCellsSolve
        do k = 1, nVertLevels
@@ -616,7 +616,7 @@
     !if non-hydrostatic core, convert the tendency for the potential temperature to a
     !tendency for the modified potential temperature:
 !!!
- !$acc parallel vector_length(32)
+ !$acc parallel
  !$acc loop gang vector collapse(2)
     do i = 1, nCellsSolve
     do k = 1, nVertLevels
@@ -703,7 +703,7 @@
                                gpu_compactHaloInfoSize_c_v, size(Uy_tend,1), size(Uy_tend,2))
 
 !!!
- !$acc parallel vector_length(32)
+ !$acc parallel
  !$acc loop gang vector collapse(2) private(cell1, cell2)
  do iEdge = 1, nEdgesScalar
  do k = 1, nVertLevels

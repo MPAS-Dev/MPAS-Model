@@ -673,7 +673,7 @@
  call mpas_pool_get_array_gpu(tend_physics,'rqccuten',rqccuten)
  call mpas_pool_get_array_gpu(tend_physics,'rqicuten',rqicuten)
 
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
@@ -683,9 +683,9 @@
  enddo
 !$acc end parallel
 
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(3)
  do j = jts,jte
+!$acc parallel
+!$acc loop gang vector collapse(2)
  do i = its,ite
  do k = kts,kte
     rthcuten_p(i,k,j) = rthcuten(k,i)
@@ -694,8 +694,8 @@
     rqicuten_p(i,k,j) = rqicuten(k,i)
  enddo
  enddo
- enddo
 !$acc end parallel
+ enddo
 
  convection_select: select case(convection_scheme)
 
@@ -821,7 +821,7 @@
        call mpas_pool_get_array_gpu(tend_physics,'rucuten'  ,rucuten  )
        call mpas_pool_get_array_gpu(tend_physics,'rvcuten'  ,rvcuten  )
 
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector collapse(2)
        do j = jts,jte
        do i = its,ite
@@ -832,17 +832,17 @@
        enddo
 !$acc end parallel
 
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(3)
        do j = jts,jte
+!$acc parallel
+!$acc loop gang vector collapse(2)
        do i = its,ite
        do k = kts,kte
           rucuten_p(i,k,j) = rucuten(k,i)
           rvcuten_p(i,k,j) = rvcuten(k,i)
        enddo
        enddo
-       enddo
 !$acc end parallel
+       enddo
 
        cu_tiedtke_select: select case(convection_scheme)
 
@@ -868,7 +868,7 @@
              call mpas_pool_get_array_gpu(tend_physics,'rthratenlw',rthratenlw)
              call mpas_pool_get_array_gpu(tend_physics,'rthratensw',rthratensw)
 
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector collapse(2)
              do j = jts,jte
              do i = its,ite
@@ -877,9 +877,9 @@
              enddo
 !$acc end parallel
 
-!$acc parallel vector_length(32)
-!$acc loop gang vector collapse(3)
              do j = jts,jte
+!$acc parallel
+!$acc loop gang vector collapse(2)
              do i = its,ite
              do k = kts,kte
                 rqvften_p(i,k,j) = rqvdynten(k,i) + rqvblten(k,i)
@@ -887,8 +887,8 @@
                                  + rthratenlw(k,i) + rthratensw(k,i)) * pi_p(i,k,j)
              enddo
              enddo
-             enddo
 !$acc end parallel
+             enddo
 
           case default
 
@@ -937,7 +937,7 @@
  call mpas_pool_get_array_gpu(tend_physics,'rqccuten',rqccuten)
  call mpas_pool_get_array_gpu(tend_physics,'rqicuten',rqicuten)
 
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector collapse(2)
  do j = jts,jte
  do i = its,ite
@@ -947,11 +947,11 @@
  enddo
 !$acc end parallel
 
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector collapse(3)
  do j = jts,jte
- do k = kts, kte
  do i = its,ite
+ do k = kts, kte
     rthcuten(k,i) = rthcuten_p(i,k,j)
     rqvcuten(k,i) = rqvcuten_p(i,k,j)
     rqccuten(k,i) = rqccuten_p(i,k,j)
@@ -1032,11 +1032,11 @@
        call mpas_pool_get_array_gpu(tend_physics,'rucuten',rucuten)
        call mpas_pool_get_array_gpu(tend_physics,'rvcuten',rvcuten)
 
-!$acc parallel vector_length(32)
+!$acc parallel
 !$acc loop gang vector collapse(3)
        do j = jts,jte
-       do k = kts,kte
        do i = its,ite
+       do k = kts,kte
           rucuten(k,i) = rucuten_p(i,k,j)
           rvcuten(k,i) = rvcuten_p(i,k,j)
        enddo

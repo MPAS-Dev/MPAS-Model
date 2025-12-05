@@ -338,7 +338,7 @@ else
 
     case("cld_fraction_thompson")
       call mpas_timer_start('cal_cldfra3')
-!$acc update host(dx_p,xland_p,qsrad_p)
+!$acc update host(dx_p,xland_p,qsrad_p,qvrad_p,qcrad_p,qirad_p,pres_hyd_p,t_p,rho_p)
       call cal_cldfra3( &
            cldfra = cldfrac_p , qv     = qvrad_p    , qc = qcrad_p , qi  = qirad_p , &
            qs     = qsrad_p   , p      = pres_hyd_p , t  = t_p     , rho = rho_p   , &

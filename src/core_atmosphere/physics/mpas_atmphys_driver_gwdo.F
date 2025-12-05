@@ -206,9 +206,9 @@
  enddo
 !$acc end parallel
 
-!$acc parallel vector_length(128)
-!$acc loop gang vector collapse(3)
  do j = jts,jte
+!$acc parallel
+!$acc loop gang vector collapse(2)
  do k = kts,kte
  do i = its,ite
     dtaux3d_p(i,k,j) = dtaux3d(k,i)
@@ -217,8 +217,8 @@
     rvblten_p(i,k,j) = rvblten(k,i)
  enddo
  enddo
- enddo
 !$acc end parallel
+ enddo
 
 !!!$acc update host(sina_p,cosa_p,var2d_p,con_p,oa1_p,oa2_p,oa3_p,oa4_p,ol1_p, &
 !!!$acc        ol2_p,ol3_p,ol4_p,dx_p,kpbl_p,dusfcg_p,dvsfcg_p,dtaux3d_p, &
@@ -268,10 +268,10 @@
  enddo
 
  do j = jts,jte
-!$acc parallel vector_length(128)
+!$acc parallel
 !$acc loop gang vector collapse(2)
- do k = kts,kte
  do i = its,ite
+ do k = kts,kte
     dtaux3d(k,i)  = dtaux3d_p(i,k,j)
     dtauy3d(k,i)  = dtauy3d_p(i,k,j)
     rubldiff(k,i) = rublten_p(i,k,j)-rublten(k,i)

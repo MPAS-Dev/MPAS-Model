@@ -81,8 +81,10 @@ module atm_core_interface
    !>  MPAS_DYNAMICS_RANKS_PER_NODE, which will be used to determine how
    !>  roles are assigned to MPI ranks.
    !>
-   !>  If MPAS-A was compiled with OpenACC support, this routine will also
-   !>  set OpenACC devices for each MPI rank on its first invocation.
+   !>  If MPAS-A was compiled with OpenACC support, this routine will not
+   !>  set OpenACC devices for each MPI rank on its first invocation. 
+   !>  The OpenACC devices needs to be set in a wrapper script during
+   !>  execution.
    !
    !-----------------------------------------------------------------------
    integer function atm_component_role(self)
@@ -96,11 +98,6 @@ module atm_core_interface
 #ifndef NOMPIMOD
       use mpi, only : MPI_COMM_TYPE_SHARED, MPI_INFO_NULL
 #endif
-#endif
-
-#ifdef MPAS_OPENACC
-      use openacc, only : acc_get_num_devices, acc_set_device_num, acc_set_device_type, &
-                          acc_device_nvidia, acc_device_host
 #endif
 
       implicit none
@@ -126,12 +123,6 @@ module atm_core_interface
       integer :: local_size
       integer :: on_node_comm
       integer :: socket_rank
-
-#ifdef MPAS_OPENACC
-      integer :: num_devices, my_device
-      integer :: role_comm, role_rank, role_size
-#endif
-
 
       !
       ! If this routine has not yet been called, attempt to read environment variables,
@@ -193,28 +184,29 @@ module atm_core_interface
                   end if
               end if
 
-
-              !
-              ! Assign devices based on rank in the role within a shared-memory node
-              !
-#ifdef MPAS_OPENACC
-#ifdef _MPI
-              call MPI_Comm_split(on_node_comm, role, local_rank, role_comm, ierr)
-              call MPI_Comm_rank(role_comm, role_rank, ierr)
-              call MPI_Comm_size(role_comm, role_size, ierr)
-#else
-              role_rank = 0
-              role_size = 1
-#endif
-
-              if (role == ROLE_INTEGRATE) then
-                  num_devices = acc_get_num_devices(acc_device_nvidia)
-                  my_device = (role_rank * num_devices) / role_size
-                  call acc_set_device_num(my_device, acc_device_nvidia)
-              else
-                  call acc_set_device_type(acc_device_host)
+              ! Special case where either of the Dynamics or Radiation is only 1
+              if (DYNAMICS_RANKS_PER_NODE == 1 .and. RADIATION_RANKS_PER_NODE == 1) then
+                  ! Special case: 1+1 ranks
+                  if (local_rank == 0) then
+                      role = ROLE_RADIATION
+                  else
+                      role = ROLE_INTEGRATE
+                  end if
+              else if (DYNAMICS_RANKS_PER_NODE == 1) then
+                  ! Special case: 1 dynamics rank
+                  if (local_rank == 1) then
+                      role = ROLE_INTEGRATE
+                  else
+                      role = ROLE_RADIATION
+                  end if
+              else if (RADIATION_RANKS_PER_NODE == 1) then
+                  ! Special case: 1 radiation rank
+                  if (local_rank == 0) then
+                      role = ROLE_RADIATION
+                  else
+                      role = ROLE_INTEGRATE
+                  end if
               end if
-#endif
 
           else ! At least one environment variable could not be successfully read
 

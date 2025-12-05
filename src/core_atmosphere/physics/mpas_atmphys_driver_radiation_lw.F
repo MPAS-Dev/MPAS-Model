@@ -502,6 +502,11 @@
                 call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
                 call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
 
+!!!
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
+ !$acc update host(re_cloud, re_ice, re_snow)
+ end if
+
                 do j = jts,jte
                 do k = kts,kte
                 do i = its,ite
@@ -511,6 +516,10 @@
                 enddo
                 enddo
                 enddo
+!!!
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
+ !$acc update device(re_cloud, re_ice, re_snow)
+ endif
              else
                 ! These are set in module mpas_atmphys_manager and should not be set again
                 !has_reqc = 0
@@ -692,6 +701,7 @@
  end select radiation_lw_select
  end if
 
+!!!
  if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
  !$acc update device(latCell, lonCell, aerosols, skintemp, snow, xice, &
  !$acc xland, pin, ozmixm, sfc_albedo, sfc_emiss, cldfrac, o3clim, &
@@ -806,6 +816,10 @@
              call mpas_pool_get_array(diag_physics,'rre_ice'  ,rre_ice  )
              call mpas_pool_get_array(diag_physics,'rre_snow' ,rre_snow )
 
+!!!
+ if (mpas_cpl%role_is(ROLE_INTEGRATE)) then
+ !$acc update host(rre_cloud, rre_ice, rre_snow)
+ end if
              if(config_microp_re) then
                 do j = jts,jte
                 do k = kts,kte
@@ -827,6 +841,7 @@
                 enddo
                 enddo
              endif
+!!!
 
           case default
        end select microp_select
@@ -986,6 +1001,10 @@
  call mpas_pool_get_array(diag_physics,'emstot',emstot)
  call mpas_pool_get_field(diag_physics,'emstot',emstotField)
  coupler => emstotField%block%domain%mpas_cpl
+!!!
+if (coupler%role_is(ROLE_INTEGRATE)) then
+!$acc update host(absnxt, abstot, emstot)
+end if
 
 !call mpas_log_write('--- writing absnxt,abstot,and emstot to restart = $l', logicArgs=(/l_camlw/))
  do j = jts,jte
@@ -1009,6 +1028,11 @@
  enddo
  enddo
  enddo
+
+!!!
+if (coupler%role_is(ROLE_INTEGRATE)) then
+!$acc update device(absnxt, abstot, emstot)
+end if
 
  end subroutine radiation_camlw_to_MPAS
 
