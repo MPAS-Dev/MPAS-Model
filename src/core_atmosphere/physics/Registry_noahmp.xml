@@ -319,31 +319,31 @@
       <var name="snliqxy" type="real" dimensions="nSnowLevels nCells Time" units="mm"
                 description="snow layer liquid" missing_value="-9999.0"/>
 
-      <var name="acc_ssoil" type="real" dimensions="nCells Time" units="W m^{-2}"
+      <var name="acc_ssoilxy" type="real" dimensions="nCells Time" units="W m^{-2}"
                 description="accumulated ssoil between dt_soil"/>
 
-      <var name="acc_qinsur" type="real" dimensions="nCells Time" units ="mm s^{-1}"
+      <var name="acc_qinsurxy" type="real" dimensions="nCells Time" units ="mm s^{-1}"
                 description="accumulated qinsur between dt_soil"/>
 
-      <var name="acc_qseva" type="real" dimensions="nCells Time" units ="mm s^{-1}"
+      <var name="acc_qsevaxy" type="real" dimensions="nCells Time" units ="mm s^{-1}"
                 description="accumulated qsevap between dt_soil"/>
 
-      <var name="acc_dwater" type="real" dimensions="nCells Time" units ="mm"
+      <var name="acc_dwaterxy" type="real" dimensions="nCells Time" units ="mm"
                 description="accumulated canopy,snow,soil water change between dt_soil"/>
 
-      <var name="acc_prcp" type="real" dimensions="nCells Time" units ="mm"
+      <var name="acc_prcpxy" type="real" dimensions="nCells Time" units ="mm"
                 description="accumulated precipitation between dt_soil"/>
 
-      <var name="acc_ecan" type="real" dimensions="nCells Time" units ="mm"
+      <var name="acc_ecanxy" type="real" dimensions="nCells Time" units ="mm"
                 description="accumulated net canopy evaporation between dt_soil"/>
 
-      <var name="acc_etran" type="real" dimensions="nCells Time" units ="mm"
+      <var name="acc_etranxy" type="real" dimensions="nCells Time" units ="mm"
                 description="accumulated transpiration between dt_soil"/>
 
-      <var name="acc_edir" type="real" dimensions="nCells Time" units ="mm"
+      <var name="acc_edirxy" type="real" dimensions="nCells Time" units ="mm"
                 description="accumulated net soil evaporation between dt_soil"/>
 
-      <var name="acc_etrani" type="real" dimensions="nSoilLevels nCells Time" units ="mm s^{-1}"
+      <var name="acc_etranixy" type="real" dimensions="nSoilLevels nCells Time" units ="mm s^{-1}"
                 description="accumulated etrani between dt_soil"/>
 
       <var name="gecros_state" type="real" dimensions="SIXTY nCells Time" units="-"
