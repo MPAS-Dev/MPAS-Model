@@ -25,8 +25,6 @@
       logical :: isSet
       type (MPAS_Time_type) :: ringTime
       type (MPAS_Time_type) :: prevRingTime
-      type (MPAS_Time_type) :: activeStartTime
-      type (MPAS_Time_type) :: activeStopTime
       type (MPAS_TimeInterval_type) :: ringTimeInterval
       type (MPAS_Alarm_type), pointer :: next => null()
    end type

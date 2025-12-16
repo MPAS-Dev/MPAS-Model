@@ -4582,14 +4582,13 @@ module mpas_pool_routines
 !> This routine inserts a integer value as a config option into inPool.
 !
 !-----------------------------------------------------------------------
-   subroutine mpas_pool_add_config_int(inPool, key, value, ierr)!{{{
+   subroutine mpas_pool_add_config_int(inPool, key, value)!{{{
 
       implicit none
 
       type (mpas_pool_type), intent(inout) :: inPool
       character (len=*), intent(in) :: key
       integer, intent(in) :: value
-      integer, intent(inout), optional :: ierr
 
       type (mpas_pool_member_type), pointer :: newmem
       integer :: threadNum
@@ -4609,7 +4608,7 @@ module mpas_pool_routines
          allocate(newmem % data % simple_int)
          newmem % data % simple_int = value
    
-         if (.not. pool_add_member(inPool, key, newmem, ierr)) then
+         if (.not. pool_add_member(inPool, key, newmem)) then
             deallocate(newmem % data)
             deallocate(newmem)
          end if
@@ -4771,8 +4770,6 @@ module mpas_pool_routines
 
       type (mpas_pool_data_type), pointer :: mem
 
-      nullify(value)
-
       if ( present(record) ) then
          call mpas_pool_get_subpool(inPool, record, recordPool)
          mem => pool_get_member(recordPool, key, MPAS_POOL_CONFIG)
@@ -4814,8 +4811,6 @@ module mpas_pool_routines
       type (mpas_pool_type), pointer :: recordPool
 
       type (mpas_pool_data_type), pointer :: mem
-
-      nullify(value)
 
       if ( present(record) ) then
          call mpas_pool_get_subpool(inPool, record, recordPool)
@@ -4859,8 +4854,6 @@ module mpas_pool_routines
 
       type (mpas_pool_data_type), pointer :: mem
 
-      nullify(value)
-
       if ( present(record) ) then
          call mpas_pool_get_subpool(inPool, record, recordPool)
          mem => pool_get_member(recordPool, key, MPAS_POOL_CONFIG)
@@ -4903,8 +4896,6 @@ module mpas_pool_routines
       type (mpas_pool_type), pointer :: recordPool
 
       type (mpas_pool_data_type), pointer :: mem
-
-      nullify(value)
 
       if ( present(record) ) then
          call mpas_pool_get_subpool(inPool, record, recordPool)
@@ -5158,7 +5149,6 @@ module mpas_pool_routines
 
       type (mpas_pool_data_type), pointer :: mem
 
-      nullify(subPool)
 
       mem => pool_get_member(inPool, key, MPAS_POOL_SUBPOOL)
 
@@ -5238,7 +5228,6 @@ module mpas_pool_routines
 
       type (mpas_pool_data_type), pointer :: mem
 
-      nullify(package)
 
       mem => pool_get_member(inPool, key, MPAS_POOL_PACKAGE)
 
@@ -5661,18 +5650,19 @@ module mpas_pool_routines
 
 !!!!!!!!!! Private subroutines !!!!!!!!!!
 
-   logical function pool_add_member(inPool, key, newmem, ierr)
+   logical function pool_add_member(inPool, key, newmem)!{{{
+
       implicit none
 
       type (mpas_pool_type), intent(inout) :: inPool
       character (len=*), intent(in) :: key
       type (mpas_pool_member_type), pointer :: newmem
-      integer, intent(out), optional :: ierr
 
-      integer :: hash
+      integer :: hash, oldLevel
       type (mpas_pool_member_type), pointer :: ptr
 
       call pool_hash(hash, trim(newmem % key))
+
       hash = mod(hash, inPool % size) + 1
 
       pool_add_member = .true.
@@ -5681,35 +5671,26 @@ module mpas_pool_routines
          inPool % table(hash) % head => newmem
       else
          ptr => inPool % table(hash) % head
+         do while (associated(ptr % next))
 
-         do while (associated(ptr))
-            ! Check for duplicates
             if (ptr % contentsType == newmem % contentsType .and. &
-                  ptr % keyLen == newmem % keyLen) then
+                ptr % keyLen == newmem % keyLen) then
                if (ptr % key(1:ptr%keyLen) == newmem % key(1:newmem%keyLen)) then
                   pool_add_member = .false.
-                  if (present(ierr)) then
-                     ierr = 1
-                  else
-                     call mpas_pool_set_error_level(MPAS_POOL_FATAL)
-                     call pool_mesg('Error: Field ' // trim(key) // &
-                           ' already exists in pool.')
-                  end if
+                  call mpas_pool_set_error_level(MPAS_POOL_FATAL)
+                  call pool_mesg('Error: Field '//trim(key)//' already exists in pool.')
                   return
                end if
             end if
-            ! If tail node reached, break so we can append
-            if (.not. associated(ptr%next)) exit
 
             ptr => ptr % next
          end do
-
-         ! Append new tail node
          ptr % next => newmem
       end if
-      ! --------------------------------------------------------------
-      ! Link into iteration list
-      ! --------------------------------------------------------------
+
+      !
+      ! Link the new member into the iteration list
+      !
       if (.not. associated(inPool % iteration_head)) then
          inPool % iteration_head => newmem
          inPool % iteration_tail => newmem
@@ -5718,7 +5699,8 @@ module mpas_pool_routines
          inPool % iteration_tail => newmem
          newmem % iteration_prev % iteration_next => newmem
       end if
-   end function pool_add_member
+
+   end function pool_add_member!}}}
 
 
    function pool_get_member(inPool, key, memType)!{{{

@@ -815,6 +815,7 @@ module mpas_bootstrapping
      ! Global edge indices
      allocate(indexToEdgeID)
      allocate(indexToEdgeID % array(nReadEdges))
+     allocate(indexToEdgeID % array(nReadEdges))
      do i=1,nReadEdges
         readIndices(i) = i + readEdgeStart - 1
      end do

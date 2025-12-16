@@ -116,24 +116,18 @@ module init_atm_core_interface
 
       logical, pointer :: initial_conds, sfc_update, lbcs
       logical, pointer :: gwd_stage_in, gwd_stage_out, vertical_stage_in, vertical_stage_out, met_stage_in, met_stage_out
-      logical, pointer :: gwd_gsl_stage_out
       logical, pointer :: config_native_gwd_static, config_static_interp, config_vertical_grid, config_met_interp
-      logical, pointer :: config_native_gwd_gsl_static
       logical, pointer :: first_guess_field
       logical, pointer :: mp_thompson_aers_in
       integer, pointer :: config_init_case
       logical, pointer :: noahmp, config_noahmp_static
 
 
-      ierr = init_atm_setup_packages_when(configs, packages)
-      if (ierr /= 0) then
-         return
-      end if
+      ierr = 0
 
       call mpas_pool_get_config(configs, 'config_init_case', config_init_case)
       call mpas_pool_get_config(configs, 'config_static_interp', config_static_interp)
       call mpas_pool_get_config(configs, 'config_native_gwd_static', config_native_gwd_static)
-      call mpas_pool_get_config(configs, 'config_native_gwd_gsl_static', config_native_gwd_gsl_static)
       call mpas_pool_get_config(configs, 'config_vertical_grid', config_vertical_grid)
       call mpas_pool_get_config(configs, 'config_met_interp', config_met_interp)
 
@@ -151,9 +145,6 @@ module init_atm_core_interface
 
       nullify(gwd_stage_out)
       call mpas_pool_get_package(packages, 'gwd_stage_outActive', gwd_stage_out)
-
-      nullify(gwd_gsl_stage_out)
-      call mpas_pool_get_package(packages, 'gwd_gsl_stage_outActive', gwd_gsl_stage_out)
 
       nullify(vertical_stage_in)
       call mpas_pool_get_package(packages, 'vertical_stage_inActive', vertical_stage_in)
@@ -174,7 +165,6 @@ module init_atm_core_interface
           .not. associated(sfc_update) .or. &
           .not. associated(gwd_stage_in) .or. &
           .not. associated(gwd_stage_out) .or. &
-          .not. associated(gwd_gsl_stage_out) .or. &
           .not. associated(vertical_stage_in) .or. &
           .not. associated(vertical_stage_out) .or. &
           .not. associated(met_stage_in) .or. &
@@ -215,7 +205,6 @@ module init_atm_core_interface
          gwd_stage_in = config_native_gwd_static .and. &
                         (.not. config_static_interp)
          gwd_stage_out = config_native_gwd_static
-         gwd_gsl_stage_out = config_native_gwd_gsl_static
          vertical_stage_in = config_vertical_grid .and. &
                              (.not. config_native_gwd_static) .and. &
                              (.not. config_static_interp)
@@ -233,7 +222,6 @@ module init_atm_core_interface
       else if (config_init_case == 8) then
          gwd_stage_in = .false.
          gwd_stage_out = .false.
-         gwd_gsl_stage_out = .false.
          vertical_stage_in = .true.
          vertical_stage_out = .false.
          met_stage_in = .false.
@@ -246,7 +234,6 @@ module init_atm_core_interface
       else if (config_init_case == 9) then
          gwd_stage_in = .false.
          gwd_stage_out = .false.
-         gwd_gsl_stage_out = .false.
          vertical_stage_in = .false.
          vertical_stage_out = .false.
          met_stage_in = .true.
@@ -261,7 +248,6 @@ module init_atm_core_interface
       else if (config_init_case == 13) then
          gwd_stage_in = .false.
          gwd_stage_out = .false.
-         gwd_gsl_stage_out = .false.
          vertical_stage_in = .false.
          vertical_stage_out = .true.
          met_stage_in = .false.
@@ -270,7 +256,6 @@ module init_atm_core_interface
       else
          gwd_stage_in = .false.
          gwd_stage_out = .false.
-         gwd_gsl_stage_out = .false.
          vertical_stage_in = .false.
          vertical_stage_out = .false.
          met_stage_in = .false.
@@ -527,8 +512,6 @@ module init_atm_core_interface
 #include "block_dimension_routines.inc"
 
 #include "define_packages.inc"
-
-#include "setup_packages.inc"
 
 #include "structs_and_variables.inc"
 

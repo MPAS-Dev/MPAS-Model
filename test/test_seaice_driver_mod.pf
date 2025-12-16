@@ -1,0 +1,44 @@
+module test_seaice_driver_mod
+   use funit
+   use mpi
+   use mpas_test_utils_mod, only : mock_logger, delete_file
+
+   implicit none
+
+   @TestCase
+   type, extends(TestCase) :: test_seaice_driver
+   integer :: ierr
+   contains
+      procedure :: setUp
+      procedure :: tearDown
+      procedure :: test_blend_frac_seaice
+   end type test_seaice_driver
+
+contains
+
+   !===============================================================================
+   ! setUp
+   !===============================================================================
+   subroutine setUp(this)
+      class(test_seaice_driver), intent(inout) :: this
+
+      this%ierr = 0
+
+   end subroutine setUp
+
+   !===============================================================================
+   ! tearDown
+   !===============================================================================
+   subroutine tearDown(this)
+      class(test_seaice_driver), intent(inout) :: this
+      this%ierr = 0
+   end subroutine tearDown
+
+   @Test
+   subroutine test_blend_frac_seaice(this)
+      class(test_seaice_driver), intent(inout) :: this
+
+      @assertEqual(this%ierr, 0)
+   end subroutine test_blend_frac_seaice
+
+end module test_seaice_driver_mod

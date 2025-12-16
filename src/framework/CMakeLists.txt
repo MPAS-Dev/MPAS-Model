@@ -24,7 +24,6 @@ set(MPAS_FRAMEWORK_SOURCES
         mpas_framework.F
         mpas_halo.F
         mpas_io.F
-        mpas_pio.f90
         mpas_io_streams.F
         mpas_log.F
         mpas_stream_inquiry.F
@@ -38,20 +37,19 @@ set(MPAS_FRAMEWORK_SOURCES
         stream_inquiry.c)
 
 add_library(framework ${MPAS_FRAMEWORK_SOURCES})
-target_link_libraries(framework PRIVATE PIO::PIO_Fortran)
 set_MPAS_DEBUG_flag(framework)
 set(FRAMEWORK_COMPILE_DEFINITIONS
     mpas=1
     MPAS_NATIVE_TIMERS)
-if (MPAS_USE_PIO)
+if (MPAS_USE_SMIOL)
+    list(APPEND FRAMEWORK_COMPILE_DEFINITIONS MPAS_SMIOL_SUPPORT)
+    set(IO_LIBS
+        ${PROJECT_NAME}::external::smiolf)
+else()
     list(APPEND FRAMEWORK_COMPILE_DEFINITIONS USE_PIO2 MPAS_PIO_SUPPORT)
     set(IO_LIBS
         PIO::PIO_Fortran
         PIO::PIO_C)
-else()
-    list(APPEND FRAMEWORK_COMPILE_DEFINITIONS MPAS_SMIOL_SUPPORT)
-    set(IO_LIBS
-        ${PROJECT_NAME}::external::smiolf)
 endif()
 target_compile_definitions(framework PRIVATE ${FRAMEWORK_COMPILE_DEFINITIONS})
 
@@ -65,6 +63,8 @@ set(FRAMEWORK_LINK_LIBRARIES
         ${PROJECT_NAME}::external::ezxml
         ${IO_LIBS}
         PnetCDF::PnetCDF_Fortran
+        NetCDF::NetCDF_Fortran
+        NetCDF::NetCDF_C
         MPI::MPI_Fortran)
 
 if (MPAS_PROFILE)

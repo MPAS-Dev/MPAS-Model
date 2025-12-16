@@ -36,18 +36,8 @@
 
 
 !=================================================================================================================
- subroutine allocate_seaice(configs)
+ subroutine allocate_seaice
 !=================================================================================================================
-
-!input arguments:
- type(mpas_pool_type),intent(in):: configs
-
-!local pointers:
- character(len=StrKIND),pointer:: lsm_scheme
-
-!-----------------------------------------------------------------------------------------------------------------
-
- call mpas_pool_get_config(configs,'config_lsm_scheme',lsm_scheme)
 
  if(.not.allocated(acsnom_p)    ) allocate(acsnom_p(ims:ime,jms:jme)    )
  if(.not.allocated(acsnow_p)    ) allocate(acsnow_p(ims:ime,jms:jme)    )
@@ -65,6 +55,8 @@
  if(.not.allocated(hfx_p)       ) allocate(hfx_p(ims:ime,jms:jme)       )
  if(.not.allocated(qfx_p)       ) allocate(qfx_p(ims:ime,jms:jme)       )
  if(.not.allocated(lh_p)        ) allocate(lh_p(ims:ime,jms:jme)        )
+ if(.not.allocated(noahres_p)   ) allocate(noahres_p(ims:ime,jms:jme)   )
+ if(.not.allocated(potevp_p)    ) allocate(potevp_p(ims:ime,jms:jme)    )
  if(.not.allocated(rainbl_p)    ) allocate(rainbl_p(ims:ime,jms:jme)    )
  if(.not.allocated(sfc_albedo_p)) allocate(sfc_albedo_p(ims:ime,jms:jme))
  if(.not.allocated(sfc_emiss_p) ) allocate(sfc_emiss_p(ims:ime,jms:jme) )
@@ -73,6 +65,7 @@
  if(.not.allocated(snow_p)      ) allocate(snow_p(ims:ime,jms:jme)      )
  if(.not.allocated(snowc_p)     ) allocate(snowc_p(ims:ime,jms:jme)     )
  if(.not.allocated(snowh_p)     ) allocate(snowh_p(ims:ime,jms:jme)     )
+ if(.not.allocated(snopcx_p)    ) allocate(snopcx_p(ims:ime,jms:jme)    )
  if(.not.allocated(snowsi_p)    ) allocate(snowsi_p(ims:ime,jms:jme)    )
  if(.not.allocated(swdown_p)    ) allocate(swdown_p(ims:ime,jms:jme)    )
  if(.not.allocated(sr_p)        ) allocate(sr_p(ims:ime,jms:jme)        )
@@ -80,6 +73,9 @@
  if(.not.allocated(xice_p)      ) allocate(xice_p(ims:ime,jms:jme)      )
  if(.not.allocated(z0_p)        ) allocate(z0_p(ims:ime,jms:jme)        )
  if(.not.allocated(znt_p)       ) allocate(znt_p(ims:ime,jms:jme)       )
+ if(.not.allocated(q2_p)        ) allocate(q2_p(ims:ime,jms:jme)        )
+ if(.not.allocated(t2m_p)       ) allocate(t2m_p(ims:ime,jms:jme)       )
+ if(.not.allocated(th2m_p)      ) allocate(th2m_p(ims:ime,jms:jme)      )
 
  if(.not.allocated(tsk_sea)     ) allocate(tsk_sea(ims:ime,jms:jme)     )
  if(.not.allocated(tsk_ice)     ) allocate(tsk_ice(ims:ime,jms:jme)     )
@@ -89,30 +85,11 @@
 
  if(.not.allocated(tslb_p)) allocate(tslb_p(ims:ime,1:num_soils,jms:jme))
 
- sf_select: select case(trim(lsm_scheme))
-    case("sf_noah")
-       if(.not.allocated(noahres_p)) allocate(noahres_p(ims:ime,jms:jme))
-       if(.not.allocated(potevp_p) ) allocate(potevp_p(ims:ime,jms:jme) )
-       if(.not.allocated(snopcx_p) ) allocate(snopcx_p(ims:ime,jms:jme) )
-
-    case default
- end select sf_select
-
  end subroutine allocate_seaice
 
 !=================================================================================================================
- subroutine deallocate_seaice(configs)
+ subroutine deallocate_seaice
 !=================================================================================================================
-
-!input arguments:
- type(mpas_pool_type),intent(in):: configs
-
-!local pointers:
- character(len=StrKIND),pointer:: lsm_scheme
-
-!-----------------------------------------------------------------------------------------------------------------
-
- call mpas_pool_get_config(configs,'config_lsm_scheme',lsm_scheme)
 
  if(allocated(acsnom_p)    ) deallocate(acsnom_p    )
  if(allocated(acsnow_p)    ) deallocate(acsnow_p    )
@@ -130,6 +107,8 @@
  if(allocated(hfx_p)       ) deallocate(hfx_p       )
  if(allocated(qfx_p)       ) deallocate(qfx_p       )
  if(allocated(lh_p)        ) deallocate(lh_p        )
+ if(allocated(noahres_p)   ) deallocate(noahres_p   )
+ if(allocated(potevp_p)    ) deallocate(potevp_p    )
  if(allocated(rainbl_p)    ) deallocate(rainbl_p    )
  if(allocated(sfc_albedo_p)) deallocate(sfc_albedo_p)
  if(allocated(sfc_emiss_p) ) deallocate(sfc_emiss_p )
@@ -138,6 +117,7 @@
  if(allocated(snow_p)      ) deallocate(snow_p      )
  if(allocated(snowc_p)     ) deallocate(snowc_p     )
  if(allocated(snowh_p)     ) deallocate(snowh_p     )
+ if(allocated(snopcx_p)    ) deallocate(snopcx_p    )
  if(allocated(snowsi_p)    ) deallocate(snowsi_p    )
  if(allocated(swdown_p)    ) deallocate(swdown_p    )
  if(allocated(sr_p)        ) deallocate(sr_p        )
@@ -145,6 +125,9 @@
  if(allocated(xice_p)      ) deallocate(xice_p      )
  if(allocated(z0_p)        ) deallocate(z0_p        )
  if(allocated(znt_p)       ) deallocate(znt_p       )
+ if(allocated(q2_p)        ) deallocate(q2_p        )
+ if(allocated(t2m_p)       ) deallocate(t2m_p       )
+ if(allocated(th2m_p)      ) deallocate(th2m_p      )
 
  if(allocated(chs_sea)     ) deallocate(chs_sea     )
  if(allocated(chs2_sea)    ) deallocate(chs2_sea    )
@@ -163,15 +146,6 @@
 
  if(allocated(tslb_p)) deallocate(tslb_p)
 
- sf_select: select case(trim(lsm_scheme))
-    case("sf_noah")
-       if(allocated(noahres_p)) deallocate(noahres_p)
-       if(allocated(potevp_p) ) deallocate(potevp_p )
-       if(allocated(snopcx_p) ) deallocate(snopcx_p )
-
-    case default
- end select sf_select
-
  end subroutine deallocate_seaice
 
 !=================================================================================================================
@@ -186,7 +160,6 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: convection_scheme, &
-                                  lsm_scheme,        &
                                   microp_scheme
 
  real(kind=RKIND),dimension(:),pointer:: acsnom,acsnow,br,chs,chs2,cpm,cqs2,qgh,qsfc,glw,gsw,grdflx,hfx, &
@@ -202,7 +175,6 @@
 !call mpas_log_write('--- enter subroutine seaice_from_MPAS:')
 
  call mpas_pool_get_config(configs,'config_convection_scheme',convection_scheme)
- call mpas_pool_get_config(configs,'config_lsm_scheme'       ,lsm_scheme       )
  call mpas_pool_get_config(configs,'config_microp_scheme'    ,microp_scheme    )
 
  call mpas_pool_get_array(diag_physics,'acsnom'    ,acsnom    )
@@ -220,9 +192,12 @@
  call mpas_pool_get_array(diag_physics,'hfx'       ,hfx       )
  call mpas_pool_get_array(diag_physics,'qfx'       ,qfx       )
  call mpas_pool_get_array(diag_physics,'lh'        ,lh        )
+ call mpas_pool_get_array(diag_physics,'noahres'   ,noahres   )
+ call mpas_pool_get_array(diag_physics,'potevp'    ,potevp    )
  call mpas_pool_get_array(diag_physics,'sfc_albedo',sfc_albedo)
  call mpas_pool_get_array(diag_physics,'sfc_emiss' ,sfc_emiss )
  call mpas_pool_get_array(diag_physics,'sfcrunoff' ,sfcrunoff )
+ call mpas_pool_get_array(diag_physics,'snopcx'    ,snopcx    )
  call mpas_pool_get_array(diag_physics,'z0'        ,z0        )
  call mpas_pool_get_array(diag_physics,'znt'       ,znt       )
 
@@ -242,6 +217,7 @@
        qgh_p(i,j)       = qgh(i)
        snoalb_p(i,j)    = snoalb(i)
        br_p(i,j)        = br(i)
+       cpm_p(i,j)       = cpm(i)
        chs_p(i,j)       = chs(i)
        swdown_p(i,j)    = gsw(i)/(1._RKIND-sfc_albedo(i))
 
@@ -261,6 +237,9 @@
        albsi_p(i,j)     = seaice_albedo_default
        snowsi_p(i,j)    = seaice_snowdepth_min
        icedepth_p(i,j)  = seaice_thickness_default
+       !--- inout optional variables:
+       potevp_p(i,j)    = potevp(i)
+       snopcx_p(i,j)    = snopcx(i)
 
        !--- output variables:
        hfx_p(i,j)       = hfx(i)
@@ -270,9 +249,11 @@
        grdflx_p(i,j)    = grdflx(i)
        qsfc_p(i,j)      = qsfc(i)
        chs2_p(i,j)      = chs2(i)
+       !--- output optional variables:
+       noahres_p(i,j)   = noahres(i)
 
        !modify the surface albedo and surface emissivity, and surface temperatures over sea-ice points:
-       if(xice(i).ge.xice_threshold .and. xice(i).le.1._RKIND) then
+       if(xice(i).ge.xice_threshold .and. xice(i).lt.1._RKIND) then
           sfc_albedo_p(i,j) = (sfc_albedo(i) - 0.08_RKIND*(1._RKIND-xice(i))) / xice(i)
           sfc_emiss_p(i,j)  = (sfc_emiss(i) - 0.98_RKIND*(1._RKIND-xice(i))) / xice(i)
        else
@@ -310,24 +291,6 @@
     endif
  enddo
 
- sf_select: select case(trim(lsm_scheme))
-    case("sf_noah")
-       call mpas_pool_get_array(diag_physics,'noahres',noahres)
-       call mpas_pool_get_array(diag_physics,'potevp' ,potevp )
-       call mpas_pool_get_array(diag_physics,'snopcx' ,snopcx )
-
-       do j = jts,jte
-          do i = its,ite
-             !--- inout and out optional variables:
-             noahres_p(i,j) = noahres(i)
-             potevp_p(i,j)  = potevp(i)
-             snopcx_p(i,j)  = snopcx(i)
-          enddo
-       enddo
-
-    case default
- end select sf_select
-
 !call mpas_log_write('--- end subroutine seaice_from_MPAS:')
 
  end subroutine seaice_from_MPAS
@@ -343,20 +306,23 @@
  integer,intent(in):: its,ite
 
 !local pointers:
- character(len=StrKIND),pointer:: lsm_scheme
+ character(len=StrKIND),pointer:: config_microp_scheme
 
  real(kind=RKIND),dimension(:),pointer:: acsnom,acsnow,chs,chs2,cpm,cqs2,qgh,qsfc,grdflx,hfx, qfx,lh,noahres, &
                                          potevp,sfc_albedo,sfc_emiss,sfcrunoff,snopcx,z0,znt
  real(kind=RKIND),dimension(:),pointer:: snow,snowc,snowh,skintemp,xice
+ real(kind=RKIND),dimension(:),pointer:: t2m,th2m,q2
  real(kind=RKIND),dimension(:,:),pointer:: tslb
 
 !local variables and arrays:
  integer:: i,j,n
+!local pointers:
+ logical,pointer:: config_frac_seaice
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('--- enter subroutine seaice_to_MPAS:')
 
- call mpas_pool_get_config(configs,'config_lsm_scheme',lsm_scheme)
+ call mpas_pool_get_config(configs,'config_frac_seaice',config_frac_seaice)
 
  call mpas_pool_get_array(diag_physics,'acsnom'    ,acsnom    )
  call mpas_pool_get_array(diag_physics,'acsnow'    ,acsnow    )
@@ -370,11 +336,17 @@
  call mpas_pool_get_array(diag_physics,'hfx'       ,hfx       )
  call mpas_pool_get_array(diag_physics,'qfx'       ,qfx       )
  call mpas_pool_get_array(diag_physics,'lh'        ,lh        )
+ call mpas_pool_get_array(diag_physics,'noahres'   ,noahres   )
+ call mpas_pool_get_array(diag_physics,'potevp'    ,potevp    )
  call mpas_pool_get_array(diag_physics,'sfc_albedo',sfc_albedo)
  call mpas_pool_get_array(diag_physics,'sfc_emiss' ,sfc_emiss )
  call mpas_pool_get_array(diag_physics,'sfcrunoff' ,sfcrunoff )
+ call mpas_pool_get_array(diag_physics,'snopcx'    ,snopcx    )
  call mpas_pool_get_array(diag_physics,'z0'        ,z0        )
  call mpas_pool_get_array(diag_physics,'znt'       ,znt       )
+ call mpas_pool_get_array(diag_physics,'t2m'       ,t2m       )
+ call mpas_pool_get_array(diag_physics,'th2m'      ,th2m      )
+ call mpas_pool_get_array(diag_physics,'q2'        ,q2        )
 
  call mpas_pool_get_array(sfc_input,'snow'    ,snow    )
  call mpas_pool_get_array(sfc_input,'snowc'   ,snowc   )
@@ -383,12 +355,12 @@
  call mpas_pool_get_array(sfc_input,'tslb'    ,tslb    )
  call mpas_pool_get_array(sfc_input,'xice'    ,xice    )
 
-!--- reconstruct local variables as functions of the seaice fraction:
+!--- weigh local variables needed in the calculation of t2m, th2m, and q2 over seaice points:
+if(config_frac_seaice) then
  do j = jts,jte
     do i = its,ite
-       if(xice_p(i,j).ge.xice_threshold .and. xice_p(i,j).le.1._RKIND) then
-          cpm(i) = xice_p(i,j)*cpm(i) + (1._RKIND-xice_p(i,j))*cpm_sea(i,j)
-
+       if(xice_p(i,j).ge.xice_threshold .and. xice_p(i,j).lt.1._RKIND) then
+          cpm_p(i,j)  = xice_p(i,j)*cpm_p(i,j)  + (1._RKIND-xice_p(i,j))*cpm_sea(i,j)
           chs_p(i,j)  = xice_p(i,j)*chs_p(i,j)  + (1._RKIND-xice_p(i,j))*chs_sea(i,j)
           chs2_p(i,j) = xice_p(i,j)*chs2_p(i,j) + (1._RKIND-xice_p(i,j))*chs2_sea(i,j)
           cqs2_p(i,j) = xice_p(i,j)*cqs2_p(i,j) + (1._RKIND-xice_p(i,j))*cqs2_sea(i,j)
@@ -403,6 +375,17 @@
        endif
     enddo
  enddo
+endif
+
+ call sfcdiags( &
+             hfx   = hfx_p  , qfx     = qfx_p   , tsk  = tsk_p , qsfc = qsfc_p , chs = chs_p , &
+             chs2  = chs2_p , cqs2    = cqs2_p  , t2   = t2m_p , th2  = th2m_p , q2  = q2_p  , &
+             psfc  = psfc_p , t3d     = t_p     , qv3d = qv_p  , cp   = cp     , R_d = R_d   , &
+             rovcp = rcp    , ua_phys = ua_phys                                              , &
+             ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,           &
+             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,           &
+             its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
+                    )
 
 !--- update all variables:
  do j = jts,jte
@@ -419,14 +402,20 @@
        acsnom(i)    = acsnom_p(i,j)
        acsnow(i)    = acsnow_p(i,j)
        sfcrunoff(i) = sfcrunoff_p(i,j)
+       !--- inout optional variables:
+       potevp(i)    = potevp_p(i,j)
+       snopcx(i)    = snopcx_p(i,j)
 
        !--- output variables:
        znt(i)       = znt_p(i,j)
        grdflx(i)    = grdflx_p(i,j)
+       !--- output optional variables:
+       noahres(i)   = noahres_p(i,j)
 
        chs(i)  = chs_p(i,j)
        chs2(i) = chs2_p(i,j)
        cqs2(i) = cqs2_p(i,j)
+       cpm(i)  = cpm_p(i,j)
        qsfc(i) = qsfc_p(i,j)
        qgh(i)  = qgh_p(i,j)
        hfx(i)  = hfx_p(i,j)
@@ -434,26 +423,13 @@
        lh(i)   = lh_p(i,j)
        sfc_albedo(i) = sfc_albedo_p(i,j)
        sfc_emiss(i)  = sfc_emiss_p(i,j)
+
+       !--- 2-meter diagnostics:
+       q2(i)   = q2_p(i,j)
+       t2m(i)  = t2m_p(i,j)
+       th2m(i) = th2m_p(i,j)
     enddo
  enddo
-
- sf_select: select case(trim(lsm_scheme))
-    case("sf_noah")
-       call mpas_pool_get_array(diag_physics,'noahres',noahres)
-       call mpas_pool_get_array(diag_physics,'potevp' ,potevp )
-       call mpas_pool_get_array(diag_physics,'snopcx' ,snopcx )
-
-       do j = jts,jte
-          do i = its,ite
-             !--- inout and out optional variables:
-             noahres(i) = noahres_p(i,j)
-             potevp(i)  = potevp_p(i,j)
-             snopcx(i)  = snopcx_p(i,j)
-          enddo
-       enddo
-
-    case default
- end select sf_select
 
 !call mpas_log_write('--- end subroutine seaice_to_MPAS:')
 
@@ -472,82 +448,44 @@
  type(mpas_pool_type),intent(inout):: sfc_input
 
 !local pointers:
- character(len=StrKIND),pointer:: lsm_scheme
+ integer:: i,j
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write(' ')
 !call mpas_log_write('--- enter subroutine driver_seaice: xice_threshold = $r',realArgs=(/xice_threshold/))
 
- call mpas_pool_get_config(configs,'config_lsm_scheme',lsm_scheme)
-
 !copy MPAS arrays to local arrays:
  call seaice_from_MPAS(configs,diag_physics,sfc_input,its,ite)
 
- sf_select: select case(trim(lsm_scheme))
-    case("sf_noah")
-       call seaice_noah( &
-                dz8w   = dz_p         , p8w3d     = pres2_hyd_p , t3d      = t_p         , &
-                qv3d   = qv_p         , xice      = xice_p      , snoalb2d = snoalb_p    , &
-                glw    = glw_p        , swdown    = swdown_p    , rainbl   = rainbl_p    , &
-                sr     = sr_p         , qgh       = qgh_p       , tsk      = tsk_p       , &
-                hfx    = hfx_p        , qfx       =  qfx_p      , lh       = lh_p        , &
-                grdflx = grdflx_p     , qsfc      = qsfc_p      , emiss    = sfc_emiss_p , &
-                albedo = sfc_albedo_p , rib       = br_p        , cqs2     = cqs2_p      , &
-                chs    = chs_p        , chs2      = chs2_p      , z02d     = z0_p        , &
-                znt    = znt_p        , tslb      = tslb_p      , snow     = snow_p      , &
-                snowc  = snowc_p      , snowh2d   = snowh_p     , acsnow   = acsnow_p    , &
-                acsnom = acsnom_p     , sfcrunoff = sfcrunoff_p , albsi    = albsi_p     , &
-                snowsi = snowsi_p     , icedepth  = icedepth_p  , dt       = dt_pbl      , &
-                frpcpn = frpcpn       , noahres = noahres_p     , potevp  = potevp_p     , &
-                snopcx    = snopcx_p                                                     , &
-                seaice_albedo_opt        = seaice_albedo_opt        ,                      &
-                seaice_albedo_default    = seaice_albedo_default    ,                      &
-                seaice_thickness_opt     = seaice_thickness_opt     ,                      &
-                seaice_thickness_default = seaice_thickness_default ,                      &
-                seaice_snowdepth_opt     = seaice_snowdepth_opt     ,                      &
-                seaice_snowdepth_max     = seaice_snowdepth_max     ,                      &
-                seaice_snowdepth_min     = seaice_snowdepth_min     ,                      &
-                xice_threshold           = xice_threshold           ,                      &
-                num_soil_layers          = num_soils                ,                      &
-                sf_urban_physics         = sf_urban_physics         ,                      &
-                ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,    &
-                ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,    &
-                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte      &
-                       )
-
-
-    case("sf_noahmp")
-       call seaice_noah( &
-                dz8w   = dz_p         , p8w3d     = pres2_hyd_p , t3d      = t_p         , &
-                qv3d   = qv_p         , xice      = xice_p      , snoalb2d = snoalb_p    , &
-                glw    = glw_p        , swdown    = swdown_p    , rainbl   = rainbl_p    , &
-                sr     = sr_p         , qgh       = qgh_p       , tsk      = tsk_p       , &
-                hfx    = hfx_p        , qfx       =  qfx_p      , lh       = lh_p        , &
-                grdflx = grdflx_p     , qsfc      = qsfc_p      , emiss    = sfc_emiss_p , &
-                albedo = sfc_albedo_p , rib       = br_p        , cqs2     = cqs2_p      , &
-                chs    = chs_p        , chs2      = chs2_p      , z02d     = z0_p        , &
-                znt    = znt_p        , tslb      = tslb_p      , snow     = snow_p      , &
-                snowc  = snowc_p      , snowh2d   = snowh_p     , acsnow   = acsnow_p    , &
-                acsnom = acsnom_p     , sfcrunoff = sfcrunoff_p , albsi    = albsi_p     , &
-                snowsi = snowsi_p     , icedepth  = icedepth_p  , dt       = dt_pbl      , &
-                frpcpn = frpcpn       ,                                                    &
-                seaice_albedo_opt        = seaice_albedo_opt        ,                      &
-                seaice_albedo_default    = seaice_albedo_default    ,                      &
-                seaice_thickness_opt     = seaice_thickness_opt     ,                      &
-                seaice_thickness_default = seaice_thickness_default ,                      &
-                seaice_snowdepth_opt     = seaice_snowdepth_opt     ,                      &
-                seaice_snowdepth_max     = seaice_snowdepth_max     ,                      &
-                seaice_snowdepth_min     = seaice_snowdepth_min     ,                      &
-                xice_threshold           = xice_threshold           ,                      &
-                num_soil_layers          = num_soils                ,                      &
-                sf_urban_physics         = sf_urban_physics         ,                      &
-                ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,    &
-                ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,    &
-                its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte      &
-                       )
-
-    case default
- end select sf_select
+ call seaice_noah( &
+             dz8w      = dz_p        , p8w3d   = pres2_hyd_p  , t3d      = t_p      , &
+             qv3d      = qv_p        , xice    = xice_p       , snoalb2d = snoalb_p , &
+             glw       = glw_p       , swdown  = swdown_p     , rainbl   = rainbl_p , &
+             sr        = sr_p        , qgh     = qgh_p        , tsk      = tsk_p    , &
+             hfx       = hfx_p       , qfx     = qfx_p        , lh       = lh_p     , &
+             grdflx    = grdflx_p    , potevp  = potevp_p     , qsfc     = qsfc_p   , &
+             emiss     = sfc_emiss_p , albedo  = sfc_albedo_p , rib      = br_p     , &
+             cqs2      = cqs2_p      , chs     = chs_p        , chs2     = chs2_p   , &
+             z02d      = z0_p        , znt     = znt_p        , tslb     = tslb_p   , &
+             snow      = snow_p      , snowc   = snowc_p      , snowh2d  = snowh_p  , &
+             snopcx    = snopcx_p    , acsnow  = acsnow_p     , acsnom   = acsnom_p , &
+             sfcrunoff = sfcrunoff_p , albsi   = albsi_p      , snowsi   = snowsi_p , &
+             icedepth  = icedepth_p  , noahres = noahres_p    , dt       = dt_pbl   , &
+             frpcpn    = frpcpn      ,                                                &
+             seaice_albedo_opt        = seaice_albedo_opt        ,                    &
+             seaice_albedo_default    = seaice_albedo_default    ,                    &
+             seaice_thickness_opt     = seaice_thickness_opt     ,                    &
+             seaice_thickness_default = seaice_thickness_default ,                    &
+             seaice_snowdepth_opt     = seaice_snowdepth_opt     ,                    &
+             seaice_snowdepth_max     = seaice_snowdepth_max     ,                    &
+             seaice_snowdepth_min     = seaice_snowdepth_min     ,                    &
+             xice_threshold           = xice_threshold           ,                    &
+             num_soil_layers          = num_soils                ,                    &
+             sf_urban_physics         = sf_urban_physics         ,                    &
+             ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,  &
+             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,  &
+             its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte    &
+                 )
 
 !copy local arrays to MPAS grid:
  call seaice_to_MPAS(configs,diag_physics,sfc_input,its,ite)

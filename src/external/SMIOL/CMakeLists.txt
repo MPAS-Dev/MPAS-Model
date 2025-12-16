@@ -1,5 +1,6 @@
 
 find_package(MPI REQUIRED COMPONENTS C Fortran)
+find_package(NetCDF REQUIRED COMPONENTS Fortran C)
 find_package(PnetCDF REQUIRED COMPONENTS Fortran C)
 
 # Specify the library source files

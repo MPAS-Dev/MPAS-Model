@@ -12,9 +12,6 @@ OBJS =  \
 	mpas_init_atm_hinterp.o \
 	mpas_init_atm_static.o \
 	mpas_init_atm_gwd.o \
-	mpas_gsl_oro_data_sm_scale.o \
-	mpas_gsl_oro_data_lg_scale.o \
-	mpas_init_atm_gwd_gsl.o \
 	mpas_init_atm_surface.o \
 	mpas_init_atm_vinterp.o \
 	mpas_init_atm_thompson_aerosols.o \
@@ -60,7 +57,6 @@ mpas_init_atm_cases.o: \
 	mpas_init_atm_hinterp.o \
 	mpas_init_atm_static.o \
 	mpas_init_atm_gwd.o \
-	mpas_init_atm_gwd_gsl.o \
 	mpas_init_atm_surface.o \
 	mpas_init_atm_thompson_aerosols.o \
 	mpas_init_atm_vinterp.o \
@@ -117,10 +113,6 @@ mpas_atmphys_initialize_real.o:  \
 	mpas_init_atm_surface.o  \
 	mpas_atmphys_date_time.o \
 	mpas_atmphys_utilities.o
-
-mpas_init_atm_gwd_gsl.o: \
-	mpas_gsl_oro_data_sm_scale.o \
-	mpas_gsl_oro_data_lg_scale.o
 
 clean:
 	$(RM) *.o *.mod *.f90 libdycore.a

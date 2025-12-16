@@ -6,7 +6,7 @@ target_include_directories(mpas_test_utils INTERFACE
 )
 target_link_libraries(mpas_test_utils PUBLIC PIO::PIO_Fortran )
 
-add_pfunit_ctest (test_mpas_pio_put_att
-        TEST_SOURCES test_mpas_pio_put_att_mod.pf
-        LINK_LIBRARIES framework mpas_test_utils PIO::PIO_Fortran
+add_pfunit_ctest (test_seaice_driver_mod
+        TEST_SOURCES test_seaice_driver_mod.pf
+        LINK_LIBRARIES framework core_atmosphere mpas_test_utils
 )

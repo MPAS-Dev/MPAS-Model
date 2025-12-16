@@ -715,7 +715,6 @@ module mpas_block_creator
      ! Deallocate array and field.
      deallocate(sendingHaloLayers)
      call mpas_deallocate_field(offSetField)
-     call mpas_deallocate_field(cellLimitField)
 
    end subroutine mpas_block_creator_build_cell_halos!}}}
 

@@ -45,7 +45,6 @@ module init_atm_cases
 
       use mpas_stream_manager
       use mpas_init_atm_gwd, only : compute_gwd_fields
-      use mpas_init_atm_gwd_gsl, only : calc_gsl_oro_data
 
       implicit none
 
@@ -66,7 +65,6 @@ module init_atm_cases
       integer, pointer :: config_init_case
       logical, pointer :: config_static_interp
       logical, pointer :: config_native_gwd_static
-      logical, pointer :: config_native_gwd_gsl_static
       logical, pointer :: config_met_interp
       logical, pointer :: config_blend_bdy_terrain
       character (len=StrKIND), pointer :: config_start_time
@@ -160,7 +158,7 @@ module init_atm_cases
             call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
 
             call mpas_log_write(' calling test case setup ')
-            call init_atm_case_mtn_wave(domain % dminfo, mesh, nCells, nVertLevels, state, diag, block_ptr % configs)
+            call init_atm_case_mtn_wave(mesh, nCells, nVertLevels, state, diag, block_ptr % configs)
             call decouple_variables(mesh, nCells, nVertLevels, state, diag)
             call mpas_log_write(' returned from test case setup ')
             block_ptr => block_ptr % next
@@ -176,7 +174,6 @@ module init_atm_cases
 
             call mpas_pool_get_config(block_ptr % configs, 'config_static_interp', config_static_interp)
             call mpas_pool_get_config(block_ptr % configs, 'config_native_gwd_static', config_native_gwd_static)
-            call mpas_pool_get_config(block_ptr % configs, 'config_native_gwd_gsl_static', config_native_gwd_gsl_static)
             call mpas_pool_get_config(block_ptr % configs, 'config_met_interp', config_met_interp)
             call mpas_pool_get_config(block_ptr % configs, 'config_blend_bdy_terrain', config_blend_bdy_terrain)
 
@@ -225,19 +222,6 @@ module init_atm_cases
                if (ierr /= 0) then
                   call mpas_log_write('****************************************************************', messageType=MPAS_LOG_ERR)
                   call mpas_log_write('Error while trying to compute sub-grid-scale orography',           messageType=MPAS_LOG_ERR)
-                  call mpas_log_write('statistics for use with the GWDO scheme.',                         messageType=MPAS_LOG_ERR)
-                  call mpas_log_write('****************************************************************', messageType=MPAS_LOG_CRIT)
-               end if
-            end if
-
-            if (config_native_gwd_gsl_static) then
-               call mpas_log_write(' ')
-               call mpas_log_write('Computing GWDO static fields for UGWP orog drag on the native MPAS mesh')
-               call mpas_log_write(' ')
-               call calc_gsl_oro_data(domain,ierr)
-               if (ierr /= 0) then
-                  call mpas_log_write('****************************************************************', messageType=MPAS_LOG_ERR)
-                  call mpas_log_write('Error while trying to compute sub-grid-scale GSL orography',       messageType=MPAS_LOG_ERR)
                   call mpas_log_write('statistics for use with the GWDO scheme.',                         messageType=MPAS_LOG_ERR)
                   call mpas_log_write('****************************************************************', messageType=MPAS_LOG_CRIT)
                end if
@@ -347,7 +331,7 @@ module init_atm_cases
                                       diag, lbc_state, block_ptr % dimensions, block_ptr % configs)
 
                call mpas_get_time(start_time, dateTimeString=timeStart)
-               call init_atm_thompson_aerosols_lbc(timeString, timeStart, block_ptr, mesh, diag, lbc_state)
+               call init_atm_thompson_aerosols_lbc(timeString, timeStart, block_ptr, mesh, diag, state, lbc_state)
 
                block_ptr => block_ptr % next
             end do
@@ -1985,15 +1969,13 @@ module init_atm_cases
 !----------------------------------------------------------------------------------------------------------
 
 
-   subroutine init_atm_case_mtn_wave(dminfo, mesh, nCells, nVertLevels, state, diag, configs)
+   subroutine init_atm_case_mtn_wave(mesh, nCells, nVertLevels, state, diag, configs)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   ! Setup mountain wave test case from Schär et al. (2001): A New Terrain-Following Vertical
-   ! Coordinate Formulation for Atmospheric Prediction Models
+   ! Setup baroclinic wave test case from Jablonowski and Williamson 2008 (QJRMS)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       implicit none
 
-      type (dm_info), intent(in) :: dminfo
       type (mpas_pool_type), intent(inout) :: mesh
       integer, intent(in) :: nCells
       integer, intent(in) :: nVertLevels
@@ -2177,8 +2159,7 @@ module init_atm_cases
       ! for hx computation
       xa = 5000. !SHP - should be changed based on grid distance 
       xla = 4000.
-      call mpas_dmpar_max_real(dminfo, maxval(xCell(:)), xc)
-      xc = xc * 0.5
+      xc = maxval (xCell(:))/2. 
 
       !     metrics for hybrid coordinate and vertical stretching
       str = 1.0
@@ -3488,8 +3469,7 @@ module init_atm_cases
 
       do while (istatus == 0)
 
-         ! interp_list(1) = FOUR_POINT
-         interp_list(1) = SIXTEEN_POINT
+         interp_list(1) = FOUR_POINT
          interp_list(2) = SEARCH
          interp_list(3) = 0
 
@@ -3519,14 +3499,6 @@ module init_atm_cases
              trim(field % field) == 'SM028100' .or. &
              trim(field % field) == 'SM100255' .or. &
              trim(field % field) == 'SM100289' .or. &
-             trim(field % field) == 'SOILM001' .or. &
-             trim(field % field) == 'SOILM002' .or. &
-             trim(field % field) == 'SOILM006' .or. &
-             trim(field % field) == 'SOILM018' .or. &
-             trim(field % field) == 'SOILM054' .or. &
-             trim(field % field) == 'SOILM162' .or. &
-             trim(field % field) == 'SOILM486' .or. &
-             trim(field % field) == 'SOILM999' .or. &
              trim(field % field) == 'ST000010' .or. &
              trim(field % field) == 'ST010040' .or. &
              trim(field % field) == 'ST040100' .or. &
@@ -3537,14 +3509,6 @@ module init_atm_cases
              trim(field % field) == 'ST028100' .or. &
              trim(field % field) == 'ST100255' .or. &
              trim(field % field) == 'ST100289' .or. &
-             trim(field % field) == 'SOILT001' .or. &
-             trim(field % field) == 'SOILT002' .or. &
-             trim(field % field) == 'SOILT006' .or. &
-             trim(field % field) == 'SOILT018' .or. &
-             trim(field % field) == 'SOILT054' .or. &
-             trim(field % field) == 'SOILT162' .or. &
-             trim(field % field) == 'SOILT486' .or. &
-             trim(field % field) == 'SOILT999' .or. &
              trim(field % field) == 'PRES' .or. &
              trim(field % field) == 'PRESSURE' .or. &
              trim(field % field) == 'SNOW' .or. &
@@ -3561,14 +3525,6 @@ module init_atm_cases
                 trim(field % field) == 'SM028100' .or. &
                 trim(field % field) == 'SM100255' .or. &
                 trim(field % field) == 'SM100289' .or. &
-                trim(field % field) == 'SOILM001' .or. &
-                trim(field % field) == 'SOILM002' .or. &
-                trim(field % field) == 'SOILM006' .or. &
-                trim(field % field) == 'SOILM018' .or. &
-                trim(field % field) == 'SOILM054' .or. &
-                trim(field % field) == 'SOILM162' .or. &
-                trim(field % field) == 'SOILM486' .or. &
-                trim(field % field) == 'SOILM999' .or. &
                 trim(field % field) == 'ST000010' .or. &
                 trim(field % field) == 'ST010040' .or. &
                 trim(field % field) == 'ST040100' .or. &
@@ -3579,14 +3535,6 @@ module init_atm_cases
                 trim(field % field) == 'ST028100' .or. &
                 trim(field % field) == 'ST100255' .or. &
                 trim(field % field) == 'ST100289' .or. &
-                trim(field % field) == 'SOILT001' .or. &
-                trim(field % field) == 'SOILT002' .or. &
-                trim(field % field) == 'SOILT006' .or. &
-                trim(field % field) == 'SOILT018' .or. &
-                trim(field % field) == 'SOILT054' .or. &
-                trim(field % field) == 'SOILT162' .or. &
-                trim(field % field) == 'SOILT486' .or. &
-                trim(field % field) == 'SOILT999' .or. &
                 trim(field % field) == 'SNOW' .or. &
                 trim(field % field) == 'SEAICE' .or. &
                 trim(field % field) == 'SKINTEMP') then
@@ -3612,7 +3560,6 @@ module init_atm_cases
                ! many unique levels are found using the code above
                !
                if (too_many_fg_levs) then
-                  deallocate(field % slab)
                   call read_next_met_field(field, istatus)
                   cycle
                end if
@@ -3958,166 +3905,6 @@ module init_atm_cases
                ndims = 2
                dzs_fg(k,:) = 289.-100.
                zs_fg(k,:) = 289.
-            else if (trim(field % field) == 'SOILM001') then
-               call mpas_log_write('Interpolating SOILM001')
-
-               interp_list(1) = FOUR_POINT
-               interp_list(2) = W_AVERAGE4
-               interp_list(3) = SEARCH
-               interp_list(4) = 0
-
-               maskval = 0.0
-               masked = 0
-               fillval = 1.0
-
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'sm_fg', destField2d)
-               k = 1
-               ndims = 2
-               dzs_fg(k,:) = 1.-0.
-               zs_fg(k,:) = 1.
-            else if (trim(field % field) == 'SOILM002') then
-               call mpas_log_write('Interpolating SOILM002')
-
-               interp_list(1) = FOUR_POINT
-               interp_list(2) = W_AVERAGE4
-               interp_list(3) = SEARCH
-               interp_list(4) = 0
-
-               maskval = 0.0
-               masked = 0
-               fillval = 1.0
-
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'sm_fg', destField2d)
-               k = 2
-               ndims = 2
-               dzs_fg(k,:) = 3.-1.
-               zs_fg(k,:) = 3.
-            else if (trim(field % field) == 'SOILM006') then
-               call mpas_log_write('Interpolating SOILM006')
-
-               interp_list(1) = FOUR_POINT
-               interp_list(2) = W_AVERAGE4
-               interp_list(3) = SEARCH
-               interp_list(4) = 0
-
-               maskval = 0.0
-               masked = 0
-               fillval = 1.0
-
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'sm_fg', destField2d)
-               k = 3
-               ndims = 2
-               dzs_fg(k,:) = 9.-3.
-               zs_fg(k,:) = 9.
-            else if (trim(field % field) == 'SOILM018') then
-               call mpas_log_write('Interpolating SOILM018')
-
-               interp_list(1) = FOUR_POINT
-               interp_list(2) = W_AVERAGE4
-               interp_list(3) = SEARCH
-               interp_list(4) = 0
-
-               maskval = 0.0
-               masked = 0
-               fillval = 1.0
-
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'sm_fg', destField2d)
-               k = 4
-               ndims = 2
-               dzs_fg(k,:) = 27.-9.
-               zs_fg(k,:) = 27.
-            else if (trim(field % field) == 'SOILM054') then
-               call mpas_log_write('Interpolating SOILM054')
-
-               interp_list(1) = FOUR_POINT
-               interp_list(2) = W_AVERAGE4
-               interp_list(3) = SEARCH
-               interp_list(4) = 0
-
-               maskval = 0.0
-               masked = 0
-               fillval = 1.0
-
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'sm_fg', destField2d)
-               k = 5
-               ndims = 2
-               dzs_fg(k,:) = 81.-27.
-               zs_fg(k,:) = 81.
-            else if (trim(field % field) == 'SOILM162') then
-               call mpas_log_write('Interpolating SOILM162')
-
-               interp_list(1) = FOUR_POINT
-               interp_list(2) = W_AVERAGE4
-               interp_list(3) = SEARCH
-               interp_list(4) = 0
-
-               maskval = 0.0
-               masked = 0
-               fillval = 1.0
-
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'sm_fg', destField2d)
-               k = 6
-               ndims = 2
-               dzs_fg(k,:) = 243.-81.
-               zs_fg(k,:) = 243.
-            else if (trim(field % field) == 'SOILM486') then
-               call mpas_log_write('Interpolating SOILM486')
-
-               interp_list(1) = FOUR_POINT
-               interp_list(2) = W_AVERAGE4
-               interp_list(3) = SEARCH
-               interp_list(4) = 0
-
-               maskval = 0.0
-               masked = 0
-               fillval = 1.0
-
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'sm_fg', destField2d)
-               k = 7
-               ndims = 2
-               dzs_fg(k,:) = 729.-243.
-               zs_fg(k,:) = 729.
-            else if (trim(field % field) == 'SOILM999') then
-               call mpas_log_write('Interpolating SOILM999')
-
-               interp_list(1) = FOUR_POINT
-               interp_list(2) = W_AVERAGE4
-               interp_list(3) = SEARCH
-               interp_list(4) = 0
-
-               maskval = 0.0
-               masked = 0
-               fillval = 1.0
-
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'sm_fg', destField2d)
-               k = 8
-               ndims = 2
-               dzs_fg(k,:) = 2187.-729.
-               zs_fg(k,:) = 2187.
             else if (trim(field % field) == 'ST000010') then
                call mpas_log_write('Interpolating ST000010')
 
@@ -4328,174 +4115,6 @@ module init_atm_cases
                ndims = 2
                dzs_fg(k,:) = 289.-100.
                zs_fg(k,:) = 289.
-            else if (trim(field % field) == 'SOILT001') then
-               call mpas_log_write('Interpolating SOILT001')
-
-               interp_list(1) = SIXTEEN_POINT
-               interp_list(2) = FOUR_POINT
-               interp_list(3) = W_AVERAGE4
-               interp_list(4) = SEARCH
-               interp_list(5) = 0
-
-               maskval = 0.0
-               masked = 0
-               fillval = 285.0
-
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'st_fg', destField2d)
-               k = 1
-               ndims = 2
-               dzs_fg(k,:) = 1.-0.
-               zs_fg(k,:) = 1.
-            else if (trim(field % field) == 'SOILT002') then
-               call mpas_log_write('Interpolating SOILT002')
-
-               interp_list(1) = SIXTEEN_POINT
-               interp_list(2) = FOUR_POINT
-               interp_list(3) = W_AVERAGE4
-               interp_list(4) = SEARCH
-               interp_list(5) = 0
-
-               maskval = 0.0
-               masked = 0
-               fillval = 285.0
-
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'st_fg', destField2d)
-               k = 2
-               ndims = 2
-               dzs_fg(k,:) = 3.-1.
-               zs_fg(k,:) = 3.
-            else if (trim(field % field) == 'SOILT006') then
-               call mpas_log_write('Interpolating SOILT006')
-
-               interp_list(1) = SIXTEEN_POINT
-               interp_list(2) = FOUR_POINT
-               interp_list(3) = W_AVERAGE4
-               interp_list(4) = SEARCH
-               interp_list(5) = 0
-
-               maskval = 0.0
-               masked = 0
-               fillval = 285.0
-
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'st_fg', destField2d)
-               k = 3
-               ndims = 2
-               dzs_fg(k,:) = 9.-3.
-               zs_fg(k,:) = 9.
-            else if (trim(field % field) == 'SOILT018') then
-               call mpas_log_write('Interpolating SOILT018')
-
-               interp_list(1) = SIXTEEN_POINT
-               interp_list(2) = FOUR_POINT
-               interp_list(3) = W_AVERAGE4
-               interp_list(4) = SEARCH
-               interp_list(5) = 0
-
-               maskval = 0.0
-               masked = 0
-               fillval = 285.0
-
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'st_fg', destField2d)
-               k = 4
-               ndims = 2
-               dzs_fg(k,:) = 27.-9.
-               zs_fg(k,:) = 27.
-            else if (trim(field % field) == 'SOILT054') then
-               call mpas_log_write('Interpolating SOILT054')
-
-               interp_list(1) = SIXTEEN_POINT
-               interp_list(2) = FOUR_POINT
-               interp_list(3) = W_AVERAGE4
-               interp_list(4) = SEARCH
-               interp_list(5) = 0
-
-               maskval = 0.0
-               masked = 0
-               fillval = 285.0
-
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'st_fg', destField2d)
-               k = 5
-               ndims = 2
-               dzs_fg(k,:) = 81.-27.
-               zs_fg(k,:) = 81.
-            else if (trim(field % field) == 'SOILT162') then
-               call mpas_log_write('Interpolating SOILT162')
-
-               interp_list(1) = SIXTEEN_POINT
-               interp_list(2) = FOUR_POINT
-               interp_list(3) = W_AVERAGE4
-               interp_list(4) = SEARCH
-               interp_list(5) = 0
-
-               maskval = 0.0
-               masked = 0
-               fillval = 285.0
-
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'st_fg', destField2d)
-               k = 6
-               ndims = 2
-               dzs_fg(k,:) = 243.-81.
-               zs_fg(k,:) = 243.
-            else if (trim(field % field) == 'SOILT486') then
-               call mpas_log_write('Interpolating SOILT486')
-
-               interp_list(1) = SIXTEEN_POINT
-               interp_list(2) = FOUR_POINT
-               interp_list(3) = W_AVERAGE4
-               interp_list(4) = SEARCH
-               interp_list(5) = 0
-
-               maskval = 0.0
-               masked = 0
-               fillval = 285.0
-
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'st_fg', destField2d)
-               k = 7
-               ndims = 2
-               dzs_fg(k,:) = 729.-243.
-               zs_fg(k,:) = 729.
-            else if (trim(field % field) == 'SOILT999') then
-               call mpas_log_write('Interpolating SOILT999')
-
-               interp_list(1) = SIXTEEN_POINT
-               interp_list(2) = FOUR_POINT
-               interp_list(3) = W_AVERAGE4
-               interp_list(4) = SEARCH
-               interp_list(5) = 0
-
-               maskval = 0.0
-               masked = 0
-               fillval = 285.0
-
-               nInterpPoints = nCells
-               latPoints => latCell
-               lonPoints => lonCell
-               call mpas_pool_get_array(fg, 'st_fg', destField2d)
-               k = 8
-               ndims = 2
-               dzs_fg(k,:) = 2187.-729.
-               zs_fg(k,:) = 2187.
             else if (trim(field % field) == 'SNOW') then
                call mpas_log_write('Interpolating SNOW')
 
@@ -5642,8 +5261,7 @@ call mpas_log_write('Done with soil consistency check')
 
       do while (istatus == 0)
 
-         ! interp_list(1) = FOUR_POINT
-         interp_list(1) = SIXTEEN_POINT
+         interp_list(1) = FOUR_POINT
          interp_list(2) = SEARCH
          interp_list(3) = 0
 
@@ -5678,7 +5296,6 @@ call mpas_log_write('Done with soil consistency check')
                ! many unique levels are found using the code above
                !
                if (too_many_fg_levs) then
-                  deallocate(field % slab)
                   call read_next_met_field(field, istatus)
                   cycle
                end if
@@ -5924,6 +5541,7 @@ call mpas_log_write('Done with soil consistency check')
             target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
             relhum(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
                                        sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=0)
+            if (target_z < z_fg(1,iCell) .and. k < nVertLevels) relhum(k,iCell) = relhum(k+1,iCell)
          end do
 
 
@@ -5941,6 +5559,7 @@ call mpas_log_write('Done with soil consistency check')
             target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
             spechum(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
                                         sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=0)
+            if (target_z < z_fg(1,iCell) .and. k < nVertLevels) spechum(k,iCell) = spechum(k+1,iCell)
          end do
 
 
@@ -6217,7 +5836,6 @@ call mpas_log_write('Done with soil consistency check')
       use mpas_dmpar, only : mpas_dmpar_exch_halo_field, mpas_dmpar_min_real, mpas_dmpar_max_real
       use mpas_stream_manager, only : MPAS_stream_mgr_stream_exists, MPAS_stream_mgr_read
       use mpas_derived_types, only : MPAS_STREAM_MGR_NOERR
-      use mpas_vector_operations, only : mpas_initialize_vectors
 
       implicit none
 
@@ -6387,13 +6005,6 @@ call mpas_log_write('Done with soil consistency check')
       !
       call atm_initialize_advection_rk(mesh, nCells, nEdges, maxEdges, on_a_sphere, sphere_radius)
       call atm_initialize_deformation_weights(mesh, nCells, on_a_sphere, sphere_radius)
-
-
-      !
-      ! Compute edgeNormalVectors, cellTangentPlane, and localVerticalUnitVectors
-      ! (NB: these are the same fields computed by the mpas_rbf_interp_initialize routine)
-      !
-      call mpas_initialize_vectors(mesh)
 
 
       !
@@ -7088,7 +6699,7 @@ call mpas_log_write('Done with soil consistency check')
             dzs(iSoil,iCell) =   0.0
          end do
       
-         !monthly climatological surface albedo and greenness fraction:
+         !monthly climatological surface albedo and greeness fraction:
          do iMonth = 1, nMonths
             albedo12m(iMonth,iCell) = 0.08
             greenfrac(iMonth,iCell) = 0.0
