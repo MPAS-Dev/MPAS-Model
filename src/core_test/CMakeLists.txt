@@ -21,6 +21,9 @@ set(test_core_srcs
         mpas_test_openacc.F
         mpas_test_core_string_utils.F
         mpas_test_core_dmpar.F
+        mpas_test_core_timekeeping_tests.F
+        mpas_test_core_streams.F
+        mpas_test_core_stream_inquiry.F
 )
 
 add_library(core_test ${test_core_srcs})

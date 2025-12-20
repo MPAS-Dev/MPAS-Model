@@ -1,0 +1,25 @@
+#define SMIOL_SUCCESS             (0)
+#define SMIOL_MALLOC_FAILURE     (-1)
+#define SMIOL_INVALID_ARGUMENT   (-2)
+#define SMIOL_MPI_ERROR          (-3)
+#define SMIOL_FORTRAN_ERROR      (-4)
+#define SMIOL_LIBRARY_ERROR      (-5)
+#define SMIOL_WRONG_ARG_TYPE     (-6)
+#define SMIOL_INSUFFICIENT_ARG   (-7)
+#define SMIOL_INVALID_FORMAT     (-8)
+
+#define SMIOL_FILE_CREATE         (1)
+#define SMIOL_FILE_READ           (2)
+#define SMIOL_FILE_WRITE          (4)
+
+#define SMIOL_LIBRARY_UNKNOWN  (1000)
+#define SMIOL_LIBRARY_PNETCDF  (1001)
+
+#define SMIOL_REAL32           (2000)
+#define SMIOL_REAL64           (2001)
+#define SMIOL_INT32            (2002)
+#define SMIOL_CHAR             (2003)
+#define SMIOL_UNKNOWN_VAR_TYPE (2004)
+
+#define SMIOL_FORMAT_CDF2      (3000)
+#define SMIOL_FORMAT_CDF5      (3001)
