@@ -51,6 +51,7 @@ module atm_advection
       real (kind=RKIND) :: thetae_tmp
       real (kind=RKIND) :: xv1, xv2, yv1, yv2, zv1, zv2
       integer :: i, j, k, ip1, ip2, n
+      integer :: iv1, iv2
       integer :: iCell, iEdge
       real (kind=RKIND) :: pii
       real (kind=RKIND), dimension(25) :: xp, yp
@@ -292,12 +293,26 @@ module atm_advection
             if (ip1 > n-1) ip1 = 1
   
             iEdge = edgesOnCell(i,iCell)
-            xv1 = xVertex(verticesOnEdge(1,iedge))/sphere_radius
-            yv1 = yVertex(verticesOnEdge(1,iedge))/sphere_radius
-            zv1 = zVertex(verticesOnEdge(1,iedge))/sphere_radius
-            xv2 = xVertex(verticesOnEdge(2,iedge))/sphere_radius
-            yv2 = yVertex(verticesOnEdge(2,iedge))/sphere_radius
-            zv2 = zVertex(verticesOnEdge(2,iedge))/sphere_radius
+
+            ! Defensive: halos may have incomplete connectivity
+            if (iEdge < 1 .or. iEdge > nEdges) then
+               do_the_cell = .false.
+               exit
+            end if
+
+            iv1 = verticesOnEdge(1,iEdge)
+            iv2 = verticesOnEdge(2,iEdge)
+            if (iv1 < 1 .or. iv1 > size(xVertex) .or. iv2 < 1 .or. iv2 > size(xVertex)) then
+               do_the_cell = .false.
+               exit
+            end if
+
+            xv1 = xVertex(iv1)/sphere_radius
+            yv1 = yVertex(iv1)/sphere_radius
+            zv1 = zVertex(iv1)/sphere_radius
+            xv2 = xVertex(iv2)/sphere_radius
+            yv2 = yVertex(iv2)/sphere_radius
+            zv2 = zVertex(iv2)/sphere_radius
   
             if ( on_a_sphere ) then
                call arc_bisect( xv1, yv1, zv1,  &
@@ -322,10 +337,14 @@ module atm_advection
   
          end do
 
+         if ( .not. do_the_cell ) cycle
+
 !  fill second derivative stencil for rk advection 
 
          do i=1, nEdgesOnCell(iCell)
             iEdge = edgesOnCell(i,iCell)
+
+            if (iEdge < 1 .or. iEdge > nEdges) cycle
   
   
             if ( on_a_sphere ) then
@@ -769,6 +788,7 @@ module atm_advection
       real (kind=RKIND), dimension(25) :: thetav, thetat, dl_sphere
       real (kind=RKIND) :: dl
       integer :: i, ip1, ip2, n
+      integer :: iEdge
       integer :: iCell
       real (kind=RKIND) :: pii
       real (kind=RKIND), dimension(25) :: xp, yp
@@ -820,6 +840,17 @@ module atm_advection
             if (cell_list(i) > nCells) do_the_cell = .false.
          end do
 
+
+         if (.not. do_the_cell) cycle
+
+         ! Defensive: ensure edge indices used below are valid
+         do i=1,n-1
+            iEdge = edgesOnCell(i,iCell)
+            if (iEdge < 1 .or. iEdge > size(cellsOnEdge,2)) then
+               do_the_cell = .false.
+               exit
+            end if
+         end do
 
          if (.not. do_the_cell) cycle
 
@@ -927,7 +958,8 @@ module atm_advection
             defc_b(i,iCell) = dl*2.*sint_cost/area_cell
             cell_gradient_coef_x(i,iCell) = dl*cos(thetat(i))/area_cell
             cell_gradient_coef_y(i,iCell) = dl*sin(thetat(i))/area_cell
-            if (cellsOnEdge(1,EdgesOnCell(i,iCell)) /= iCell) then
+            iEdge = edgesOnCell(i,iCell)
+            if (cellsOnEdge(1,iEdge) /= iCell) then
                defc_a(i,iCell) = - defc_a(i,iCell)
                defc_b(i,iCell) = - defc_b(i,iCell)
             end if
