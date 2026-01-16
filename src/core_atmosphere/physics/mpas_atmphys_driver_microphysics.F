@@ -22,6 +22,9 @@
  use module_mp_wsm6,only: wsm6
  use mp_wsm6,only: mp_wsm6_init,refl10cm_wsm6
 
+ use module_mp_tempo_cfgs,only: ty_tempo_cfgs
+ use module_mp_tempo_driver,only: tempo_init, tempo_driver, &
+      ty_tempo_driver_diags, tempo_aerosol_surface_emissions
 
  implicit none
  private
