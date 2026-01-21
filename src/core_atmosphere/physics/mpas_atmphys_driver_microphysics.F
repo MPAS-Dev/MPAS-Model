@@ -418,10 +418,13 @@
 
 !local variables and arrays:
  integer:: istep
+ integer:: i,j,k
 
 !CCPP-compliant flags:
  character(len=StrKIND):: errmsg
  integer:: errflg
+
+ type(ty_tempo_driver_diags) :: tempo_driver_diags
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
@@ -462,6 +465,63 @@
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte     &
                    )
        call mpas_timer_stop('mp_kessler')
+
+    case ("mp_tempo")
+
+       if (allocated(nwfa_p) .and. allocated(nwfa2d_p)) then
+         call tempo_aerosol_surface_emissions(dt=dt_microp, nwfa=nwfa_p, nwfa2d=nwfa2d_p, &      
+            ims=ims, ime=ime, jms=jms, jme=jme, kms=kms, kme=kme, kts=kts)                       
+       endif
+
+       call mpas_timer_start('mp_tempo')
+
+       istep = 1
+       do while (istep .le. n_microp)
+         call tempo_run( tempo_cfgs=tempo_cfgs, &
+            dt      = dt_microp  , itimestep  = itimestep , &
+            th      = th_p       , qv         = qv_p      , qc      = qc_p   , &                 
+            qr      = qr_p       , qi         = qi_p      , qs     = qs_p    , &                 
+            qg      = qg_p       , ni         = ni_p      , nr     = nr_p    , &                 
+            w       = w_p     , &                 
+!            ng      = ng_p       , qb         = volg_p    , w      = w_p     , &
+            nc      = nc_p       , nwfa       = nwfa_p    , nifa   = nifa_p  , &                 
+            pii     = pi_p       , p          = pres_p    , dz     = dz_p    , &                 
+            ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &            
+            ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme , &            
+            its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte , &            
+            tempo_diags = tempo_driver_diags)
+         do j = jts, jte
+         do i = its, ite
+            ! precipitation variables are summed in case of multiple calls when n_microp > 1         
+            snowncv_p(i,j) = snowncv_p(i,j) + tempo_driver_diags%ice_liquid_equiv_precip(i,j) + &
+               tempo_driver_diags%snow_liquid_equiv_precip(i,j)
+            snownc_p(i,j) = snownc_p(i,j) + tempo_driver_diags%ice_liquid_equiv_precip(i,j) + &
+               tempo_driver_diags%snow_liquid_equiv_precip(i,j)
+            graupelncv_p(i,j) = graupelncv_p(i,j) + tempo_driver_diags%graupel_liquid_equiv_precip(i,j)
+            graupelnc_p(i,j) = graupelnc_p(i,j) + tempo_driver_diags%graupel_liquid_equiv_precip(i,j)      
+            rainncv_p(i,j) = rainncv_p(i,j) + tempo_driver_diags%rain_precip(i,j) + &
+               tempo_driver_diags%ice_liquid_equiv_precip(i,j)  + &
+               tempo_driver_diags%snow_liquid_equiv_precip(i,j) + &
+               tempo_driver_diags%graupel_liquid_equiv_precip(i,j)
+            rainnc_p(i,j) = rainnc_p(i,j) + tempo_driver_diags%rain_precip(i,j) + &
+               tempo_driver_diags%ice_liquid_equiv_precip(i,j)  + &
+               tempo_driver_diags%snow_liquid_equiv_precip(i,j) + &
+               tempo_driver_diags%graupel_liquid_equiv_precip(i,j)
+            sr_p(i,j) = tempo_driver_diags%frozen_fraction(i,j)
+            !frainnc_p = frainnc_p + tempo_driver_diags%frz_rain_precip
+            !max_hail_diameter_sfc_p = tempo_driver_diags%max_hail_diameter_sfc                      
+            !max_hail_diameter_column_p = tempo_driver_diags%max_hail_diameter_column
+            do k = kts, kte
+            !refl10cm_p = tempo_driver_diags%refl10cm
+               recloud_p(i,k,j) = tempo_driver_diags%re_cloud(i,k,j)
+               reice_p(i,k,j) = tempo_driver_diags%re_ice(i,k,j)
+               resnow_p(i,k,j) = tempo_driver_diags%re_snow(i,k,j)
+            enddo
+         enddo
+         enddo                
+       istep = istep + 1
+       enddo
+       call mpas_timer_stop('mp_tempo')
 
     case ("mp_thompson")
        call mpas_timer_start('mp_thompson')
