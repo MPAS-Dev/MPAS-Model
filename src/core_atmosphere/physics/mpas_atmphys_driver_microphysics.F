@@ -92,7 +92,7 @@
 
 !--- initialization option for WSM6 from WRF version 3.8.1. this option could also be set as a namelist parameter.
  integer,parameter:: hail_opt = 0
-
+ type(ty_tempo_cfgs) tempo_cfgs
 
  contains
 
@@ -106,10 +106,12 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
+ logical,pointer:: config_tempo_aerosolaware
 
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
+ call mpas_pool_get_config(configs,'config_tempo_aerosolaware',config_tempo_aerosolaware)
 
 !sounding variables:
  if(.not.allocated(rho_p) ) allocate(rho_p(ims:ime,kms:kme,jms:jme) )
@@ -152,10 +154,32 @@
        if(.not.allocated(rainprod_p)) allocate(rainprod_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(evapprod_p)) allocate(evapprod_p(ims:ime,kms:kme,jms:jme))
 
+    case ("mp_tempo")
+       !mass mixing ratios:
+       if(.not.allocated(qi_p)) allocate(qi_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(qs_p)) allocate(qs_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(qg_p)) allocate(qg_p(ims:ime,kms:kme,jms:jme))
+
+       !surface precipitation:
+       if(.not.allocated(sr_p)        ) allocate(sr_p(ims:ime,jms:jme)        )
+       if(.not.allocated(snownc_p)    ) allocate(snownc_p(ims:ime,jms:jme)    )
+       if(.not.allocated(snowncv_p)   ) allocate(snowncv_p(ims:ime,jms:jme)   )
+       if(.not.allocated(graupelnc_p) ) allocate(graupelnc_p(ims:ime,jms:jme) )
+       if(.not.allocated(graupelncv_p)) allocate(graupelncv_p(ims:ime,jms:jme))
+
+       !cloud water,cloud ice,and snow effective radii:
+       if(.not.allocated(recloud_p)) allocate(recloud_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(reice_p)  ) allocate(reice_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(resnow_p) ) allocate(resnow_p(ims:ime,kms:kme,jms:jme) )
+
     microp2_select: select case(trim(microp_scheme))
        case("mp_thompson","mp_thompson_aerosols")
           if(.not.allocated(ntc_p)) allocate(ntc_p(ims:ime,jms:jme))
           if(.not.allocated(muc_p)) allocate(muc_p(ims:ime,jms:jme))
+          if(.not.allocated(ni_p) ) allocate(ni_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(nr_p) ) allocate(nr_p(ims:ime,kms:kme,jms:jme))
+
+       case("mp_tempo")
           if(.not.allocated(ni_p) ) allocate(ni_p(ims:ime,kms:kme,jms:jme))
           if(.not.allocated(nr_p) ) allocate(nr_p(ims:ime,kms:kme,jms:jme))
 
@@ -166,6 +190,15 @@
                 if(.not.allocated(nc_p)    ) allocate(nc_p(ims:ime,kms:kme,jms:jme)  )
                 if(.not.allocated(nifa_p)  ) allocate(nifa_p(ims:ime,kms:kme,jms:jme))
                 if(.not.allocated(nwfa_p)  ) allocate(nwfa_p(ims:ime,kms:kme,jms:jme))
+
+             case("mp_tempo")
+                if(config_tempo_aerosolaware) then
+                   if(.not.allocated(nifa2d_p)) allocate(nifa2d_p(ims:ime,jms:jme))
+                   if(.not.allocated(nwfa2d_p)) allocate(nwfa2d_p(ims:ime,jms:jme))
+                   if(.not.allocated(nc_p)    ) allocate(nc_p(ims:ime,kms:kme,jms:jme)  )
+                   if(.not.allocated(nifa_p)  ) allocate(nifa_p(ims:ime,kms:kme,jms:jme))
+                   if(.not.allocated(nwfa_p)  ) allocate(nwfa_p(ims:ime,kms:kme,jms:jme))
+                endif
 
              case default
           end select microp3_select
@@ -187,10 +220,12 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
+ logical,pointer:: config_tempo_aerosolaware
 
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
+ call mpas_pool_get_config(configs,'config_tempo_aerosolaware',config_tempo_aerosolaware)
 
 !sounding variables:
  if(allocated(rho_p) ) deallocate(rho_p )
@@ -233,10 +268,32 @@
        if(allocated(rainprod_p)) deallocate(rainprod_p)
        if(allocated(evapprod_p)) deallocate(evapprod_p)
 
+    case ("mp_tempo")
+       !mass mixing ratios:
+       if(allocated(qi_p)) deallocate(qi_p)
+       if(allocated(qs_p)) deallocate(qs_p)
+       if(allocated(qg_p)) deallocate(qg_p)
+
+       !surface precipitation:
+       if(allocated(sr_p)        ) deallocate(sr_p        )
+       if(allocated(snownc_p)    ) deallocate(snownc_p    )
+       if(allocated(snowncv_p)   ) deallocate(snowncv_p   )
+       if(allocated(graupelnc_p) ) deallocate(graupelnc_p )
+       if(allocated(graupelncv_p)) deallocate(graupelncv_p)
+
+       !cloud water,cloud ice,and snow effective radii:
+       if(allocated(recloud_p)) deallocate(recloud_p)
+       if(allocated(reice_p)  ) deallocate(reice_p  )
+       if(allocated(resnow_p) ) deallocate(resnow_p )
+
     microp2_select: select case(trim(microp_scheme))
        case("mp_thompson","mp_thompson_aerosols")
           if(allocated(ntc_p)) deallocate(ntc_p)
           if(allocated(muc_p)) deallocate(muc_p)
+          if(allocated(ni_p) ) deallocate(ni_p )
+          if(allocated(nr_p) ) deallocate(nr_p )
+
+       case("mp_tempo")
           if(allocated(ni_p) ) deallocate(ni_p )
           if(allocated(nr_p) ) deallocate(nr_p )
 
@@ -247,6 +304,15 @@
                 if(allocated(nc_p)    ) deallocate(nc_p    )
                 if(allocated(nifa_p)  ) deallocate(nifa_p  )
                 if(allocated(nwfa_p)  ) deallocate(nwfa_p  )
+
+             case("mp_tempo")
+                if(config_tempo_aerosolaware) then
+                   if(allocated(nifa2d_p)) deallocate(nifa2d_p)
+                   if(allocated(nwfa2d_p)) deallocate(nwfa2d_p)
+                   if(allocated(nc_p)    ) deallocate(nc_p    )
+                   if(allocated(nifa_p)  ) deallocate(nifa_p  )
+                   if(allocated(nwfa_p)  ) deallocate(nwfa_p  )
+                endif
 
              case default
           end select microp3_select
@@ -277,6 +343,7 @@
 !local pointer:
  logical,pointer:: do_restart
  character(len=StrKIND),pointer:: microp_scheme
+ logical,pointer:: config_tempo_aerosolaware
 
 !CCPP-compliant flags:
  character(len=StrKIND):: errmsg
@@ -292,15 +359,24 @@
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
  call mpas_pool_get_config(configs,'config_do_restart'   ,do_restart   )
+ call mpas_pool_get_config(configs,'config_tempo_aerosolaware',config_tempo_aerosolaware)
 
  microp_select: select case(trim(microp_scheme))
     case("mp_thompson","mp_thompson_aerosols")
        call thompson_init(l_mp_tables)
        call init_thompson_clouddroplets_forMPAS(mesh,sfc_input,diag_physics)
 
+    case("mp_tempo")
+       call tempo_init(aerosolaware_flag=config_tempo_aerosolaware, &
+            tempo_cfgs=tempo_cfgs)
+
        microp2_select: select case(trim(microp_scheme))
           case("mp_thompson_aerosols")
              call init_thompson_aerosols_forMPAS(do_restart,dminfo,mesh,state,time_lev,diag_physics)
+          case("mp_tempo")
+             if(config_tempo_aerosolaware) then
+                call init_tempo_aerosols_forMPAS(do_restart,dminfo,mesh,state,time_lev,diag_physics)
+             endif
 
           case default
        end select microp2_select
