@@ -1226,7 +1226,7 @@ module mpas_init_atm_gwd
       end do
       do j=ny/2+1,ny
          do i=nx/2+1,nx
-            if (box(i,j) > hc) nw = nw + 1
+            if (box(i,j) > box_mean) nw = nw + 1
             nt = nt + 1
          end do
       end do
