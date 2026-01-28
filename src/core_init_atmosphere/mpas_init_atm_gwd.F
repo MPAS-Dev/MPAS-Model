@@ -116,7 +116,7 @@ module mpas_init_atm_gwd
 
       type (mpas_pool_type), pointer :: mesh, state
       integer :: iCell, i
-      real (kind=RKIND) :: dc
+      real (kind=RKIND) :: dc, hratio
       real (kind=RKIND), pointer :: config_gwd_cell_scaling
       integer, pointer :: nCells
       integer, pointer :: nEdges
@@ -250,6 +250,7 @@ module mpas_init_atm_gwd
          ! cell by averaging the distances to each of the neighboring cells
          !
          dc = 0.0
+         hratio = 0.0
          do i=1,nEdgesOnCell(iCell)
             dc = dc + dcEdge(edgesOnCell(i,iCell))
          end do
@@ -258,7 +259,13 @@ module mpas_init_atm_gwd
             dc = dc * sphere_radius
          end if
          dc = dc * config_gwd_cell_scaling
-
+         !
+         ! for effective grid spacing (dc) being too small to compute mountain statistics, 
+         ! apply a scale awareness with the ratio of dc / mtn data resolution (sg_delta ) 
+         ! minimum number of points in a box is assumed at 4 x 4
+         ! it apples to standard deviation (var)
+         hratio = dc / (sg_delta)
+         if(hratio <  4.0) dc = sg_delta * 4.0
          !
          ! Cut out a rectangular piece of the global 30-arc-second topography
          ! data that is centered at the lat/lon (in radians) of the current cell being
@@ -282,6 +289,9 @@ module mpas_init_atm_gwd
          ! subroutines to compute each sub-grid orography statistic
          !
          var2d(iCell) = get_var(box, box_mean, nx, ny)
+         if(hratio <  4.0) then
+           var2d(iCell) = var2d(iCell) * hratio * 0.25
+         endif
          con(iCell) = get_con(box, box_landuse, box_mean, nx, ny)
          oa1(iCell) = get_oa1(box, box_mean, nx, ny)
          oa2(iCell) = get_oa2(box, box_mean, nx, ny)
