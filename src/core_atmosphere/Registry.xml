@@ -1767,8 +1767,7 @@
                      description="Relative humidity"/>
 
                 <var name="spechum" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
-                     description="Specific humidity"
-                     packages="jedi_da"/>
+                     description="Specific humidity"/>
 
                 <var name="v" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-1}"
                      description="Horizontal tangential velocity at edges"/>
