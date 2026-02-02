@@ -174,6 +174,9 @@ module init_atm_core_interface
       nullify(microphysics_aerosols)
       call mpas_pool_get_package(packages, 'microphysics_aerosolsActive', microphysics_aerosols)
 
+      nullify(tempo_aerosolaware_in)
+      call mpas_pool_get_package(packages, 'tempo_aerosolaware_inActive', tempo_aerosolaware_in)
+
       if (.not. associated(initial_conds) .or. &
           .not. associated(sfc_update) .or. &
           .not. associated(gwd_stage_in) .or. &
@@ -233,7 +236,6 @@ module init_atm_core_interface
          microphysics_aerosols = .false.
          inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
          if((lexist .and. met_stage_out) .or. (lexist .and. met_stage_in)) microphysics_aerosols = .true.
-
       else if (config_init_case == 8) then
          gwd_stage_in = .false.
          gwd_stage_out = .false.
@@ -259,7 +261,6 @@ module init_atm_core_interface
          microphysics_aerosols = .false.
          inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
          if((lexist .and. met_stage_out) .or. (lexist .and. met_stage_in)) microphysics_aerosols = .true.
-
          initial_conds = .false.   ! Also, turn off the initial_conds package to avoid writing the IC "output" stream
 
       else if (config_init_case == 13) then
