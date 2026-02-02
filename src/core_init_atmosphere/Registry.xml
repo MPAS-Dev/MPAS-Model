@@ -1034,7 +1034,7 @@
                      description="climatological Gocart ice-friendly number concentration"
                      packages="microphysics_aerosols"/>
 
-                <var name="nwfa_gocart_clim" type="real" dimensions="nMonths nGocartLevels nCells" units="nb kg^{-1}"
+		<var name="nwfa_gocart_clim" type="real" dimensions="nMonths nGocartLevels nCells" units="nb kg^{-1}"
                      description="climatological Gocart water-friendly number concentration"
                      packages="microphysics_aerosols"/>
 
@@ -1175,9 +1175,9 @@
 
                         <var name="nifa" array_group="number" units="nb kg^{-1}"
                              description="Gocart ice-friendly aerosol number concentration"
-                             packages="microphysics_aerosols"/>
+			     packages="microphysics_aerosols"/>
 
-                        <var name="nwfa" array_group="number" units="nb kg^{-1}"
+			<var name="nwfa" array_group="number" units="nb kg^{-1}"
                              description="Gocart water-friendly aerosol number concentration"
                              packages="microphysics_aerosols"/>
 
