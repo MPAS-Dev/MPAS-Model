@@ -163,6 +163,7 @@
 
        if(.not.allocated(ni_p) ) allocate(ni_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(nr_p) ) allocate(nr_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(refl10cm_p) ) allocate(refl10cm_p(ims:ime,kms:kme,jms:jme))
 
        if(config_tempo_aerosolaware) then
           if(.not.allocated(nifa2d_p)) allocate(nifa2d_p(ims:ime,jms:jme))
@@ -281,6 +282,7 @@
 
        if(allocated(ni_p) ) deallocate(ni_p )
        if(allocated(nr_p) ) deallocate(nr_p )
+       if(allocated(refl10cm_p) ) deallocate(refl10cm_p)
 
        if(config_tempo_aerosolaware) then
           if(allocated(nifa2d_p)) deallocate(nifa2d_p)
@@ -351,7 +353,7 @@
 !local pointer:
  logical,pointer:: do_restart
  character(len=StrKIND),pointer:: microp_scheme
- logical,pointer:: config_tempo_aerosolaware, config_tempo_hailaware
+ logical,pointer:: config_tempo_aerosolaware,config_tempo_hailaware
 
 !CCPP-compliant flags:
  character(len=StrKIND):: errmsg
@@ -476,7 +478,6 @@
        call mpas_timer_stop('mp_kessler')
 
     case ("mp_tempo")
-
        if (allocated(nwfa_p) .and. allocated(nwfa2d_p)) then
          call tempo_aerosol_surface_emissions(dt=dt_microp, nwfa=nwfa_p, nwfa2d=nwfa2d_p, &      
             ims=ims, ime=ime, jms=jms, jme=jme, kms=kms, kme=kme, kts=kts)                       
@@ -516,11 +517,8 @@
                tempo_driver_diags%snow_liquid_equiv_precip(i,j) + &
                tempo_driver_diags%graupel_liquid_equiv_precip(i,j)
             sr_p(i,j) = tempo_driver_diags%frozen_fraction(i,j)
-            !frainnc_p = frainnc_p + tempo_driver_diags%frz_rain_precip
-            !max_hail_diameter_sfc_p = tempo_driver_diags%max_hail_diameter_sfc                      
-            !max_hail_diameter_column_p = tempo_driver_diags%max_hail_diameter_column
             do k = kts, kte
-            !refl10cm_p = tempo_driver_diags%refl10cm
+               refl10cm_p(i,k,j) = tempo_driver_diags%refl10cm(i,k,j)
                recloud_p(i,k,j) = tempo_driver_diags%re_cloud(i,k,j)
                reice_p(i,k,j) = tempo_driver_diags%re_ice(i,k,j)
                resnow_p(i,k,j) = tempo_driver_diags%re_snow(i,k,j)

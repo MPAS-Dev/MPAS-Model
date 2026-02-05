@@ -342,6 +342,7 @@
        else
           h_01 = 0.8*cos(hgt(1,iCell)*0.001 - 1.0)
        endif
+       ! naCCN1 and naCCN0 are defined in module_mp_thompson and will be used here for now
        niCCN3 = -1.0*ALOG(naCCN1/naCCN0)/h_01
        nwfa(1,iCell) = naCCN1+naCCN0*exp(-((hgt(2,iCell)-hgt(1,iCell))/1000.)*niCCN3)
        do k = 2, nVertLevels
@@ -373,6 +374,7 @@
        else
           h_01 = 0.8*cos(hgt(1,iCell)*0.001 - 1.0)
        endif
+       ! naIN0 and naIN1 are defined in module_mp_thompson and will be used here for now
        niIN3 = -1.0*ALOG(naIN1/naIN0)/h_01
        nifa(1,iCell) = naIN1+naIN0*exp(-((hgt(2,iCell)-hgt(1,iCell))/1000.)*niIN3)
        do k = 2, nVertLevels

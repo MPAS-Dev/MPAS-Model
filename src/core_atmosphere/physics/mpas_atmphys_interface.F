@@ -91,14 +91,13 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme,pbl_scheme
- logical,pointer:: config_tempo_aerosolaware, config_tempo_hailaware
+ logical,pointer:: config_tempo_aerosolaware
 
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
  call mpas_pool_get_config(configs,'config_pbl_scheme'   ,pbl_scheme   )
  call mpas_pool_get_config(configs,'config_tempo_aerosolaware', config_tempo_aerosolaware)
- call mpas_pool_get_config(configs,'config_tempo_hailaware', config_tempo_hailaware)
 
  if(.not.allocated(psfc_p) ) allocate(psfc_p(ims:ime,jms:jme)         )
  if(.not.allocated(ptop_p) ) allocate(ptop_p(ims:ime,jms:jme)         )
@@ -138,14 +137,8 @@
 
     case("mp_tempo")
        if(config_tempo_aerosolaware) then
-          if(.not.allocated(nc_p)) allocate(nc_p(ims:ime,kms:kme,jms:jme))
           if(.not.allocated(nifa_p)) allocate(nifa_p(ims:ime,kms:kme,jms:jme))
           if(.not.allocated(nwfa_p)) allocate(nwfa_p(ims:ime,kms:kme,jms:jme))
-       endif
-
-       if(config_tempo_hailaware) then
-          if(.not.allocated(ng_p)) allocate(ng_p(ims:ime,kms:kme,jms:jme))
-          if(.not.allocated(volg_p)) allocate(volg_p(ims:ime,kms:kme,jms:jme))
        endif
 
     case default
@@ -181,14 +174,13 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme,pbl_scheme
- logical,pointer:: config_tempo_aerosolaware, config_tempo_hailaware
+ logical,pointer:: config_tempo_aerosolaware
 
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
  call mpas_pool_get_config(configs,'config_pbl_scheme'   ,pbl_scheme   )
  call mpas_pool_get_config(configs,'config_tempo_aerosolaware', config_tempo_aerosolaware)
- call mpas_pool_get_config(configs,'config_tempo_hailaware', config_tempo_hailaware)
 
  if(allocated(psfc_p)  ) deallocate(psfc_p  )
  if(allocated(ptop_p)  ) deallocate(ptop_p  )
@@ -228,14 +220,8 @@
 
     case("mp_tempo")
        if(config_tempo_aerosolaware) then
-          if(allocated(nc_p)) deallocate(nc_p)
           if(allocated(nifa_p)) deallocate(nifa_p)
           if(allocated(nwfa_p)) deallocate(nwfa_p)
-       endif
-
-       if(config_tempo_hailaware) then
-          if(allocated(ng_p)) deallocate(ng_p)
-          if(allocated(volg_p)) deallocate(volg_p)
        endif
 
     case default
@@ -408,38 +394,17 @@
 
     case("mp_tempo")
        if(config_tempo_aerosolaware) then
-          nullify(nc)
           nullify(nifa)
           nullify(nwfa)
-          call mpas_pool_get_dimension(state,'index_nc',index_nc)
           call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
           call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
-          nc => scalars(index_nc,:,:)
           nifa => scalars(index_nifa,:,:)
           nwfa => scalars(index_nwfa,:,:)
           do j = jts,jte
              do k = kts,kte
                 do i = its,ite
-                   nc_p(i,k,j) = max(0.,nc(k,i))
                    nifa_p(i,k,j) = max(0.,nifa(k,i))
                    nwfa_p(i,k,j) = max(0.,nwfa(k,i))
-                enddo
-             enddo
-          enddo
-       endif
-
-       if(config_tempo_hailaware) then
-          nullify(ng)
-          nullify(volg)
-          call mpas_pool_get_dimension(state,'index_ng',index_ng)
-          call mpas_pool_get_dimension(state,'index_volg',index_volg)
-          ng => scalars(index_ng,:,:)
-          volg => scalars(index_volg,:,:)
-          do j = jts,jte
-             do k = kts,kte
-                do i = its,ite
-                   ng_p(i,k,j) = max(0.,ng(k,i))
-                   volg_p(i,k,j) = max(0.,volg(k,i))
                 enddo
              enddo
           enddo
@@ -690,7 +655,7 @@ end subroutine pre_microphysics
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qg
  integer,pointer:: index_nc,index_ni,index_nr,index_nifa,index_nwfa
  integer,pointer:: index_ng,index_volg
- logical,pointer:: config_tempo_aerosolaware, config_tempo_hailaware
+ logical,pointer:: config_tempo_aerosolaware,config_tempo_hailaware
  real(kind=RKIND),dimension(:),pointer    :: nifa2d,nwfa2d,nt_c,mu_c
  real(kind=RKIND),dimension(:,:),pointer  :: zgrid,w
  real(kind=RKIND),dimension(:,:),pointer  :: zz,exner,pressure_b
@@ -699,6 +664,7 @@ end subroutine pre_microphysics
  real(kind=RKIND),dimension(:,:),pointer  :: nc,ni,nr,nifa,nwfa
  real(kind=RKIND),dimension(:,:),pointer  :: ng,volg
  real(kind=RKIND),dimension(:,:),pointer  :: rainprod,evapprod
+ real(kind=RKIND),dimension(:,:),pointer  :: refl10cm
  real(kind=RKIND),dimension(:,:),pointer  :: re_cloud,re_ice,re_snow
  real(kind=RKIND),dimension(:,:),pointer  :: rthmpten,rqvmpten,rqcmpten,rqrmpten,rqimpten,rqsmpten,rqgmpten
  real(kind=RKIND),dimension(:,:),pointer  :: rncmpten,rnimpten,rnrmpten,rnifampten,rnwfampten
@@ -795,6 +761,7 @@ end subroutine pre_microphysics
        call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
        call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
        call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
+       call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
 
        qi => scalars(index_qi,:,:)
        qs => scalars(index_qs,:,:)
@@ -814,6 +781,7 @@ end subroutine pre_microphysics
           recloud_p(i,k,j)  = re_cloud(k,i)
           reice_p(i,k,j)    = re_ice(k,i)
           resnow_p(i,k,j)   = re_snow(k,i)
+          refl10cm_p(i,k,j) = refl10cm(k,i)
        enddo
        enddo
        enddo
@@ -1170,6 +1138,7 @@ end subroutine pre_microphysics
           re_cloud(k,i) = recloud_p(i,k,j)
           re_ice(k,i)   = reice_p(i,k,j)
           re_snow(k,i)  = resnow_p(i,k,j)
+          refl10cm(k,i) = refl10cm_p(i,k,j)
        enddo
        enddo
        enddo
