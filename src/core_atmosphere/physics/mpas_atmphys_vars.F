@@ -208,7 +208,9 @@
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     nc_p,             &!cloud water droplet number concentration                             [#/kg]
     ni_p,             &!cloud ice crystal number concentration                               [#/kg]
-    nr_p               !rain drop number concentration                                       [#/kg]
+    nr_p,             &!rain drop number concentration                                       [#/kg]
+    ng_p,             &!graupel number concentration                                         [#/kg]
+    volg_p             !graupel volume                                    [m3/kg] ([L/kg] in tempo)
 
 !... arrays located at w (vertical velocity) points, or at interface between layers:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &

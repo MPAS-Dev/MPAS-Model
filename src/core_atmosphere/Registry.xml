@@ -1733,6 +1733,14 @@
                              description="Rain number concentration"
                              packages="mp_thompson_in;mp_thompson_aers_in;mp_tempo_in"/>
 
+                        <var name="ng" array_group="number" units="nb kg^{-1}"
+                             description="Graupel number concentration"
+                             packages="tempo_hailaware_in"/>
+
+                        <var name="volg" array_group="volume" units="m^{3} kg^{-1} or L kg^{-1}"
+                             description="Graupel volume"
+                             packages="tempo_hailaware_in"/>			
+
                         <var name="nc" array_group="number" units="nb kg^{-1}"
                              description="Cloud water number concentration"
                              packages="mp_thompson_aers_in;tempo_aerosolaware_in"/>
@@ -2100,6 +2108,14 @@
                              description="Tendency of rain number concentration multiplied by dry air density divided by d(zeta)/dz"
                              packages="mp_thompson_in;mp_thompson_aers_in;mp_tempo_in"/>
 
+                        <var name="tend_ng" name_in_code="ng" array_group="number" units="nb m^{-3} s^{-1}" 
+                             description="Tendency of graupel number concentration multiplied by dry air density divided by d(zeta)/dz"
+                             packages="tempo_hailaware_in"/>
+
+                        <var name="tend_volg" name_in_code="volg" array_group="volume" units="m^{3} m^{-3} s^{-1} or L m^{-3} s^{-1}" 
+                             description="Tendency of graupel volume multiplied by dry air density divided by d(zeta)/dz"
+                             packages="tempo_hailaware_in"/>						
+
                         <var name="tend_nc" name_in_code="nc" array_group="number" units="nb m^{-3} s^{-1}"
                              description="Tendency of cloud water number concentration multiplied by dry air density divided by d(zeta)/dz"
                              packages="mp_thompson_aers_in;tempo_aerosolaware_in"/>
@@ -2177,6 +2193,14 @@
                         <var name="lbc_nr" name_in_code="nr" array_group="number" packages="mp_thompson_in;mp_thompson_aers_in;mp_tempo_in"
                              units="m^{-3} s^{-1}"
                              description="Lateral boundary tendency of rain number concentration"/>
+
+                        <var name="lbc_ng" name_in_code="ng" array_group="number" packages="tempo_hailaware_in"
+                             units="m^{-3} s^{-1}"
+                             description="Lateral boundary tendency of graupel number concentration"/>
+
+                        <var name="lbc_volg" name_in_code="volg" array_group="volume" packages="tempo_hailaware_in"
+                             units="m^{3} m^{-3} s^{-1} or L m^{-3} s^{-1}"
+                             description="Lateral boundary tendency of graupel volume"/>
 
                         <var name="lbc_ni" name_in_code="ni" array_group="number" packages="bl_mynn_in;mp_thompson_in;mp_thompson_aers_in;mp_tempo_in"
                              units="m^{-3} s^{-1}"
@@ -4020,5 +4044,6 @@
 
 #ifdef DO_PHYSICS
 #include "physics/Registry_noahmp.xml"
+#include "physics/Registry_tempo.xml"
 #endif
 </registry>

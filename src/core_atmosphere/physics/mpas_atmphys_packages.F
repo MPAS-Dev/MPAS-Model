@@ -42,7 +42,7 @@
  logical,pointer:: cu_grell_freitas_in,cu_kain_fritsch_in,cu_ntiedtke_in
  logical,pointer:: bl_mynn_in,bl_ysu_in
  logical,pointer:: sf_noahmp_in
- logical,pointer:: config_tempo_hailaware,config_tempo_aerosolaware
+ logical,pointer:: config_tempo_aerosolaware,config_tempo_hailaware
 
  integer :: ierr
 
@@ -110,12 +110,8 @@
     mp_thompson_aers_in = .true.
  elseif(config_microp_scheme == 'mp_tempo') then
     mp_tempo_in = .true.
-    if(config_tempo_aerosolaware) then                                                                                        
-       tempo_aerosolaware_in = .true.
-    endif
-    if(config_tempo_hailaware) then
-       tempo_hailaware_in = .true.
-    endif
+    if(config_tempo_aerosolaware) tempo_aerosolaware_in = .true.
+    if(config_tempo_hailaware) tempo_hailaware_in = .true.
  elseif(config_microp_scheme == 'mp_wsm6') then
     mp_wsm6_in = .true.
  endif

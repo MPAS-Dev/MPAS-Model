@@ -106,12 +106,13 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
- logical,pointer:: config_tempo_aerosolaware
+ logical,pointer:: config_tempo_aerosolaware, config_tempo_hailaware
 
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
  call mpas_pool_get_config(configs,'config_tempo_aerosolaware',config_tempo_aerosolaware)
+ call mpas_pool_get_config(configs,'config_tempo_hailaware',config_tempo_hailaware)
 
 !sounding variables:
  if(.not.allocated(rho_p) ) allocate(rho_p(ims:ime,kms:kme,jms:jme) )
@@ -160,6 +161,22 @@
        if(.not.allocated(qs_p)) allocate(qs_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(qg_p)) allocate(qg_p(ims:ime,kms:kme,jms:jme))
 
+       if(.not.allocated(ni_p) ) allocate(ni_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(nr_p) ) allocate(nr_p(ims:ime,kms:kme,jms:jme))
+
+       if(config_tempo_aerosolaware) then
+          if(.not.allocated(nifa2d_p)) allocate(nifa2d_p(ims:ime,jms:jme))
+          if(.not.allocated(nwfa2d_p)) allocate(nwfa2d_p(ims:ime,jms:jme))
+          if(.not.allocated(nc_p)    ) allocate(nc_p(ims:ime,kms:kme,jms:jme)  )
+          if(.not.allocated(nifa_p)  ) allocate(nifa_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(nwfa_p)  ) allocate(nwfa_p(ims:ime,kms:kme,jms:jme))
+       endif
+
+       if(config_tempo_hailaware) then
+          if(.not.allocated(ng_p)    ) allocate(ng_p(ims:ime,kms:kme,jms:jme)  )
+          if(.not.allocated(volg_p)  ) allocate(volg_p(ims:ime,kms:kme,jms:jme))
+       endif
+
        !surface precipitation:
        if(.not.allocated(sr_p)        ) allocate(sr_p(ims:ime,jms:jme)        )
        if(.not.allocated(snownc_p)    ) allocate(snownc_p(ims:ime,jms:jme)    )
@@ -179,10 +196,6 @@
           if(.not.allocated(ni_p) ) allocate(ni_p(ims:ime,kms:kme,jms:jme))
           if(.not.allocated(nr_p) ) allocate(nr_p(ims:ime,kms:kme,jms:jme))
 
-       case("mp_tempo")
-          if(.not.allocated(ni_p) ) allocate(ni_p(ims:ime,kms:kme,jms:jme))
-          if(.not.allocated(nr_p) ) allocate(nr_p(ims:ime,kms:kme,jms:jme))
-
           microp3_select: select case(trim(microp_scheme))
              case("mp_thompson_aerosols")
                 if(.not.allocated(nifa2d_p)) allocate(nifa2d_p(ims:ime,jms:jme))
@@ -190,15 +203,6 @@
                 if(.not.allocated(nc_p)    ) allocate(nc_p(ims:ime,kms:kme,jms:jme)  )
                 if(.not.allocated(nifa_p)  ) allocate(nifa_p(ims:ime,kms:kme,jms:jme))
                 if(.not.allocated(nwfa_p)  ) allocate(nwfa_p(ims:ime,kms:kme,jms:jme))
-
-             case("mp_tempo")
-                if(config_tempo_aerosolaware) then
-                   if(.not.allocated(nifa2d_p)) allocate(nifa2d_p(ims:ime,jms:jme))
-                   if(.not.allocated(nwfa2d_p)) allocate(nwfa2d_p(ims:ime,jms:jme))
-                   if(.not.allocated(nc_p)    ) allocate(nc_p(ims:ime,kms:kme,jms:jme)  )
-                   if(.not.allocated(nifa_p)  ) allocate(nifa_p(ims:ime,kms:kme,jms:jme))
-                   if(.not.allocated(nwfa_p)  ) allocate(nwfa_p(ims:ime,kms:kme,jms:jme))
-                endif
 
              case default
           end select microp3_select
@@ -220,13 +224,14 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
- logical,pointer:: config_tempo_aerosolaware
+ logical,pointer:: config_tempo_aerosolaware, config_tempo_hailaware
 
 !-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
  call mpas_pool_get_config(configs,'config_tempo_aerosolaware',config_tempo_aerosolaware)
-
+ call mpas_pool_get_config(configs,'config_tempo_hailaware',config_tempo_hailaware)
+ 
 !sounding variables:
  if(allocated(rho_p) ) deallocate(rho_p )
  if(allocated(th_p)  ) deallocate(th_p  )
@@ -274,6 +279,22 @@
        if(allocated(qs_p)) deallocate(qs_p)
        if(allocated(qg_p)) deallocate(qg_p)
 
+       if(allocated(ni_p) ) deallocate(ni_p )
+       if(allocated(nr_p) ) deallocate(nr_p )
+
+       if(config_tempo_aerosolaware) then
+          if(allocated(nifa2d_p)) deallocate(nifa2d_p)
+          if(allocated(nwfa2d_p)) deallocate(nwfa2d_p)
+          if(allocated(nc_p)    ) deallocate(nc_p    )
+          if(allocated(nifa_p)  ) deallocate(nifa_p  )
+          if(allocated(nwfa_p)  ) deallocate(nwfa_p  )
+       endif
+
+       if(config_tempo_hailaware) then
+          if(allocated(ng_p)    ) deallocate(ng_p    )
+          if(allocated(volg_p)  ) deallocate(volg_p  )
+       endif
+
        !surface precipitation:
        if(allocated(sr_p)        ) deallocate(sr_p        )
        if(allocated(snownc_p)    ) deallocate(snownc_p    )
@@ -293,10 +314,6 @@
           if(allocated(ni_p) ) deallocate(ni_p )
           if(allocated(nr_p) ) deallocate(nr_p )
 
-       case("mp_tempo")
-          if(allocated(ni_p) ) deallocate(ni_p )
-          if(allocated(nr_p) ) deallocate(nr_p )
-
           microp3_select: select case(trim(microp_scheme))
              case("mp_thompson_aerosols")
                 if(allocated(nifa2d_p)) deallocate(nifa2d_p)
@@ -304,15 +321,6 @@
                 if(allocated(nc_p)    ) deallocate(nc_p    )
                 if(allocated(nifa_p)  ) deallocate(nifa_p  )
                 if(allocated(nwfa_p)  ) deallocate(nwfa_p  )
-
-             case("mp_tempo")
-                if(config_tempo_aerosolaware) then
-                   if(allocated(nifa2d_p)) deallocate(nifa2d_p)
-                   if(allocated(nwfa2d_p)) deallocate(nwfa2d_p)
-                   if(allocated(nc_p)    ) deallocate(nc_p    )
-                   if(allocated(nifa_p)  ) deallocate(nifa_p  )
-                   if(allocated(nwfa_p)  ) deallocate(nwfa_p  )
-                endif
 
              case default
           end select microp3_select
@@ -343,7 +351,7 @@
 !local pointer:
  logical,pointer:: do_restart
  character(len=StrKIND),pointer:: microp_scheme
- logical,pointer:: config_tempo_aerosolaware
+ logical,pointer:: config_tempo_aerosolaware, config_tempo_hailaware
 
 !CCPP-compliant flags:
  character(len=StrKIND):: errmsg
@@ -360,6 +368,7 @@
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
  call mpas_pool_get_config(configs,'config_do_restart'   ,do_restart   )
  call mpas_pool_get_config(configs,'config_tempo_aerosolaware',config_tempo_aerosolaware)
+ call mpas_pool_get_config(configs,'config_tempo_hailaware',config_tempo_hailaware)
 
  microp_select: select case(trim(microp_scheme))
     case("mp_thompson","mp_thompson_aerosols")
@@ -368,15 +377,15 @@
 
     case("mp_tempo")
        call tempo_init(aerosolaware_flag=config_tempo_aerosolaware, &
-            tempo_cfgs=tempo_cfgs)
+            hailaware_flag=config_tempo_hailaware, tempo_cfgs=tempo_cfgs)
+
+       if(config_tempo_aerosolaware) then
+          call init_tempo_aerosols_forMPAS(do_restart,dminfo,mesh,state,time_lev,diag_physics)
+       endif
 
        microp2_select: select case(trim(microp_scheme))
           case("mp_thompson_aerosols")
              call init_thompson_aerosols_forMPAS(do_restart,dminfo,mesh,state,time_lev,diag_physics)
-          case("mp_tempo")
-             if(config_tempo_aerosolaware) then
-                call init_tempo_aerosols_forMPAS(do_restart,dminfo,mesh,state,time_lev,diag_physics)
-             endif
 
           case default
        end select microp2_select
@@ -482,8 +491,7 @@
             th      = th_p       , qv         = qv_p      , qc      = qc_p   , &                 
             qr      = qr_p       , qi         = qi_p      , qs     = qs_p    , &                 
             qg      = qg_p       , ni         = ni_p      , nr     = nr_p    , &                 
-            w       = w_p     , &                 
-!            ng      = ng_p       , qb         = volg_p    , w      = w_p     , &
+            ng      = ng_p       , qb         = volg_p    , w      = w_p     , &
             nc      = nc_p       , nwfa       = nwfa_p    , nifa   = nifa_p  , &                 
             pii     = pi_p       , p          = pres_p    , dz     = dz_p    , &                 
             ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &            
