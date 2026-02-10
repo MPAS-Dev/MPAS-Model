@@ -708,6 +708,7 @@
 !local variables:
  character(len=StrKIND),pointer:: gwdo_scheme
  logical,pointer:: ugwp_diags,ngw_scheme
+ logical,pointer:: if_nonhyd
  integer,pointer:: ntau_d1y_ptr,ntau_d2t_ptr
  real(kind=RKIND),dimension(:),pointer :: days_limb_ptr
  real(kind=RKIND),dimension(:,:),pointer:: tau_limb_ptr
@@ -717,6 +718,7 @@
 
  integer:: i
  real(kind=RKIND),dimension(:),allocatable:: dx_max
+ real(kind=RKIND),pointer                 :: dx_factor
 
 !CCPP-compliant flags:
  character(len=StrKIND):: errmsg
@@ -754,7 +756,9 @@
 
  gwdo_select: select case (trim(gwdo_scheme))
 
-    case("bl_ysu_gwdo")
+ case("bl_kim_gwdo")
+       call mpas_pool_get_config(configs,'config_gwdo_factor',dx_factor)
+       call mpas_pool_get_config(configs,'config_gwdo_nonhyd',if_nonhyd)
        call mpas_timer_start('bl_gwdo')
        call gwdo ( &
                   p3d       = pres_hydd_p , p3di      = pres2_hydd_p , pi3d    = pi_p      , &
@@ -768,8 +772,9 @@
                   var2d     = var2d_p     , oc12d     = con_p        , oa2d1   = oa1_p     , & 
                   oa2d2     = oa2_p       , oa2d3     = oa3_p        , oa2d4   = oa4_p     , &
                   ol2d1     = ol1_p       , ol2d2     = ol2_p        , ol2d3   = ol3_p     , & 
-                  ol2d4     = ol4_p       , sina      = sina_p       , cosa    = cosa_p    , &
-                  errmsg    = errmsg      , errflg    = errflg       ,                       &
+                  ol2d4     = ol4_p       , elvmax    = elvmax_p     , sina    = sina_p    , &
+                  cosa      = cosa_p      , errmsg    = errmsg       , errflg    = errflg  , &
+                  dx_factor = dx_factor   , if_nonhyd = if_nonhyd    ,                       &
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,    &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,    &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte      &
