@@ -83,6 +83,8 @@
 ! * in the mesoscale_reference suite, replaced the MM5 surface layer scheme with the MM5 revised surface layer
 !   scheme as the default option for config_sfclayer_scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2024-06-18.
+! * added the option bl_shinhong   
+!   Songyou Hong (hong@ucar.edu) / 2025-11-27.
 
 
  contains
@@ -133,8 +135,8 @@
     if (trim(config_microp_scheme)     == 'suite') config_microp_scheme     = 'mp_wsm6'
     if (trim(config_convection_scheme) == 'suite') config_convection_scheme = 'cu_ntiedtke'
     if (trim(config_pbl_scheme)        == 'suite') config_pbl_scheme        = 'bl_ysu'
-    if (trim(config_gwdo_scheme)       == 'suite') config_gwdo_scheme       = 'bl_ysu_gwdo'
     if (trim(config_radt_lw_scheme)    == 'suite') config_radt_lw_scheme    = 'rrtmg_lw'
+    if (trim(config_gwdo_scheme)       == 'suite') config_gwdo_scheme       = 'bl_ysu_gwdo'
     if (trim(config_radt_sw_scheme)    == 'suite') config_radt_sw_scheme    = 'rrtmg_sw'
     if (trim(config_radt_cld_scheme)   == 'suite') config_radt_cld_scheme   = 'cld_fraction'
     if (trim(config_sfclayer_scheme)   == 'suite') config_sfclayer_scheme   = 'sf_monin_obukhov_rev'
@@ -201,6 +203,7 @@
 !pbl scheme:
  if(.not. (config_pbl_scheme .eq. 'off'     .or. &
            config_pbl_scheme .eq. 'bl_mynn' .or. &
+           config_pbl_scheme .eq. 'bl_shinhong' .or. &
            config_pbl_scheme .eq. 'bl_ysu')) then
 
     write(mpas_err_message,'(A,A20)') 'illegal value for pbl_scheme: ', &
@@ -279,10 +282,10 @@
  else
     if(config_pbl_scheme == 'bl_mynn') then
        config_sfclayer_scheme = 'sf_mynn'
-    elseif(config_pbl_scheme == 'bl_ysu') then
+    elseif(config_pbl_scheme == 'bl_shinhong' .or. config_pbl_scheme == 'bl_ysu') then
        if(config_sfclayer_scheme /= 'sf_monin_obukhov' .and. &
           config_sfclayer_scheme /= 'sf_monin_obukhov_rev') then
-          write(mpas_err_message,'(A,A20)') 'wrong choice for surface layer scheme with YSU PBL: ', &
+          write(mpas_err_message,'(A,A20)') 'wrong choice for surface layer scheme with SHINHONG/YSU PBL: ', &
                 trim(config_sfclayer_scheme)
           call physics_error_fatal(mpas_err_message)
        endif
