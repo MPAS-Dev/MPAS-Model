@@ -6882,6 +6882,7 @@ call mpas_log_write('Done with soil consistency check')
       integer :: k, lm, lp
       real (kind=RKIND) :: wm, wp
       real (kind=RKIND) :: slope
+      real (kind=RKIND) :: lapse_rate
 
       integer :: interp_order, extrap_type
       real (kind=RKIND) :: surface, sealevel
@@ -6933,9 +6934,9 @@ call mpas_log_write('Done with soil consistency check')
             slope = (zf(2,nz) - zf(2,nz-1)) / (zf(1,nz) - zf(1,nz-1))
             vertical_interp = zf(2,nz) + slope * (target_z - zf(1,nz))
          else if (extrap_type == 2) then
-             call mpas_log_write('extrap_type == 2 not implemented for target_z >= zf(1,nz)', messageType=MPAS_LOG_ERR)
-             if (present(ierr)) ierr = 1
-             return
+            ! Lapse-rate extrapolation: calculate lapse rate from top two levels
+            lapse_rate = (zf(2,nz) - zf(2,nz-1)) / (zf(1,nz) - zf(1,nz-1))
+            vertical_interp = zf(2,nz) + lapse_rate * (target_z - zf(1,nz))
          end if
          return
       end if
@@ -7522,3 +7523,4 @@ call mpas_log_write('Done with soil consistency check')
 
 
 end module init_atm_cases
+

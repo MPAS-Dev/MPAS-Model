@@ -22,7 +22,7 @@ module init_atm_vinterp
    !
    ! Purpose:
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   real (kind=RKIND) function vertical_interp(target_z, nz, zf, order, extrap, surface_val, sealev_val)
+   real (kind=RKIND) function vertical_interp(target_z, nz, zf, order, extrap, surface_val, sealev_val, ierr)
 
       implicit none
 
@@ -33,10 +33,12 @@ module init_atm_vinterp
       integer, intent(in), optional :: extrap
       real (kind=RKIND), intent(in), optional :: surface_val
       real (kind=RKIND), intent(in), optional :: sealev_val
+      integer, intent(out), optional :: ierr                    ! error code: 0 = success, 1 = invalid extrapolation type
 
       integer :: k, lm, lp
       real (kind=RKIND) :: wm, wp
       real (kind=RKIND) :: slope
+      real (kind=RKIND) :: lapse_rate
 
       integer :: interp_order, extrap_type
       real (kind=RKIND) :: surface, sealevel
@@ -66,6 +68,11 @@ module init_atm_vinterp
          sealevel = 201300.0
       end if
 
+      ! Initialize ierr to 0 (success)
+      if (present(ierr)) then
+         ierr = 0
+      end if
+
       !
       ! Extrapolation required
       !
@@ -75,6 +82,13 @@ module init_atm_vinterp
          else if (extrap_type == 1) then
             slope = (zf(2,2) - zf(2,1)) / (zf(1,2) - zf(1,1))
             vertical_interp = zf(2,1) + slope * (target_z - zf(1,1))
+         else if (extrap_type == 2) then
+            ! Lapse-rate extrapolation: calculate lapse rate from bottom two levels
+            lapse_rate = (zf(2,2) - zf(2,1)) / (zf(1,2) - zf(1,1))
+            vertical_interp = zf(2,1) + lapse_rate * (target_z - zf(1,1))
+         else
+            vertical_interp = zf(2,1)
+            if (present(ierr)) ierr = 1
          end if
          return
       end if
@@ -84,6 +98,13 @@ module init_atm_vinterp
          else if (extrap_type == 1) then
             slope = (zf(2,nz) - zf(2,nz-1)) / (zf(1,nz) - zf(1,nz-1))
             vertical_interp = zf(2,nz) + slope * (target_z - zf(1,nz))
+         else if (extrap_type == 2) then
+            ! Lapse-rate extrapolation: calculate lapse rate from top two levels
+            lapse_rate = (zf(2,nz) - zf(2,nz-1)) / (zf(1,nz) - zf(1,nz-1))
+            vertical_interp = zf(2,nz) + lapse_rate * (target_z - zf(1,nz))
+         else
+            vertical_interp = zf(2,nz)
+            if (present(ierr)) ierr = 1
          end if
          return
       end if
@@ -109,3 +130,4 @@ module init_atm_vinterp
    end function vertical_interp
 
 end module init_atm_vinterp
+
