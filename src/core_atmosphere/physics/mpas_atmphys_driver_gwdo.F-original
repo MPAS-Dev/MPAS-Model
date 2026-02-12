@@ -66,8 +66,6 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2023-05-15.
 ! * added the NOAA UFS unified gravity wave drag scheme
 !   Michael D. Toy (michael.toy@noaa.gov) / 2024-10-21
-! * Revised the ysu_gwdo follwing the studies (hong et al. 2025, koo and hong 2025), and renamed to kim_gwdo 
-!   Songyou Hong (hong@ucar.edu) / 2025-11-27
 
 
  contains
@@ -90,6 +88,7 @@
 
  if(.not.allocated(cosa_p)  ) allocate(cosa_p(ims:ime,jms:jme)  )
  if(.not.allocated(sina_p)  ) allocate(sina_p(ims:ime,jms:jme)  )
+
  if(.not.allocated(dx_p)    ) allocate(dx_p(ims:ime,jms:jme)    )
  if(.not.allocated(kpbl_p  )) allocate(kpbl_p(ims:ime,jms:jme)  )
  if(.not.allocated(dusfcg_p)) allocate(dusfcg_p(ims:ime,jms:jme))
@@ -102,7 +101,7 @@
 
  gwdo_select: select case (trim(gwdo_scheme))
 
-   case("bl_kim_gwdo")
+   case("bl_ysu_gwdo")
     if(.not.allocated(var2d_p) ) allocate(var2d_p(ims:ime,jms:jme) )
     if(.not.allocated(con_p)   ) allocate(con_p(ims:ime,jms:jme)   )
     if(.not.allocated(oa1_p)   ) allocate(oa1_p(ims:ime,jms:jme)   )
@@ -113,7 +112,6 @@
     if(.not.allocated(ol2_p)   ) allocate(ol2_p(ims:ime,jms:jme)   )
     if(.not.allocated(ol3_p)   ) allocate(ol3_p(ims:ime,jms:jme)   )
     if(.not.allocated(ol4_p)   ) allocate(ol4_p(ims:ime,jms:jme)   )
-    if(.not.allocated(elvmax_p)) allocate(elvmax_p(ims:ime,jms:jme))
 
    case("bl_ugwp_gwdo")
     if(.not.allocated(var2dls_p) ) allocate(var2dls_p(ims:ime,jms:jme) )
@@ -208,7 +206,7 @@
 
  gwdo_select: select case (trim(gwdo_scheme))
 
-   case("bl_kim_gwdo")
+   case("bl_ysu_gwdo")
     if(allocated(var2d_p) ) deallocate(var2d_p )
     if(allocated(con_p)   ) deallocate(con_p   )
     if(allocated(oa1_p)   ) deallocate(oa1_p   )
@@ -219,7 +217,7 @@
     if(allocated(ol2_p)   ) deallocate(ol2_p   )
     if(allocated(ol3_p)   ) deallocate(ol3_p   )
     if(allocated(ol4_p)   ) deallocate(ol4_p   )
-    if(allocated(elvmax_p)) deallocate(elvmax_p)
+
    case("bl_ugwp_gwdo")
     if(allocated(var2dls_p) ) deallocate(var2dls_p )
     if(allocated(conls_p)   ) deallocate(conls_p   )
@@ -309,7 +307,7 @@
  integer,dimension(:),pointer:: jindx1_tau,jindx2_tau
  real(kind=RKIND),pointer:: len_disp
  real(kind=RKIND),dimension(:),pointer  :: meshDensity
- real(kind=RKIND),dimension(:),pointer  :: oa1,oa2,oa3,oa4,ol1,ol2,ol3,ol4,con,var2d,elvmax
+ real(kind=RKIND),dimension(:),pointer  :: oa1,oa2,oa3,oa4,ol1,ol2,ol3,ol4,con,var2d
  real(kind=RKIND),dimension(:),pointer  :: oa1ls,oa2ls,oa3ls,oa4ls,ol1ls,ol2ls,       &
                                            ol3ls,ol4ls,conls,var2dls
  real(kind=RKIND),dimension(:),pointer  :: oa1ss,oa2ss,oa3ss,oa4ss,ol1ss,ol2ss,       &
@@ -335,11 +333,11 @@
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
  call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
 
+
  gwdo_select: select case (trim(gwdo_scheme))
 
-   case("bl_kim_gwdo")
+   case("bl_ysu_gwdo")
       call mpas_pool_get_array(sfc_input,'var2d',var2d)
-      call mpas_pool_get_array(sfc_input,'elvmax',elvmax)
       call mpas_pool_get_array(sfc_input,'con'  ,con  )
       call mpas_pool_get_array(sfc_input,'oa1'  ,oa1  )
       call mpas_pool_get_array(sfc_input,'oa2'  ,oa2  )
@@ -361,7 +359,6 @@
          ol2_p(i,j)   = ol2(i)
          ol3_p(i,j)   = ol3(i)
          ol4_p(i,j)   = ol4(i)
-         elvmax_p(i,j)= elvmax(i)
       enddo
       enddo
 
@@ -512,6 +509,7 @@
             enddo
             enddo
          endif
+
       endif
 
    case default
@@ -552,7 +550,7 @@
  enddo
 
  end subroutine gwdo_from_MPAS
-
+ 
 !=================================================================================================================
  subroutine gwdo_to_MPAS(configs,diag_physics,tend_physics,its,ite)
 !=================================================================================================================
@@ -689,7 +687,7 @@
  enddo
 
  end subroutine gwdo_to_MPAS
-
+ 
 !=================================================================================================================
  subroutine driver_gwdo(itimestep,configs,mesh,sfc_input,ngw_input,diag_physics,tend_physics,its,ite)
 !=================================================================================================================
@@ -710,7 +708,6 @@
 !local variables:
  character(len=StrKIND),pointer:: gwdo_scheme
  logical,pointer:: ugwp_diags,ngw_scheme
- logical,pointer:: if_nonhyd
  integer,pointer:: ntau_d1y_ptr,ntau_d2t_ptr
  real(kind=RKIND),dimension(:),pointer :: days_limb_ptr
  real(kind=RKIND),dimension(:,:),pointer:: tau_limb_ptr
@@ -720,7 +717,6 @@
 
  integer:: i
  real(kind=RKIND),dimension(:),allocatable:: dx_max
- real(kind=RKIND),pointer                 :: dx_factor
 
 !CCPP-compliant flags:
  character(len=StrKIND):: errmsg
@@ -758,9 +754,7 @@
 
  gwdo_select: select case (trim(gwdo_scheme))
 
-    case("bl_kim_gwdo")
- call mpas_pool_get_config(configs,'config_gwdo_factor',dx_factor)
- call mpas_pool_get_config(configs,'config_gwdo_nonhyd',if_nonhyd)
+    case("bl_ysu_gwdo")
        call mpas_timer_start('bl_gwdo')
        call gwdo ( &
                   p3d       = pres_hydd_p , p3di      = pres2_hydd_p , pi3d    = pi_p      , &
@@ -774,9 +768,8 @@
                   var2d     = var2d_p     , oc12d     = con_p        , oa2d1   = oa1_p     , & 
                   oa2d2     = oa2_p       , oa2d3     = oa3_p        , oa2d4   = oa4_p     , &
                   ol2d1     = ol1_p       , ol2d2     = ol2_p        , ol2d3   = ol3_p     , & 
-                  ol2d4     = ol4_p       , elvmax    = elvmax_p     , sina    = sina_p    , &
-                  cosa      = cosa_p      , errmsg    = errmsg       , errflg    = errflg  , &
-                  dx_factor = dx_factor   , if_nonhyd = if_nonhyd,                           &
+                  ol2d4     = ol4_p       , sina      = sina_p       , cosa    = cosa_p    , &
+                  errmsg    = errmsg      , errflg    = errflg       ,                       &
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,    &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,    &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte      &
