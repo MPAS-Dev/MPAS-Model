@@ -10,22 +10,17 @@
  use mpas_kind_types
  use mpas_pool_routines
  use mpas_timer,only: mpas_timer_start,mpas_timer_stop
-
  use mpas_atmphys_constants
  use mpas_atmphys_vars
  use mpas_atmphys_manager,only: curr_julday
-
 !wrf physics:
  use module_bl_gwdo
  use module_bl_ugwp_gwdo
-
  implicit none
  private
  public:: allocate_gwdo,   &
           deallocate_gwdo, &
           driver_gwdo
-
-
 !MPAS driver for parameterization of gravity wave drag over orography.
 !Laura D. Fowler (send comments to laura@ucar.edu).
 !2013-05-01.
@@ -66,29 +61,22 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2023-05-15.
 ! * added the NOAA UFS unified gravity wave drag scheme
 !   Michael D. Toy (michael.toy@noaa.gov) / 2024-10-21
-
-
+! * Revised the ysu_gwdo follwing the studies (hong et al. 2025, koo and hong 2025), and renamed to kim_gwdo 
+!   Songyou Hong (hong@ucar.edu) / 2025-11-27
  contains
-
-
 !=================================================================================================================
  subroutine allocate_gwdo(configs)
 !=================================================================================================================
-
  !input arguments:
  type(mpas_pool_type),intent(in):: configs
-
  !local variables:
  character(len=StrKIND),pointer:: gwdo_scheme
  logical,pointer:: ugwp_diags,ngw_scheme
-
  call mpas_pool_get_config(configs,'config_gwdo_scheme',gwdo_scheme)
  call mpas_pool_get_config(configs,'config_ugwp_diags',ugwp_diags)
  call mpas_pool_get_config(configs,'config_ngw_scheme',ngw_scheme)
-
  if(.not.allocated(cosa_p)  ) allocate(cosa_p(ims:ime,jms:jme)  )
  if(.not.allocated(sina_p)  ) allocate(sina_p(ims:ime,jms:jme)  )
-
  if(.not.allocated(dx_p)    ) allocate(dx_p(ims:ime,jms:jme)    )
  if(.not.allocated(kpbl_p  )) allocate(kpbl_p(ims:ime,jms:jme)  )
  if(.not.allocated(dusfcg_p)) allocate(dusfcg_p(ims:ime,jms:jme))
@@ -98,10 +86,8 @@
  if(.not.allocated(rublten_p)) allocate(rublten_p(ims:ime,kms:kme,jms:jme))
  if(.not.allocated(rvblten_p)) allocate(rvblten_p(ims:ime,kms:kme,jms:jme))
  if(.not.allocated(rthblten_p)) allocate(rthblten_p(ims:ime,kms:kme,jms:jme))
-
  gwdo_select: select case (trim(gwdo_scheme))
-
-   case("bl_ysu_gwdo")
+   case("bl_kim_gwdo")
     if(.not.allocated(var2d_p) ) allocate(var2d_p(ims:ime,jms:jme) )
     if(.not.allocated(con_p)   ) allocate(con_p(ims:ime,jms:jme)   )
     if(.not.allocated(oa1_p)   ) allocate(oa1_p(ims:ime,jms:jme)   )
@@ -112,7 +98,7 @@
     if(.not.allocated(ol2_p)   ) allocate(ol2_p(ims:ime,jms:jme)   )
     if(.not.allocated(ol3_p)   ) allocate(ol3_p(ims:ime,jms:jme)   )
     if(.not.allocated(ol4_p)   ) allocate(ol4_p(ims:ime,jms:jme)   )
-
+    if(.not.allocated(elvmax_p)) allocate(elvmax_p(ims:ime,jms:jme))
    case("bl_ugwp_gwdo")
     if(.not.allocated(var2dls_p) ) allocate(var2dls_p(ims:ime,jms:jme) )
     if(.not.allocated(conls_p)   ) allocate(conls_p(ims:ime,jms:jme)   )
@@ -169,31 +155,22 @@
        if(.not.allocated(ddy_j1tau_p)) allocate(ddy_j1tau_p(ims:ime,jms:jme))
        if(.not.allocated(ddy_j2tau_p)) allocate(ddy_j2tau_p(ims:ime,jms:jme))
     endif
-
    case default
-
  end select gwdo_select
-
  end subroutine allocate_gwdo
-
 !=================================================================================================================
  subroutine deallocate_gwdo(configs)
 !=================================================================================================================
-
  !input arguments:
  type(mpas_pool_type),intent(in):: configs
-
  !local variables:
  character(len=StrKIND),pointer:: gwdo_scheme
  logical,pointer:: ugwp_diags,ngw_scheme
-
  call mpas_pool_get_config(configs,'config_gwdo_scheme',gwdo_scheme)
  call mpas_pool_get_config(configs,'config_ugwp_diags',ugwp_diags)
  call mpas_pool_get_config(configs,'config_ngw_scheme',ngw_scheme)
-
  if(allocated(cosa_p)  ) deallocate(cosa_p  )
  if(allocated(sina_p)  ) deallocate(sina_p  )
-
  if(allocated(dx_p)    ) deallocate(dx_p    )
  if(allocated(kpbl_p)  ) deallocate(kpbl_p  )
  if(allocated(dusfcg_p)) deallocate(dusfcg_p)
@@ -203,10 +180,8 @@
  if(allocated(rublten_p)) deallocate(rublten_p)
  if(allocated(rvblten_p)) deallocate(rvblten_p)
  if(allocated(rthblten_p)) deallocate(rthblten_p)
-
  gwdo_select: select case (trim(gwdo_scheme))
-
-   case("bl_ysu_gwdo")
+   case("bl_kim_gwdo")
     if(allocated(var2d_p) ) deallocate(var2d_p )
     if(allocated(con_p)   ) deallocate(con_p   )
     if(allocated(oa1_p)   ) deallocate(oa1_p   )
@@ -217,7 +192,7 @@
     if(allocated(ol2_p)   ) deallocate(ol2_p   )
     if(allocated(ol3_p)   ) deallocate(ol3_p   )
     if(allocated(ol4_p)   ) deallocate(ol4_p   )
-
+    if(allocated(elvmax_p)) deallocate(elvmax_p)
    case("bl_ugwp_gwdo")
     if(allocated(var2dls_p) ) deallocate(var2dls_p )
     if(allocated(conls_p)   ) deallocate(conls_p   )
@@ -274,17 +249,12 @@
        if(allocated(ddy_j1tau_p)) deallocate(ddy_j1tau_p)
        if(allocated(ddy_j2tau_p)) deallocate(ddy_j2tau_p)
     endif
-
    case default
-
  end select gwdo_select
-
  end subroutine deallocate_gwdo
-
 !=================================================================================================================
  subroutine gwdo_from_MPAS(configs,mesh,sfc_input,ngw_input,diag_physics,tend_physics,its,ite)
 !=================================================================================================================
-
 !input arguments:
  type(mpas_pool_type),intent(in):: configs
  type(mpas_pool_type),intent(in):: mesh
@@ -292,22 +262,19 @@
  type(mpas_pool_type),intent(in):: ngw_input
  type(mpas_pool_type),intent(in):: diag_physics
  type(mpas_pool_type),intent(in):: tend_physics
-
  integer,intent(in):: its,ite
-
 !local variables:
  integer:: i,k,j
  character(len=StrKIND),pointer:: gwdo_scheme
  character(len=StrKIND),pointer:: convection_scheme,microp_scheme
  logical,pointer:: ugwp_diags,ngw_scheme
  real(kind=RKIND),parameter :: rad2deg = 180./3.1415926
-
 !local pointers:
  integer,dimension(:),pointer:: kpbl
  integer,dimension(:),pointer:: jindx1_tau,jindx2_tau
  real(kind=RKIND),pointer:: len_disp
  real(kind=RKIND),dimension(:),pointer  :: meshDensity
- real(kind=RKIND),dimension(:),pointer  :: oa1,oa2,oa3,oa4,ol1,ol2,ol3,ol4,con,var2d
+ real(kind=RKIND),dimension(:),pointer  :: oa1,oa2,oa3,oa4,ol1,ol2,ol3,ol4,con,var2d,elvmax
  real(kind=RKIND),dimension(:),pointer  :: oa1ls,oa2ls,oa3ls,oa4ls,ol1ls,ol2ls,       &
                                            ol3ls,ol4ls,conls,var2dls
  real(kind=RKIND),dimension(:),pointer  :: oa1ss,oa2ss,oa3ss,oa4ss,ol1ss,ol2ss,       &
@@ -322,9 +289,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: dtaux3d_ls,dtauy3d_ls,dtaux3d_bl,dtauy3d_bl, &
                                            dtaux3d_ss,dtauy3d_ss,dtaux3d_fd,dtauy3d_fd
  real(kind=RKIND),dimension(:,:),pointer:: dudt_ngw,dvdt_ngw,dtdt_ngw
-
 !-----------------------------------------------------------------------------------------------------------------
-
  call mpas_pool_get_config(configs,'config_len_disp',len_disp)
  call mpas_pool_get_config(configs,'config_gwdo_scheme',gwdo_scheme)
  call mpas_pool_get_config(configs,'config_ugwp_diags',ugwp_diags)
@@ -332,12 +297,10 @@
  call mpas_pool_get_config(configs,'config_convection_scheme',convection_scheme)
  call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme)
  call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
-
-
  gwdo_select: select case (trim(gwdo_scheme))
-
-   case("bl_ysu_gwdo")
+   case("bl_kim_gwdo")
       call mpas_pool_get_array(sfc_input,'var2d',var2d)
+      call mpas_pool_get_array(sfc_input,'elvmax',elvmax)
       call mpas_pool_get_array(sfc_input,'con'  ,con  )
       call mpas_pool_get_array(sfc_input,'oa1'  ,oa1  )
       call mpas_pool_get_array(sfc_input,'oa2'  ,oa2  )
@@ -359,9 +322,9 @@
          ol2_p(i,j)   = ol2(i)
          ol3_p(i,j)   = ol3(i)
          ol4_p(i,j)   = ol4(i)
+         elvmax_p(i,j)= elvmax(i)
       enddo
       enddo
-
    case("bl_ugwp_gwdo")
       call mpas_pool_get_array(sfc_input,'var2dls',var2dls)
       call mpas_pool_get_array(sfc_input,'conls'  ,conls  )
@@ -509,14 +472,9 @@
             enddo
             enddo
          endif
-
       endif
-
    case default
-
  end select gwdo_select
-
-
  call mpas_pool_get_array(diag_physics,'kpbl'    ,kpbl    )
  call mpas_pool_get_array(diag_physics,'dusfcg'  ,dusfcg  )
  call mpas_pool_get_array(diag_physics,'dvsfcg'  ,dvsfcg  )
@@ -525,7 +483,6 @@
  call mpas_pool_get_array(tend_physics,'rublten' ,rublten )
  call mpas_pool_get_array(tend_physics,'rvblten' ,rvblten )
  call mpas_pool_get_array(tend_physics,'rthblten',rthblten)
-
  do j = jts,jte
  do i = its,ite
     sina_p(i,j)  = 0._RKIND
@@ -536,7 +493,6 @@
     dvsfcg_p(i,j) = dvsfcg(i)
  enddo
  enddo
-
  do j = jts,jte
  do k = kts,kte
  do i = its,ite
@@ -548,31 +504,24 @@
  enddo
  enddo
  enddo
-
  end subroutine gwdo_from_MPAS
- 
 !=================================================================================================================
  subroutine gwdo_to_MPAS(configs,diag_physics,tend_physics,its,ite)
 !=================================================================================================================
-
 !input arguments:
  integer,intent(in):: its,ite
  type(mpas_pool_type),intent(in):: configs
-
 !inout arguments:
  type(mpas_pool_type),intent(inout):: diag_physics
  type(mpas_pool_type),intent(inout):: tend_physics
-
 !local variables:
  integer:: i,k,j
  character(len=StrKIND),pointer:: gwdo_scheme
  logical,pointer:: ugwp_diags,ngw_scheme
-
 !local pointers:
  real(kind=RKIND),dimension(:),pointer  :: dusfcg,dvsfcg
  real(kind=RKIND),dimension(:,:),pointer:: dtaux3d,dtauy3d,rubldiff,rvbldiff,rublten,rvblten
  real(kind=RKIND),dimension(:,:),pointer:: rthblten
-
  real(kind=RKIND),dimension(:),pointer  :: oa1ls,oa2ls,oa3ls,oa4ls,ol1ls,ol2ls,       &
                                            ol3ls,ol4ls,conls,var2dls
  real(kind=RKIND),dimension(:),pointer  :: oa1ss,oa2ss,oa3ss,oa4ss,ol1ss,ol2ss,       &
@@ -582,9 +531,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: dtaux3d_ls,dtauy3d_ls,dtaux3d_bl,dtauy3d_bl, &
                                            dtaux3d_ss,dtauy3d_ss,dtaux3d_fd,dtauy3d_fd
  real(kind=RKIND),dimension(:,:),pointer:: dudt_ngw,dvdt_ngw,dtdt_ngw
-
 !-----------------------------------------------------------------------------------------------------------------
-
  call mpas_pool_get_config(configs,'config_gwdo_scheme',gwdo_scheme)
  call mpas_pool_get_config(configs,'config_ugwp_diags',ugwp_diags)
  call mpas_pool_get_config(configs,'config_ngw_scheme',ngw_scheme)
@@ -597,10 +544,7 @@
  call mpas_pool_get_array(tend_physics,'rublten' ,rublten )
  call mpas_pool_get_array(tend_physics,'rvblten' ,rvblten )
  call mpas_pool_get_array(tend_physics,'rthblten',rthblten)
-
-
  gwdo_select: select case (trim(gwdo_scheme))
-
    case("bl_ugwp_gwdo")
       if (ugwp_diags) then
          call mpas_pool_get_array(diag_physics,'dusfc_ls'  ,dusfc_ls  )
@@ -660,18 +604,14 @@
             enddo
          endif
       endif
-
    case default
-
  end select gwdo_select
-
  do j = jts,jte
  do i = its,ite
     dusfcg(i) = dusfcg_p(i,j) 
     dvsfcg(i) = dvsfcg_p(i,j)
  enddo
  enddo
-
  do j = jts,jte
  do k = kts,kte
  do i = its,ite
@@ -685,26 +625,20 @@
  enddo
  enddo
  enddo
-
  end subroutine gwdo_to_MPAS
- 
 !=================================================================================================================
  subroutine driver_gwdo(itimestep,configs,mesh,sfc_input,ngw_input,diag_physics,tend_physics,its,ite)
 !=================================================================================================================
-
 !input arguments:
  type(mpas_pool_type),intent(in):: configs
  type(mpas_pool_type),intent(in):: mesh
  type(mpas_pool_type),intent(in):: sfc_input
-
  integer,intent(in):: its,ite
  integer,intent(in):: itimestep
-
 !inout arguments:
  type(mpas_pool_type),intent(inout):: ngw_input
  type(mpas_pool_type),intent(inout):: diag_physics
  type(mpas_pool_type),intent(inout):: tend_physics
-
 !local variables:
  character(len=StrKIND),pointer:: gwdo_scheme
  logical,pointer:: ugwp_diags,ngw_scheme
@@ -715,27 +649,21 @@
  integer:: ntau_d1y,ntau_d2t
  real(kind=RKIND),dimension(:),allocatable::   days_limb
  real(kind=RKIND),dimension(:,:),allocatable:: tau_limb
-
  integer:: i
  real(kind=RKIND),dimension(:),allocatable:: dx_max
  real(kind=RKIND),pointer                 :: dx_factor
-
 !CCPP-compliant flags:
  character(len=StrKIND):: errmsg
  integer:: errflg
-
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine driver_gwdo:')
-
 !initialization of CCPP-compliant flags:
  errmsg = ' '
  errflg = 0
-
  call mpas_pool_get_config(configs,'config_gwdo_scheme',gwdo_scheme)
  call mpas_pool_get_config(configs,'config_ugwp_diags',ugwp_diags)
  call mpas_pool_get_config(configs,'config_ngw_scheme',ngw_scheme)
-
  ! Call up variables needed for NGW scheme
  if (ngw_scheme) then
     call mpas_pool_get_dimension(mesh,'lat',ntau_d1y_ptr)
@@ -749,16 +677,12 @@
     days_limb(:)   = days_limb_ptr(:)
     tau_limb (:,:) = tau_limb_ptr(:,:)
  endif
-
-
 !copy MPAS arrays to local arrays:
  call gwdo_from_MPAS(configs,mesh,sfc_input,ngw_input,diag_physics,tend_physics,its,ite)
-
  gwdo_select: select case (trim(gwdo_scheme))
-
- case("bl_kim_gwdo")
-       call mpas_pool_get_config(configs,'config_gwdo_factor',dx_factor)
-       call mpas_pool_get_config(configs,'config_gwdo_nonhyd',if_nonhyd)
+    case("bl_kim_gwdo")
+ call mpas_pool_get_config(configs,'config_gwdo_factor',dx_factor)
+ call mpas_pool_get_config(configs,'config_gwdo_nonhyd',if_nonhyd)
        call mpas_timer_start('bl_gwdo')
        call gwdo ( &
                   p3d       = pres_hydd_p , p3di      = pres2_hydd_p , pi3d    = pi_p      , &
@@ -774,13 +698,12 @@
                   ol2d1     = ol1_p       , ol2d2     = ol2_p        , ol2d3   = ol3_p     , & 
                   ol2d4     = ol4_p       , elvmax    = elvmax_p     , sina    = sina_p    , &
                   cosa      = cosa_p      , errmsg    = errmsg       , errflg    = errflg  , &
-                  dx_factor = dx_factor   , if_nonhyd = if_nonhyd    ,                       &
+                  dx_factor = dx_factor   , if_nonhyd = if_nonhyd,                           &
                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,    &
                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,    &
                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte      &
                  )
        call mpas_timer_stop('bl_gwdo')
-
     case("bl_ugwp_gwdo")
        call mpas_timer_start('bl_ugwp_gwdo')
        call gwdo_ugwp ( & 
@@ -825,19 +748,13 @@
           if(allocated(tau_limb) ) deallocate(tau_limb )
        endif
        call mpas_timer_stop('bl_ugwp_gwdo')
-
      case default
-
  end select gwdo_select
-
 !copy local arrays to MPAS grid:
  call gwdo_to_MPAS(configs,diag_physics,tend_physics,its,ite)
-
 !call mpas_log_write('--- end subroutine driver_gwdo.')
 !call mpas_log_write('')
-
  end subroutine driver_gwdo
-
 !=================================================================================================================
  end module mpas_atmphys_driver_gwdo
 !=================================================================================================================
