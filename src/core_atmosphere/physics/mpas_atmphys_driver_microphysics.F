@@ -686,7 +686,7 @@
 
 !variables specific to different cloud microphysics schemes:
  microp_select: select case(trim(microp_scheme))
-    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6")
+    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_tempo")
        do j = jts, jte
        do i = its, ite
           snowncv_p(i,j)    = 0._RKIND
@@ -778,7 +778,7 @@
 
 !variables specific to different cloud microphysics schemes:
  microp_select: select case(trim(microp_scheme))
-    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6")
+    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_tempo")
        do j = jts,jte
        do i = its,ite
           !time-step precipitation:
