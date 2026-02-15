@@ -2279,7 +2279,7 @@
                 <nml_option name="config_gwdo_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration of gravity wave drag over orography"
-                     possible_values="`suite',`bl_ysu_gwdo',`bl_ugwp_gwdo',`off'"/>
+                     possible_values="`suite',`bl_kim_gwdo',`bl_ugwp_gwdo',`off'"/>
 
                 <nml_option name="config_ngw_scheme" type="logical" default_value="false" in_defaults="false"
                      units="-"
