@@ -35,11 +35,52 @@ module mpas_subdriver
    use test_core_interface
 #endif
 
+   !***********************************************************************
+   !
+   !  type stream_update_callback_type
+   !
+   !> \brief   Abstract base class for stream update callbacks.
+   !> \author  Andy Stokely
+   !> \date    11/11/2025
+   !> \details
+   !>   Users extend this type to define custom behavior for updating
+   !>   MPAS stream configurations. The deferred procedure "apply" is
+   !>   implemented by the child derived type.
+   !
+   !-----------------------------------------------------------------------
+   type, abstract :: stream_update_callback_type
+   contains
+      procedure(stream_update_callback), deferred :: apply
+   end type stream_update_callback_type
+
+   !***********************************************************************
+   !
+   !  interface stream_update_callback
+   !
+   !> \brief   Interface for the deferred callback procedure.
+   !> \author  Andy Stokely
+   !> \date    11/11/2025
+   !> \details
+   !>   Implementations of this routine modify stream metadata within
+   !>   the MPAS_streamManager_type. Errors should be signaled by setting
+   !>   ierr to a non-zero value when present.
+   !
+   !-----------------------------------------------------------------------
+   abstract interface
+      subroutine stream_update_callback(self, manager, ierr)
+         import :: MPAS_streamManager_type
+         import :: stream_update_callback_type
+
+         implicit none
+         class(stream_update_callback_type), intent(inout) :: self
+         type(MPAS_streamManager_type), intent(inout) :: manager
+         integer, optional, intent(out) :: ierr
+      end subroutine stream_update_callback
+   end interface
 
    contains
 
-
-   subroutine mpas_init(corelist, domain_ptr, external_comm, namelistFileParam, streamsFileParam)
+   subroutine mpas_init(corelist, domain_ptr, external_comm, namelistFileParam, streamsFileParam, streamUpdateCallback)
 
 #ifdef MPAS_USE_MPI_F08
       use mpi_f08, only : MPI_Comm
@@ -51,6 +92,7 @@ module mpas_subdriver
       use mpas_bootstrapping, only : mpas_bootstrap_framework_phase1, mpas_bootstrap_framework_phase2
       use mpas_log
       use mpas_stream_inquiry, only : MPAS_stream_inquiry_new_streaminfo
+      use mpas_callback, only : stream_update_callback_type
  
       implicit none
 
@@ -63,6 +105,7 @@ module mpas_subdriver
 #endif
       character(len=*), intent(in), optional :: namelistFileParam
       character(len=*), intent(in), optional :: streamsFileParam
+      class(stream_update_callback_type), intent(inout), optional :: streamUpdateCallback
 
       integer :: iArg, nArgs
       logical :: readNamelistArg, readStreamsArg
@@ -374,7 +417,13 @@ module mpas_subdriver
          call mpas_log_write('xml stream parser failed: '//trim(domain_ptr % streams_filename), messageType=MPAS_LOG_CRIT)
       end if
 
-      !
+      if ( present(streamUpdateCallback) ) then
+         call streamUpdateCallback%update(domain_ptr % streamManager, ierr)
+         if ( ierr /= 0 ) then
+            call mpas_log_write('Stream update callback failed for core '//trim(domain_ptr % core % coreName), messageType=MPAS_LOG_CRIT)
+         end if
+      end if
+
       ! Validate streams after set-up
       !
       call mpas_log_write(' ** Validating streams')
