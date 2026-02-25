@@ -1496,12 +1496,18 @@ endif
 
 
 ifneq "$(PIO)" ""
-MAIN_DEPS = rebuild_check openmp_test openacc_test pnetcdf_test pio_test mpi_f08_test
+MAIN_DEPS = rebuild_check openmp_test openacc_test pnetcdf_test pio_test
 override CPPFLAGS += "-DMPAS_PIO_SUPPORT"
 else
-MAIN_DEPS = rebuild_check openmp_test openacc_test pnetcdf_test mpi_f08_test
+MAIN_DEPS = rebuild_check openmp_test openacc_test pnetcdf_test
 IO_MESSAGE = "Using the SMIOL library."
 override CPPFLAGS += "-DMPAS_SMIOL_SUPPORT"
+endif
+
+ifeq "$(shell echo $(MPI_F08) | tr '[:upper:]' '[:lower:]')" "false"
+MPI_F08_MESSAGE = "MPI_F08 support is disabled; compilation will use the mpi module."
+else
+MAIN_DEPS += mpi_f08_test
 endif
 
 ifneq "$(MUSICA_FFLAGS)" ""
@@ -1619,7 +1625,7 @@ errmsg:
 	@echo "    OPENACC=true  - builds and links with OpenACC flags. Default is to not use OpenACC."
 	@echo "    PRECISION=double - builds with default double-precision real kind. Default is to use single-precision."
 	@echo "    SHAREDLIB=true - generate position-independent code suitable for use in a shared library. Default is false."
-	@echo ""
+	@echo "    MPI_F08=true   - Use MPI F08 module (Fortran 2008 mpi_f08) when available. Default is true."
 	@echo "Ensure that NETCDF, PNETCDF, PIO, and PAPI (if USE_PAPI=true) are environment variables"
 	@echo "that point to the absolute paths for the libraries."
 	@echo ""
