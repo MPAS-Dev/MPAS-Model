@@ -497,12 +497,12 @@ module mpas_timekeeping
       type (MPAS_TimeInterval_type), intent(in), optional :: alarmTimeInterval
       type (MPAS_Time_type), intent(in), optional :: alarmStartTime
       type (MPAS_Time_type), intent(in), optional :: alarmStopTime
-      integer, intent(out),  optional :: ierr
+      integer, intent(out), optional :: ierr
 
       type (MPAS_Alarm_type), pointer :: alarmPtr
       integer :: threadNum
 
-      if (present(ierr)) ierr = ESMF_SUCCESS
+      if (present(ierr)) ierr = 0
 
       threadNum = mpas_threading_get_thread_num()
 
@@ -833,13 +833,13 @@ module mpas_timekeeping
    !> \date   10/01/2025
    !> \details This function checks whether the provided time falls
    !>   within the active start and stop times of the given alarm. If so,
-   !>   it returns `.true.`.
+   !>   it returns .true..
    !-----------------------------------------------------------------------
    logical function mpas_is_alarm_active(alarm, time)
 
       implicit none
 
-      type(MPAS_Alarm_type), pointer :: alarm
+      type(MPAS_Alarm_type), intent(in) :: alarm
       type(MPAS_Time_type), intent(in) :: time
 
       mpas_is_alarm_active = (alarm % activeStartTime <= time &
@@ -854,20 +854,20 @@ module mpas_timekeeping
    !> \brief Check if the alarm’s previous ring was inside its window.
    !> \author Andy Stokely
    !> \date   10/01/2025
-   !> \details This function tests whether the alarm’s `prevRingTime`
+   !> \details This function tests whether the alarm’s prevRingTime
    !>   occurred strictly within the defined start and stop times of the
    !>   alarm’s active window. The check uses an open interval:
    !>
    !>       (start, stop)
    !>
    !>   The boundaries themselves are excluded. If the previous ring time
-   !>   lies inside this open interval, the function returns `.true.`.
+   !>   lies inside this open interval, the function returns .true..
    !-----------------------------------------------------------------------
    logical function mpas_prev_ring_in_window(alarm)
 
       implicit none
 
-      type(MPAS_Alarm_type), pointer :: alarm
+      type(MPAS_Alarm_type), intent(in) :: alarm
 
       mpas_prev_ring_in_window = (alarm % activeStartTime < alarm % prevRingTime &
               .and. alarm % prevRingTime < alarm % activeStopTime)
