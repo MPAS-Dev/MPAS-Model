@@ -23,11 +23,599 @@ module test_core_timekeeping_tests
    private
 
    public :: test_core_test_intervals, &
-             mpas_adjust_alarm_tests
+             mpas_adjust_alarm_tests, &
+             mpas_window_alarm_tests
 
-   contains
+   !-----------------------------------------------------------------------
+   !  type alarm_fixture_t
+   !
+   !> \brief Fixture type for testing alarm ringing behavior with windows.
+   !> \author Andy Stokely
+   !> \date   10/02/2025
+   !> \details
+   !>   This type provides all clocks, alarms, and precomputed iteration
+   !>   steps needed to exercise windowed alarm test cases.
+   !>
+   !>   The test timeline is organized as:
+   !>
+   !>       A                B          C            D                E
+   !>       |----------------|----------|------------|----------------|
+   !>       ^                ^          ^            ^                ^
+   !>   Clock start      Alarm anchor   Window    Window stop     Clock stop
+   !>                                    start
+   !>
+   !>   Fields map directly to these points and derived step counts.
+   !-----------------------------------------------------------------------
+   type alarm_fixture_t
+      !> Clock start time (A on the timeline)
+      type(MPAS_Time_type)         :: clock_start_time
 
-   !***********************************************************************
+      !> Clock stop time (E on the timeline)
+      type(MPAS_Time_type)         :: clock_stop_time
+
+      !> Alarm anchor time (B on the timeline)
+      type(MPAS_Time_type)         :: alarm_time
+
+      !> Alarm window start time (C on the timeline)
+      type(MPAS_Time_type)         :: window_start_time
+
+      !> Alarm window stop time (D on the timeline)
+      type(MPAS_Time_type)         :: window_stop_time
+
+      !> Clock step interval (time advanced per tick)
+      type(MPAS_TimeInterval_type) :: clock_time_step
+
+      !> Alarm recurrence interval (ring spacing)
+      type(MPAS_TimeInterval_type) :: alarm_interval
+
+      !> Clock under test
+      type(MPAS_Clock_type)        :: clock
+
+      !> Alarm with a user-defined active window
+      type(MPAS_Alarm_type), pointer :: alarm
+
+      !> Identifier string for the alarm
+      character(len=:), allocatable  :: alarm_id
+
+      !> Number of substeps per interval (clock resolution)
+      integer :: num_steps_per_interval = 6
+
+      !> Steps from clock start to alarm anchor (A->B)
+      integer :: num_steps_before_anchor = 12
+
+      !> Steps from anchor to window start (B->C)
+      integer :: num_steps_before_window = 36
+
+      !> Steps covering full window duration (C->D)
+      integer :: num_steps_window        = 36
+
+      !> Steps from window end to clock end (D->E)
+      integer :: num_steps_post_window   = 36
+
+      !> Absolute step index at anchor (B)
+      integer :: steps_to_anchor
+
+      !> Absolute step index at window start (C)
+      integer :: steps_to_window_start
+
+      !> Absolute step index at window midpoint
+      integer :: steps_to_window_midpoint
+
+      !> Absolute step index at window end (D)
+      integer :: steps_to_window_end
+
+      !> Absolute step index in post-window region
+      integer :: steps_to_post_window
+   end type alarm_fixture_t
+
+contains
+
+
+   !-----------------------------------------------------------------------
+   !  subroutine advance_clock_n_times
+   !
+   !> \brief Advance a clock forward by a specified number of steps.
+   !> \author Andy Stokely
+   !> \date   10/02/2025
+   !> \details This routine repeatedly advances the provided clock
+   !>   forward by calling mpas_advance_clock `n` times.
+   !-----------------------------------------------------------------------
+   subroutine advance_clock_n_times(clock, n)
+      use mpas_derived_types, only : MPAS_Clock_type
+      implicit none
+      type(MPAS_Clock_type), intent(inout) :: clock
+      integer, intent(in)                  :: n
+      integer                              :: i
+
+      do i = 1, n
+         call mpas_advance_clock(clock)
+      end do
+   end subroutine advance_clock_n_times
+
+
+   !-----------------------------------------------------------------------
+   !  subroutine assert_true
+   !
+   !> \brief Assert that a condition is true; logs PASS/FAIL accordingly.
+   !> \author Andy Stokely
+   !> \date   10/28/2025
+   !> \details
+   !>   Verifies that the provided logical expression evaluates to `.true.`.
+   !>   If the condition is false, a FAIL message is logged and the status
+   !    is set to 1.
+   !>
+   !>   This routine is used throughout test cases to simplify repetitive
+   !>   PASS/FAIL logic and ensure consistent logging and error tracking.
+   !>
+   !> \param condition  Logical expression expected to be `.true.`
+   !> \param message    Description of the test condition
+   !> \param status     Integer status flag (0 = pass, 1 = fail)
+   !-----------------------------------------------------------------------
+   subroutine assert_true(condition, message, status)
+      implicit none
+      logical, intent(in) :: condition
+      character(len=*), intent(in) :: message
+      integer, intent(out) :: status
+
+      if (condition) then
+         status = 0
+      else
+         call mpas_log_write('FAIL: ' // trim(message))
+         status = 1
+      end if
+   end subroutine assert_true
+
+
+   !-----------------------------------------------------------------------
+   !  subroutine assert_false
+   !
+   !> \brief Assert that a condition is false; logs PASS/FAIL accordingly.
+   !> \author Andy Stokely
+   !> \date   10/28/2025
+   !> \details
+   !>   Verifies that the provided logical expression evaluates to `.false.`.
+   !>   If the condition is true, a FAIL message is logged and the status
+   !>   is set to 1.
+   !>
+   !>   This routine complements `assert_true` and is used when the expected
+   !>   behavior requires a logical expression to remain false.
+   !>
+   !> \param condition  Logical expression expected to be `.false.`
+   !> \param message    Description of the test condition
+   !> \param status     Integer status flag (0 = pass, 1 = fail)
+   !-----------------------------------------------------------------------
+   subroutine assert_false(condition, message, status)
+      implicit none
+      logical, intent(in) :: condition
+      character(len=*), intent(in) :: message
+      integer, intent(out) :: status
+
+      if (.not. condition) then
+         status = 0
+      else
+         call mpas_log_write('FAIL: ' // trim(message))
+         status = 1
+      end if
+   end subroutine assert_false
+
+
+   !-----------------------------------------------------------------------
+   !  subroutine setup_alarm_fixture
+   !
+   !> \brief Initialize a test fixture with a clock and alarms.
+   !> \author Andy Stokely
+   !> \date   10/02/2025
+   !> \details This routine allocates and initializes an alarm_fixture_t
+   !>   structure.
+   !-----------------------------------------------------------------------
+   subroutine setup_alarm_fixture(fixture)
+      implicit none
+      type(alarm_fixture_t), intent(out), pointer :: fixture
+      integer                        :: ierr
+
+      allocate(fixture)
+
+      ! Alarm ID
+      fixture%alarm_id        = 'alarm'
+
+      ! Clock setup
+      call mpas_set_time(fixture%clock_start_time, YYYY=2000, MM=01, DD=01, H=0,  &
+            M=0, S=0, S_n=0, S_d=0, ierr=ierr)
+      call mpas_set_time(fixture%clock_stop_time,  YYYY=2000, MM=01, DD=01, H=20, &
+            M=0, S=0, S_n=0, S_d=0, ierr=ierr)
+
+      call mpas_set_timeInterval(fixture%clock_time_step, dt=600.0_RKIND, ierr=ierr)
+
+      call mpas_create_clock(fixture%clock, fixture%clock_start_time, &
+            fixture%clock_time_step, fixture%clock_stop_time, ierr=ierr)
+
+      ! Alarm anchor and interval
+      call mpas_set_time(fixture%alarm_time, YYYY=2000, MM=01, DD=01, H=2, M=0, S=0, S_n=0, S_d=0, ierr=ierr)
+      call mpas_set_timeInterval(fixture%alarm_interval, dt=3600.0_RKIND, ierr=ierr)
+
+      ! Alarm window
+      call mpas_set_time(fixture%window_start_time, YYYY=2000, MM=01, DD=01, H=8, M=0, S=0, S_n=0, S_d=0, ierr=ierr)
+      call mpas_set_time(fixture%window_stop_time,  YYYY=2000, MM=01, DD=01, H=14, M=0, S=0, S_n=0, S_d=0, ierr=ierr)
+
+      ! Add alarms to the clock
+      call mpas_add_clock_alarm(fixture%clock, fixture%alarm_id, fixture%alarm_time, &
+            alarmTimeInterval = fixture%alarm_interval, &
+            alarmStartTime    = fixture%window_start_time, &
+            alarmStopTime     = fixture%window_stop_time)
+      fixture%alarm => fixture%clock%alarmListHead
+
+      ! Derived iteration steps
+      fixture%steps_to_anchor          = fixture%num_steps_before_anchor
+      fixture%steps_to_window_start    = fixture%num_steps_before_anchor + fixture%num_steps_before_window
+      fixture%steps_to_window_midpoint = fixture%steps_to_window_start + fixture%num_steps_window/2
+      fixture%steps_to_window_end      = fixture%steps_to_window_start + fixture%num_steps_window
+      fixture%steps_to_post_window     = fixture%steps_to_window_end + fixture%num_steps_post_window/2
+   end subroutine setup_alarm_fixture
+
+
+   !-----------------------------------------------------------------------
+   !  subroutine teardown_alarm_fixture
+   !
+   !> \brief Finalize and deallocate a test alarm fixture.
+   !> \author Andy Stokely
+   !> \date   10/02/2025
+   !> \details This routine removes alarms from the test clock, destroys
+   !>   the clock, nullifies alarm pointers, and deallocates the fixture.
+   !>   It ensures a clean state for subsequent tests.
+   !-----------------------------------------------------------------------
+   subroutine teardown_alarm_fixture(fixture)
+      implicit none
+      type(alarm_fixture_t), pointer :: fixture
+      integer                        :: ierr
+
+      call mpas_remove_clock_alarm(fixture%clock, fixture%alarm_id, ierr=ierr)
+      call mpas_destroy_clock(fixture%clock, ierr=ierr)
+
+      nullify(fixture%alarm)
+      deallocate(fixture)
+   end subroutine teardown_alarm_fixture
+
+
+   !-----------------------------------------------------------------------
+   !  subroutine test_window_alarm
+   !
+   !> \brief Unit test for alarm ringing behavior with user-defined windows.
+   !> \author Andy Stokely
+   !> \date   10/02/2025
+   !> \details This test suite verifies that an alarm rings only when expected
+   !>   relative to the defined timeline:
+   !>
+   !>   A = Clock start time
+   !>   B = Alarm anchor time
+   !>   C = Window start time
+   !>   D = Window end time
+   !>   E = Clock end time
+   !>
+   !>   Timeline:
+   !>      A ---------------- B ----- C ---------------- D --------- E
+   !>
+   !>   The test covers 19 cases, including behavior:
+   !>   - Before anchor (A -> B)
+   !>   - Between anchor and window start (B -> C)
+   !>   - At window boundaries (C, D)
+   !>   - Inside the window (C -> D)
+   !>   - After leaving the window (D -> E)
+   !>   - After reset operations at various points
+   !>   - With anchor times shifted into the window
+   !>   - When the clock direction changes (forward/backward)
+   !>   - When the window start time is after the stop time (invalid)
+   !>   - When the window start time equals the stop time (valid)
+   !>   - When the window start time is before the clock start time (valid)
+   !>
+   !>   Each case checks whether the alarm rings at the correct times and
+   !>   uses mpas_log_write to log PASS/FAIL outcomes.
+   !-----------------------------------------------------------------------
+   subroutine test_window_alarm(case_idx, ierr)
+      implicit none
+      integer, intent(in) :: case_idx
+      integer, intent(inout) :: ierr
+      type(alarm_fixture_t), pointer :: f
+      logical :: ringing
+      integer :: local_ierr
+
+      call setup_alarm_fixture(f)
+      ierr = 0
+      local_ierr = 0
+
+      select case (case_idx)
+
+         !-----------------------------------------------------------------------
+         ! Case 1: Before anchor (A -> B)
+         ! Alarm should not ring before the anchor time.
+         !-----------------------------------------------------------------------
+      case(1)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_false(ringing, 'Alarm is ringing before anchor time', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         ! Case 2: Before anchor after reset (A -> B)
+         ! Reset should not cause false ringing before anchor.
+         !-----------------------------------------------------------------------
+      case(2)
+         call mpas_reset_clock_alarm(f%clock, f%alarm_id)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_false(ringing, 'Alarm is ringing before anchor time after reset', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         ! Case 3: After anchor but before window (B -> C)
+         ! Alarm should not ring after anchor until the window begins.
+         !-----------------------------------------------------------------------
+      case(3)
+         call advance_clock_n_times(f%clock, f%steps_to_anchor + 2*f%num_steps_per_interval)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_false(ringing, 'Alarm is ringing after anchor, before window', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         ! Case 4: At window start (C)
+         ! Alarm should ring exactly at the start of the window.
+         !-----------------------------------------------------------------------
+      case(4)
+         call advance_clock_n_times(f%clock, f%steps_to_window_start)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_true(ringing, 'Alarm is not ringing at start of window', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         ! Case 5: At window start (C) after reset
+         ! Reset should prevent ringing immediately at window start.
+         !-----------------------------------------------------------------------
+      case(5)
+         call advance_clock_n_times(f%clock, f%steps_to_window_start)
+         call mpas_reset_clock_alarm(f%clock, f%alarm_id)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_false(ringing, 'Alarm is ringing at start of window after reset', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         ! Case 6: Middle of window (C -> D)
+         ! Alarm should ring inside the window.
+         !-----------------------------------------------------------------------
+      case(6)
+         call advance_clock_n_times(f%clock, f%steps_to_window_midpoint)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_true(ringing, 'Alarm is not ringing in middle of window', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         ! Case 7: Middle of window after reset at window start
+         ! Alarm should ring again after being reset at C.
+         !-----------------------------------------------------------------------
+      case(7)
+         call advance_clock_n_times(f%clock, f%steps_to_window_start)
+         call mpas_reset_clock_alarm(f%clock, f%alarm_id)
+         call advance_clock_n_times(f%clock, f%num_steps_window/2)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_true(ringing, 'Alarm is not ringing in middle of window after reset', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         ! Case 8: Middle of window after reset inside window
+         ! Reset prevents alarm from ringing again immediately inside window.
+         !-----------------------------------------------------------------------
+      case(8)
+         call advance_clock_n_times(f%clock, f%steps_to_window_midpoint)
+         call mpas_reset_clock_alarm(f%clock, f%alarm_id)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_false(ringing, 'Alarm is ringing in middle of window after reset', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         ! Case 9: At window end (D)
+         ! Alarm should ring at the end of the window.
+         !-----------------------------------------------------------------------
+      case(9)
+         call advance_clock_n_times(f%clock, f%steps_to_window_end)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_true(ringing, 'Alarm is not ringing at end of window', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         ! Case 10: At window end (D) after reset
+         ! Reset should suppress ringing at window end.
+         !-----------------------------------------------------------------------
+      case(10)
+         call advance_clock_n_times(f%clock, f%steps_to_window_end)
+         call mpas_reset_clock_alarm(f%clock, f%alarm_id)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_false(ringing, 'Alarm is ringing at end of window after reset', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         ! Case 11: After leaving window (D -> E) before reset outside of window
+         ! Alarm should ring once more just after window ends.
+         !-----------------------------------------------------------------------
+      case(11)
+         call advance_clock_n_times(f%clock, f%steps_to_window_midpoint)
+         call mpas_reset_clock_alarm(f%clock, f%alarm_id)
+         call advance_clock_n_times(f%clock, f%num_steps_window/2 + f%num_steps_post_window/2)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_true(ringing, 'Alarm is not ringing after window', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         ! Case 12: After leaving window (D -> E) after reset outside of window
+         ! Alarm should not ring after reset outside window.
+         !-----------------------------------------------------------------------
+      case(12)
+         call advance_clock_n_times(f%clock, f%steps_to_window_end + f%num_steps_post_window/2)
+         call mpas_reset_clock_alarm(f%clock, f%alarm_id)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_false(ringing, 'Alarm is ringing after window after reset', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         ! Case 13: Anchor after window start (B > C)
+         ! Ensures alarm does not ring before a delayed anchor, even inside window.
+         !-----------------------------------------------------------------------
+      case(13)
+         call mpas_remove_clock_alarm(f%clock, f%alarm_id)
+         call mpas_set_time(f%alarm_time, YYYY=2000, MM=01, DD=01, H=9, M=0, S=0, S_n=0, S_d=0)
+         call mpas_add_clock_alarm(f%clock, f%alarm_id, f%alarm_time, &
+                 alarmTimeInterval = f%alarm_interval, &
+                 alarmStartTime = f%window_start_time, &
+                 alarmStopTime = f%window_stop_time)
+         call advance_clock_n_times(f%clock, f%steps_to_window_start)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_false(ringing, 'Alarm is ringing before anchor (after window start)', local_ierr)
+         ierr = ierr + local_ierr
+
+         call advance_clock_n_times(f%clock, 2*f%num_steps_per_interval)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_true(ringing, 'Alarm is not ringing after anchor (after window start)', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         ! Case 14: Clock direction change inside window (forward -> backward)
+         ! Alarm should still ring in window after direction change.
+         !-----------------------------------------------------------------------
+      case(14)
+         call advance_clock_n_times(f%clock, f%steps_to_window_midpoint)
+         call mpas_set_clock_direction(f%clock, MPAS_BACKWARD)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_true(ringing, 'Alarm is not ringing in window after direction change', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         ! Case 15: Re-entering window boundary after direction change
+         ! Alarm should ring again at boundary after leaving and re-entering.
+         !-----------------------------------------------------------------------
+      case(15)
+         call advance_clock_n_times(f%clock, f%steps_to_window_end)
+         call mpas_reset_clock_alarm(f%clock, f%alarm_id)
+         call advance_clock_n_times(f%clock, f%num_steps_post_window/2)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_false(ringing, 'Alarm is ringing after leaving window before re-entering', local_ierr)
+         ierr = ierr + local_ierr
+
+         call mpas_set_clock_direction(f%clock, MPAS_BACKWARD)
+         call advance_clock_n_times(f%clock, f%num_steps_post_window/2)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_true(ringing, 'Alarm is not ringing at boundary after re-entering', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         ! Case 16: Reset at window start and reverse direction to exit window
+         !> Alarm should not ring when moving backward out of the window after
+         !> being reset at the window start.
+         !-----------------------------------------------------------------------
+      case(16)
+         call advance_clock_n_times(f%clock, f%steps_to_window_midpoint)
+         call mpas_set_clock_direction(f%clock, MPAS_BACKWARD)
+         call mpas_reset_clock_alarm(f%clock, f%alarm_id)
+         call advance_clock_n_times(f%clock, f%num_steps_window / 2)
+         call mpas_reset_clock_alarm(f%clock, f%alarm_id)
+         call advance_clock_n_times(f%clock, f%steps_to_window_start / 2)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_false(ringing, 'Alarm rang after reset when moving backward out of window', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         ! Case 17: Outside window after direction change (D -> E -> backward)
+         ! Alarm should not ring outside window when clock direction flips.
+         !-----------------------------------------------------------------------
+      case(17)
+         call advance_clock_n_times(f%clock, f%steps_to_window_end + f%num_steps_post_window/2)
+         call mpas_set_clock_direction(f%clock, MPAS_BACKWARD)
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_false(ringing, 'Alarm is ringing outside of window after direction change', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         !  Case 18: Invalid window ordering test
+         !>
+         !>   This test verifies that mpas_add_clock_alarm correctly handles
+         !>   window time validation:
+         !>     1. It must reject alarms where the start time occurs after the stop time.
+         !>     2. It must allow alarms where the start time equals the stop time.
+         !-----------------------------------------------------------------------
+      case(18)
+         ! Start time after stop time rejected
+         call mpas_remove_clock_alarm(f%clock, f%alarm_id)
+         call mpas_add_clock_alarm(f%clock, f%alarm_id, f%alarm_time, &
+                 alarmTimeInterval = f%alarm_interval, &
+                 alarmStartTime    = f%window_stop_time, &
+                 alarmStopTime     = f%window_start_time, ierr=local_ierr)
+         call assert_true(local_ierr /= 0, 'Alarm with start time after stop time did not return error', local_ierr)
+         ierr = ierr + local_ierr
+
+         call mpas_remove_clock_alarm(f%clock, f%alarm_id)
+         call mpas_add_clock_alarm(f%clock, f%alarm_id, f%alarm_time, &
+                 alarmTimeInterval = f%alarm_interval, &
+                 alarmStartTime    = f%window_start_time, &
+                 alarmStopTime     = f%window_start_time, ierr=local_ierr)
+         call assert_false(local_ierr /= 0, 'Alarm with equal start/stop times incorrectly returned error', local_ierr)
+         ierr = ierr + local_ierr
+
+         !-----------------------------------------------------------------------
+         !  Case 19: Alarm starting before clock start test
+         !>
+         !>   This test verifies that mpas_add_clock_alarm allows alarms whose
+         !>   active window begins before the clock start time:
+         !>     1. It must not return an error when the activeStartTime occurs
+         !>        before the clock start time.
+         !>     2. The alarm should ring immediately when the clock begins,
+         !>        since its anchor time equals the clock start time.
+         !-----------------------------------------------------------------------
+      case(19)
+         call mpas_remove_clock_alarm(f%clock, f%alarm_id)
+
+         ! Set the alarm anchor time equal to the clock start time so it can ring immediately
+         f%alarm_time = f%clock_start_time
+
+         ! Add an alarm whose active window begins before the clock start time
+         call mpas_add_clock_alarm(f%clock, f%alarm_id, f%alarm_time, &
+                 alarmTimeInterval = f%alarm_interval, &
+                 alarmStartTime    = f%clock_start_time - mul_ti_n(f%alarm_interval, 4), &
+                 alarmStopTime     = f%window_stop_time, ierr=local_ierr)
+
+         ! Verify that adding the alarm does not return an error
+         call assert_false(local_ierr /= 0, &
+                 'Alarm with start time before clock start time incorrectly returned error', local_ierr)
+
+         ! Check whether the alarm rings immediately at clock start
+         ringing = mpas_is_alarm_ringing(f%clock, f%alarm_id)
+         call assert_true(ringing, &
+                 'Alarm is not ringing inside window with start time before clock start', local_ierr)
+         ierr = ierr + local_ierr
+
+      end select
+
+      call teardown_alarm_fixture(f)
+   end subroutine test_window_alarm
+
+
+   !-----------------------------------------------------------------------
+   !  function mpas_window_alarm_tests
+   !
+   !> \brief Run all unit tests for windowed alarm ringing behavior.
+   !> \author Andy Stokely
+   !> \date   10/02/2025
+   !> \details This driver function executes the suite of test cases
+   !>   implemented in test_window_alarm, aggregating any errors encountered.
+   !-----------------------------------------------------------------------
+   integer function mpas_window_alarm_tests() result(ierr)
+
+      integer :: i, ierr_local
+
+      ierr = 0
+      call mpas_log_write('Running 19 window alarm tests')
+      do i = 1, 19
+         ierr_local = 0
+         call test_window_alarm(i, ierr_local)
+         ierr = ierr + ierr_local
+      end do
+   end function mpas_window_alarm_tests
+
+
+   !-----------------------------------------------------------------------
    !
    !  routine test_core_test_intervals
    !
@@ -252,7 +840,7 @@ module test_core_timekeeping_tests
       call mpas_set_time(test_alarmTime, YYYY=2000, MM=01, DD=01, H=0, M=0, S=0, S_n=0, S_d=0, ierr=ierr_local)
       call mpas_set_timeInterval(test_alarmTimeInterval, dt=86400.0_RKIND, ierr=ierr_local)
 
-      call mpas_add_clock_alarm(test_clock, 'foobar', test_alarmTime, test_alarmTimeInterval, ierr_local)
+      call mpas_add_clock_alarm(test_clock, 'foobar', test_alarmTime, test_alarmTimeInterval, ierr=ierr_local)
 
 #ifdef MPAS_ADVANCE_TEST_CLOCK
       do istep = 1, 24*365
@@ -460,5 +1048,6 @@ module test_core_timekeeping_tests
       call mpas_reset_clock_alarm(test_clock, 'foobar', ierr=ierr_local)
 
    end subroutine mpas_adjust_alarm_tests
+
 
 end module test_core_timekeeping_tests

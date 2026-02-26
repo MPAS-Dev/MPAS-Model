@@ -487,8 +487,8 @@ module mpas_timekeeping
    end function mpas_get_clock_time
 
 
-   subroutine mpas_add_clock_alarm(clock, alarmID, alarmTime, alarmTimeInterval, ierr)
-! TODO: possibly add a stop time for recurring alarms
+   subroutine mpas_add_clock_alarm(clock, alarmID, alarmTime, alarmTimeInterval, &
+         alarmStartTime, alarmStopTime, ierr)
 
       implicit none
 
@@ -496,10 +496,14 @@ module mpas_timekeeping
       character (len=*), intent(in) :: alarmID
       type (MPAS_Time_type), intent(in) :: alarmTime
       type (MPAS_TimeInterval_type), intent(in), optional :: alarmTimeInterval
+      type (MPAS_Time_type), intent(in), optional :: alarmStartTime
+      type (MPAS_Time_type), intent(in), optional :: alarmStopTime
       integer, intent(out), optional :: ierr
 
       type (MPAS_Alarm_type), pointer :: alarmPtr
       integer :: threadNum
+
+      if (present(ierr)) ierr = 0
 
       threadNum = mpas_threading_get_thread_num()
 
@@ -542,7 +546,21 @@ module mpas_timekeeping
 
          alarmPtr % isSet = .true.
          alarmPtr % ringTime = alarmTime
-         
+         if (present(alarmStartTime)) then
+            alarmPtr % activeStartTime = alarmStartTime
+         else
+            alarmPtr % activeStartTime = mpas_get_clock_time(clock, MPAS_START_TIME)
+         end if
+         if (present(alarmStopTime)) then
+            alarmPtr % activeStopTime = alarmStopTime
+         else
+            alarmPtr % activeStopTime = mpas_get_clock_time(clock, MPAS_STOP_TIME)
+         end if
+         if (alarmPtr % activeStartTime > alarmPtr % activeStopTime) then
+            call mpas_log_write('Invalid alarm times: start > stop for ' // trim(alarmID), MPAS_LOG_ERR)
+            if (present(ierr)) ierr = 1
+         end if
+
 
          if (present(alarmTimeInterval)) then
             alarmPtr % isRecurring = .true.
@@ -555,9 +573,6 @@ module mpas_timekeeping
          else
             alarmPtr % isRecurring = .false.
             alarmPtr % prevRingTime = alarmTime
-         end if
-         if (present(ierr)) then
-            if (ierr == ESMF_SUCCESS) ierr = 0
          end if
       end if
 
@@ -811,6 +826,56 @@ module mpas_timekeeping
    end subroutine mpas_print_alarm
 
 
+   !-----------------------------------------------------------------------
+   !  function mpas_is_alarm_active
+   !
+   !> \brief Determine if an alarm is currently active.
+   !> \author Andy Stokely
+   !> \date   10/01/2025
+   !> \details This function checks whether the provided time falls
+   !>   within the active start and stop times of the given alarm. If so,
+   !>   it returns .true..
+   !-----------------------------------------------------------------------
+   logical function mpas_is_alarm_active(alarm, time)
+
+      implicit none
+
+      type(MPAS_Alarm_type), intent(in) :: alarm
+      type(MPAS_Time_type), intent(in) :: time
+
+      mpas_is_alarm_active = (alarm % activeStartTime <= time &
+              .and. time <= alarm % activeStopTime)
+
+   end function mpas_is_alarm_active
+
+
+   !-----------------------------------------------------------------------
+   !  function mpas_prev_ring_in_window
+   !
+   !> \brief Check if the alarm’s previous ring was inside its window.
+   !> \author Andy Stokely
+   !> \date   10/01/2025
+   !> \details This function tests whether the alarm’s prevRingTime
+   !>   occurred strictly within the defined start and stop times of the
+   !>   alarm’s active window. The check uses an open interval:
+   !>
+   !>       (start, stop)
+   !>
+   !>   The boundaries themselves are excluded. If the previous ring time
+   !>   lies inside this open interval, the function returns .true..
+   !-----------------------------------------------------------------------
+   logical function mpas_prev_ring_in_window(alarm)
+
+      implicit none
+
+      type(MPAS_Alarm_type), intent(in) :: alarm
+
+      mpas_prev_ring_in_window = (alarm % activeStartTime < alarm % prevRingTime &
+              .and. alarm % prevRingTime < alarm % activeStopTime)
+
+   end function mpas_prev_ring_in_window
+
+
    logical function mpas_is_alarm_ringing(clock, alarmID, interval, ierr)
 
       implicit none
@@ -825,7 +890,6 @@ module mpas_timekeeping
       if (present(ierr)) ierr = 0
 
       mpas_is_alarm_ringing = .false.
-      
       alarmPtr => clock % alarmListHead
       do while (associated(alarmPtr))
          if (trim(alarmPtr % alarmID) == trim(alarmID)) then
@@ -883,10 +947,12 @@ module mpas_timekeeping
       integer, intent(out), optional :: ierr
       
       type (MPAS_Time_type) :: alarmNow
+      type (MPAS_Time_type) :: currentTime
       type (MPAS_Time_type) :: alarmThreshold
 
-      alarmNow = mpas_get_clock_time(clock, MPAS_NOW, ierr)
-      alarmThreshold = alarmPtr % ringTime 
+      currentTime = mpas_get_clock_time(clock, MPAS_NOW, ierr)
+      alarmNow = currentTime
+      alarmThreshold = alarmPtr % ringTime
       
       mpas_in_ringing_envelope = .false.      
                
@@ -901,7 +967,10 @@ module mpas_timekeeping
          end if
 
          if (alarmThreshold <= alarmNow) then
-            mpas_in_ringing_envelope = .true.
+            if (mpas_is_alarm_active(alarmPtr, currentTime) &
+                  .or. mpas_prev_ring_in_window(alarmPtr)) then
+               mpas_in_ringing_envelope = .true.
+            end if
          end if
       else
 
@@ -914,7 +983,10 @@ module mpas_timekeeping
          end if
             
          if (alarmThreshold >= alarmNow) then
-            mpas_in_ringing_envelope = .true.
+            if (mpas_is_alarm_active(alarmPtr, currentTime) &
+                  .or. mpas_prev_ring_in_window(alarmPtr)) then
+               mpas_in_ringing_envelope = .true.
+            end if
          end if
       end if
 
