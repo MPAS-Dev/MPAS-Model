@@ -16,6 +16,13 @@ core_input_gen:
 	(cd default_inputs; $(NL_GEN) ../Registry_processed.xml namelist.seaice )
 	(cd default_inputs; $(ST_GEN) ../Registry_processed.xml streams.seaice stream_list.seaice. listed )
 
+nuopc:
+	@echo "************ ERROR ************"
+	@echo "NUOPC build does not exist for the seaice core. Quitting."
+	@echo "************ ERROR ************"
+	@echo ""
+	exit 1
+
 post_build:
 	if [ ! -e $(ROOT_DIR)/default_inputs ]; then mkdir $(ROOT_DIR)/default_inputs; fi
 	cp default_inputs/* $(ROOT_DIR)/default_inputs/.

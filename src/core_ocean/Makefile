@@ -28,6 +28,13 @@ core_input_gen:
 	(cd default_inputs; $(ST_GEN) ../Registry_processed.xml streams.ocean.analysis stream_list.ocean.analysis. mutable mode=analysis )
 	(cd default_inputs; $(ST_GEN) ../Registry_processed.xml streams.ocean.init stream_list.ocean.init. mutable mode=init )
 
+nuopc:
+	@echo "************ ERROR ************"
+	@echo "NUOPC build does not exist for the ocean core. Quitting."
+	@echo "************ ERROR ************"
+	@echo ""
+	exit 1
+
 gen_includes:
 	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) Registry.xml > Registry_processed.xml
 	(if [ ! -d inc ]; then mkdir -p inc; fi) # To generate *.inc files

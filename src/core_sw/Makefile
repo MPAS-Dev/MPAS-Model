@@ -18,6 +18,13 @@ core_input_gen:
 	(cd default_inputs; $(NL_GEN) ../Registry_processed.xml namelist.sw )
 	(cd default_inputs; $(ST_GEN) ../Registry_processed.xml streams.sw stream_list.sw. listed )
 
+nuopc:
+	@echo "************ ERROR ************"
+	@echo "NUOPC build does not exist for the sw core. Quitting."
+	@echo "************ ERROR ************"
+	@echo ""
+	exit 1
+
 gen_includes:
 	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) Registry.xml > Registry_processed.xml
 	(if [ ! -d inc ]; then mkdir -p inc; fi) # To generate *.inc files

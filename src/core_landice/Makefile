@@ -28,6 +28,13 @@ core_input_gen:
 core_reg:
 	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) Registry.xml > Registry_processed.xml
 
+nuopc:
+	@echo "************ ERROR ************"
+	@echo "NUOPC build does not exist for the landice core. Quitting."
+	@echo "************ ERROR ************"
+	@echo ""
+	exit 1
+
 gen_includes:
 	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) Registry.xml > Registry_processed.xml
 	(if [ ! -d inc ]; then mkdir -p inc; fi) # To generate *.inc files
