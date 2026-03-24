@@ -35,6 +35,15 @@
    end interface
 
    abstract interface
+      function mpas_setup_computed_dimensions_function(computeDimList) result(iErr)
+         import mpas_compute_dim_list
+
+         type (mpas_compute_dim_list), pointer :: computeDimList
+         integer :: iErr
+      end function mpas_setup_computed_dimensions_function
+   end interface
+
+   abstract interface
       function mpas_setup_decompositions_function(decompList) result(iErr)
          import mpas_decomp_list
 
@@ -170,6 +179,7 @@
       procedure (mpas_setup_namelist_function), pointer, nopass :: setup_namelist => null()
       procedure (mpas_define_packages_function), pointer, nopass :: define_packages => null()
       procedure (mpas_setup_packages_function), pointer, nopass :: setup_packages => null()
+      procedure (mpas_setup_computed_dimensions_function), pointer, nopass :: setup_computed_dimensions => null()
       procedure (mpas_setup_decompositions_function), pointer, nopass :: setup_decompositions => null()
       procedure (mpas_get_mesh_stream_function), pointer, nopass :: get_mesh_stream => null()
       procedure (mpas_setup_clock_function), pointer, nopass :: setup_clock => null()

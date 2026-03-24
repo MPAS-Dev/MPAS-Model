@@ -15,6 +15,7 @@ OBJS = mpas_kind_types.o \
        mpas_block_creator.o \
        mpas_dmpar.o \
        mpas_abort.o \
+       mpas_compute_dim.o \
        mpas_decomp.o \
        mpas_threading.o \
        mpas_io.o \
@@ -72,6 +73,8 @@ mpas_domain_routines.o: mpas_derived_types.o mpas_pool_routines.o mpas_dmpar.o
 mpas_field_routines.o: mpas_derived_types.o duplicate_field_array.inc duplicate_field_scalar.inc mpas_threading.o mpas_attlist.o
 
 mpas_pool_routines.o: mpas_derived_types.o mpas_field_routines.o mpas_threading.o mpas_log.o
+
+mpas_compute_dim.o: mpas_kind_types.o mpas_derived_types.o mpas_stream_manager.o mpas_log.o
 
 mpas_decomp.o: mpas_derived_types.o mpas_stream_manager.o mpas_log.o
 

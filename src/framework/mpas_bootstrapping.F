@@ -671,6 +671,13 @@ module mpas_bootstrapping
 
       call mpas_pool_set_error_level(err_level)
 
+      ! Compute any dimensions that were not read in but can be created by the core
+      if ( associated(domain % core % setup_computed_dimensions) ) then
+        call mpas_log_write('----- setting up computed dimensions -----')
+        call calculate_computed_dimensions(domain % streamManager, domain % blocklist, readableDimensions)
+        call mpas_log_write('----- done setting up computed dimensions -----')
+      end if
+
       ! Allocate blocks, and copy indexTo arrays into blocks
       call mpas_block_creator_finalize_block_phase2(domain % streamManager, domain % blocklist, readableDimensions)
       call mpas_link_fields(domain)
@@ -1069,5 +1076,67 @@ module mpas_bootstrapping
       end if
 
    end subroutine get_dimlist_for_field!}}}
+
+
+   !***********************************************************************
+   !
+   !  routine calculate_computed_dimensions
+   !
+   !> \brief   Runs through the compute_dim_list functions provided by a core
+   !> \author  Anthony Islas
+   !> \date    06 March 2026
+   !> \details
+   !>  This subroutine creates a local mpas_compute_dim_list to gather the
+   !>  functions provided for this core to compute the respective dimensions
+   !>  associated with each function. This list is looped over, and if the
+   !>  dimension already exists within readableDimensions, it is assumed
+   !>  already resolved and skipped. If not present in readableDimensions
+   !>  the function is invoked.
+   !>
+   !>  It is the responsibility of the called function to add the dimension
+   !>  to the readableDimensions pool.
+   !>
+   !>  At the end of this call, readableDimensions should contain the combined
+   !>  set of original values and any new dimensions a core specifies to be
+   !>  resolved by a computing function that were not already in readableDimensions.
+   !
+   !-----------------------------------------------------------------------
+   subroutine calculate_computed_dimensions(streamManager, blocklist, readableDimensions)!{{{
+
+      use mpas_stream_manager
+      use mpas_compute_dim
+
+      type (mpas_streamManager_type), pointer :: streamManager !< Input: Stream manager structure
+      type (block_type), pointer :: blocklist !< Input/Output: Linked List of blocks
+      type (mpas_pool_type), intent(inout) :: readableDimensions
+
+      type (domain_type), pointer :: domain
+      type (mpas_compute_dim_list), pointer :: computeDimList => null(), cursor => null()
+      integer, pointer :: readDim
+      integer :: err_local
+
+      domain => blocklist % domain
+      call mpas_compute_dim_create_compute_dim_list(computeDimList)
+
+      err_local = domain % core % setup_computed_dimensions(computeDimList)
+      cursor => computeDimList
+
+      do while (associated(cursor))
+         if (cursor % nameLen > 0) then
+            call mpas_log_write('Checking if ' // trim(cursor % dimName) // ' exists...')
+            call mpas_pool_get_dimension(readableDimensions, cursor % dimName, readDim)
+            if (.not. associated(readDim)) then
+               err_local = cursor % compDimFunc(streamManager, blocklist, readableDimensions)
+            else
+               call mpas_log_write('Computed diminsion ' // trim(cursor % dimName) // ' already read in', MPAS_LOG_WARN)
+            end if
+         end if
+         cursor => cursor % next
+      end do
+
+      call mpas_compute_dim_destroy_compute_dim_list(computeDimList)
+
+   end subroutine calculate_computed_dimensions!}}}
+
 
 end module mpas_bootstrapping
