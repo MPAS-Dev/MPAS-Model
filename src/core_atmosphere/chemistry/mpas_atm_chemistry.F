@@ -19,6 +19,8 @@
 !-------------------------------------------------------------------------
 module mpas_atm_chemistry
 
+    use mpas_kind_types, only : StrKIND, RKIND
+
     implicit none
 
     private
@@ -86,16 +88,31 @@ module mpas_atm_chemistry
     !>  This routine steps the chemistry packages, updating their state
     !>  based on the current simulation time and conditions.
     !------------------------------------------------------------------------
-    subroutine chemistry_step()
+    subroutine chemistry_step(dt)
 
 #ifdef MPAS_USE_MUSICA
+        use iso_fortran_env, only: real64
         use mpas_musica, only: musica_step
 #endif
         use mpas_log, only : mpas_log_write
+        use mpas_derived_types, only: MPAS_LOG_CRIT
+
+        real (kind=RKIND), intent(in) :: dt
 
 #ifdef MPAS_USE_MUSICA
+        real(real64)                  :: time_step
+        integer                       :: error_code
+        character(len=:), allocatable :: error_message
+
+        time_step = dt
+
         call mpas_log_write('Stepping chemistry packages...')
-        ! call musica_step()
+
+        call musica_step(time_step, error_code, error_message)
+
+        if (error_code /= 0) then
+            call mpas_log_write(error_message, messageType=MPAS_LOG_CRIT)
+        end if
 #endif
 
     end subroutine chemistry_step
