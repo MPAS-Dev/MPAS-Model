@@ -699,6 +699,9 @@
           call mpas_log_write('$i $r $r $r', intArgs=(/iCell/), &
                                              realArgs=(/real(landmask(iCell),kind=RKIND),xland(iCell),xice(iCell)/))
        xice(iCell) = 0._RKIND
+       snowc(iCell) = 0._RKIND  ! snow = 0 over water points
+       snowh(iCell) = 0._RKIND   
+       snow(iCell) = 0._RKIND   
     endif
 
  enddo

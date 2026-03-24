@@ -4538,8 +4538,8 @@ module init_atm_cases
                interp_list(2) = W_AVERAGE4
                interp_list(3) = 0
 
-               masked = 0
-               fillval = 0.0
+               ! masked = 0
+               ! fillval = 0.0
 
                nInterpPoints = nCells
                latPoints => latCell
