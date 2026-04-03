@@ -638,9 +638,9 @@
 
  call mpas_pool_get_array(input, 'seaice', seaice)
  call mpas_pool_get_array(input, 'xice', xice)
- call mpas_pool_get_array(input, 'snowc', xice)
- call mpas_pool_get_array(input, 'snowh', xice)
- call mpas_pool_get_array(input, 'snow', xice)
+ call mpas_pool_get_array(input, 'snowc', snowc)
+ call mpas_pool_get_array(input, 'snowh', snowh)
+ call mpas_pool_get_array(input, 'snow', snow)
  call mpas_pool_get_array(input, 'vegfra', vegfra)
 
  call mpas_pool_get_array(input, 'skintemp', skintemp)
@@ -703,9 +703,11 @@
           call mpas_log_write('$i $r $r $r', intArgs=(/iCell/), &
                                              realArgs=(/real(landmask(iCell),kind=RKIND),xland(iCell),xice(iCell)/))
        xice(iCell) = 0._RKIND
-       snowc(iCell) = 0._RKIND  ! snow = 0 over water points
-       snowh(iCell) = 0._RKIND   
-       snow(iCell) = 0._RKIND   
+       if(landmask(iCell) .eq. 0) then
+          snowc(iCell) = 0._RKIND  ! snow = 0 over water points
+          snowh(iCell) = 0._RKIND   
+          snow(iCell) = 0._RKIND   
+       endif
     endif
 
  enddo
