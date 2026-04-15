@@ -122,6 +122,9 @@ module mpas_atm_halos
          call mpas_dmpar_exch_group_add_field(domain, 'dynamics:theta_m,pressure_p,rtheta_p', 'rtheta_p', &
                                               timeLevel=1, haloLayers=(/1,2/))
 
+         call mpas_dmpar_exch_group_create(domain, 'dynamics:eddy_visc_horz,eddy_visc_vert')
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:eddy_visc_horz,eddy_visc_vert', 'eddy_visc_horz', timeLevel=1, haloLayers=(/1,2/))
+         call mpas_dmpar_exch_group_add_field(domain, 'dynamics:eddy_visc_horz,eddy_visc_vert', 'eddy_visc_vert', timeLevel=1, haloLayers=(/1,2/))
 
          call mpas_dmpar_exch_group_create(domain, 'dynamics:exner')
          call mpas_dmpar_exch_group_add_field(domain, 'dynamics:exner', 'exner', timeLevel=1, haloLayers=(/1,2/))
@@ -243,6 +246,10 @@ module mpas_atm_halos
                                              timeLevel=1, haloLayers=(/1,2/))
          call mpas_halo_exch_group_complete(domain, 'dynamics:theta_m,pressure_p,rtheta_p')
 
+         call mpas_halo_exch_group_create(domain, 'dynamics:eddy_visc_horz,eddy_visc_vert')
+         call mpas_halo_exch_group_add_field(domain, 'dynamics:eddy_visc_horz,eddy_visc_vert', 'eddy_visc_horz', timeLevel=1, haloLayers=(/1,2/))
+         call mpas_halo_exch_group_add_field(domain, 'dynamics:eddy_visc_horz,eddy_visc_vert', 'eddy_visc_vert', timeLevel=1, haloLayers=(/1,2/))
+         call mpas_halo_exch_group_complete(domain, 'dynamics:eddy_visc_horz,eddy_visc_vert')
 
          call mpas_halo_exch_group_create(domain, 'dynamics:exner')
          call mpas_halo_exch_group_add_field(domain, 'dynamics:exner', 'exner', timeLevel=1, haloLayers=(/1,2/))
@@ -367,6 +374,7 @@ module mpas_atm_halos
          call mpas_dmpar_exch_group_destroy(domain, 'dynamics:w,pv_edge,rho_edge,scalars')
          call mpas_dmpar_exch_group_destroy(domain, 'dynamics:theta_m,pressure_p,rtheta_p')
 
+         call mpas_dmpar_exch_group_destroy(domain, 'dynamics:eddy_visc_horz,eddy_visc_vert')
          call mpas_dmpar_exch_group_destroy(domain, 'dynamics:exner')
          call mpas_dmpar_exch_group_destroy(domain, 'dynamics:tend_u')
          call mpas_dmpar_exch_group_destroy(domain, 'dynamics:rho_pp')
@@ -403,6 +411,7 @@ module mpas_atm_halos
          call mpas_halo_exch_group_destroy(domain, 'dynamics:w,pv_edge,rho_edge,scalars')
          call mpas_halo_exch_group_destroy(domain, 'dynamics:theta_m,pressure_p,rtheta_p')
 
+         call mpas_halo_exch_group_destroy(domain, 'dynamics:eddy_visc_horz,eddy_visc_vert')
          call mpas_halo_exch_group_destroy(domain, 'dynamics:exner')
          call mpas_halo_exch_group_destroy(domain, 'dynamics:tend_u')
          call mpas_halo_exch_group_destroy(domain, 'dynamics:rho_pp')

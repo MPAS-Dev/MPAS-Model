@@ -2254,7 +2254,8 @@ module atm_time_integration
                                           edgeThreadStart(thread), edgeThreadEnd(thread), &
                                           cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
                                           vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                          edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+                                          edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread), &
+                                          domain, config_gpu_aware_mpi, exchange_halo_group)
             end do
 !$OMP END PARALLEL DO
 
@@ -5787,7 +5788,8 @@ module atm_time_integration
 
    subroutine atm_compute_dyn_tend(tend, tend_physics, state, diag, mesh, diag_physics, configs, nVertLevels, rk_step, dynamics_substep, dt, &
                                    cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-                                   cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
+                                   cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
+                                   domain, config_gpu_aware_mpi, exchange_halo_group)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    ! Compute height and normal wind tendencies, as well as diagnostic variables
    !
@@ -5820,6 +5822,9 @@ module atm_time_integration
       real (kind=RKIND), intent(in) :: dt
       integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
       integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
+      type (domain_type), intent(inout) :: domain
+      logical, intent(in) :: config_gpu_aware_mpi
+      procedure (halo_exchange_routine) :: exchange_halo_group
 
       !
       ! Local variables
@@ -6092,7 +6097,8 @@ module atm_time_integration
          config_surface_heat_flux, config_surface_moisture_flux, config_surface_drag_coefficient, &
          rthdynten, ustm, hfx, qfx, &
          cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-         cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
+         cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
+         domain, config_gpu_aware_mpi, exchange_halo_group)
 
          if (nopbl) then
              deallocate(ustm)
@@ -6127,7 +6133,8 @@ module atm_time_integration
       config_surface_heat_flux, config_surface_moisture_flux, config_surface_drag_coefficient, &
       rthdynten, ustm, hfx, qfx, &
       cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
-      cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
+      cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd, &
+      domain, config_gpu_aware_mpi, exchange_halo_group)
 
 
       use mpas_atm_dimensions
@@ -6266,6 +6273,9 @@ module atm_time_integration
       integer, intent(in) :: cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd
       integer, intent(in) :: cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd
 
+      type (domain_type), intent(inout) :: domain
+      logical, intent(in) :: config_gpu_aware_mpi
+      procedure (halo_exchange_routine) :: exchange_halo_group
 
       !
       ! Local variables
@@ -6384,6 +6394,10 @@ module atm_time_integration
                              scalars, tend_scalars, index_tke, rho_zz, meshScalingDel2,         &
                              cellStart, cellEnd, nEdgesOnCell, edgesOnCell, cellsOnEdge,        &
                              nCells, nEdges, nVertLevels, maxEdges, num_scalars                )
+
+            !$acc update self(eddy_visc_horz, eddy_visc_vert) if (.not. config_gpu_aware_mpi)
+            call exchange_halo_group(domain, 'dynamics:eddy_visc_horz,eddy_visc_vert', config_gpu_aware_mpi)
+            !$acc update device(eddy_visc_horz, eddy_visc_vert) if (.not. config_gpu_aware_mpi)
 
          end if
 
