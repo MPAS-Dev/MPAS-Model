@@ -663,11 +663,11 @@ intel:   # BUILDTARGET Intel oneAPI Fortran, C, and C++ compiler suite
 	"CC_SERIAL = icx" \
 	"CXX_SERIAL = icpx" \
 	"FFLAGS_PROMOTION = -real-size 64" \
-	"FFLAGS_OPT = -O3 -convert big_endian -free -align array64byte" \
+	"FFLAGS_OPT = -O3 -convert big_endian -free -align array64byte -Qoption,fpp,-macro_expand=vc" \
 	"CFLAGS_OPT = -O3" \
 	"CXXFLAGS_OPT = -O3" \
 	"LDFLAGS_OPT = -O3" \
-	"FFLAGS_DEBUG = -g -convert big_endian -free -check bounds,pointers,arg_temp_created,format,shape,contiguous -fpe0 -traceback" \
+	"FFLAGS_DEBUG = -g -convert big_endian -free -check bounds,pointers,arg_temp_created,format,shape,contiguous -fpe0 -traceback -Qoption,fpp,-macro_expand=vc" \
 	"CFLAGS_DEBUG = -g -traceback" \
 	"CXXFLAGS_DEBUG = -g -traceback" \
 	"LDFLAGS_DEBUG = -g -traceback" \
@@ -684,6 +684,24 @@ intel:   # BUILDTARGET Intel oneAPI Fortran, C, and C++ compiler suite
 CPPINCLUDES =
 FCINCLUDES =
 LIBS =
+
+export MPAS_ESMF ?= embedded
+ifeq "$(MPAS_ESMF)" "external"
+  ifeq ($(wildcard $(ESMFMKFILE)), )
+    $(error ESMFMKFILE must be set if MPAS_ESMF=external)
+  endif
+  include $(ESMFMKFILE)
+  export MPAS_ESMF_INC = $(ESMF_F90COMPILEPATHS)
+  export MPAS_ESMF_LIB = $(ESMF_F90LINKPATHS) $(ESMF_F90ESMFLINKPATHS) $(ESMF_F90ESMFLINKLIBS)
+  override CPPFLAGS += -DMPAS_EXTERNAL_ESMF_LIB=true
+  ESMF_MESSAGE="MPAS was built with an external ESMF library using ESMFMKFILE"
+else ifeq "$(MPAS_ESMF)" "embedded"
+  export MPAS_ESMF_INC = -I$(PWD)/src/external/esmf_time_f90
+  export MPAS_ESMF_LIB = -L$(PWD)/src/external/esmf_time_f90 -lesmf_time
+  ESMF_MESSAGE="MPAS was built with the embedded ESMF timekeeping library."
+else
+  $(error Invalid MPAS_ESMF option: $(MPAS_ESMF) - valid options "embedded", "external")
+endif
 
 ifneq "$(PIO)" ""
 #
@@ -759,9 +777,14 @@ endif
 	LIBS += $(NCLIB)
 endif
 
-ifneq "$(HDF5)" ""
-        LIBS += -L$(HDF5)/lib
-        LIBS += -lhdf5_hl -lhdf5 -lm -lz
+ifneq "$(SCOTCH)" ""
+	SCOTCH_INCLUDES += -I$(SCOTCH)/include
+	SCOTCH_LIBS += -L$(SCOTCH)/lib64 -lptscotch -lscotch  -lptscotcherr -lm
+	SCOTCH_FLAGS = -DMPAS_SCOTCH
+
+	CPPINCLUDES += $(SCOTCH_INCLUDES)
+	LIBS += $(SCOTCH_LIBS)
+	override CPPFLAGS += $(SCOTCH_FLAGS)
 endif
 
 ifneq "$(PNETCDF)" ""
@@ -1419,6 +1442,37 @@ musica_fortran_test:
 	$(eval MUSICA_FORTRAN_VERSION := $(shell pkg-config --modversion musica-fortran))
 	$(if $(findstring 1,$(MUSICA_FORTRAN_TEST)), $(info Built a simple test program with MUSICA-Fortran version $(MUSICA_FORTRAN_VERSION)), )
 
+scotch_c_test:
+	@#
+	@# Create a C test program and try to build against the PT-SCOTCH library
+	@#
+	$(info Checking for a working Scotch library...)
+	$(eval SCOTCH_C_TEST := $(shell $\
+	    printf "#include <stdio.h>\n\
+			&#include \"mpi.h\"\n\
+			&#include \"ptscotch.h\"\n\
+			&int main(){\n\
+			&    int err;\n\
+			&    SCOTCH_Dgraph *dgraph;\n\
+			&    err = SCOTCH_dgraphInit(dgraph, MPI_COMM_WORLD);\n\
+			&    SCOTCH_dgraphExit(dgraph);\n\
+			&    return err;\n\
+			&}\n" | sed 's/&/ /' > ptscotch_c_test.c; $\
+		$\
+		$(CC) $(CPPINCLUDES) $(CFLAGS) $(LDFLAGS) ptscotch_c_test.c -o ptscotch_c_test.x $(SCOTCH_LIBS) > ptscotch_c_test.log 2>&1; $\
+		scotch_c_status=$$?; $\
+		if [ $$scotch_c_status -eq 0 ]; then $\
+			printf "1"; $\
+			rm -f ptscotch_c_test.c ptscotch_c_test.x ptscotch_c_test.log; $\
+		else $\
+			printf "0"; $\
+		fi $\
+	))
+	$(if $(findstring 0,$(SCOTCH_C_TEST)), $(error Could not build a simple C program with Scotch. $\
+		Test program ptscotch_c_test.c and output ptscotch_c_test.log have been left $\
+	    in the top-level MPAS directory for further debugging ))
+	$(if $(findstring 1,$(SCOTCH_C_TEST)), $(info Built a simple C program with Scotch ))
+
 pnetcdf_test:
 	@#
 	@# Create test C programs that look for PNetCDF header file and some symbols in it
@@ -1475,6 +1529,13 @@ else
 MUSICA_MESSAGE = "MPAS was not linked with the MUSICA-Fortran library."
 endif
 
+ifneq "$(SCOTCH)" ""
+MAIN_DEPS += scotch_c_test
+SCOTCH_MESSAGE = "MPAS has been linked with the Scotch graph partitioning library."
+else
+SCOTCH_MESSAGE = "MPAS was NOT linked with the Scotch graph partitioning library."
+endif
+
 mpas_main: $(MAIN_DEPS)
 	cd src; $(MAKE) FC="$(FC)" \
                  CC="$(CC)" \
@@ -1512,6 +1573,7 @@ mpas_main: $(MAIN_DEPS)
 	@echo $(OPENMP_OFFLOAD_MESSAGE)
 	@echo $(OPENACC_MESSAGE)
 	@echo $(MUSICA_MESSAGE)
+	@echo $(SCOTCH_MESSAGE)
 	@echo $(SHAREDLIB_MESSAGE)
 ifeq "$(AUTOCLEAN)" "true"
 	@echo $(AUTOCLEAN_MESSAGE)
@@ -1519,6 +1581,7 @@ endif
 	@echo $(GEN_F90_MESSAGE)
 	@echo $(TIMER_MESSAGE)
 	@echo $(IO_MESSAGE)
+	@echo $(ESMF_MESSAGE)
 	@echo "*******************************************************************************"
 clean:
 	cd src; $(MAKE) clean RM="$(RM)" CORE="$(CORE)" AUTOCLEAN="$(AUTOCLEAN)"
@@ -1575,6 +1638,9 @@ errmsg:
 	@echo "    OPENACC=true  - builds and links with OpenACC flags. Default is to not use OpenACC."
 	@echo "    PRECISION=double - builds with default double-precision real kind. Default is to use single-precision."
 	@echo "    SHAREDLIB=true - generate position-independent code suitable for use in a shared library. Default is false."
+	@echo "    MPAS_ESMF=opt  - Selects the ESMF library to be used for MPAS. Options are:"
+	@echo "                     MPAS_ESMF=embedded - Use the embedded ESMF timekeeping library (default)"
+	@echo "                     MPAS_ESMF=external - Use an external ESMF library, determined by ESMFMKFILE"
 	@echo ""
 	@echo "Ensure that NETCDF, PNETCDF, PIO, and PAPI (if USE_PAPI=true) are environment variables"
 	@echo "that point to the absolute paths for the libraries."

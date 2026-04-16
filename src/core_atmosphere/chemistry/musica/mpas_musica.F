@@ -29,6 +29,7 @@ module mpas_musica
 
     type(micm_t),  pointer :: micm  => null ( )  ! Pointer to the MICM ODE solver instance
     type(state_t), pointer :: state => null ( )  ! Pointer to the state of the MICM solver
+    logical :: musica_is_initialized = .false.   ! Flag to track if MUSICA was successfully initialized
 
     contains
 
@@ -61,13 +62,22 @@ module mpas_musica
 
         type(error_t)  :: error
         type(string_t) :: micm_version
-
         ! TEMPORARY: Hard-coded options for the MICM solver
         integer :: solver_type = RosenbrockStandardOrder
+        integer :: i_species
+
+        ! Skip MUSICA initialization if no configuration file is provided
+        if (len_trim(filename_of_micm_configuration) == 0) then
+            call mpas_log_write('MUSICA chemistry disabled: no MICM configuration file specified')
+            error_code = 0
+            error_message = ''
+            return
+        end if
 
         micm_version = get_micm_version()
 
         call mpas_log_write('Initializing MUSICA chemistry package...')
+        call mpas_log_write('MICM configuration file: ' // trim(filename_of_micm_configuration))
         call mpas_log_write('MICM version: ' // micm_version%value_)
         call mpas_log_write('MICM number of grid cells: $i', intArgs=[number_of_grid_cells])
 
@@ -76,6 +86,12 @@ module mpas_musica
 
         state => micm%get_state(number_of_grid_cells, error)
         if (has_error_occurred(error, error_message, error_code)) return
+
+        do i_species = 1, state%species_ordering%size()
+            call mpas_log_write('MICM species: ' // state%species_ordering%name(i_species))
+        end do
+
+        musica_is_initialized = .true.
 
     end subroutine musica_init
 
@@ -95,6 +111,8 @@ module mpas_musica
     subroutine musica_step()
 
         use mpas_log, only : mpas_log_write
+
+        if (.not. musica_is_initialized) return
 
         call mpas_log_write('Stepping MUSICA chemistry package...')
 
@@ -116,6 +134,8 @@ module mpas_musica
     subroutine musica_finalize()
 
         use mpas_log, only : mpas_log_write
+
+        if (.not. musica_is_initialized) return
 
         call mpas_log_write('Finalizing MUSICA chemistry package...')
 

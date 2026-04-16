@@ -97,6 +97,7 @@ module test_core
       use test_core_string_utils, only : mpas_test_string_utils
       use mpas_test_core_dmpar, only : mpas_test_dmpar
       use mpas_test_core_stream_inquiry, only : mpas_test_stream_inquiry
+      use test_core_io, only : test_core_io_test
       use mpas_test_core_openacc, only : mpas_test_openacc
 
       implicit none
@@ -223,6 +224,18 @@ module test_core
       end do
 
       call mpas_stream_mgr_write(domain % streamManager, forceWriteNow=.true.)
+
+      !
+      ! Run io tests
+      !
+      call mpas_log_write('')
+      call test_core_io_test(domain, iErr)
+      if (iErr == 0) then
+          call mpas_log_write('All tests PASSED')
+      else
+          call mpas_log_write('$i tests FAILED', intArgs=[iErr])
+      end if
+      call mpas_log_write('')
 
       !
       ! Run mpas_test_openacc

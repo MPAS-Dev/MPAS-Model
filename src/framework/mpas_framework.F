@@ -265,6 +265,12 @@ module mpas_framework
 #else
                           'no')
 #endif
+      call mpas_log_write('  SCOTCH support: ' // &
+#ifdef MPAS_SCOTCH
+                              'yes')
+#else
+                              'no')
+#endif
       call mpas_log_write('')
 
       call mpas_log_write('Run-time settings:')

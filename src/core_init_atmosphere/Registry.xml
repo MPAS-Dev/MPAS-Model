@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<registry model="mpas" core="init_atmosphere" core_abbrev="init_atm" version="8.3.1">
+<registry model="mpas" core="init_atmosphere" core_abbrev="init_atm" version="8.4.0">
 
 <!-- **************************************************************************************** -->
 <!-- ************************************** Dimensions ************************************** -->
@@ -65,8 +65,9 @@
                                         7 = real-data initial conditions from, e.g., GFS, \newline
                                         8 = surface field (SST, sea-ice) update file for use with real-data simulations \newline
                                         9 = lateral boundary conditions update file for use with real-data simulations \newline
+                                        10 = idealized LES case \newline
                                         13 = CAM-MPAS 3-d grid with specified topography and zeta levels"
-                     possible_values="1 -- 9, or 13"/>
+                     possible_values="1 -- 10, or 13"/>
 
                 <nml_option name="config_calendar_type" type="character" default_value="gregorian" in_defaults="false"
                      units="-"
@@ -223,6 +224,16 @@
                 <nml_option name="config_ztop"                  type="real"          default_value="30000.0"
                      units="m"
                      description="Model top height"
+                     possible_values="Positive real values"/>
+
+                <nml_option name="config_hybrid_coordinate"       type="logical"       default_value="true"
+                     units="-"
+                     description="Whether to employ a hybrid vertical coordinate"
+                     possible_values="true or false"/>
+
+                <nml_option name="config_hybrid_top_z"       type="real"       default_value="30000.0"
+                     units="-"
+                     description="Height at which coordinate surfaces become constant height surfaces"
                      possible_values="Positive real values"/>
 
                 <nml_option name="config_nsmterrain"            type="integer"       default_value="1"
@@ -464,8 +475,6 @@
                         <var name="ol3" packages="vertical_stage_in;met_stage_in"/>
                         <var name="ol4" packages="vertical_stage_in;met_stage_in"/>
                         <var name="deriv_two" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
-                        <var name="defc_a" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
-                        <var name="defc_b" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="cell_gradient_coef_x" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="cell_gradient_coef_y" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="coeffs_reconstruct" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
@@ -569,8 +578,6 @@
                         <var name="ol3" packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
                         <var name="ol4" packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
                         <var name="deriv_two"/>
-                        <var name="defc_a"/>
-                        <var name="defc_b"/>
                         <var name="cell_gradient_coef_x"/>
                         <var name="cell_gradient_coef_y"/>
                         <var name="coeffs_reconstruct"/>
@@ -1101,13 +1108,6 @@
                 <var name="advCells" type="integer" dimensions="TWENTYONE nCells" units="-"
                      description="cells used in least squares fit of polynomial for advection"/>
 
-                <!-- deformation calculation weights -->
-                <var name="defc_a" type="real" dimensions="maxEdges nCells" units="unitless"
-                     description="Coefficients for computing the off-diagonal components of the horizontal deformation"/>
-
-                <var name="defc_b" type="real" dimensions="maxEdges nCells" units="unitless"
-                     description="Coefficients for computing the diagonal components of the horizontal deformation"/>
-
                 <var name="cell_gradient_coef_x" type="real" dimensions="maxEdges nCells" units="m^-1"
                      description="Coefficients for computing the x (zonal) derivative of a cell-centered variable"/>
 
@@ -1171,6 +1171,8 @@
                         <var name="nwfa" array_group="number" units="nb kg^{-1}"
                              description="Gocart water-friendly aerosol number concentration"
                              packages="mp_thompson_aers_in"/>
+                        <var name="tke" array_group="turbulence" units="m^2 s^{-2}"
+                             description="Turbulent kinetic energy for the prognostic tke LES scheme"/>
                 </var_array>
 
                 <!-- Climatology for ocean mixed-layer depth -->

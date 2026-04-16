@@ -12,7 +12,8 @@ OBJS = mpas_test_core.o \
        mpas_test_core_dmpar.o \
        mpas_test_core_stream_inquiry.o \
        mpas_test_openacc.o \
-       mpas_test_core_stream_list.o
+       mpas_test_core_stream_list.o \
+       mpas_test_core_io.o
 
 all: core_test
 
@@ -44,7 +45,7 @@ mpas_test_core.o: mpas_test_core_halo_exch.o mpas_test_core_streams.o \
                   mpas_test_core_sorting.o mpas_halo_testing.o \
                   mpas_test_core_string_utils.o mpas_test_core_dmpar.o \
                   mpas_test_core_stream_inquiry.o mpas_test_openacc.o \
-                  mpas_test_core_stream_list.o
+                  mpas_test_core_stream_list.o mpas_test_core_io.o
 
 mpas_test_core_halo_exch.o:
 
@@ -66,7 +67,7 @@ clean:
 	$(RM) $@ $*.mod
 ifeq "$(GEN_F90)" "true"
 	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) $< > $*.f90
-	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I../framework -I../operators -I../external/esmf_time_f90
+	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I../framework -I../operators $(MPAS_ESMF_INC)
 else
-	$(FC) $(CPPFLAGS) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I../framework -I../operators -I../external/esmf_time_f90
+	$(FC) $(CPPFLAGS) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I../framework -I../operators $(MPAS_ESMF_INC)
 endif

@@ -43,7 +43,7 @@ module mpas_atm_chemistry
         use mpas_musica, only: musica_init
 #endif
         use mpas_log, only : mpas_log_write
-        use mpas_derived_types, only: mpas_pool_type
+        use mpas_derived_types, only: mpas_pool_type, MPAS_LOG_CRIT
         use mpas_kind_types, only: StrKIND
         use mpas_pool_routines, only: mpas_pool_get_config, mpas_pool_get_dimension 
 
@@ -51,13 +51,11 @@ module mpas_atm_chemistry
         type (mpas_pool_type), intent(in) :: dimensions
 
 #ifdef MPAS_USE_MUSICA
-        integer                       :: error_code
-        character(len=:), allocatable :: error_message
-        integer                       :: nVertLevels
-        integer, pointer              :: nVertLevels_ptr
-        ! MUSICA will get the MICM JSON config from a namelist
-        ! hardcode filepath for now
-        character(len=StrKIND) :: filepath = 'chapman.json'
+        character(len=StrKIND), pointer :: filepath_ptr
+        integer                         :: error_code
+        character(len=:), allocatable   :: error_message
+        integer                         :: nVertLevels
+        integer, pointer                :: nVertLevels_ptr
 #endif
 
         call mpas_log_write('Initializing chemistry packages...')
@@ -66,9 +64,13 @@ module mpas_atm_chemistry
         call mpas_pool_get_dimension(dimensions, 'nVertLevels', nVertLevels_ptr)
         nVertLevels = nVertLevels_ptr
 
-        call musica_init(filepath, nVertLevels, error_code, error_message)
+        call mpas_pool_get_config(configs, 'config_micm_file', filepath_ptr)
 
-        ! TODO check error_code and generate MPAS error log message
+        call musica_init(filepath_ptr, nVertLevels, error_code, error_message)
+
+        if (error_code /= 0) then
+            call mpas_log_write(error_message, messageType=MPAS_LOG_CRIT)
+        end if
 #endif
 
     end subroutine chemistry_init

@@ -65,7 +65,8 @@
                          MPAS_IO_ERR_UNIMPLEMENTED      = -18, &
                          MPAS_IO_ERR_WOULD_CLOBBER      = -19, &
                          MPAS_IO_ERR_NOEXIST_READ       = -20, &
-                         MPAS_IO_ERR_MISSING_DIM        = -21
+                         MPAS_IO_ERR_MISSING_DIM        = -21, &
+                         MPAS_IO_ERR_INSUFFICIENT_BUF   = -22
 
    type MPAS_IO_Handle_type
       logical :: initialized = .false.

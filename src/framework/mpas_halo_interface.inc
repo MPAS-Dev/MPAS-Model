@@ -3,12 +3,13 @@
    ! in a named group
    !
    abstract interface
-      subroutine halo_exchange_routine(domain, halo_group, ierr)
+      subroutine halo_exchange_routine(domain, halo_group, withGPUAwareMPI, ierr)
 
          use mpas_derived_types, only : domain_type
 
          type (domain_type), intent(inout) :: domain
          character(len=*), intent(in) :: halo_group
+         logical, intent(in), optional :: withGPUAwareMPI
          integer, intent(out), optional :: ierr
 
       end subroutine halo_exchange_routine
