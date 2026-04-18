@@ -19,8 +19,6 @@
 !-------------------------------------------------------------------------
 module mpas_atm_chemistry
 
-    use mpas_kind_types, only : StrKIND, RKIND
-
     implicit none
 
     private
@@ -94,6 +92,7 @@ module mpas_atm_chemistry
         use iso_fortran_env, only: real64
         use mpas_musica, only: musica_step
 #endif
+        use mpas_kind_types, only : RKIND
         use mpas_log, only : mpas_log_write
         use mpas_derived_types, only: MPAS_LOG_CRIT
 

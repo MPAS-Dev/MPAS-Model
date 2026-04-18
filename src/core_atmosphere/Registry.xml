@@ -1737,15 +1737,6 @@
                              description="Graupel mixing ratio"
                              packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
-                        <var name="qAB" array_group="passive" units="kg kg^{-1}"
-                             description="Molecular AB mixing ratio"/>
-
-                        <var name="qA" array_group="passive" units="kg kg^{-1}"
-                             description="Atomic A mixing ratio"/>
-
-                        <var name="qB" array_group="passive" units="kg kg^{-1}"
-                             description="Atomic B mixing ratio"/>
-
                         <var name="ni" array_group="number" units="nb kg^{-1}"
                              description="Cloud ice number concentration"
                              packages="bl_mynn_in;mp_thompson_in;mp_thompson_aers_in"/>
@@ -1768,6 +1759,15 @@
 
                         <var name="tke" array_group="turbulence" units="m^2 s^{-2}"
                              description="Turbulent kinetic energy for the prognostic tke LES scheme"/>
+
+                        <var name="qAB" array_group="chem_test" units="kg kg^{-1}"
+                             description="Molecular AB mixing ratio"/>
+
+                        <var name="qA" array_group="chem_test" units="kg kg^{-1}"
+                             description="Atomic A mixing ratio"/>
+
+                        <var name="qB" array_group="chem_test" units="kg kg^{-1}"
+                             description="Atomic B mixing ratio"/>
                 </var_array>
 #endif
 
@@ -2112,15 +2112,6 @@
                              description="Tendency of graupel mass per unit volume divided by d(zeta)/dz"
                              packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
-                        <var name="tend_qAB" name_in_code="qAB" array_group="passive" units="kg m^{-3} s^{-1}"
-                             description="Tendency of molecular AB mass per unit volume divided by d(zeta)/dz"/>
-
-                        <var name="tend_qA" name_in_code="qA" array_group="passive" units="kg m^{-3} s^{-1}"
-                             description="Tendency of atomic A mass per unit volume divided by d(zeta)/dz"/>
-
-                        <var name="tend_qB" name_in_code="qB" array_group="passive" units="kg m^{-3} s^{-1}"
-                             description="Tendency of atomic B mass per unit volume divided by d(zeta)/dz"/>
-
                         <var name="tend_ni" name_in_code="ni" array_group="number" units="nb m^{-3} s^{-1}"
                              description="Tendency of cloud ice number concentration multiplied by dry air density divided by d(zeta)/dz"
                              packages="bl_mynn_in;mp_thompson_in;mp_thompson_aers_in"/>
@@ -2141,8 +2132,17 @@
                              description="Tendency of water-friendly aerosol number concentration multiplied by dry air density divided by d(zeta)/dz"
                              packages="mp_thompson_aers_in"/>
 
-                        <var name="tend_tke" name_in_code="tke" array_group="turbulence" units="kg m^{-3} m^2 s^{-2} s^{-1}" 
+                        <var name="tend_tke" name_in_code="tke" array_group="turbulence" units="kg m^{-3} m^2 s^{-2} s^{-1}"
                              description="Tendency of tke multiplied by dry air density divided by d(zeta)/dz"/>
+
+                        <var name="tend_qAB" name_in_code="qAB" array_group="chem_test" units="kg m^{-3} s^{-1}"
+                             description="Tendency of molecular AB mass per unit volume divided by d(zeta)/dz"/>
+
+                        <var name="tend_qA" name_in_code="qA" array_group="chem_test" units="kg m^{-3} s^{-1}"
+                             description="Tendency of atomic A mass per unit volume divided by d(zeta)/dz"/>
+
+                        <var name="tend_qB" name_in_code="qB" array_group="chem_test" units="kg m^{-3} s^{-1}"
+                             description="Tendency of atomic B mass per unit volume divided by d(zeta)/dz"/>
                 </var_array>
 #endif
         </var_struct>

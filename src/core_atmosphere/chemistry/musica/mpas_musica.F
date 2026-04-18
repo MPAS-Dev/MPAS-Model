@@ -55,17 +55,13 @@ module mpas_musica
         use musica_micm, only : RosenbrockStandardOrder
         use musica_util, only : error_t, string_t
 
+        use mpas_kind_types, only : RKIND
         use mpas_log, only : mpas_log_write
 
         character(len=*),              intent(in)  :: filename_of_micm_configuration
         integer,                       intent(in)  :: number_of_grid_cells
         integer,                       intent(out) :: error_code
         character(len=:), allocatable, intent(out) :: error_message
-
-        ! TEMPORARY: ABBA specific initial concentrations
-        real(real64), allocatable :: init_ab(:)
-        real(real64), allocatable :: init_a(:)
-        real(real64), allocatable :: init_b(:)
 
         character(len=*), parameter :: INITIAL_CONCENTRATION_PROPERTY = "__initial concentration"
 
@@ -74,6 +70,9 @@ module mpas_musica
         ! TEMPORARY: Hard-coded options for the MICM solver
         integer :: solver_type = RosenbrockStandardOrder
         integer :: i_species
+        character(len=:), allocatable :: species_name
+        real(real64)                  :: initial_concentration
+        real(real64), allocatable     :: initial_profile(:)
 
         ! Skip MUSICA initialization if no configuration file is provided
         if (len_trim(filename_of_micm_configuration) == 0) then
@@ -96,9 +95,28 @@ module mpas_musica
         state => micm%get_state(number_of_grid_cells, error)
         if (has_error_occurred(error, error_message, error_code)) return
 
+        allocate(initial_profile(number_of_grid_cells))
+
         do i_species = 1, state%species_ordering%size()
-            call mpas_log_write('MICM species: ' // state%species_ordering%name(i_species))
+            species_name = state%species_ordering%name(i_species)
+            call mpas_log_write('MICM species: ' // species_name)
+
+            initial_concentration = micm%get_species_property_double(species_name, &
+                                                                     INITIAL_CONCENTRATION_PROPERTY, &
+                                                                     error)
+            if (has_error_occurred(error, error_message, error_code)) return
+
+            initial_profile(:) = initial_concentration
+            call set_species_profile(state, species_name, initial_profile, error)
+            if (has_error_occurred(error, error_message, error_code)) return
+
+            call mpas_log_write('  initial concentration: $r', &
+                 realArgs=[real(initial_concentration, kind=RKIND)])
         end do
+
+        deallocate(initial_profile)
+
+        call assign_rate_parameters(state, number_of_grid_cells)
 
         musica_is_initialized = .true.
 

@@ -1163,15 +1163,6 @@
                         <var name="qr" array_group="moist" units="kg kg^{-1}"
                              description="Rain water mixing ratio"/>
 
-                        <var name="qAB" array_group="passive" units="kg kg^{-1}"
-                             description="Molecular AB mixing ratio"/>
-
-                        <var name="qA" array_group="passive" units="kg kg^{-1}"
-                             description="Atomic A mixing ratio"/>
-
-                        <var name="qB" array_group="passive" units="kg kg^{-1}"
-                             description="Atomic B mixing ratio"/>
-
                         <var name="nifa" array_group="number" units="nb kg^{-1}"
                              description="Gocart ice-friendly aerosol number concentration"
                              packages="mp_thompson_aers_in"/>
@@ -1181,6 +1172,15 @@
                              packages="mp_thompson_aers_in"/>
                         <var name="tke" array_group="turbulence" units="m^2 s^{-2}"
                              description="Turbulent kinetic energy for the prognostic tke LES scheme"/>
+
+                        <var name="qAB" array_group="chem_test" units="kg kg^{-1}"
+                             description="Molecular AB mixing ratio"/>
+
+                        <var name="qA" array_group="chem_test" units="kg kg^{-1}"
+                             description="Atomic A mixing ratio"/>
+
+                        <var name="qB" array_group="chem_test" units="kg kg^{-1}"
+                             description="Atomic B mixing ratio"/>
                 </var_array>
 
                 <!-- Climatology for ocean mixed-layer depth -->
