@@ -155,11 +155,20 @@ module mpas_musica
         call micm%solve(time_step, state, solver_state, solver_stats, error)
         if (has_error_occurred(error, error_message, error_code)) return
 
+        call log_solver_stats(solver_stats)
+
         if (solver_state%get_char_array() /= 'Converged') then
-            call mpas_log_write('[MUSICA Warning] MICM solver failure')
+            error_code = 1
+            error_message = '[MUSICA Error] MICM solver did not converge (state=' // &
+                            solver_state%get_char_array() // ')'
+            return
         end if
 
-        call log_solver_stats(solver_stats)
+        if (solver_stats%final_time() < time_step) then
+            error_code = 1
+            error_message = '[MUSICA Error] MICM solver returned before reaching the requested time step'
+            return
+        end if
 
         ! TEMPORARY: ABBA specific logging
         call mpas_log_write('[MUSICA] MICM AB concentrations')
