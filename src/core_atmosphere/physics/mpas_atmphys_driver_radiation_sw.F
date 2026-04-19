@@ -459,9 +459,6 @@
     swupbc_p(i,j)   = 0.0_RKIND
     swupt_p(i,j)    = 0.0_RKIND
     swuptc_p(i,j)   = 0.0_RKIND
-    swddir_p(i,j)   = 0.0_RKIND
-    swddni_p(i,j)   = 0.0_RKIND
-    swddif_p(i,j)   = 0.0_RKIND
  enddo
 
  do k = kts,kte
@@ -472,21 +469,30 @@
  enddo
 
  aer_opt = 0
- do n = 1,nbndsw
- do j = jts,jte
- do k = kts,kte
- do i = its,ite
-    tauaer_p(i,k,j,n) = 0._RKIND
-    ssaaer_p(i,k,j,n) = 1._RKIND
-    asyaer_p(i,k,j,n) = 0._RKIND
- enddo
- enddo
- enddo
- enddo
 
  radiation_sw_select: select case (trim(radt_sw_scheme))
 
     case("rrtmg_sw")
+       do j = jts,jte
+       do i = its,ite
+          swddir_p(i,j) = 0.0_RKIND
+          swddni_p(i,j) = 0.0_RKIND
+          swddif_p(i,j) = 0.0_RKIND
+       enddo
+       enddo
+
+       do n = 1,nbndsw
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          tauaer_p(i,k,j,n) = 0._RKIND
+          ssaaer_p(i,k,j,n) = 1._RKIND
+          asyaer_p(i,k,j,n) = 0._RKIND
+       enddo
+       enddo
+       enddo
+       enddo
+
        microp_select: select case(microp_scheme)
           case("mp_thompson","mp_thompson_aerosols","mp_wsm6")
              if(config_microp_re) then
@@ -705,12 +711,15 @@
  end subroutine radiation_sw_from_MPAS
 
 !=================================================================================================================
- subroutine radiation_sw_to_MPAS(diag_physics,tend_physics,its,ite)
+ subroutine radiation_sw_to_MPAS(configs,diag_physics,tend_physics,its,ite)
 !=================================================================================================================
 
 !input arguments:
  type(mpas_pool_type),intent(inout):: diag_physics
  type(mpas_pool_type),intent(inout):: tend_physics
+ type(mpas_pool_type),intent(in):: configs 
+!local pointers:
+ character(len=StrKIND),pointer:: radt_sw_scheme 
 
  integer,intent(in):: its,ite
 
@@ -743,6 +752,8 @@
  call mpas_pool_get_array(diag_physics,'swddif'    ,swddif    )
  call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
 
+ call mpas_pool_get_config(configs,'config_radt_sw_scheme',radt_sw_scheme) 
+
  do j = jts,jte
 
  do i = its,ite
@@ -757,10 +768,17 @@
     swupbc(i) = swupbc_p(i,j)
     swupt(i)  = swupt_p(i,j)
     swuptc(i) = swuptc_p(i,j)
-    swddir(i) = swddir_p(i,j)
-    swddni(i) = swddni_p(i,j)
-    swddif(i) = swddif_p(i,j)
  enddo
+
+ radiation_sw_select: select case (trim(radt_sw_scheme))
+    case("rrtmg_sw")
+       do i = its,ite
+          swddir(i) = swddir_p(i,j)
+          swddni(i) = swddni_p(i,j)
+          swddif(i) = swddif_p(i,j)
+       enddo
+    case default
+ end select radiation_sw_select
 
  do k = kts,kte
  do i = its,ite
@@ -981,7 +999,7 @@
  end select radiation_sw_select
 
 !copy local arrays to MPAS grid:
- call radiation_sw_to_MPAS(diag_physics,tend_physics,its,ite)
+ call radiation_sw_to_MPAS(configs,diag_physics,tend_physics,its,ite)
 
 !call mpas_log_write('--- end subroutine driver_radiation_sw.')
 

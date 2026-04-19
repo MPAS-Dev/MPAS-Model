@@ -11,7 +11,6 @@
 module mpas_atm_dissipation_models
 
    use mpas_kind_types, only : RKIND
-   use mpas_atmphys_constants
    use mpas_constants
    use mpas_log
    use mpas_timekeeping, only : mpas_get_clock_time, mpas_get_time
@@ -464,6 +463,24 @@ contains
                             cellStart, cellEnd, nCells)
 
       use mpas_atm_dimensions  !  pull nVertLevels and num_scalars from here
+
+#ifdef DO_PHYSICS
+      use mpas_atmphys_constants, only : svp1, svp2, svp3, svpt0, xlv, R_d, R_v, ep_2
+#else
+      !
+      ! If stand-alone MPAS-Atmosphere physics are not being used, provide
+      ! definitions for constants needed in the caculation of the moist
+      ! Brunt-Vaisala frequency following those in mpas_atmphys_constants.
+      !
+      real(kind=RKIND), parameter :: svp1  = 0.6112
+      real(kind=RKIND), parameter :: svp2  = 17.67
+      real(kind=RKIND), parameter :: svp3  = 29.65
+      real(kind=RKIND), parameter :: svpt0 = 273.15
+      real(kind=RKIND), parameter :: xlv   = 2.50e6       !latent heat of vaporization [J/kg]
+      real (kind=RKIND), parameter :: R_d  = 287.0_RKIND  !< Constant: Gas constant for dry air [J kg-1 K-1]
+      real(kind=RKIND), parameter :: R_v   = 461.6        !gas constant for water vapor [J/kg/K]
+      real(kind=RKIND), parameter :: ep_2  = R_d/R_v
+#endif
 
       integer, intent(in) :: cellStart, cellEnd, nCells
       integer, intent(in) :: index_qv, index_qc

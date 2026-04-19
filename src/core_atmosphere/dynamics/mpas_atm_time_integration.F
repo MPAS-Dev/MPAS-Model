@@ -5962,11 +5962,14 @@ module atm_time_integration
       call mpas_pool_get_array(tend_physics, 'rthdynten', rthdynten)
 
       nullify(ustm)
-      call mpas_pool_get_array(diag_physics,'ustm',ustm)
       nullify(hfx)
-      call mpas_pool_get_array(diag_physics,'hfx',hfx)
       nullify(qfx)
+
+#ifdef DO_PHYSICS
+      call mpas_pool_get_array(diag_physics,'ustm',ustm)
+      call mpas_pool_get_array(diag_physics,'hfx',hfx)
       call mpas_pool_get_array(diag_physics,'qfx',qfx)
+#endif
 
       nopbl = .false.
       if (.not. associated(ustm) &

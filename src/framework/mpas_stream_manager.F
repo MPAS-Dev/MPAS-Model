@@ -4073,7 +4073,9 @@ module mpas_stream_manager
         type (MPAS_TimeInterval_type) :: filename_interval
         type (MPAS_Time_type) :: now_time
 
-        ierr = 0
+        if ( present(ierr) ) then
+           ierr = MPAS_STREAM_MGR_NOERR
+        end if
 
         if ( present(blockID) ) then
            blockID_local = blockID

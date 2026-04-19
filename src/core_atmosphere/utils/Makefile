@@ -7,7 +7,7 @@ endif
 all: $(UTILS)
 
 build_tables: build_tables.o atmphys_build_tables_thompson.o
-	$(LINKER) $(LDFLAGS) -o build_tables build_tables.o atmphys_build_tables_thompson.o -L../../framework -L../physics -lphys -lframework $(LIBS) $(MPAS_ESMF_LIBS)
+	$(LINKER) $(LDFLAGS) -o build_tables build_tables.o atmphys_build_tables_thompson.o -L../../framework -L../physics -lphys -lframework $(LIBS) $(MPAS_ESMF_LIB)
 	mv build_tables ../../..
 
 
