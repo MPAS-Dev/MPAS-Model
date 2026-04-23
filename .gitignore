@@ -61,3 +61,6 @@ stream_list.*
 *.i90
 
 src/core_*/inc
+
+# WoFS Physics
+src/core_atmosphere/physics/physics_wofs
