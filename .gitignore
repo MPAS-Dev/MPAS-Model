@@ -64,3 +64,6 @@ src/core_*/inc
 
 # WoFS Physics
 src/core_atmosphere/physics/physics_wofs
+
+# Musica Build
+src/core_atmosphere/libchem/
