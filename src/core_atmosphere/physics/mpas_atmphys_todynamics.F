@@ -421,6 +421,14 @@
              enddo
           endif
 
+          if(trim(microp_scheme) == 'mp_nssl') then
+             do i = 1, nCellsSolve
+             do k = 1, nVertLevels
+                tend_scalars(index_nc,k,i) = tend_scalars(index_nc,k,i) + rncblten(k,i)*mass(k,i)
+             enddo
+             enddo
+          endif
+
        case default
     end select pbl_select
  endif
