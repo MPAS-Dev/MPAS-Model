@@ -411,6 +411,7 @@
     hpbl_p,           &!PBL height                                                                             [m]
     delta_p,          &!
     wstar_p,          &!
+    fcell_p,          &!Coriolis parameter at cell centers (used by SHINHONG PBL)                             [s^{-1}]
     uoce_p,           &!
     voce_p             !
 

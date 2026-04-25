@@ -6,7 +6,7 @@ endif
 
 all:
 	./../tools/manage_externals/checkout_externals --externals ./../Externals.cfg
-	$(MAKE) lookup_tables core_physics_init core_physics_mmm core_microphysics core_UGWP core_RUCLSM core_physics_wrf core_physics_noahmp core_physics
+	$(MAKE) lookup_tables core_physics_init core_physics_mmm core_microphysics core_UGWP core_RUCLSM core_physics_wofs core_physics_wrf core_physics_noahmp core_physics
 
 dummy:
 	echo "****** compiling physics ******"
@@ -69,7 +69,11 @@ core_microphysics: core_physics_init core_physics_mmm
 
 core_RUCLSM: core_physics_init core_physics_mmm
 	(cd physics_wofs/RUCLSM; cp ./MPAS/Makefile .; cp ./MPAS/module_ruc_land.F90 .; cp ./MPAS/module_ruc_ice.F90 .; cp ./MPAS/module_sf_sfcdiags_ruclsm.F .; $(MAKE) all COREDEF="$(COREDEF)")
-core_physics_wrf: core_physics_init core_physics_mmm core_UGWP
+
+core_physics_wofs: core_physics_init
+	(cd physics_wofs; $(MAKE) all COREDEF="$(COREDEF)")
+
+core_physics_wrf: core_physics_init core_physics_mmm core_physics_wofs core_UGWP
 	(cd physics_wrf; $(MAKE) all COREDEF="$(COREDEF)")
 
 core_physics_noahmp:
@@ -79,10 +83,11 @@ core_physics_noahmp:
 
 core_physics_init: $(OBJS_init)
 
-core_physics: core_microphysics core_RUCLSM core_physics_wrf core_physics_noahmp
+core_physics: core_microphysics core_RUCLSM core_physics_wofs core_physics_wrf core_physics_noahmp
 	($(MAKE) phys_interface COREDEF="$(COREDEF)")
 	ar -ru libphys.a $(OBJS_init) $(OBJS)
 	($(MAKE) -C ./physics_mmm -f Makefile.mpas physics_mmm_lib)
+	($(MAKE) -C ./physics_wofs physics_wofs_lib)
 	($(MAKE) -C ./physics_wrf physics_wrf_lib)
 	($(MAKE) -C ./physics_noahmp/drivers/mpas driver_lib)
 	($(MAKE) -C ./physics_noahmp/src src_lib)
@@ -261,6 +266,7 @@ mpas_atmphys_update.o: \
 clean:
 	$(RM) *.o *.mod *.f90 libphys.a
 	( if [ -d physics_wofs/NSSL-MP ]; then cd physics_wofs/NSSL-MP; $(MAKE) clean; fi )
+	( if [ -d physics_wofs ]; then cd physics_wofs; $(MAKE) clean; fi )
 	( cd physics_wrf; $(MAKE) clean )
 	( if [ -d physics_mmm ]; then cd physics_mmm; $(MAKE) -f Makefile.mpas clean; fi; )
 	( cd physics_noahmp/drivers/mpas; $(MAKE) clean )
@@ -276,16 +282,16 @@ clean:
 	$(RM) $@ $*.mod
 ifeq "$(GEN_F90)" "true"
 	$(CPP) $(CPPFLAGS) $(COREDEF) $(HYDROSTATIC) $(CPPINCLUDES) $< > $*.f90
-	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I./physics_mmm -I./physics_wrf -I./physics_noahmp -I./physics_noahmp/utility -I./physics_noahmp/drivers/mpas -I./physics_noahmp/src -I./physics_wofs/NSSL-MP -I./physics_wofs/RUCLSM -I.. -I../../framework $(MPAS_ESMF_INC)
+	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I./physics_wofs -I./physics_mmm -I./physics_wrf -I./physics_noahmp -I./physics_noahmp/utility -I./physics_noahmp/drivers/mpas -I./physics_noahmp/src -I./physics_wofs/NSSL-MP -I./physics_wofs/RUCLSM -I.. -I../../framework $(MPAS_ESMF_INC)
 else
-	$(FC) $(CPPFLAGS) $(COREDEF) $(HYDROSATIC) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I./physics_mmm -I./physics_wrf -I./physics_noahmp -I./physics_noahmp/utility -I./physics_noahmp/drivers/mpas -I./physics_noahmp/src -I./physics_noaa/UGWP -I./physics_wofs/NSSL-MP -I./physics_wofs/RUCLSM -I.. -I../../framework $(MPAS_ESMF_INC)
+	$(FC) $(CPPFLAGS) $(COREDEF) $(HYDROSATIC) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I./physics_wofs -I./physics_mmm -I./physics_wrf -I./physics_noahmp -I./physics_noahmp/utility -I./physics_noahmp/drivers/mpas -I./physics_noahmp/src -I./physics_noaa/UGWP -I./physics_wofs/NSSL-MP -I./physics_wofs/RUCLSM -I.. -I../../framework $(MPAS_ESMF_INC)
 endif
 
 .F90.o:
 	$(RM) $@ $*.mod
 ifeq "$(GEN_F90)" "true"
 	$(CPP) $(CPPFLAGS) $(COREDEF) $(HYDROSTATIC) $(CPPINCLUDES) $< > $*.f90
-	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I./physics_mmm -I./physics_wrf -I./physics_noaa/UGWP -I./physics_wofs/RUCLSM -I./physics_wofs/NSSL-MP -I.. -I../../framework -I../../external/esmf_time_f90
+	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I./physics_wofs -I./physics_mmm -I./physics_wrf -I./physics_noaa/UGWP -I./physics_wofs/RUCLSM -I./physics_wofs/NSSL-MP -I.. -I../../framework -I../../external/esmf_time_f90
 else
-	$(FC) $(CPPFLAGS) $(COREDEF) $(HYDROSATIC) $(FFLAGS) -c $*.F90 $(CPPINCLUDES) $(FCINCLUDES) -I./physics_mmm -I./physics_wrf -I./physics_noaa/UGWP -I./physics_wofs/RUCLSM -I./physics_wofs/NSSL-MP -I.. -I../../framework -I../../external/esmf_time_f90
+	$(FC) $(CPPFLAGS) $(COREDEF) $(HYDROSATIC) $(FFLAGS) -c $*.F90 $(CPPINCLUDES) $(FCINCLUDES) -I./physics_wofs -I./physics_mmm -I./physics_wrf -I./physics_noaa/UGWP -I./physics_wofs/RUCLSM -I./physics_wofs/NSSL-MP -I.. -I../../framework -I../../external/esmf_time_f90
 endif

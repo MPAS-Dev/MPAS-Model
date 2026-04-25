@@ -209,6 +209,7 @@
 !pbl scheme:
  if(.not. (config_pbl_scheme .eq. 'off'     .or. &
            config_pbl_scheme .eq. 'bl_mynn' .or. &
+           config_pbl_scheme .eq. 'bl_shinhong' .or. &
            config_pbl_scheme .eq. 'bl_ysu')) then
 
     write(mpas_err_message,'(A,A20)') 'illegal value for pbl_scheme: ', &
@@ -287,10 +288,10 @@
  else
     if(config_pbl_scheme == 'bl_mynn') then
        config_sfclayer_scheme = 'sf_mynn'
-    elseif(config_pbl_scheme == 'bl_ysu') then
+    elseif(config_pbl_scheme == 'bl_shinhong' .or. config_pbl_scheme == 'bl_ysu') then
        if(config_sfclayer_scheme /= 'sf_monin_obukhov' .and. &
           config_sfclayer_scheme /= 'sf_monin_obukhov_rev') then
-          write(mpas_err_message,'(A,A20)') 'wrong choice for surface layer scheme with YSU PBL: ', &
+          write(mpas_err_message,'(A,A20)') 'wrong choice for surface layer scheme with SHINHONG/YSU PBL: ', &
                 trim(config_sfclayer_scheme)
           call physics_error_fatal(mpas_err_message)
        endif
@@ -558,4 +559,3 @@
 !=================================================================================================================
  end module mpas_atmphys_control
 !=================================================================================================================
-

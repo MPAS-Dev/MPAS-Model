@@ -13,10 +13,13 @@
 
  use mpas_atmphys_constants
  use mpas_atmphys_vars
+ use mpas_constants,only: omega
 
  use bl_mynn,only: bl_mynn_init
  use module_bl_mynn,only: mynn_bl_driver
+ use module_bl_shinhong,only: shinhong
  use module_bl_ysu
+ use bl_shinhong,only: bl_shinhong_init
 
  implicit none
  private
@@ -39,6 +42,7 @@
 !
 ! WRF physics called from driver_pbl:
 ! -----------------------------------
+! * bl_shinhong   : SHINHONG PBL scheme.
 ! * module_bl_ysu : YSU PBL scheme.
 !
 ! add-ons and modifications to sourcecode:
@@ -102,6 +106,7 @@
  if(.not.allocated(ust_p)  ) allocate(ust_p(ims:ime,jms:jme)  )
  if(.not.allocated(wspd_p) ) allocate(wspd_p(ims:ime,jms:jme) )
  if(.not.allocated(xland_p)) allocate(xland_p(ims:ime,jms:jme))
+ if(.not.allocated(fcell_p)) allocate(fcell_p(ims:ime,jms:jme))
  if(.not.allocated(hpbl_p) ) allocate(hpbl_p(ims:ime,jms:jme) )
  if(.not.allocated(kpbl_p) ) allocate(kpbl_p(ims:ime,jms:jme) )
  if(.not.allocated(znt_p)  ) allocate(znt_p(ims:ime,jms:jme)  )
@@ -124,6 +129,21 @@
  if(.not.allocated(kzq_p)) allocate(kzq_p(ims:ime,kms:kme,jms:jme))
 
  pbl_select: select case (trim(pbl_scheme))
+
+    case("bl_shinhong")
+       !from surface-layer model:
+       if(.not.allocated(br_p)    ) allocate(br_p(ims:ime,jms:jme)          )
+       if(.not.allocated(dx_p)    ) allocate(dx_p(ims:ime,jms:jme)          )
+       if(.not.allocated(ctopo_p) ) allocate(ctopo_p(ims:ime,jms:jme)       )
+       if(.not.allocated(ctopo2_p)) allocate(ctopo2_p(ims:ime,jms:jme)      )
+       if(.not.allocated(delta_p) ) allocate(delta_p(ims:ime,jms:jme)       )
+       if(.not.allocated(psih_p)  ) allocate(psih_p(ims:ime,jms:jme)        )
+       if(.not.allocated(psim_p)  ) allocate(psim_p(ims:ime,jms:jme)        )
+       if(.not.allocated(u10_p)   ) allocate(u10_p(ims:ime,jms:jme)         )
+       if(.not.allocated(v10_p)   ) allocate(v10_p(ims:ime,jms:jme)         )
+       if(.not.allocated(wstar_p) ) allocate(wstar_p(ims:ime,jms:jme)       )
+       if(.not.allocated(elpbl_p) ) allocate(elpbl_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(tkepbl_p)) allocate(tkepbl_p(ims:ime,kms:kme,jms:jme))
 
     case("bl_ysu")
        !from surface-layer model:
@@ -211,6 +231,7 @@
  if(allocated(ust_p)  ) deallocate(ust_p  )
  if(allocated(wspd_p) ) deallocate(wspd_p )
  if(allocated(xland_p)) deallocate(xland_p)
+ if(allocated(fcell_p)) deallocate(fcell_p)
  if(allocated(hpbl_p) ) deallocate(hpbl_p )
  if(allocated(kpbl_p) ) deallocate(kpbl_p )
  if(allocated(znt_p)  ) deallocate(znt_p  )
@@ -233,6 +254,21 @@
  if(allocated(kzq_p)) deallocate(kzq_p)
 
  pbl_select: select case (trim(pbl_scheme))
+
+    case("bl_shinhong")
+       !from surface-layer model:
+       if(allocated(br_p)    ) deallocate(br_p    )
+       if(allocated(dx_p)    ) deallocate(dx_p    )
+       if(allocated(ctopo_p) ) deallocate(ctopo_p )
+       if(allocated(ctopo2_p)) deallocate(ctopo2_p)
+       if(allocated(delta_p) ) deallocate(delta_p )
+       if(allocated(psih_p)  ) deallocate(psih_p  )
+       if(allocated(psim_p)  ) deallocate(psim_p  )
+       if(allocated(u10_p)   ) deallocate(u10_p   )
+       if(allocated(v10_p)   ) deallocate(v10_p   )
+       if(allocated(wstar_p) ) deallocate(wstar_p )
+       if(allocated(elpbl_p) ) deallocate(elpbl_p )
+       if(allocated(tkepbl_p)) deallocate(tkepbl_p)
 
     case("bl_ysu")
        !from surface-layer model:
@@ -321,10 +357,10 @@
 !local pointers:
  character(len=StrKIND),pointer:: pbl_scheme
 
- real(kind=RKIND),dimension(:),pointer:: hfx,hpbl,qfx,ust,wspd,xland,znt
+ real(kind=RKIND),dimension(:),pointer:: hfx,hpbl,qfx,ust,wspd,xland,znt,latCell
  real(kind=RKIND),dimension(:),pointer:: delta,wstar
 
-!local pointers for YSU scheme:
+!local pointers for SHINHONG/YSU scheme:
  logical,pointer:: config_ysu_pblmix
  real(kind=RKIND),dimension(:),pointer:: br,fh,fm,u10,v10
  real(kind=RKIND),dimension(:,:),pointer:: rthratenlw,rthratensw
@@ -353,6 +389,7 @@
  call mpas_pool_get_array(tend_physics,'rthratensw',rthratensw)
 
  call mpas_pool_get_array(sfc_input,'xland',xland)
+ call mpas_pool_get_array(mesh,'latCell',latCell)
 
  do j = jts,jte
  do i = its,ite
@@ -363,6 +400,7 @@
     ust_p(i,j)   = ust(i)
     wspd_p(i,j)  = wspd(i)
     xland_p(i,j) = xland(i)
+    fcell_p(i,j) = 2._RKIND * omega * sin(latCell(i))
     kpbl_p(i,j)  = 1
     znt_p(i,j)   = znt(i)
     !... ocean currents are set to zero:
@@ -377,6 +415,47 @@
  enddo
 
  pbl_select: select case (trim(pbl_scheme))
+
+    case("bl_shinhong")
+       call mpas_pool_get_config(configs,'config_len_disp',len_disp)
+       call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
+
+       call mpas_pool_get_array(diag_physics,'br'     ,br     )
+       call mpas_pool_get_array(diag_physics,'delta'  ,delta  )
+       call mpas_pool_get_array(diag_physics,'fm'     ,fm     )
+       call mpas_pool_get_array(diag_physics,'fh'     ,fh     )
+       call mpas_pool_get_array(diag_physics,'u10'    ,u10    )
+       call mpas_pool_get_array(diag_physics,'v10'    ,v10    )
+       call mpas_pool_get_array(diag_physics,'wstar'  ,wstar  )
+       call mpas_pool_get_array(diag_physics,'el_pbl' ,el_pbl )
+       call mpas_pool_get_array(diag_physics,'tke_pbl',tke_pbl)
+
+       do j = jts,jte
+       do i = its,ite
+          dx_p(i,j)     = len_disp / meshDensity(i)**0.25
+          br_p(i,j)     = br(i)
+          psim_p(i,j)   = fm(i)
+          psih_p(i,j)   = fh(i)
+          u10_p(i,j)    = u10(i)
+          v10_p(i,j)    = v10(i)
+          delta_p(i,j)  = delta(i)
+          wstar_p(i,j)  = wstar(i)
+          !initialization for SHINHONG PBL scheme:
+          ctopo_p(i,j)  = 1._RKIND
+          ctopo2_p(i,j) = 1._RKIND
+       enddo
+       enddo
+
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          kzh_p(i,k,j)     = 0._RKIND
+          kzm_p(i,k,j)     = 0._RKIND
+          tkepbl_p(i,k,j)  = tke_pbl(k,i)
+          elpbl_p(i,k,j)   = el_pbl(k,i)
+       enddo
+       enddo
+       enddo
 
     case("bl_ysu")
        call mpas_pool_get_config(configs,'config_ysu_pblmix',config_ysu_pblmix)
@@ -608,6 +687,25 @@
 
  pbl_select: select case (trim(pbl_scheme))
 
+    case("bl_shinhong")
+       call mpas_pool_get_array(diag_physics,'delta'  ,delta  )
+       call mpas_pool_get_array(diag_physics,'wstar'  ,wstar  )
+       call mpas_pool_get_array(diag_physics,'el_pbl' ,el_pbl )
+       call mpas_pool_get_array(diag_physics,'tke_pbl',tke_pbl)
+
+       do j = jts,jte
+       do i = its,ite
+          delta(i) = delta_p(i,j)
+          wstar(i) = wstar_p(i,j)
+       enddo
+       do k = kts,kte
+       do i = its,ite
+          el_pbl(k,i)  = elpbl_p(i,k,j)
+          tke_pbl(k,i) = tkepbl_p(i,k,j)
+       enddo
+       enddo
+       enddo
+
     case("bl_ysu")
        call mpas_pool_get_array(diag_physics,'delta',delta  )
        call mpas_pool_get_array(diag_physics,'wstar' ,wstar )
@@ -741,6 +839,9 @@
 
  pbl_select: select case (trim(pbl_scheme))
 
+    case("bl_shinhong")
+       call bl_shinhong_init(errmsg,errflg)
+
     case("bl_mynn")
 !      call mpas_log_write('--- enter subroutine bl_mynn_init:')
        call bl_mynn_init(cp,cpv,cice,cliq,ep_1,ep_2,gravity,karman,P0,R_d,R_v,svp1,svp2,svp3,svpt0, &
@@ -773,6 +874,10 @@
  logical,pointer:: config_do_DAcycling, &
                    config_do_restart,   &
                    bl_mynn_tkeadvect
+
+ logical,pointer:: config_shinhong_nonlocal_flux, &
+                   config_shinhong_scu_mixing,    &
+                   config_shinhong_ke_dissipation
 
  character(len=StrKIND),pointer:: pbl_scheme
 
@@ -821,6 +926,43 @@
  if(config_do_restart .or. itimestep > 1) initflag = 0
 
  pbl_select: select case (trim(pbl_scheme))
+
+    case("bl_shinhong")
+       call mpas_timer_start('bl_shinhong')
+       call mpas_pool_get_config(configs,'config_shinhong_nonlocal_flux',config_shinhong_nonlocal_flux)
+       call mpas_pool_get_config(configs,'config_shinhong_scu_mixing',config_shinhong_scu_mixing)
+       call mpas_pool_get_config(configs,'config_shinhong_ke_dissipation',config_shinhong_ke_dissipation)
+
+       call shinhong ( &
+                 p3d      = pres_hyd_p , p3di     = pres2_hyd_p , psfc     = psfc_p     , &
+                 t3d      = t_p        , dz8w     = dz_p        , pi3d     = pi_p       , &
+                 u3d      = u_p        , v3d      = v_p         , qv3d     = qv_p       , &
+                 qc3d     = qc_p       , qi3d     = qi_p        , rublten  = rublten_p  , &
+                 rvblten  = rvblten_p  , rthblten = rthblten_p  , rqvblten = rqvblten_p , &
+                 rqcblten = rqcblten_p , rqiblten = rqiblten_p  , flag_qc  = f_qc       , &
+                 flag_qi  = f_qi       , cp       = cp          , g        = gravity    , &
+                 rovcp    = rcp        , rd       = R_d         , rovg     = rdg        , &
+                 ep1      = ep_1       , ep2      = ep_2        , karman   = karman     , &
+                 xlv      = xlv        , rv       = R_v         , znt      = znt_p      , &
+                 ust      = ust_p      , hpbl     = hpbl_p      , psim     = psim_p     , &
+                 psih     = psih_p     , xland    = xland_p     , hfx      = hfx_p      , &
+                 qfx      = qfx_p      , wspd     = wspd_p      , br       = br_p       , &
+                 dt       = dt_pbl     , kpbl2d   = kpbl_p      , exch_h   = kzh_p      , &
+                 exch_m   = kzm_p      , wstar    = wstar_p     , delta    = delta_p    , &
+                 shinhong_nonlocal_flux = config_shinhong_nonlocal_flux                  , &
+                 shinhong_dissi_heating = config_shinhong_ke_dissipation                 , &
+                 shinhong_scu_mixing    = config_shinhong_scu_mixing                     , &
+                 tke      = tkepbl_p   , el       = elpbl_p    , corf     = fcell_p     , &
+                 uoce     = uoce_p     , voce     = voce_p     , rthraten = rthraten_p  , &
+                 u10      = u10_p      , v10      = v10_p      , ctopo    = ctopo_p     , &
+                 ctopo2   = ctopo2_p   , flag_bep = flag_bep   , idiff    = idiff       , &
+                 dx       = dx_p       ,                                                  &
+                 errmsg   = errmsg     , errflg   = errflg     ,                          &
+                 ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde  , &
+                 ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme  , &
+                 its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte    &
+                )
+       call mpas_timer_stop('bl_shinhong')
 
     case("bl_ysu")
        call mpas_timer_start('bl_ysu')
