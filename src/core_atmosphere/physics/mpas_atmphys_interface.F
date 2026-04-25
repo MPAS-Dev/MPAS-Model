@@ -751,6 +751,59 @@ end subroutine pre_microphysics
        enddo
        enddo
 
+       mp2_select: select case(trim(mp_scheme))
+          case("mp_thompson","mp_thompson_aerosols")
+             call mpas_pool_get_dimension(state,'index_ni',index_ni)
+             call mpas_pool_get_dimension(state,'index_nr',index_nr)
+             ni   => scalars(index_ni,:,:)
+             nr   => scalars(index_nr,:,:)
+
+             call mpas_pool_get_array(diag_physics,'nt_c',nt_c)
+             call mpas_pool_get_array(diag_physics,'mu_c',mu_c)
+             do j = jts,jte
+             do i = its,ite
+                muc_p(i,j) = mu_c(i)
+                ntc_p(i,j) = nt_c(i)
+             enddo
+             do k = kts, kte
+             do i = its, ite
+                ni_p(i,k,j) = ni(k,i)
+                nr_p(i,k,j) = nr(k,i)
+             enddo
+             enddo
+             enddo
+
+          mp3_select: select case(trim(mp_scheme))
+             case("mp_thompson_aerosols")
+                call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
+                call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
+                call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
+                nc   => scalars(index_nc,:,:)
+                nifa => scalars(index_nifa,:,:)
+                nwfa => scalars(index_nwfa,:,:)
+
+                call mpas_pool_get_array(diag_physics,'nifa2d',nifa2d)
+                call mpas_pool_get_array(diag_physics,'nwfa2d',nwfa2d)
+                do j = jts,jte
+                do i = its,ite
+                   nifa2d_p(i,j) = nifa2d(i)
+                   nwfa2d_p(i,j) = nwfa2d(i)
+                enddo
+                do k = kts, kte
+                do i = its, ite
+                   nc_p(i,k,j) = nc(k,i)
+                   nifa_p(i,k,j) = nifa(k,i)
+                   nwfa_p(i,k,j) = nwfa(k,i)
+                enddo
+                enddo
+                enddo
+
+             case default
+          end select mp3_select
+
+          case default
+       end select mp2_select
+
     case("mp_tempo")
        call mpas_pool_get_dimension(state,'index_qi',index_qi)
        call mpas_pool_get_dimension(state,'index_qs',index_qs)
@@ -829,59 +882,6 @@ end subroutine pre_microphysics
           enddo
           enddo
        endif
-
-       mp2_select: select case(trim(mp_scheme))
-          case("mp_thompson","mp_thompson_aerosols")
-             call mpas_pool_get_dimension(state,'index_ni',index_ni)
-             call mpas_pool_get_dimension(state,'index_nr',index_nr)
-             ni   => scalars(index_ni,:,:)
-             nr   => scalars(index_nr,:,:)
-
-             call mpas_pool_get_array(diag_physics,'nt_c',nt_c)
-             call mpas_pool_get_array(diag_physics,'mu_c',mu_c)
-             do j = jts,jte
-             do i = its,ite
-                muc_p(i,j) = mu_c(i)
-                ntc_p(i,j) = nt_c(i)
-             enddo
-             do k = kts, kte
-             do i = its, ite
-                ni_p(i,k,j) = ni(k,i)
-                nr_p(i,k,j) = nr(k,i)
-             enddo
-             enddo
-             enddo
-
-          mp3_select: select case(trim(mp_scheme))
-             case("mp_thompson_aerosols")
-                call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
-                call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
-                call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
-                nc   => scalars(index_nc,:,:)
-                nifa => scalars(index_nifa,:,:)
-                nwfa => scalars(index_nwfa,:,:)
-
-                call mpas_pool_get_array(diag_physics,'nifa2d',nifa2d)
-                call mpas_pool_get_array(diag_physics,'nwfa2d',nwfa2d)
-                do j = jts,jte
-                do i = its,ite
-                   nifa2d_p(i,j) = nifa2d(i)
-                   nwfa2d_p(i,j) = nwfa2d(i)
-                enddo
-                do k = kts, kte
-                do i = its, ite
-                   nc_p(i,k,j) = nc(k,i)
-                   nifa_p(i,k,j) = nifa(k,i)
-                   nwfa_p(i,k,j) = nwfa(k,i)
-                enddo
-                enddo
-                enddo
-
-             case default
-          end select mp3_select
-
-          case default
-       end select mp2_select
 
     case default
  end select mp_select
