@@ -281,15 +281,15 @@
 
     !call to land-surface scheme:
     if(config_lsm_scheme .ne. 'off') then
-       if(config_lsm_scheme == 'sf_noah') then
-          call allocate_lsm
+       if(config_lsm_scheme == 'sf_noah' .or. config_lsm_scheme == 'sf_ruc') then
+          call allocate_lsm(block%configs)
 !$OMP PARALLEL DO
           do thread=1,nThreads
              call driver_lsm(itimestep,block%configs,mesh,diag_physics,sfc_input, &
                              cellSolveThreadStart(thread),cellSolveThreadEnd(thread))
           end do
 !$OMP END PARALLEL DO
-       call deallocate_lsm
+       call deallocate_lsm(block%configs)
 
        elseif(config_lsm_scheme == 'sf_noahmp') then
           do thread=1,nThreads

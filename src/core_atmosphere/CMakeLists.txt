@@ -35,6 +35,7 @@ set(ATMOSPHERE_CORE_PHYSICS_SOURCES
     mpas_atmphys_driver_sfclayer.F
     mpas_atmphys_init.F
     mpas_atmphys_lsm_shared.F
+    mpas_atmphys_lsm_rucinit.F
     mpas_atmphys_packages.F
     mpas_atmphys_todynamics.F
     mpas_atmphys_vars.F
@@ -159,6 +160,13 @@ set(ATMOSPHERE_CORE_PHYSICS_NSSL-MP_SOURCES
     MPAS/mp_nssl.F90
 )
 list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_NSSL-MP_SOURCES PREPEND physics/physics_wofs/NSSL-MP/)
+
+set(ATMOSPHERE_CORE_PHYSICS_RUCLSM_SOURCES
+    MPAS/module_ruc_land.F90
+    MPAS/module_ruc_ice.F90
+    MPAS/module_sf_sfcdiags_ruclsm.F
+)
+list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_RUCLSM_SOURCES PREPEND physics/physics_wofs/RUCLSM/)
 
 set(ATMOSPHERE_CORE_PHYSICS_NOAMP_UTILITY_SOURCES
     CheckNanMod.F90
@@ -378,6 +386,7 @@ add_library(core_atmosphere ${ATMOSPHERE_CORE_SOURCES}
             ${ATMOSPHERE_CORE_PHYSICS_WRF_SOURCES}
             ${ATMOSPHERE_CORE_PHYSICS_NOAA_SOURCES}
             ${ATMOSPHERE_CORE_PHYSICS_NSSL-MP_SOURCES}
+            ${ATMOSPHERE_CORE_PHYSICS_RUCLSM_SOURCES}
             ${ATMOSPHERE_CORE_DIAGNOSTIC_SOURCES}
             ${ATMOSPHERE_CORE_DYNAMICS_SOURCES})
 

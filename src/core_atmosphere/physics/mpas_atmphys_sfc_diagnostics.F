@@ -12,7 +12,12 @@
  use mpas_pool_routines,only: mpas_pool_get_config,mpas_pool_get_dimension,mpas_pool_get_array
 
  use mpas_atmphys_constants,only: cp,P0,R_d,rcp
- use mpas_atmphys_vars,only: xice_threshold
+ use mpas_atmphys_vars,only: xice_threshold, &
+                             t_p,qv_p,dz_p,rho_p,pres2_hyd_p, &
+                             ids,ide,jds,jde,kds,kde, &
+                             ims,ime,jms,jme,kms,kme, &
+                             jts,jte,kts,kte
+ use module_sf_sfcdiags_ruclsm
 
 
  implicit none
@@ -40,6 +45,7 @@
 
 !local variables and pointers:
  character(len=StrKIND),pointer:: lsm_scheme
+ character(len=StrKIND),pointer:: sfclayer_scheme
 
  integer,pointer:: nCellsSolve
  integer:: i
@@ -49,6 +55,8 @@
  real(kind=RKIND),dimension(:),pointer:: hfx,qfx,qsfc,chs2,cqs2
  real(kind=RKIND),dimension(:),pointer:: q2mxy,t2mxy
  real(kind=RKIND),dimension(:),pointer:: q2,t2m,th2m
+ real(kind=RKIND),dimension(:),pointer:: chs,cqs
+ integer,pointer:: globalCells(:)
 
  real(kind=RKIND):: rho
 
@@ -57,6 +65,7 @@
 !call mpas_log_write('--- enter subroutine atmphys_sfc_diagnostics:')
 
  call mpas_pool_get_config(configs,'config_lsm_scheme',lsm_scheme)
+ call mpas_pool_get_config(configs,'config_sfclayer_scheme',sfclayer_scheme)
 
  call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
 
@@ -114,6 +123,25 @@
           endif
           th2m(i) = t2m(i)*(P0/psfc(i))**rcp
        enddo
+
+    case("sf_ruc")
+       call mpas_log_write('--- call subroutine sfcdiags_ruclsm:')
+
+       call mpas_pool_get_array(mesh,'indexToCellID',globalCells)
+       call mpas_pool_get_array(diag_physics,'cqs'       ,cqs       )
+       call mpas_pool_get_array(diag_physics,'chs'       ,chs       )
+
+       if (trim(sfclayer_scheme) .ne. "sf_mynnsfclay") cqs = chs
+
+       call sfcdiags_ruclsm( &
+                     hfx  , qfx  , tsk  , qsfc , cqs  , cqs2 ,   chs , chs2, &
+                     t2m  , th2m , q2   , t_p  , qv_p , dz_p , rho_p ,       &
+                     pres2_hyd_p , psfc ,  cp  , R_d  , rcp  ,               &
+                     globalCells,                             &
+                     ids , ide , jds , jde , kds , kde ,      &
+                     ims , ime , jms , jme , kms , kme ,      &
+                     its , ite , jts , jte , kts , kte        &
+                    )
 
     case default
  end select sf_select

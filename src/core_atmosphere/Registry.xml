@@ -38,6 +38,10 @@
                      description="The number of months in a year"/>
                 <dim name="nSoilLevels"        definition="namelist:num_soil_layers"
                      description="The number of soil layers used by the land-surface scheme"/>
+                <dim name="nlcat"
+                     description="Number of landuse categories in the input data"/>
+                <dim name="nscat"
+                     description="Number of soil categories in the input data"/>
                 <dim name="nLags"              definition="namelist:input_soil_temperature_lag"
                      description="The number of days affecting the deep soil temperature"/>
                 <dim name="nOznLevels"         definition="namelist:noznlev"
@@ -479,6 +483,7 @@
                 <package name="bl_ysu_in" description="parameterization of YSU Planetary Boundary Layer."/>
                 <package name="bl_mynn_in" description="parameterization of MYNN Planetary Boundary Layer."/>
                 <package name="sf_noahmp_in" description="parameterization of NOAH-MP land surface scheme."/>
+                <package name="lsm_ruc_in" description="parameterization of the RUC land surface."/>
 
                 <package name="iau" description="Incremental Analysis Update"/>
                 <package name="limited_area" description="Limited-area simulations, which have lateral boundaries"/>
@@ -2522,7 +2527,12 @@
                 <nml_option name="config_lsm_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration for land-surface schemes"
-                     possible_values="`suite',`sf_noah',`sf_noahmp`, `off'"/>
+                     possible_values="`suite',`sf_noah',`sf_ruc',`sf_noahmp', `off'"/>
+
+                <nml_option name="config_lakemodel" type="integer" default_value="0" in_defaults="false"
+                     units="-"
+                     description="configuration option to use lake model with RUC lsm"
+                     possible_values="0"/>
 
                 <nml_option name="config_pbl_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
@@ -2763,11 +2773,11 @@
 
                 <var name="snowncv" type="real" dimensions="nCells Time" units="mm"
                      description="time-step grid-scale precipitation of snow"
-                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl_in"/>
+                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl_in;lsm_ruc_in"/>
 
                 <var name="graupelncv" type="real" dimensions="nCells Time" units="mm"
                      description="time-step grid-scale precipitation of graupel"
-                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl_in"/>
+                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_nssl_in;lsm_ruc_in"/>
 
                 <var name="hailncv" type="real" dimensions="nCells Time" units="mm"
                      description="time-step grid-scale precipitation of hail"
@@ -3058,7 +3068,7 @@
 
                 <var name="mavail" type="real" dimensions="nCells Time" units="unitless"
                      description="surface moisture availability (between 0 and 1)"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_ysu_in;lsm_ruc_in"/>
 
                 <var name="mol" type="real" dimensions="nCells Time" units="K"
                      description="T* in similarity theory"
@@ -3122,11 +3132,11 @@
 
                 <var name="flhc" type="real" dimensions="nCells Time" units="W m^{-2} K^{-1}"
                      description="exchange coefficient for heat"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_ysu_in;lsm_ruc_in"/>
 
                 <var name="flqc" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
                      description="exchange coefficient for moisture"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_ysu_in;lsm_ruc_in"/>
 
                 <var name="gz1oz0" type="real" dimensions="nCells Time" units="unitless"
                      description="log(z/z0) where z0 is roughness length"
@@ -3178,7 +3188,11 @@
 
                 <var name="qcg" type="real" dimensions="nCells Time" units="kg kg^{-1}"
                      description="cloud water mixing ratio at the ground surface"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;lsm_ruc_in"/>
+
+                <var name="cqs" type="real" dimensions="nCells Time" units="m s^{-1}"
+                     description="surface exchange coefficient for moisture at 2-meter"
+                     packages="bl_mynn_in;lsm_ruc_in"/>
 
                 <var name="sh3d" type="real" dimensions="nVertLevels nCells Time" units="unitless"
                      description="stability function for heat"
@@ -3648,8 +3662,76 @@
                 <var name="znt" type="real" dimensions="nCells Time" units="m"
                      description="roughness length"/>
 
-                <var name="zs" type="real" dimensions="nCells Time" units="m"
+                <var name="zs" type="real" dimensions="nSoilLevels nCells Time" units="m"
                      description="depth of centers of soil layers"/>
+
+                <!-- ================================================================================================== -->
+                <!-- ... RUC LAND SURFACE MODEL:                                                                        -->
+                <!-- ================================================================================================== -->
+
+                <var name="rhosnf" type="real" dimensions="nCells Time" units="kg m^{-3}"
+                     description="density of snowfall"
+                     packages="lsm_ruc_in"/>
+
+                <var name="precipfr" type="real" dimensions="nCells Time" units="mm"
+                     description="time step water equivalent of frozen precipitation"
+                     packages="lsm_ruc_in"/>
+
+                <var name="qsg" type="real" dimensions="nCells Time" units="kg kg^{-1}"
+                     description="saturated mixing ratio at the surface"
+                     packages="lsm_ruc_in"/>
+
+                <var name="qvg" type="real" dimensions="nCells Time" units="kg kg^{-1}"
+                     description="water vapor mixing ratio at the surface"
+                     packages="lsm_ruc_in"/>
+
+                <var name="dew" type="real" dimensions="nCells Time" units="kg m^{-2}"
+                     description="dew"
+                     packages="lsm_ruc_in"/>
+
+                <var name="soilt1" type="real" dimensions="nCells Time" units="K"
+                     description="snow temperature at 7.5cm depth"
+                     packages="lsm_ruc_in"/>
+
+                <var name="tsnav" type="real" dimensions="nCells Time" units="C"
+                     description="average temperature of snowpack"
+                     packages="lsm_ruc_in"/>
+
+                <var name="acrunoff" type="real" dimensions="nCells Time" units="kg m^{-2}"
+                     description="run total accumulated runoff"
+                     packages="lsm_ruc_in"/>
+
+                <var name="snowfallac" type="real" dimensions="nCells Time" units="mm"
+                     description="run total snowfall accumulated taking in to account melting"
+                     packages="lsm_ruc_in"/>
+
+                <var name="smfr3d" type="real" dimensions="nSoilLevels nCells Time" units=""
+                     description="fraction frozen soil moisture"
+                     packages="lsm_ruc_in"/>
+
+                <var name="spp_lsm_loc" type="integer" dimensions="" units=""
+                     description="use soil property perturbations; 1 or 0; Hardcoded to 0 for now"
+                     packages="lsm_ruc_in"/>
+
+                <var name="mosaic_lu" type="integer" dimensions="" units=""
+                     description="use fractional landuse categories; 1 or 0; Hardcoded to 1 for now"
+                     packages="lsm_ruc_in"/>
+
+                <var name="mosaic_soil" type="integer" dimensions="" units=""
+                     description="use fractional soil categories; 1 or 0; Hardcoded to 1 for now"
+                     packages="lsm_ruc_in"/>
+
+                <var name="keepfr3d" type="real" dimensions="nSoilLevels nCells Time" units=""
+                     description="keep 3d frozen soil categorization for next time step"
+                     packages="lsm_ruc_in"/>
+
+                <var name="sfcexc" type="real" dimensions="nCells Time" units="m s^{-1}"
+                     description="surface exchange coefficient for heat"
+                     packages="lsm_ruc_in"/>
+
+                <var name="sfcevp" type="real" dimensions="nCells Time" units="kg m^{-2}"
+                     description="total evaporation"
+                     packages="lsm_ruc_in"/>
 
                 <!-- ================================================================================================== -->
                 <!-- ... PARAMETERIZATION OF THE 1D OCEAN MIXED LAYER                                                   -->
@@ -4012,6 +4094,18 @@
 
                 <var name="tslb" type="real" dimensions="nSoilLevels nCells Time" units="K"
                      description="soil layer temperature"/>
+
+                <var name="soilf" type="real" dimensions="nscat nCells" units="unitless"
+                     packages="lsm_ruc_in"
+                     description="fraction of each soil category present"/>
+
+                <var name="landusef" type="real" dimensions="nlcat nCells" units="unitless"
+                     packages="lsm_ruc_in"
+                     description="fraction of each vegetation category present"/>
+
+                <var name="lai12m" type="real" dimensions="nMonths nCells" units="unitless"
+                     packages="lsm_ruc_in"
+                     description="monthly-mean climatological leaf area index"/>
 
 
                 <!-- ================================================================================================== -->

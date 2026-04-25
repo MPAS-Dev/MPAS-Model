@@ -42,6 +42,7 @@
  logical,pointer:: mp_kessler_in,mp_thompson_in,mp_thompson_aers_in,mp_wsm6_in,mp_nssl_in,nssl3m_in,nssl_hail_in,nssl3m_hail_in,nssl_ccn_in
  logical,pointer:: cu_grell_freitas_in,cu_kain_fritsch_in,cu_ntiedtke_in
  logical,pointer:: bl_mynn_in,bl_ysu_in
+ logical,pointer:: lsm_ruc_in
  logical,pointer:: sf_noahmp_in
 
  integer :: ierr
@@ -218,6 +219,30 @@
 
  call mpas_log_write('    bl_mynn_in              = $l', logicArgs=(/bl_mynn_in/))
  call mpas_log_write('    bl_ysu_in               = $l', logicArgs=(/bl_ysu_in/))
+ call mpas_log_write('')
+
+!--- initialization of all packages for parameterizations of the land surface:
+
+ call mpas_pool_get_config(configs,'config_lsm_scheme',config_lsm_scheme)
+
+ nullify(lsm_ruc_in)
+ call mpas_pool_get_package(packages,'lsm_ruc_inActive',lsm_ruc_in)
+
+ if(.not.associated(lsm_ruc_in)) then
+    call mpas_log_write('====================================================================================',messageType=MPAS_LOG_ERR)
+    call mpas_log_write('* Error while setting up packages for land surface options in atmosphere core.',       messageType=MPAS_LOG_ERR)
+    call mpas_log_write('====================================================================================',messageType=MPAS_LOG_ERR)
+    ierr = 1
+    return
+ endif
+
+ lsm_ruc_in = .false.
+
+ if(config_lsm_scheme=='sf_ruc') then
+    lsm_ruc_in = .true.
+ endif
+
+ call mpas_log_write('    lsm_ruc_in              = $l', logicArgs=(/lsm_ruc_in/))
  call mpas_log_write('')
 
 !--- initialization of all packages for parameterizations of land surface processes:
