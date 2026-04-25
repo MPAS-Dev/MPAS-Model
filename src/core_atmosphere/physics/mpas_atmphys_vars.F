@@ -477,6 +477,10 @@
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     pattern_spp_pbl    !stochastic forcing for the MYMM PBL and surface layer schemes.
 
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    pattern_spp_lsm,  &!stochastic forcing for the RUC LSM.
+    field_sf            !stochastic forcing field for the RUC LSM.
+
 !=================================================================================================================
 !... variables and arrays related to parameterization of gravity wave drag over orography:
 !=================================================================================================================
@@ -855,14 +859,17 @@
                        !albedos as functions of the land surface scheme.
 
  integer,public:: &
-    num_soils          !number of soil layers                                                                  [-]
+    num_soils,        &!number of soil layers                                                                  [-]
+    num_landcat,      &!number of landuse categories                                                           [-]
+    num_soilcat        !number of soil categories                                                              [-]
     
  integer,dimension(:,:),allocatable:: &
     isltyp_p,         &!dominant soil type category                                                            [-]
     ivgtyp_p           !dominant vegetation category                                                           [-]
 
  real(kind=RKIND),dimension(:),allocatable:: &
-    dzs_p              !thickness of soil layers                                                               [m]
+    dzs_p,            &!thickness of soil layers                                                               [m]
+    zs_p               !depth of soil layer bottom                                                             [m]
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     smcrel_p,         &!soil moisture threshold below which transpiration starts to stress                     [-]
     sh2o_p,           &!unfrozen soil moisture content                                       [volumetric fraction]
@@ -922,6 +929,29 @@
 !=================================================================================================================
 
  type(NoahmpIO_type):: mpas_noahmp
+
+!=================================================================================================================
+!.. variables and arrays related to the RUC land-surface parameterization:
+!=================================================================================================================
+
+ real(kind=RKIND),dimension(:,:),allocatable:: &
+    rhosnf_p,         &!density of snowfall                                                               [kg m-3]
+    precipfr_p,       &!water equivalent of frozen precipitation                                              [mm]
+    qsg_p,            &!saturated mixing ratio at the surface                                            [kg kg-1]
+    qvg_p,            &!water vapor mixing ratio at the surface                                          [kg kg-1]
+    dew_p,            &!dew                                                                               [kg m-2]
+    soilt1_p,         &!snow temperature at 7.5cm depth                                                        [K]
+    tsnav_p,          &!average temperature of snowpack                                                        [C]
+    acrunoff_p,       &!run total accumulated runoff                                                      [kg m-2]
+    snowfallac_p,     &!run total accumulated snowfall taking in to account melting                           [mm]
+    sfcexc_p,         &!surface exchange coefficient for heat                                              [m s-1]
+    sfcevp_p           !total evaporation                                                                 [kg m-2]
+
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    smfr3d_p,         &!fraction of frozen soil moisture                                                       [-]
+    landusef_p,       &!fraction of each landuse category                                                      [-]
+    soilf_p,          &!fraction of each soil category                                                         [-]
+    keepfr3d_p         !flag to keep frozen soil moisture information
 
 !=================================================================================================================
 !.. variables and arrays related to surface characteristics:
