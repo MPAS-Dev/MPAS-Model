@@ -168,7 +168,7 @@ module mpas_halo_testing
       end do
       end do
 
-      call mpas_halo_exch_group_full_halo_exch(domain, 'persistent_group', ierr_local)
+      call mpas_halo_exch_group_full_halo_exch(domain, 'persistent_group', iErr=ierr_local)
       ierr = ior(ierr, ierr_local)
 
       diff = 0.0_RKIND
@@ -228,7 +228,7 @@ module mpas_halo_testing
       end do
       end do
 
-      call mpas_halo_exch_group_full_halo_exch(domain, 'scratch_group', ierr_local)
+      call mpas_halo_exch_group_full_halo_exch(domain, 'scratch_group', iErr=ierr_local)
       ierr = ior(ierr, ierr_local)
 
       diff = 0.0_RKIND

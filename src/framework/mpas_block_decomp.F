@@ -25,6 +25,9 @@ module mpas_block_decomp
    use mpas_derived_types
    use mpas_io_units
    use mpas_log
+#ifdef MPAS_SCOTCH
+   use mpas_ptscotch_interface
+#endif
 
    type graph
       integer :: nVerticesTotal
@@ -50,6 +53,8 @@ module mpas_block_decomp
 !-----------------------------------------------------------------------
    subroutine mpas_block_decomp_cells_for_proc(dminfo, partial_global_graph_info, local_cell_list, block_id, block_start, &
                                                block_count, numBlocks, explicitProcDecomp, blockFilePrefix, procFilePrefix)!{{{
+
+      use mpas_timer, only : mpas_timer_start, mpas_timer_stop
 
       implicit none
 
@@ -77,8 +82,11 @@ module mpas_block_decomp
       character (len=StrKIND) :: filename
 
       logical :: no_blocks
+      logical :: useScotch
 
       no_blocks = .false.
+
+      call mpas_timer_start('mpas_block_decomp_cells_for_proc')
 
       if (numBlocks == 0) then
         dminfo % total_blocks = dminfo % nProcs
@@ -95,53 +103,85 @@ module mpas_block_decomp
         allocate(local_nvertices(dminfo % nprocs))
         allocate(global_start(dminfo % nprocs))
         allocate(global_list(partial_global_graph_info % nVerticesTotal))
+ 
+         if (dminfo % my_proc_id == IO_NODE) then
 
-        if (dminfo % my_proc_id == IO_NODE) then
+            if (dminfo % total_blocks < 10) then
+               write(filename,'(a,i1)') trim(blockFilePrefix), dminfo % total_blocks
+            else if (dminfo % total_blocks < 100) then
+               write(filename,'(a,i2)') trim(blockFilePrefix), dminfo % total_blocks
+            else if (dminfo % total_blocks < 1000) then
+               write(filename,'(a,i3)') trim(blockFilePrefix), dminfo % total_blocks
+            else if (dminfo % total_blocks < 10000) then
+               write(filename,'(a,i4)') trim(blockFilePrefix), dminfo % total_blocks
+            else if (dminfo % total_blocks < 100000) then
+               write(filename,'(a,i5)') trim(blockFilePrefix), dminfo % total_blocks
+            else if (dminfo % total_blocks < 1000000) then
+               write(filename,'(a,i6)') trim(blockFilePrefix), dminfo % total_blocks
+            else if (dminfo % total_blocks < 10000000) then
+               write(filename,'(a,i7)') trim(blockFilePrefix), dminfo % total_blocks
+            else if (dminfo % total_blocks < 100000000) then
+               write(filename,'(a,i8)') trim(blockFilePrefix), dminfo % total_blocks
+            end if
 
-           if (dminfo % total_blocks < 10) then
-              write(filename,'(a,i1)') trim(blockFilePrefix), dminfo % total_blocks
-           else if (dminfo % total_blocks < 100) then
-              write(filename,'(a,i2)') trim(blockFilePrefix), dminfo % total_blocks
-           else if (dminfo % total_blocks < 1000) then
-              write(filename,'(a,i3)') trim(blockFilePrefix), dminfo % total_blocks
-           else if (dminfo % total_blocks < 10000) then
-              write(filename,'(a,i4)') trim(blockFilePrefix), dminfo % total_blocks
-           else if (dminfo % total_blocks < 100000) then
-              write(filename,'(a,i5)') trim(blockFilePrefix), dminfo % total_blocks
-           else if (dminfo % total_blocks < 1000000) then
-              write(filename,'(a,i6)') trim(blockFilePrefix), dminfo % total_blocks
-           else if (dminfo % total_blocks < 10000000) then
-              write(filename,'(a,i7)') trim(blockFilePrefix), dminfo % total_blocks
-           else if (dminfo % total_blocks < 100000000) then
-              write(filename,'(a,i8)') trim(blockFilePrefix), dminfo % total_blocks
-           end if
+            call mpas_new_unit(iunit)
+            open(unit=iunit, file=trim(filename), form='formatted', status='old', iostat=istatus)
+            
+            if (istatus /= 0) then
+#ifdef MPAS_SCOTCH
+               useScotch = .true.
+#else
+               call mpas_log_write('Could not open block decomposition file for $i blocks.', MPAS_LOG_ERR, intArgs=(/dminfo % total_blocks/) )
+               call mpas_log_write('Filename: '//trim(filename), MPAS_LOG_CRIT)
+#endif
+            else
+               useScotch = .false.
+            end if
+         end if
 
-           call mpas_new_unit(iunit)
-           open(unit=iunit, file=trim(filename), form='formatted', status='old', iostat=istatus)
+#ifdef MPAS_SCOTCH
+         call mpas_dmpar_bcast_logical(dminfo, useScotch)
 
-           if (istatus /= 0) then
-              call mpas_log_write('Could not open block decomposition file for $i blocks.', MPAS_LOG_ERR, intArgs=(/dminfo % total_blocks/) )
-              call mpas_log_write('Filename: '//trim(filename), MPAS_LOG_CRIT)
-           end if
+         if (useScotch) then ! Using PT-Scotch across all MPI ranks
 
-           local_nvertices(:) = 0
-           do i=1,partial_global_graph_info % nVerticesTotal
-              read(unit=iunit, fmt=*, iostat=err) global_block_id
+            ! Pre-emptively blocking this untested code path. 
+            if (numBlocks /= 0) then
+               call mpas_log_write('Scotch partitioning not available when config_number_of_blocks != 0 ', MPAS_LOG_CRIT)
+            end if
 
-              if ( err .ne. 0 ) then
-                 call mpas_log_write('Decomoposition file: ' // trim(filename) // ' contains less than $i cells', &
-                                      MPAS_LOG_CRIT, intArgs=(/partial_global_graph_info % nVerticesTotal/) )
-              end if
-              call mpas_get_owning_proc(dminfo, global_block_id, owning_proc)
-              local_nvertices(owning_proc+1) = local_nvertices(owning_proc+1) + 1
-           end do
+            call mpas_log_write('No existing block decomposition file found, invoking Scotch.')
+            call mpas_block_decomp_scotch(dminfo, partial_global_graph_info, blockFilePrefix, filename)
 
-           read(unit=iunit, fmt=*, iostat=err)
+            if (dminfo % my_proc_id == IO_NODE) then
+               open(unit=iunit, file=trim(filename), form='formatted', status='old', iostat=istatus)
+               if (istatus /= 0) then
+                  call mpas_log_write('Could not open block decomposition file for $i blocks.', MPAS_LOG_ERR, intArgs=(/dminfo % total_blocks/) )
+                  call mpas_log_write('Filename: '//trim(filename), MPAS_LOG_CRIT)
+               end if
+            end if
+         end if
+#endif
 
-           if ( err == 0 ) then
-              call mpas_log_write('Decomposition file: ' // trim(filename) // ' contains more than $i cells', &
-                                   MPAS_LOG_CRIT, intArgs=(/partial_global_graph_info % nVerticesTotal/) )
-           end if
+         if (dminfo % my_proc_id == IO_NODE) then
+
+               local_nvertices(:) = 0
+               do i=1,partial_global_graph_info % nVerticesTotal
+                  read(unit=iunit, fmt=*, iostat=err) global_block_id
+
+                  if ( err .ne. 0 ) then
+                     call mpas_log_write('Decomoposition file: ' // trim(filename) // ' contains less than $i cells', &
+                                          MPAS_LOG_CRIT, intArgs=(/partial_global_graph_info % nVerticesTotal/) )
+                  end if
+                  call mpas_get_owning_proc(dminfo, global_block_id, owning_proc)
+                  local_nvertices(owning_proc+1) = local_nvertices(owning_proc+1) + 1
+               end do
+
+               read(unit=iunit, fmt=*, iostat=err)
+
+               if ( err == 0 ) then
+                  call mpas_log_write('Decomposition file: ' // trim(filename) // ' contains more than $i cells', &
+                                       MPAS_LOG_CRIT, intArgs=(/partial_global_graph_info % nVerticesTotal/) )    
+               end if
 
            global_start(1) = 1
            do i=2,dminfo % nprocs
@@ -285,7 +325,230 @@ module mpas_block_decomp
         end if
       end if
 
+      call mpas_timer_stop('mpas_block_decomp_cells_for_proc')
+
    end subroutine mpas_block_decomp_cells_for_proc!}}}
+
+!***********************************************************************
+!
+!  routine mpas_block_decomp_scotch
+!
+!> \brief   Use PT-Scotch to generate the graph partitioning
+!> \author  Abishek Gopal
+!> \date    12/05/25
+!> \details
+!>  This routine invokes the PT-Scotch library to first construct a distributed graph from the
+!>  partial global graph information read by each processor, then partitions the graph into the
+!>  specified number of blocks, and after redistributing the graph, it finally gathers all the
+!>  local block ids (for each MPI rank) to the IO_NODE to write out to a partition file with the
+!>  specified prefix.
+!
+!-----------------------------------------------------------------------
+#ifdef MPAS_SCOTCH
+   subroutine mpas_block_decomp_scotch(dminfo, partial_global_graph_info, blockFilePrefix, blockFilename)!{{{
+
+      use mpas_timer, only : mpas_timer_start, mpas_timer_stop
+#ifdef MPAS_USE_MPI_F08
+      use mpi_f08, only : MPI_Comm, MPI_INTEGER, MPI_Comm_dup, MPI_Comm_free, MPI_Gather, MPI_Gatherv
+#else
+      use mpi
+#endif
+
+      implicit none
+
+      type (dm_info), intent(inout) :: dminfo !< Input: domain information
+      type (graph), intent(in) :: partial_global_graph_info !< Input: Global graph information
+      character (len=*), intent(in) :: blockFilePrefix !< Input: File prefix for block decomposition
+      character (len=*), intent(out) :: blockFilename !< Output: Block decomposition file name
+
+      integer, dimension(:), pointer :: global_start
+      ! integer, dimension(:), allocatable :: local_cell_list ! May be needed later to avoid reading partition file from disk
+      integer, dimension(:), allocatable :: local_block_list
+
+      integer, dimension(:), allocatable ::global_block_id_arr, local_block_id_arr
+      integer :: i, ounit, ostatus, j, k
+      integer :: err, ierr
+      integer, dimension(:), pointer :: local_nvertices
+      integer :: num_local_vertices !< Number of local vertices for this processor
+
+      integer :: nLocEdgesGraph = 0, nLocVerticesGraph = 0, edgelocsiz = 0, npart = 1
+      character (len=StrKIND) :: partitionFilePrefix
+      integer, dimension(:), allocatable :: edgeloctab, vertloctab
+      type(scotchm_strat) :: stradat
+      type(scotchm_dgraph) :: scotchdgraph
+      type(scotchm_dgraph) :: scotchdgraph_redist
+      integer :: mpi_ierr
+#ifdef MPAS_USE_MPI_F08
+      type (MPI_Comm) :: localcomm
+#else
+      integer :: localcomm
+#endif
+
+      ! Check that Scotch has not been built with 64-bit integers
+      ! Exit otherwise
+      call scotch_checkintsize()
+
+      allocate(local_nvertices(dminfo % nprocs))
+      allocate(global_start(dminfo % nprocs))
+      allocate(global_block_id_arr(partial_global_graph_info % nVerticesTotal))
+      allocate(local_block_id_arr(partial_global_graph_info % nVertices))
+
+      call mpas_timer_start('scotch_total')
+
+      ! Count the number of edges (including to ghost cells) in the portion of graph
+      ! owned by the current rank. Each edge is counted twice, once for each vertex,
+      ! with the exception of edges to ghost vertices, which are counted only once.
+      do i=1,partial_global_graph_info % nVertices
+         do j=1,partial_global_graph_info % nAdjacent(i)
+            if (partial_global_graph_info % adjacencyList(j,i) == 0) cycle
+            nLocEdgesGraph = nLocEdgesGraph + 1
+            ! call mpas_log_write('i=$i j=$i adj= $i', intArgs=(/i,j,partial_global_graph_info % adjacencyList(j,i)/) )
+         end do
+      end do
+
+      ! Holds the adjacency array for every local vertex
+      allocate(edgeloctab(nLocEdgesGraph))
+      ! Array of start indices in edgeloctab for each local vertex
+      allocate(vertloctab(partial_global_graph_info % nVertices + 1))
+
+      ! Fill up edgeloctab and vertloctab
+      k = 1
+      do i=1,partial_global_graph_info % nVertices
+         vertloctab(i) = k
+         do j=1,partial_global_graph_info % nAdjacent(i)
+            if (partial_global_graph_info % adjacencyList(j,i) == 0) cycle
+            edgeloctab(k) = partial_global_graph_info % adjacencyList(j,i)
+            k = k + 1
+         end do
+      end do
+      vertloctab(partial_global_graph_info % nVertices+1) = nLocEdgesGraph + 1
+
+      ! Duplicate the communicator to be used by Scotch
+      call MPI_Comm_dup(dminfo % comm, localcomm, mpi_ierr)
+      if (mpi_ierr /= 0) then
+         call mpas_log_write('Cannot duplicate communicator', MPAS_LOG_CRIT)
+      endif
+      ! Initialize the Scotch graph data structure, and an extra one to hold the re-distributed graph
+#ifdef MPAS_USE_MPI_F08
+      call scotch_dgraphinit(scotchdgraph, localcomm% mpi_val)
+      call scotch_dgraphinit(scotchdgraph_redist, localcomm% mpi_val)
+#else
+      call scotch_dgraphinit(scotchdgraph, localcomm)
+      call scotch_dgraphinit(scotchdgraph_redist, localcomm)
+#endif
+
+      ! From Scotch documentation: edgelocsiz is lower-bounded by the minimum size
+      ! of the edge array required to encompass all used adjacency values; it is
+      ! therefore at least equal to the maximum of the vendloctab entries, over all
+      ! local vertices, minus baseval; it can be set to edgelocnbr if the edge array is compact.
+      edgelocsiz = maxval(vertloctab) - 1
+
+      nLocVerticesGraph = partial_global_graph_info % nVertices
+
+      ! Build the distributed Scotch graph and save it in scotchdgraph
+      ! Note: Optional arguments veloloctab, vlblloctab, edgegsttab, and edloloctab are not needed here.
+      call scotch_dgraphbuild (scotchdgraph, &
+                        nLocVerticesGraph, & ! num of local vertices on the calling process
+                        vertloctab, & ! Array of start indices in edgeloctab for each local vertex
+                        nLocEdgesGraph, & ! Number of local edges, including to ghost vertices
+                        edgelocsiz, & ! Defined previously
+                        edgeloctab) ! Holds the adjacency array for every local vertex
+
+      ! Only needed during development/debugging. 
+      call scotch_dgraphcheck (scotchdgraph)
+
+      ! Initialize the strategy data structure
+      call scotch_stratinit (stradat)
+
+      call mpas_timer_start('scotch_graph_partitioning')
+      ! Partition the distributed graph and save the result in local_block_id_arr
+      npart = dminfo % nProcs
+      call scotch_dgraphpart (scotchdgraph, npart, stradat, local_block_id_arr)
+
+      call mpas_timer_stop('scotch_graph_partitioning')
+
+      ! After the paritioning above, each processor would not necessarily have information about all of the
+      ! vertices it owns. To obtain this information, Scotch provides a convenience function to redistribute the graph
+      ! to all processors, so that each processor has information about all of the vertices it owns.
+      call scotch_dgraphredist(scotchdgraph, & ! Input: original distributed graph
+                                 local_block_id_arr, & ! Input: the partition array
+                                 scotchdgraph_redist, & ! Output: re-distributed graph
+                                 num_local_vertices) ! Output: number of local vertices
+
+      ! DO NOT REMOVE: This call is required if we want to read the local cell list directly after partitioning,
+      ! instead of reading it from the output partition file.
+      ! Extract the local cell list from the re-distributed graph.
+      ! allocate(local_cell_list(num_local_vertices))
+      ! call scotch_dgraphdata(scotchdgraph_redist, local_cell_list)
+      ! do i=1,num_local_vertices
+      !    call mpas_log_write('local_cell_list($i): $i',MPAS_LOG_ERR, intArgs=(/i,local_cell_list(i)/))
+      ! end do
+
+      allocate(local_block_list(num_local_vertices))
+
+      local_block_list(:)=dminfo % my_proc_id
+
+      ! Using the local_nvertices array to hold the original number of vertices in
+      ! the partial graph readb by each processor. Might need to use a different array
+      ! to clear up potential confusion.
+      local_nvertices(dminfo % my_proc_id + 1) = partial_global_graph_info % nVertices
+
+      ! call mpas_log_write('local_nvertices($i): $i', MPAS_LOG_ERR, intArgs=(/i,num_local_vertices/))
+
+      ! Gather all the partial_global_graph_info % nVertices to IO_NODE.
+      ! num_local_vertices is the number of vertices that this processor owns, determined by the
+      ! Scotch paritioning. Whereas artial_global_graph_info % nVertices is the number of vertices
+      ! resident in the partial graph read by this processor. The latter is the correct size of the
+      ! local_block_id_arr.
+      call MPI_Gather( partial_global_graph_info % nVertices, 1, MPI_INTEGER, local_nvertices, &
+                           1, MPI_INTEGER, 0, localcomm, ierr)
+
+      ! Compute the displacements for gathering all the local_block_id_arr to global_block_id_arr
+      global_start(1) = 0
+      do i=2,dminfo % nprocs
+         global_start(i) = global_start(i-1) + local_nvertices(i-1)
+      end do
+
+      ! Gather all the local block ids to global_block_id_arr so IO_NODE can write out the partitioning data
+      call MPI_Gatherv( local_block_id_arr, partial_global_graph_info % nVertices, MPI_INTEGER, global_block_id_arr, &
+                              local_nvertices, global_start, MPI_INTEGER, 0, localcomm, ierr)
+      ! Write out the paritioning data to a file from IO_NODE
+      if (dminfo % my_proc_id == IO_NODE) then
+         partitionFilePrefix=trim(blockFilePrefix)
+         if (trim(partitionFilePrefix) == '') then
+            write(partitionFilePrefix,'(i0,a)') partial_global_graph_info%nVerticesTotal,'.graph.info.part.'
+         end if
+         write(blockFilename,'(a,i0)') trim(partitionFilePrefix), dminfo % nProcs
+
+         call mpas_log_write('Writing out Scotch Graph partitioning data to '//trim(blockFilename))
+         call mpas_new_unit(ounit)
+         open(unit=ounit, file=trim(blockFilename), form='formatted', status='new', action="write", iostat=ostatus)
+         do i=1,partial_global_graph_info % nVerticesTotal
+            write(unit=ounit, fmt='(i0)', iostat=err) global_block_id_arr(i)
+         end do
+         close(unit=ounit)
+         call mpas_release_unit(ounit)
+      end if
+
+      ! Clean up
+      call scotch_dgraphexit (scotchdgraph)
+      call scotch_dgraphexit (scotchdgraph_redist)
+      call scotch_stratexit (stradat)
+
+      deallocate(edgeloctab)
+      deallocate(vertloctab)
+      deallocate(local_block_list)
+      deallocate(local_nvertices)
+      deallocate(global_start)
+      deallocate(global_block_id_arr)
+      deallocate(local_block_id_arr)
+
+      call MPI_Comm_free(localcomm, mpi_ierr)
+
+      call mpas_timer_stop('scotch_total')
+
+   end subroutine mpas_block_decomp_scotch
+#endif
 
 !***********************************************************************
 !

@@ -12,6 +12,7 @@
 #define PNETCDF_DEFINE_MODE 0
 #define PNETCDF_DATA_MODE 1
 #define MAX_REQS 256
+#define PNETCDF_HEADER_ALIGN_SIZE_STR "131072"
 #endif
 
 #define START_COUNT_READ 0
@@ -324,6 +325,7 @@ int SMIOL_open_file(struct SMIOL_context *context, const char *filename,
 			/*
 			 * Convert fformat to a PNetCDF file creation mode
 			 */
+			MPI_Info info = MPI_INFO_NULL;
 			int filecmode;
 			if (fformat == SMIOL_FORMAT_CDF2) {
 				filecmode = NC_64BIT_OFFSET;
@@ -336,11 +338,14 @@ int SMIOL_open_file(struct SMIOL_context *context, const char *filename,
 				MPI_Comm_free(&io_group_comm);
 				return SMIOL_INVALID_FORMAT;
 			}
-
+			MPI_Info_create(&info);
+			MPI_Info_set(info, "nc_header_align_size",
+			             PNETCDF_HEADER_ALIGN_SIZE_STR);
 			ierr = ncmpi_create(io_file_comm, filename,
 			                    (filecmode | NC_CLOBBER),
-			                    MPI_INFO_NULL,
+			                    info,
 			                    &((*file)->ncidp));
+			MPI_Info_free(&info);
 		}
 		(*file)->state = PNETCDF_DEFINE_MODE;
 #endif
