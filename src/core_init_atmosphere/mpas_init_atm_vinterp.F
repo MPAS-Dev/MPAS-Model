@@ -41,7 +41,6 @@ module init_atm_vinterp
       integer :: k, lm, lp, n_lapse
       real (kind=RKIND) :: wm, wp
       real (kind=RKIND) :: slope
-      real (kind=RKIND) :: sum_x, sum_y, sum_x2, sum_xy, n_real
 
       integer :: interp_order, extrap_type
       real (kind=RKIND) :: surface, sealevel
@@ -83,20 +82,7 @@ module init_atm_vinterp
             vertical_interp = zf(2,1) + slope * (target_z - zf(1,1))
          else if (extrap_type == 2) then
             n_lapse = min(nz, 3)
-            sum_x = 0.0_RKIND; sum_y = 0.0_RKIND
-            sum_x2 = 0.0_RKIND; sum_xy = 0.0_RKIND
-            do k = 1, n_lapse
-               sum_x  = sum_x  + zf(1,k)
-               sum_y  = sum_y  + zf(2,k)
-               sum_x2 = sum_x2 + zf(1,k)**2
-               sum_xy = sum_xy + zf(1,k)*zf(2,k)
-            end do
-            n_real = real(n_lapse, RKIND)
-            if (n_lapse > 1) then
-               slope = (n_real*sum_xy - sum_x*sum_y) / (n_real*sum_x2 - sum_x**2)
-            else
-               slope = 0.0_RKIND
-            end if
+            slope = ls_lapse_slope(zf, nz, 1, n_lapse)
             vertical_interp = zf(2,1) + slope * (target_z - zf(1,1))
          end if
          return
@@ -109,20 +95,7 @@ module init_atm_vinterp
             vertical_interp = zf(2,nz) + slope * (target_z - zf(1,nz))
          else if (extrap_type == 2) then
             n_lapse = min(nz, 3)
-            sum_x = 0.0_RKIND; sum_y = 0.0_RKIND
-            sum_x2 = 0.0_RKIND; sum_xy = 0.0_RKIND
-            do k = nz - n_lapse + 1, nz
-               sum_x  = sum_x  + zf(1,k)
-               sum_y  = sum_y  + zf(2,k)
-               sum_x2 = sum_x2 + zf(1,k)**2
-               sum_xy = sum_xy + zf(1,k)*zf(2,k)
-            end do
-            n_real = real(n_lapse, RKIND)
-            if (n_lapse > 1) then
-               slope = (n_real*sum_xy - sum_x*sum_y) / (n_real*sum_x2 - sum_x**2)
-            else
-               slope = 0.0_RKIND
-            end if
+            slope = ls_lapse_slope(zf, nz, nz - n_lapse + 1, nz)
             vertical_interp = zf(2,nz) + slope * (target_z - zf(1,nz))
          end if
          return
@@ -147,6 +120,44 @@ module init_atm_vinterp
       return
 
    end function vertical_interp
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   ! Name: ls_lapse_slope
+   !
+   ! Purpose: Compute an ordinary least-squares slope over levels k_start..k_end of
+   !          zf.  Returns 0 when only one level is supplied (constant fallback).
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   real (kind=RKIND) function ls_lapse_slope(zf, nz, k_start, k_end)
+
+      implicit none
+
+      integer, intent(in) :: nz, k_start, k_end
+      real (kind=RKIND), dimension(2,nz), intent(in) :: zf
+
+      integer :: k, n_pts
+      real (kind=RKIND) :: sum_x, sum_y, sum_x2, sum_xy, n_real
+
+      n_pts  = k_end - k_start + 1
+
+      sum_x  = 0.0_RKIND;  sum_y  = 0.0_RKIND
+      sum_x2 = 0.0_RKIND;  sum_xy = 0.0_RKIND
+
+      do k = k_start, k_end
+         sum_x  = sum_x  + zf(1,k)
+         sum_y  = sum_y  + zf(2,k)
+         sum_x2 = sum_x2 + zf(1,k)**2
+         sum_xy = sum_xy + zf(1,k)*zf(2,k)
+      end do
+
+      n_real = real(n_pts, RKIND)
+      
+      if (n_pts > 1) then
+         ls_lapse_slope = (n_real*sum_xy - sum_x*sum_y) / (n_real*sum_x2 - sum_x**2)
+      else
+         ls_lapse_slope = 0.0_RKIND
+      end if
+
+   end function ls_lapse_slope
 
 end module init_atm_vinterp
 
