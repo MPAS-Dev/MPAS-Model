@@ -24,26 +24,30 @@ module init_atm_vinterp
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    real (kind=RKIND) function vertical_interp(target_z, nz, zf, order, extrap, surface_val, sealev_val, ierr)
 
+      use mpas_log, only : mpas_log_write
+      use mpas_derived_types, only : MPAS_LOG_ERR
+
       implicit none
 
       real (kind=RKIND), intent(in) :: target_z
       integer, intent(in) :: nz
       real (kind=RKIND), dimension(2,nz), intent(in) :: zf      ! zf(1,:) is column of vertical coordinate values, zf(2,:) is column of field values
       integer, intent(in), optional :: order
-      integer, intent(in), optional :: extrap
+      integer, intent(in), optional :: extrap                   ! can take values 0 = constant, 1 = linear (default), 2 = lapse-rate
       real (kind=RKIND), intent(in), optional :: surface_val
       real (kind=RKIND), intent(in), optional :: sealev_val
-      integer, intent(out), optional :: ierr                    ! error code: 0 = success, 1 = invalid extrapolation type
-
-      integer :: k, lm, lp
+      integer, intent(out), optional :: ierr
+      
+      integer :: k, lm, lp, n_lapse
       real (kind=RKIND) :: wm, wp
       real (kind=RKIND) :: slope
-      real (kind=RKIND) :: lapse_rate
+      real (kind=RKIND) :: sum_x, sum_y, sum_x2, sum_xy, n_real
 
       integer :: interp_order, extrap_type
       real (kind=RKIND) :: surface, sealevel
 
-
+      if (present(ierr)) ierr = 0
+      
       if (present(order)) then
          interp_order = order
       else
@@ -68,11 +72,6 @@ module init_atm_vinterp
          sealevel = 201300.0
       end if
 
-      ! Initialize ierr to 0 (success)
-      if (present(ierr)) then
-         ierr = 0
-      end if
-
       !
       ! Extrapolation required
       !
@@ -83,12 +82,22 @@ module init_atm_vinterp
             slope = (zf(2,2) - zf(2,1)) / (zf(1,2) - zf(1,1))
             vertical_interp = zf(2,1) + slope * (target_z - zf(1,1))
          else if (extrap_type == 2) then
-            ! Lapse-rate extrapolation: calculate lapse rate from bottom two levels
-            lapse_rate = (zf(2,2) - zf(2,1)) / (zf(1,2) - zf(1,1))
-            vertical_interp = zf(2,1) + lapse_rate * (target_z - zf(1,1))
-         else
-            vertical_interp = zf(2,1)
-            if (present(ierr)) ierr = 1
+            n_lapse = min(nz, 3)
+            sum_x = 0.0_RKIND; sum_y = 0.0_RKIND
+            sum_x2 = 0.0_RKIND; sum_xy = 0.0_RKIND
+            do k = 1, n_lapse
+               sum_x  = sum_x  + zf(1,k)
+               sum_y  = sum_y  + zf(2,k)
+               sum_x2 = sum_x2 + zf(1,k)**2
+               sum_xy = sum_xy + zf(1,k)*zf(2,k)
+            end do
+            n_real = real(n_lapse, RKIND)
+            if (n_lapse > 1) then
+               slope = (n_real*sum_xy - sum_x*sum_y) / (n_real*sum_x2 - sum_x**2)
+            else
+               slope = 0.0_RKIND
+            end if
+            vertical_interp = zf(2,1) + slope * (target_z - zf(1,1))
          end if
          return
       end if
@@ -99,12 +108,22 @@ module init_atm_vinterp
             slope = (zf(2,nz) - zf(2,nz-1)) / (zf(1,nz) - zf(1,nz-1))
             vertical_interp = zf(2,nz) + slope * (target_z - zf(1,nz))
          else if (extrap_type == 2) then
-            ! Lapse-rate extrapolation: calculate lapse rate from top two levels
-            lapse_rate = (zf(2,nz) - zf(2,nz-1)) / (zf(1,nz) - zf(1,nz-1))
-            vertical_interp = zf(2,nz) + lapse_rate * (target_z - zf(1,nz))
-         else
-            vertical_interp = zf(2,nz)
-            if (present(ierr)) ierr = 1
+            n_lapse = min(nz, 3)
+            sum_x = 0.0_RKIND; sum_y = 0.0_RKIND
+            sum_x2 = 0.0_RKIND; sum_xy = 0.0_RKIND
+            do k = nz - n_lapse + 1, nz
+               sum_x  = sum_x  + zf(1,k)
+               sum_y  = sum_y  + zf(2,k)
+               sum_x2 = sum_x2 + zf(1,k)**2
+               sum_xy = sum_xy + zf(1,k)*zf(2,k)
+            end do
+            n_real = real(n_lapse, RKIND)
+            if (n_lapse > 1) then
+               slope = (n_real*sum_xy - sum_x*sum_y) / (n_real*sum_x2 - sum_x**2)
+            else
+               slope = 0.0_RKIND
+            end if
+            vertical_interp = zf(2,nz) + slope * (target_z - zf(1,nz))
          end if
          return
       end if
