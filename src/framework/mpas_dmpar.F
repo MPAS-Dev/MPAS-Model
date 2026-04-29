@@ -391,6 +391,8 @@ include 'mpif.h'
 #ifdef _MPI
       integer :: mpi_ierr, mpi_errcode
 
+      mpi_errcode = 6   ! corresponds to POSIX SIGABRT, though the specific
+                        ! value here probably does not matter much
       call MPI_Abort(dminfo % comm, mpi_errcode, mpi_ierr)
 #endif
 
@@ -1493,7 +1495,7 @@ include 'mpif.h'
       integer, intent(in) :: noutlist !< Input: Number integers to receive
       integer, dimension(nprocs), intent(in) :: displs !< Input: Displacement in sending array
       integer, dimension(nprocs), intent(in) :: counts !< Input: Number of integers to distribute
-      integer, dimension(:), pointer :: inlist !< Input: List of integers to send
+      integer, dimension(:), intent(in) :: inlist !< Input: List of integers to send
       integer, dimension(noutlist), intent(inout) :: outlist !< Output: List of received integers
 
 #ifdef _MPI
@@ -7448,10 +7450,11 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 !>  exchange is complete.
 !
 !-----------------------------------------------------------------------
-   subroutine mpas_dmpar_exch_group_full_halo_exch(domain, groupName, iErr)!{{{
+   subroutine mpas_dmpar_exch_group_full_halo_exch(domain, groupName, withGPUAwareMPI, iErr)!{{{
 
       type (domain_type), intent(inout) :: domain
       character (len=*), intent(in) :: groupName
+      logical, optional, intent(in) :: withGPUAwareMPI
       integer, optional, intent(out) :: iErr
 
       type (mpas_exchange_group), pointer :: exchGroupPtr
@@ -7459,6 +7462,12 @@ subroutine mpas_dmpar_get_exch_list(haloLayer, ownedListField, neededListField, 
 
       if ( present(iErr) ) then
          iErr = MPAS_DMPAR_NOERR
+      end if
+
+      if (present(withGPUAwareMPI)) then
+        if (withGPUAwareMPI) then
+           call mpas_log_write(' GPU-aware MPI not implemented in this module', MPAS_LOG_CRIT)
+        end if
       end if
 
       nLen = len_trim(groupName)

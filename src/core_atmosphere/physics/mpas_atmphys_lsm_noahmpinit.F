@@ -258,7 +258,7 @@
  logical,pointer:: do_restart
  logical,parameter:: fndsnowh = .true.
 
- integer:: i,its,ite,ns,nsoil,nsnow,nzsnow
+ integer:: i,its,ite,n,ns,nsoil,nsnow,nzsnow,ierr
 
  real(kind=RKIND),parameter:: hlice = 3.335E5
  real(kind=RKIND):: bexp,fk,smcmax,psisat

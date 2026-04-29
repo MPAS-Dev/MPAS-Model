@@ -13,21 +13,8 @@ module atm_core
    use mpas_log, only : mpas_log_write, mpas_log_info
    use mpas_io_units, only : mpas_new_unit, mpas_release_unit
 
-   !
-   ! Abstract interface for routine used to communicate halos of fields
-   ! in a named group
-   !
-   abstract interface
-      subroutine halo_exchange_routine(domain, halo_group, ierr)
-
-         use mpas_derived_types, only : domain_type
-
-         type (domain_type), intent(inout) :: domain
-         character(len=*), intent(in) :: halo_group
-         integer, intent(out), optional :: ierr
-
-      end subroutine halo_exchange_routine
-   end interface
+   ! Provides definition of halo_exchange_routine
+#include "mpas_halo_interface.inc"
 
    type (MPAS_Clock_type), pointer :: clock
 
@@ -43,11 +30,15 @@ module atm_core
       use mpas_atm_dimensions, only : mpas_atm_set_dims
       use mpas_atm_diagnostics_manager, only : mpas_atm_diag_setup
       use mpas_atm_threading, only : mpas_atm_threading_init
-      use atm_time_integration, only : mpas_atm_dynamics_init
+      use atm_time_integration, only : mpas_atm_dynamics_init, &
+                              mpas_atm_pre_dynamics, mpas_atm_post_dynamics
       use mpas_timer, only : mpas_timer_start, mpas_timer_stop
       use mpas_attlist, only : mpas_modify_att
       use mpas_string_utils, only : mpas_string_replace
       use mpas_atm_halos, only: atm_build_halo_groups, exchange_halo_group
+#ifdef DO_CHEMISTRY
+      use mpas_atm_chemistry, only: chemistry_init
+#endif
 
       implicit none
 
@@ -295,6 +286,13 @@ module atm_core
       !
       call mpas_atm_dynamics_init(domain)
 
+      !
+      ! Initialize the chemistry package
+      !
+#ifdef DO_CHEMISTRY
+      call chemistry_init(domain % blocklist % configs, domain % blocklist % dimensions)
+#endif
+
    end function atm_core_init
 
 
@@ -390,6 +388,7 @@ module atm_core
       type (mpas_pool_type), pointer :: state
       type (mpas_pool_type), pointer :: diag
       type (mpas_pool_type), pointer :: tend
+      type (mpas_pool_type), pointer :: tend_physics
       type (mpas_pool_type), pointer :: sfc_input
       type (mpas_pool_type), pointer :: diag_physics
       type (mpas_pool_type), pointer :: diag_physics_noahmp
@@ -420,6 +419,10 @@ module atm_core
 
 
       logical, pointer :: config_do_restart, config_do_DAcycling
+
+      logical, pointer :: on_a_sphere
+      real (kind=RKIND), pointer :: sphere_radius
+
 
       call atm_compute_signs(mesh)
    
@@ -472,6 +475,10 @@ module atm_core
       !!!!! End compute inverses
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+      call mpas_pool_get_config(mesh, 'on_a_sphere', on_a_sphere)
+      call mpas_pool_get_config(mesh, 'sphere_radius', sphere_radius)
+      call atm_initialize_deformation_weights(mesh, nCells, on_a_sphere, sphere_radius)
+
       call atm_adv_coef_compression(mesh)
 
       call atm_couple_coef_3rd_order(mesh, block % configs)
@@ -509,6 +516,7 @@ module atm_core
       call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
       call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
 
+      call mpas_atm_pre_compute_solve_diagnostics(block)
 !$OMP PARALLEL DO
       do thread=1,nThreads
          if (.not. config_do_restart .or. (config_do_restart .and. config_do_DAcycling)) then
@@ -527,6 +535,7 @@ module atm_core
                                             edgeThreadStart(thread), edgeThreadEnd(thread))
       end do
 !$OMP END PARALLEL DO
+      call mpas_atm_post_compute_solve_diagnostics(block)
 
       deallocate(ke_vertex)
       deallocate(ke_edge)
@@ -540,13 +549,18 @@ module atm_core
       call mpas_pool_get_array(diag, 'uReconstructZ', uReconstructZ)
       call mpas_pool_get_array(diag, 'uReconstructZonal', uReconstructZonal)
       call mpas_pool_get_array(diag, 'uReconstructMeridional', uReconstructMeridional)
+      call mpas_reconstruct_2d_h2d(mesh, u, uReconstructX, uReconstructY, uReconstructZ, &
+                                   uReconstructZonal, uReconstructMeridional)
       call mpas_reconstruct(mesh, u,                   &
                             uReconstructX,             &
                             uReconstructY,             &
                             uReconstructZ,             &
                             uReconstructZonal,         &
-                            uReconstructMeridional     &
+                            uReconstructMeridional,    &
+                            lACC = .true.              &
                            )
+      call mpas_reconstruct_2d_d2h(mesh, u, uReconstructX, uReconstructY, uReconstructZ, &
+               uReconstructZonal, uReconstructMeridional)
    
 #ifdef DO_PHYSICS
       !proceed with initialization of physics parameterization if moist_physics is set to true:
@@ -566,6 +580,7 @@ module atm_core
       if (moist_physics) then
          !initialization of some input variables in registry:
          call mpas_pool_get_subpool(block % structs, 'tend', tend)
+         call mpas_pool_get_subpool(block % structs, 'tend_physics', tend_physics)
          call mpas_pool_get_subpool(block % structs, 'diag_physics', diag_physics)
          call mpas_pool_get_subpool(block % structs, 'diag_physics_noahmp', diag_physics_noahmp)
          call mpas_pool_get_subpool(block % structs, 'ngw_input', ngw_input)
@@ -576,7 +591,7 @@ module atm_core
          call physics_run_init(block % configs, mesh, state, clock, stream_manager)
 
          !initialization of all physics:
-         call physics_init(dminfo, stream_manager, clock, block % configs, mesh, diag, tend, state, 1,       &
+         call physics_init(dminfo, stream_manager, clock, block % configs, mesh, diag, tend, tend_physics, state, 1, &
                            diag_physics, diag_physics_noahmp, ngw_input, atm_input, sfc_input, output_noahmp)
       endif
 #endif
@@ -986,8 +1001,11 @@ module atm_core
       use mpas_atmphys_manager
       use mpas_atmphys_update
 #endif
+#ifdef DO_CHEMISTRY
+      use mpas_atm_chemistry, only: chemistry_step
+#endif
       use mpas_atm_halos, only: exchange_halo_group
-   
+
       implicit none
    
       type (domain_type), intent(inout) :: domain 
@@ -1019,6 +1037,10 @@ module atm_core
       endif
 #endif
 
+#ifdef DO_CHEMISTRY
+      call chemistry_step()
+#endif
+
       call atm_timestep(domain, dt, currTime, itimestep, exchange_halo_group)
 
    end subroutine atm_do_timestep
@@ -1037,6 +1059,10 @@ module atm_core
       use mpas_atmphys_finalize
 #endif
 
+#ifdef DO_CHEMISTRY
+      use mpas_atm_chemistry, only: chemistry_finalize
+#endif
+
       implicit none
    
       type (domain_type), intent(inout) :: domain
@@ -1052,6 +1078,13 @@ module atm_core
       ! Finalize the dynamics
       !
       call mpas_atm_dynamics_finalize(domain)
+
+      !
+      ! Finalize chemistry
+      !
+#ifdef DO_CHEMISTRY
+      call chemistry_finalize()
+#endif
 
       call mpas_atm_diag_cleanup()
 
@@ -1250,8 +1283,11 @@ module atm_core
       real (kind=RKIND), pointer :: config_xnutr, config_zd
       real (kind=RKIND) :: z, zt, m1, pii
       real (kind=RKIND), dimension(:,:), pointer :: dss, zgrid
-      real (kind=RKIND), dimension(:), pointer :: meshDensity
-      real (kind=RKIND) :: dx_scale_power
+
+      real (kind=RKIND), dimension(:), pointer :: rdzw, etp, etm, ewp, ewm
+      real (kind=RKIND), pointer  :: max_coeff, min_coeff, transition_lower_bound, transition_upper_bound
+      real (kind=RKIND)  ::  transition_width 
+      real (kind=RKIND), allocatable, dimension(:) :: height_u_levels, epssm_coeff_u, height_w_levels, epssm_coeff_w
 
       m1 = -1.0
       pii = acos(m1)
@@ -1259,14 +1295,12 @@ module atm_core
       call mpas_pool_get_dimension(mesh, 'nCells', nCells)
       call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels)
 
-      call mpas_pool_get_array(mesh, 'meshDensity', meshDensity)
       call mpas_pool_get_array(mesh, 'dss', dss)
       call mpas_pool_get_array(mesh, 'zgrid', zgrid)
 
       call mpas_pool_get_config(configs, 'config_zd', config_zd)
       call mpas_pool_get_config(configs, 'config_xnutr', config_xnutr)
 
-      dx_scale_power = 1.0
       dss(:,:) = 0.0
       do iCell=1,nCells
          zt = zgrid(nVertLevels+1,iCell)
@@ -1274,10 +1308,82 @@ module atm_core
             z = 0.5*(zgrid(k,iCell) + zgrid(k+1,iCell))
             if (z > config_zd) then
                dss(k,iCell) = config_xnutr*sin(0.5*pii*(z-config_zd)/(zt-config_zd))**2.0
-               dss(k,iCell) = dss(k,iCell) / meshDensity(iCell)**(0.25*dx_scale_power)
             end if
          end do
       end do
+
+      call mpas_pool_get_array(mesh, 'rdzw', rdzw)
+      call mpas_pool_get_array(mesh, 'etp', etp)
+      call mpas_pool_get_array(mesh, 'etm', etm)
+      call mpas_pool_get_array(mesh, 'ewp', ewp)
+      call mpas_pool_get_array(mesh, 'ewm', ewm)
+      call mpas_pool_get_config(configs, 'config_epssm_minimum', min_coeff)
+      call mpas_pool_get_config(configs, 'config_epssm_maximum', max_coeff)
+      call mpas_pool_get_config(configs, 'config_epssm_transition_bottom_z', transition_lower_bound)
+      call mpas_pool_get_config(configs, 'config_epssm_transition_top_z', transition_upper_bound)
+
+      allocate(height_u_levels(nVertLevels))
+      allocate(epssm_coeff_u(nVertLevels))
+      allocate(height_w_levels(nVertLevels+1))
+      allocate(epssm_coeff_w(nVertLevels+1))
+
+      transition_width = transition_upper_bound - transition_lower_bound
+
+! initialization for heights of coordinate at u and w levels  
+! These are the heights of the computational coordinate zeta
+      
+      height_w_levels(:) = 0.0_RKIND
+      do k =1, nVertLevels
+        height_w_levels(k+1) = height_w_levels(k) + 1.0_RKIND/rdzw(k)
+        height_u_levels(k) = 0.5*(height_w_levels(k+1) + height_w_levels(k)) 
+      enddo
+ 
+! Height dependent values of epssm; profiles stored in etp, etm, ewp, and ewm, 
+
+#ifdef MPAS_DEBUG
+      call mpas_log_write(' setting epssm coefficients ')
+      call mpas_log_write(' minimum epssm: $r ',realArgs=(/min_coeff/))
+      call mpas_log_write(' maximum epssm: $r ',realArgs=(/max_coeff/))
+      call mpas_log_write(' transition lower bound (m): $r ',realArgs=(/transition_lower_bound/))
+      call mpas_log_write(' transition upper bound (m): $r ',realArgs=(/transition_upper_bound/))
+      call mpas_log_write(' ')
+#endif
+
+      do k = 1,nVertLevels
+         if(height_u_levels(k).le.transition_lower_bound) then
+            epssm_coeff_u(k) = min_coeff
+         else if(height_u_levels(k).ge.transition_upper_bound)  then
+            epssm_coeff_u(k) = max_coeff
+         else   
+            z = (height_u_levels(k)-transition_lower_bound)/transition_width
+            epssm_coeff_u(k) = min_coeff + sin(0.5_RKIND*pii*z)**2*(max_coeff-min_coeff)
+         end if 
+         etp(k) = 0.5*(1.0 + epssm_coeff_u(k)) 
+         etm(k) = 0.5*(1.0 - epssm_coeff_u(k))
+#ifdef MPAS_DEBUG
+         call mpas_log_write('k, etp, etm $i $r $r ',intArgs=(/k/),realArgs=(/etp(k),etm(k)/))
+#endif
+      end do
+      do k= 1,nVertlevels+1
+         if(height_w_levels(k).le.transition_lower_bound) then
+            epssm_coeff_w(k) = min_coeff
+         else if(height_w_levels(k).ge.transition_upper_bound)  then
+            epssm_coeff_w(k) = max_coeff
+         else   
+            z = (height_w_levels(k)-transition_lower_bound)/transition_width
+            epssm_coeff_w(k) = min_coeff + sin(0.5_RKIND*pii*z)**2*(max_coeff-min_coeff)
+         end if 
+         ewp(k) = 0.5*(1.0 + epssm_coeff_w(k)) 
+         ewm(k) = 0.5*(1.0 - epssm_coeff_w(k)) 
+#ifdef MPAS_DEBUG
+         call mpas_log_write('k, ewp, ewm $i $r $r ',intArgs=(/k/),realArgs=(/ewp(k),ewm(k)/))
+#endif
+      end do
+
+      deallocate(height_u_levels)
+      deallocate(epssm_coeff_u)
+      deallocate(height_w_levels)
+      deallocate(epssm_coeff_w)
 
    end subroutine atm_compute_damping_coefs
 
@@ -1509,6 +1615,239 @@ module atm_core
       ierr = ierr + local_ierr
 
    end subroutine mpas_atm_run_compatibility
+
+
+   subroutine atm_initialize_deformation_weights(mesh, nCells, on_a_sphere, sphere_radius)
+
+!
+! compute the cell coefficients for the deformation calculations
+! WCS, 13 July 2010
+!
+
+      use mpas_vector_operations, only : mpas_fix_periodicity
+      use mpas_timer, only : mpas_timer_start, mpas_timer_stop
+      use mpas_geometry_utils, only : mpas_sphere_angle, mpas_plane_angle, mpas_arc_length
+
+      implicit none
+
+      type (mpas_pool_type), intent(inout) :: mesh
+      integer, intent(in) :: nCells
+      logical, intent(in) :: on_a_sphere
+      real (kind=RKIND), intent(in) :: sphere_radius
+
+!  local variables
+
+      real (kind=RKIND), dimension(:,:), pointer :: deformation_coef_c2, deformation_coef_s2, deformation_coef_cs
+      real (kind=RKIND), dimension(:,:), pointer :: deformation_coef_c, deformation_coef_s
+      integer, dimension(:,:), pointer :: cellsOnEdge, edgesOnCell, cellsOnCell, verticesOnCell
+      integer, dimension(:), pointer :: nEdgesOnCell
+      real (kind=RKIND), dimension(:), pointer :: xCell, yCell, zCell
+      real (kind=RKIND), dimension(:), pointer :: xVertex, yVertex, zVertex
+      real (kind=RKIND), dimension(:), pointer :: xEdge, yEdge, zEdge, angleEdge
+
+      real (kind=RKIND), dimension(nCells) :: theta_abs
+
+      real (kind=RKIND), dimension(25) :: xc, yc, zc ! cell center coordinates
+      real (kind=RKIND), dimension(25) :: thetav, thetat, dl_sphere
+      real (kind=RKIND) :: dl
+      integer :: i, ip1, ip2, n
+      integer :: iCell
+      real (kind=RKIND) :: pii
+      real (kind=RKIND), dimension(25) :: xp, yp
+      real (kind=RKIND) :: xe, ye
+
+      integer, dimension(25) :: cell_list
+
+      integer :: iv, ie
+      logical :: do_the_cell
+      real (kind=RKIND) :: area_cell, sint2, cost2, sint_cost, dx, dy
+
+      real(kind=RKIND), pointer :: x_period, y_period
+
+
+      call mpas_pool_get_config(mesh, 'x_period', x_period)
+      call mpas_pool_get_config(mesh, 'y_period', y_period)
+
+      call mpas_pool_get_array(mesh, 'deformation_coef_c2', deformation_coef_c2)
+      call mpas_pool_get_array(mesh, 'deformation_coef_s2', deformation_coef_s2)
+      call mpas_pool_get_array(mesh, 'deformation_coef_cs', deformation_coef_cs)
+      call mpas_pool_get_array(mesh, 'deformation_coef_c', deformation_coef_c)
+      call mpas_pool_get_array(mesh, 'deformation_coef_s', deformation_coef_s)
+      call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
+      call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
+      call mpas_pool_get_array(mesh, 'edgesOnCell', edgesOnCell)
+      call mpas_pool_get_array(mesh, 'cellsOnCell', cellsOnCell)
+      call mpas_pool_get_array(mesh, 'verticesOnCell', verticesOnCell)
+      call mpas_pool_get_array(mesh, 'xCell', xCell)
+      call mpas_pool_get_array(mesh, 'yCell', yCell)
+      call mpas_pool_get_array(mesh, 'zCell', zCell)
+      call mpas_pool_get_array(mesh, 'xVertex', xVertex)
+      call mpas_pool_get_array(mesh, 'yVertex', yVertex)
+      call mpas_pool_get_array(mesh, 'zVertex', zVertex)
+      call mpas_pool_get_array(mesh, 'xEdge', xEdge)
+      call mpas_pool_get_array(mesh, 'yEdge', yEdge)
+      call mpas_pool_get_array(mesh, 'zEdge', zEdge)
+      call mpas_pool_get_array(mesh, 'angleEdge', angleEdge)
+
+      deformation_coef_c2(:,:) = 0.
+      deformation_coef_s2(:,:) = 0.
+      deformation_coef_cs(:,:) = 0.
+      deformation_coef_c(:,:) = 0.
+      deformation_coef_s(:,:) = 0.
+
+      pii = 2.*asin(1.0)
+
+      do iCell = 1, nCells
+
+         cell_list(1) = iCell
+         do i=2,nEdgesOnCell(iCell)+1
+            cell_list(i) = cellsOnCell(i-1,iCell)
+         end do
+         n = nEdgesOnCell(iCell) + 1
+
+!  check to see if we are reaching outside the halo
+
+         do_the_cell = .true.
+         do i=1,n
+            if (cell_list(i) > nCells) do_the_cell = .false.
+         end do
+
+
+         if (.not. do_the_cell) cycle
+
+         !  compute poynomial fit for this cell if all needed neighbors exist
+
+         if (on_a_sphere) then
+
+            ! xc holds the center point and the vertex points of the cell,
+            ! normalized to a sphere or radius 1.
+
+            xc(1) = xCell(iCell)/sphere_radius
+            yc(1) = yCell(iCell)/sphere_radius
+            zc(1) = zCell(iCell)/sphere_radius
+
+            do i=2,n
+               iv = verticesOnCell(i-1,iCell)
+               xc(i) = xVertex(iv)/sphere_radius
+               yc(i) = yVertex(iv)/sphere_radius
+               zc(i) = zVertex(iv)/sphere_radius
+            end do
+
+            !
+            ! In case the current cell center lies at exactly z=1.0, the sphere_angle() routine
+            !    may generate an FPE since the triangle it is given will have a zero side length
+            !    adjacent to the vertex whose angle we are trying to find; in this case, simply
+            !    set the value of theta_abs directly
+            !
+            if (zc(1) == 1.0) then
+               theta_abs(iCell) = pii/2.
+            else
+               ! theta_abs is the angle to the first vertex from the center, normalized so that
+               ! an eastward pointing vector has a angle of 0.
+               theta_abs(iCell) =  pii/2. - mpas_sphere_angle( xc(1), yc(1), zc(1),  &
+                                                               xc(2), yc(2), zc(2),  &
+                                                               0.0_RKIND, 0.0_RKIND, 1.0_RKIND )
+            end if
+
+            ! here we are constructing the tangent-plane cell.
+            ! thetat is the angle in the (x,y) tangent-plane coordinate from
+            ! the cell center to each vertex, normalized so that an
+            ! eastward pointing vector has a angle of 0.
+
+            ! dl_sphere is the spherical distance from the cell center
+            ! to the sphere vertex points for the cell.
+
+            thetat(1) = theta_abs(iCell)
+            do i=1,n-1
+
+               ip2 = i+2
+               if (ip2 > n) ip2 = 2
+
+               thetav(i) = mpas_sphere_angle( xc(1),   yc(1),   zc(1),    &
+                                              xc(i+1), yc(i+1), zc(i+1),  &
+                                              xc(ip2), yc(ip2), zc(ip2)   )
+               dl_sphere(i) = sphere_radius*mpas_arc_length( xc(1),   yc(1),   zc(1),  &
+                                                             xc(i+1), yc(i+1), zc(i+1) )
+               if(i.gt.1) thetat(i) = thetat(i-1)+thetav(i-1)
+            end do
+
+            ! xp and yp are the tangent-plane vertex points with the cell center at (0,0)
+
+            do i=1,n-1
+               xp(i) = cos(thetat(i)) * dl_sphere(i)
+               yp(i) = sin(thetat(i)) * dl_sphere(i)
+            end do
+
+         else     ! On an x-y plane
+
+            do i=1,n-1
+               iv = verticesOnCell(i,iCell)
+               xp(i) = mpas_fix_periodicity(xVertex(iv),xCell(iCell),x_period) - xCell(iCell)
+               yp(i) = mpas_fix_periodicity(yVertex(iv),yCell(iCell),y_period) - yCell(iCell)
+            end do
+
+            do i=1,n-1
+               ie = edgesOnCell(i,iCell)
+               xe = mpas_fix_periodicity(xEdge(ie),xCell(iCell),x_period) - xCell(iCell)
+               ye = mpas_fix_periodicity(yEdge(ie),yCell(iCell),y_period) - yCell(iCell)
+               thetat(i) = atan2(ye,xe)
+            end do
+
+            theta_abs(iCell) = thetat(1)
+
+         end if
+
+         ! (1) compute cell area on the tangent plane used in the integrals
+         ! (2) compute angle of cell edge normal vector.  here we are repurposing thetat
+         thetat(1) = theta_abs(iCell)
+
+         do i=2,n-1
+            ip1 = i+1
+            if (ip1 == n) ip1 = 1
+            thetat(i) = mpas_plane_angle( 0.0_RKIND, 0.0_RKIND, 0.0_RKIND,  &
+                                          xp(i)-xp(i-1), yp(i)-yp(i-1), 0.0_RKIND,  &
+                                          xp(ip1)-xp(i), yp(ip1)-yp(i), 0.0_RKIND,  &
+                                          0.0_RKIND, 0.0_RKIND, 1.0_RKIND)
+            thetat(i) = thetat(i) + thetat(i-1)
+         end do
+
+         area_cell = 0.
+         do i=1,n-1
+            ip1 = i+1
+            if (ip1 == n) ip1 = 1
+            dx = xp(ip1)-xp(i)
+            dy = yp(ip1)-yp(i)
+            area_cell = area_cell + 0.25*(xp(i)+xp(ip1))*(yp(ip1)-yp(i)) - 0.25*(yp(i)+yp(ip1))*(xp(ip1)-xp(i))
+            thetat(i) = atan2(dy,dx)-pii/2.
+         end do
+
+         ! coefficients - see documentation for the formulas.
+
+         do i=1,n-1
+            ip1 = i+1
+            if (ip1 == n) ip1 = 1
+            dl = sqrt((xp(ip1)-xp(i))**2 + (yp(ip1)-yp(i))**2)
+            sint2 = (sin(thetat(i)))**2
+            cost2 = (cos(thetat(i)))**2
+            sint_cost = sin(thetat(i))*cos(thetat(i))
+            deformation_coef_c2(i,iCell) = dl*cost2/area_cell
+            deformation_coef_s2(i,iCell) = dl*sint2/area_cell
+            deformation_coef_cs(i,iCell) = dl*sint_cost/area_cell
+            deformation_coef_c(i,iCell) = dl*cos(thetat(i))/area_cell
+            deformation_coef_s(i,iCell) = dl*sin(thetat(i))/area_cell
+            if (cellsOnEdge(1,EdgesOnCell(i,iCell)) /= iCell) then
+               deformation_coef_c2(i,iCell) = - deformation_coef_c2(i,iCell)
+               deformation_coef_s2(i,iCell) = - deformation_coef_s2(i,iCell)
+               deformation_coef_cs(i,iCell) = - deformation_coef_cs(i,iCell)
+!               deformation_coef_c(i,iCell) = - deformation_coef_c(i,iCell)
+!               deformation_coef_s(i,iCell) = - deformation_coef_s(i,iCell)
+            end if
+
+         end do
+
+      end do
+
+   end subroutine atm_initialize_deformation_weights
 
 end module atm_core
 

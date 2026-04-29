@@ -2,8 +2,8 @@ module mpas_stream_list
 
 #define COMMA ,
 #define LIST_DEBUG_WRITE(M) ! call mpas_log_write(M)
-#define LIST_WARN_WRITE(M) call mpas_log_write( M , messageType=MPAS_LOG_WARN)
-#define LIST_ERROR_WRITE(M) call mpas_log_write( M , messageType=MPAS_LOG_ERR)
+#define LIST_WARN_WRITE(M) ! call mpas_log_write( M , messageType=MPAS_LOG_WARN)
+#define LIST_ERROR_WRITE(M) ! call mpas_log_write( M , messageType=MPAS_LOG_ERR)
 
     use mpas_kind_types, only : StrKIND
     use mpas_log
@@ -112,21 +112,24 @@ module mpas_stream_list
 
         if (present(ierr)) ierr = MPAS_STREAM_LIST_NOERR
 
-        nullify(stream % next)
-
         if (.not. associated(list % head)) then
             list % head => stream
+            nullify(stream % next)
         else
             node => list % head
-            do while (associated(node % next))
+            do while (associated(node))
                 if (node % name == stream % name) then
                     if (present(ierr)) ierr = MPAS_STREAM_LIST_DUPLICATE
                     LIST_ERROR_WRITE('Found duplicate item '//trim(stream % name)//' in list.')
                     return
                 end if
+                if (.not. associated(node % next)) then
+                    node % next => stream
+                    nullify(stream % next)
+                    exit
+                end if
                 node => node % next
             end do
-            node % next => stream
         end if
 
         list % nItems = list % nItems + 1

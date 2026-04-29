@@ -7,6 +7,10 @@
 !
 module mpas_io
 
+#define COMMA ,
+#define IO_DEBUG_WRITE(M) ! call mpas_log_write(M)
+#define IO_ERROR_WRITE(M) call mpas_log_write( M, messageType=MPAS_LOG_ERR)
+
    use mpas_derived_types
    use mpas_attlist
    use mpas_dmpar
@@ -1847,6 +1851,13 @@ module mpas_io
       character (len=:), pointer :: charVal_p
       character (len=:), dimension(:), pointer :: charArray1d_p
 
+      ! local variables returned from MPAS_io_inq_var
+      integer :: fieldtype
+      integer :: ndims
+      integer, dimension(:), pointer :: dimsizes
+      character (len=StrKIND), dimension(:), pointer :: dimnames
+      character (len=StrKIND) :: message
+
 #ifdef MPAS_SMIOL_SUPPORT
       type (SMIOLf_decomp), pointer :: null_decomp
 
@@ -1984,22 +1995,41 @@ module mpas_io
 !         call mpas_log_write('  value is char')
 
          charVal_p => charVal
+
+         ! get the dimension of the char variable to ensure the provided output buffer is large enough
+         call MPAS_io_inq_var(handle, fieldname, fieldtype, ndims, dimnames, dimsizes, local_ierr)
+         do i = 1, ndims
+            message = '  MPAS_io_get_var_generic len(charVal):$i var "'//trim(fieldname)// &
+                      '" type is $i dim is $i '// trim(dimnames(i))//' size is $i'
+            IO_DEBUG_WRITE(message COMMA intArgs=(/len(charVal), fieldtype, i, dimsizes(i)/))
+         end do
+         ! because charVal is provided, assume dimension 1 is the string length
+         if (dimsizes(1) > len(charVal)) then
+            local_ierr = MPAS_IO_ERR_INSUFFICIENT_BUF
+            message = 'Length of string variable "'//trim(fieldname)//'" in file "'//trim(handle % filename)//'"'
+            IO_ERROR_WRITE(message)
+            message = '    exceeds buffer size: len('//trim(fieldname)//')=$i, len(buffer)=$i'
+            IO_ERROR_WRITE(message COMMA intArgs=(/dimsizes(1), len(charVal)/))
+         else
 #ifdef MPAS_SMIOL_SUPPORT
-         local_ierr = SMIOLf_get_var(handle % smiol_file, trim(fieldname), null_decomp, charVal_p)
+            local_ierr = SMIOLf_get_var(handle % smiol_file, trim(fieldname), null_decomp, charVal_p)
 #endif
 
 #ifdef MPAS_PIO_SUPPORT
-         if (field_cursor % fieldhandle % has_unlimited_dim) then
-            count2(1) = field_cursor % fieldhandle % dims(1) % dimsize
-            pio_ierr = PIO_get_var(handle % pio_file, field_cursor % fieldhandle % fieldid, start2, count2, tempchar)
-            charVal(1:count2(1)) = tempchar(1)(1:count2(1))
-         else
-            start1(1) = 1
-            count1(1) = field_cursor % fieldhandle % dims(1) % dimsize
-            pio_ierr = PIO_get_var(handle % pio_file, field_cursor % fieldhandle % fieldid, start1, count1, tempchar)
-            charVal(1:count1(1)) = tempchar(1)(1:count1(1))
-         end if
+            if (field_cursor % fieldhandle % has_unlimited_dim) then
+               count2(1) = field_cursor % fieldhandle % dims(1) % dimsize
+               pio_ierr = PIO_get_var(handle % pio_file, field_cursor % fieldhandle % fieldid, start2, count2, tempchar)
+               charVal(1:count2(1)) = tempchar(1)(1:count2(1))
+            else
+               start1(1) = 1
+               count1(1) = field_cursor % fieldhandle % dims(1) % dimsize
+               pio_ierr = PIO_get_var(handle % pio_file, field_cursor % fieldhandle % fieldid, start1, count1, tempchar)
+               charVal(1:count1(1)) = tempchar(1)(1:count1(1))
+            end if
 #endif
+         end if
+         deallocate(dimsizes)
+         deallocate(dimnames)
       else if (present(charArray1d)) then
 !         call mpas_log_write('  value is char1')
 #ifdef MPAS_PIO_SUPPORT
@@ -2765,6 +2795,13 @@ module mpas_io
       end if
 
 !      call mpas_log_write('Checking for error')
+      if (local_ierr == MPAS_IO_ERR_INSUFFICIENT_BUF) then
+         call MPAS_io_err_mesg(handle % ioContext, local_ierr, .false.)
+         io_global_err = local_ierr
+         if (present(ierr)) ierr = local_ierr
+         return
+      endif
+
 #ifdef MPAS_PIO_SUPPORT
       if (pio_ierr /= PIO_noerr) then
          io_global_err = pio_ierr
@@ -6498,6 +6535,10 @@ module mpas_io
             call mpas_log_write('MPAS IO Error: Would clobber existing file', MPAS_LOG_ERR)
          case (MPAS_IO_ERR_NOEXIST_READ)
             call mpas_log_write('MPAS IO Error: Attempting to read a file which does not exist.', MPAS_LOG_ERR)
+         case (MPAS_IO_ERR_MISSING_DIM)
+            call mpas_log_write('MPAS IO Error: Attempting to read a dimension which does not exist.', MPAS_LOG_ERR)
+         case (MPAS_IO_ERR_INSUFFICIENT_BUF)
+            call mpas_log_write('MPAS IO Error: Attempting to read a variable into a buffer of insufficient size.', MPAS_LOG_ERR)
          case default
             call mpas_log_write('MPAS IO Error: Unrecognized error code...', MPAS_LOG_ERR)
       end select

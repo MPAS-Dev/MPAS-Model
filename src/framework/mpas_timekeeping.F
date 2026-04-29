@@ -150,6 +150,7 @@ module mpas_timekeeping
    !-----------------------------------------------------------------------
    subroutine mpas_timekeeping_set_year_width(yearWidthIn)!{{{
       integer, intent(in) :: yearWidthIn
+      integer :: ierr
 
       yearWidth = yearWidthIn
 
