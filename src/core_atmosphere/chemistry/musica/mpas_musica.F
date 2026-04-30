@@ -204,13 +204,11 @@ module mpas_musica
 
         call log_solver_stats(solver_stats)
 
-        ! TEMPORARY: ABBA specific logging
-        call mpas_log_write('[MUSICA] MICM AB concentrations')
-        call log_concentrations(state, state%number_of_grid_cells, 'AB', error)
-        call mpas_log_write('[MUSICA] MICM A concentrations')
-        call log_concentrations(state, state%number_of_grid_cells, 'A', error)
-        call mpas_log_write('[MUSICA] MICM B concentrations')
-        call log_concentrations(state, state%number_of_grid_cells, 'B', error)
+        ! TEMPORARY: ABBA-specific logging; removed in the next PR.
+        ! Safe no-op for mechanisms that do not define these species.
+        call log_concentrations(state, state%number_of_grid_cells, 'AB')
+        call log_concentrations(state, state%number_of_grid_cells, 'A')
+        call log_concentrations(state, state%number_of_grid_cells, 'B')
 
     end subroutine musica_step
 
@@ -281,22 +279,24 @@ module mpas_musica
         end do
     end subroutine set_species_profile
 
-    subroutine log_concentrations(state, number_of_grid_cells, species_name, err)
+    subroutine log_concentrations(state, number_of_grid_cells, species_name)
         use iso_fortran_env, only : real64
         use mpas_log, only        : mpas_log_write
         use mpas_kind_types, only : RKIND
-        use musica_util, only : error_t, string_t
+        use musica_util, only     : error_t
 
         type(state_t), intent(in)    :: state
         integer, intent(in)          :: number_of_grid_cells
         character(len=*), intent(in) :: species_name
-        type(error_t), intent(inout) :: err
 
-        integer :: species_index, cell_stride, var_stride, cell, idx
+        type(error_t)     :: err
+        integer           :: species_index, cell_stride, var_stride, cell, idx
         real (kind=RKIND) :: concentration
 
         species_index = state%species_ordering%index(species_name, err)
         if (.not. err%is_success()) return
+
+        call mpas_log_write('[MUSICA] MICM ' // species_name // ' concentrations')
 
         cell_stride = state%species_strides%grid_cell
         var_stride  = state%species_strides%variable
