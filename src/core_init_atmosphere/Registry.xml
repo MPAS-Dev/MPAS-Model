@@ -66,8 +66,10 @@
                                         8 = surface field (SST, sea-ice) update file for use with real-data simulations \newline
                                         9 = lateral boundary conditions update file for use with real-data simulations \newline
                                         10 = idealized LES case \newline
+                                        11 = real-data initial conditions from ECMWF model levels (ERA5/IFS) \newline
+                                        12 = lateral boundary conditions from ECMWF model levels (ERA5/IFS) \newline
                                         13 = CAM-MPAS 3-d grid with specified topography and zeta levels"
-                     possible_values="1 -- 10, or 13"/>
+                     possible_values="1 -- 13"/>
 
                 <nml_option name="config_calendar_type" type="character" default_value="gregorian" in_defaults="false"
                      units="-"
@@ -1343,7 +1345,7 @@
                      description="sea-ice flag (0=no seaice; =1 otherwise)"
                      packages="met_stage_out"/>
 
-                <var name="gfs_z" type="real" dimensions="nVertLevels nCells Time" units="m"
+                <var name="ght_fg" type="real" dimensions="nVertLevels nCells Time" units="m"
                      description="geopotential height vertically interpolated from first guess"
                      packages="met_stage_out"/>
 

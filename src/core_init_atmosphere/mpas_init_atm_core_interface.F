@@ -195,7 +195,7 @@ module init_atm_core_interface
          sfc_update = .false.
       end if
 
-      if (config_init_case == 9) then
+      if (config_init_case == 9 .or. config_init_case == 12) then
          lbcs = .true.
          mp_thompson_aers_in = .false.
          inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
@@ -258,6 +258,40 @@ module init_atm_core_interface
 
          initial_conds = .false.   ! Also, turn off the initial_conds package to avoid writing the IC "output" stream
 
+      else if (config_init_case == 11) then
+         gwd_stage_in = config_native_gwd_static .and. &
+                        (.not. config_static_interp)
+         gwd_stage_out = config_native_gwd_static
+         gwd_gsl_stage_out = config_native_gwd_gsl_static
+         vertical_stage_in = config_vertical_grid .and. &
+                             (.not. config_native_gwd_static) .and. &
+                             (.not. config_static_interp)
+         vertical_stage_out = config_vertical_grid
+         met_stage_in = config_met_interp .and. &
+                        (.not. config_native_gwd_static) .and. &
+                        (.not. config_static_interp) .and. &
+                        (.not. config_vertical_grid)
+         met_stage_out = config_met_interp
+
+         mp_thompson_aers_in = .false.
+         inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
+         if((lexist .and. met_stage_out) .or. (lexist .and. met_stage_in)) mp_thompson_aers_in = .true.
+
+      else if (config_init_case == 12) then
+         gwd_stage_in = .false.
+         gwd_stage_out = .false.
+         gwd_gsl_stage_out = .false.
+         vertical_stage_in = .false.
+         vertical_stage_out = .false.
+         met_stage_in = .true.
+         met_stage_out = .true.
+
+         mp_thompson_aers_in = .false.
+         inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
+         if((lexist .and. met_stage_out) .or. (lexist .and. met_stage_in)) mp_thompson_aers_in = .true.
+
+         initial_conds = .false.
+
       else if (config_init_case == 13) then
          gwd_stage_in = .false.
          gwd_stage_out = .false.
@@ -285,7 +319,9 @@ module init_atm_core_interface
       call mpas_pool_get_package(packages, 'first_guess_fieldActive', first_guess_field)
 
       first_guess_field = .false.
-      if ((config_init_case == 7 .and. config_met_interp) .or. config_init_case == 9) then
+
+      if ((config_init_case == 7 .and. config_met_interp) .or. config_init_case == 9 .or. &
+          (config_init_case == 11 .and. config_met_interp) .or. config_init_case == 12) then
          first_guess_field = .true.
       end if
 
