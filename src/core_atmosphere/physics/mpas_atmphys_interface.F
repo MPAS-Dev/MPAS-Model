@@ -323,6 +323,29 @@
 
  call mpas_pool_get_array(diag_physics,'plrad',plrad)
 
+ if( trim(microp_scheme) .ne. "mp_kessler") then
+
+ do j = jts, jte
+ do k = kts, kte
+ do i = its, ite
+
+ call mpas_log_write(" mp_wsm6 or thompson in physics interface ")
+    !water vapor and moist arrays:
+    qv_p(i,k,j) = max(0.,qv(k,i))
+    qc_p(i,k,j) = max(0.,qc(k,i))
+    qr_p(i,k,j) = max(0.,qr(k,i))
+    qi_p(i,k,j) = max(0.,qi(k,i))
+    qs_p(i,k,j) = max(0.,qs(k,i))
+    qg_p(i,k,j) = max(0.,qg(k,i))
+
+ enddo
+ enddo
+ enddo
+
+ else
+
+ call mpas_log_write(" mp_kessler in physics interface ")
+    
  do j = jts, jte
  do k = kts, kte
  do i = its, ite
@@ -331,9 +354,19 @@
     qv_p(i,k,j) = max(0.,qv(k,i))
     qc_p(i,k,j) = max(0.,qc(k,i))
     qr_p(i,k,j) = max(0.,qr(k,i))
-    qi_p(i,k,j) = max(0.,qi(k,i))
-    qs_p(i,k,j) = max(0.,qs(k,i))
-    qg_p(i,k,j) = max(0.,qg(k,i))
+    qi_p(i,k,j) = 0.0
+    qs_p(i,k,j) = 0.0
+    qg_p(i,k,j) = 0.0
+
+ enddo
+ enddo
+ enddo
+
+ end if
+
+ do j = jts, jte
+ do k = kts, kte
+ do i = its, ite
 
     !arrays located at theta points:
     u_p(i,k,j) = u(k,i)
@@ -948,6 +981,28 @@ end subroutine pre_microphysics
  endif
  
 !update surface pressure and calculates the surface pressure tendency:
+
+ if( trim(mp_scheme) .eq. "mp_kessler") then
+
+ do j = jts,jte
+ do i = its,ite
+    dz1 = zgrid(2,i)-zgrid(1,i)
+    dz2 = zgrid(3,i)-zgrid(2,i)
+    ! rho1 = rho_zz(1,i) * zz(1,i) * (1. + qv_p(i,1,j))
+    ! rho2 = rho_zz(2,i) * zz(2,i) * (1. + qv_p(i,2,j))
+    ! Added full wtare loading term, WCS 20260427
+    rho1 = rho_zz(1,i) * zz(1,i) * (1. + qv_p(i,1,j)+qc_p(i,1,j)+qr_p(i,1,j))
+    rho2 = rho_zz(2,i) * zz(2,i) * (1. + qv_p(i,2,j)+qc_p(i,2,j)+qr_p(i,2,j))
+    tend_sfc_pressure(i) = surface_pressure(i)
+    surface_pressure(i)  = pressure_p(1,i) + pressure_b(1,i)  &
+                         + 0.5*gravity*(zgrid(2,i)-zgrid(1,i)) &
+                         * (rho1 - 0.5*(rho2-rho1)*dz1/(dz1+dz2))
+    tend_sfc_pressure(i)   = (surface_pressure(i)-tend_sfc_pressure(i)) / dt_dyn
+ enddo
+ enddo
+
+ else
+
  do j = jts,jte
  do i = its,ite
     dz1 = zgrid(2,i)-zgrid(1,i)
@@ -965,6 +1020,8 @@ end subroutine pre_microphysics
  enddo
  enddo
 
+ end if
+ 
 !update cloud water species and aerosols as functions of cloud microphysics schemes:
  mp_select: select case(trim(mp_scheme))
     case("mp_thompson","mp_thompson_aerosols","mp_wsm6")
