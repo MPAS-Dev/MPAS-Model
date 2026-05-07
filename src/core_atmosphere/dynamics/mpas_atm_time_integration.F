@@ -3963,7 +3963,7 @@ module atm_time_integration
       else
          call mpas_timer_start('advance_acoustic_step_3964')
          !$acc parallel default(present)
-         !$acc loop gang worker collapse(2)
+         !$acc loop gang worker vector collapse(2)
          do iCell=cellStart,cellEnd
             do k=1,nVertLevels
                rtheta_pp_old(k,iCell) = rtheta_pp(k,iCell)
