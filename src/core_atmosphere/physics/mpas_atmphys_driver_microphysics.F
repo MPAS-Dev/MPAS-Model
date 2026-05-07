@@ -133,28 +133,6 @@
  if(.not.allocated(rainncv_p)) allocate(rainncv_p(ims:ime,jms:jme))
 
  microp_select: select case(trim(microp_scheme))
-    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6")
-       !mass mixing ratios:
-       if(.not.allocated(qi_p)) allocate(qi_p(ims:ime,kms:kme,jms:jme))
-       if(.not.allocated(qs_p)) allocate(qs_p(ims:ime,kms:kme,jms:jme))
-       if(.not.allocated(qg_p)) allocate(qg_p(ims:ime,kms:kme,jms:jme))
-
-       !surface precipitation:
-       if(.not.allocated(sr_p)        ) allocate(sr_p(ims:ime,jms:jme)        )
-       if(.not.allocated(snownc_p)    ) allocate(snownc_p(ims:ime,jms:jme)    )
-       if(.not.allocated(snowncv_p)   ) allocate(snowncv_p(ims:ime,jms:jme)   )
-       if(.not.allocated(graupelnc_p) ) allocate(graupelnc_p(ims:ime,jms:jme) )
-       if(.not.allocated(graupelncv_p)) allocate(graupelncv_p(ims:ime,jms:jme))
-
-       !cloud water,cloud ice,and snow effective radii:
-       if(.not.allocated(recloud_p)) allocate(recloud_p(ims:ime,kms:kme,jms:jme))
-       if(.not.allocated(reice_p)  ) allocate(reice_p(ims:ime,kms:kme,jms:jme)  )
-       if(.not.allocated(resnow_p) ) allocate(resnow_p(ims:ime,kms:kme,jms:jme) )
-
-       !precipitation flux:
-       if(.not.allocated(rainprod_p)) allocate(rainprod_p(ims:ime,kms:kme,jms:jme))
-       if(.not.allocated(evapprod_p)) allocate(evapprod_p(ims:ime,kms:kme,jms:jme))
-
     case ("mp_tempo")
        !mass mixing ratios:
        if(.not.allocated(qi_p)) allocate(qi_p(ims:ime,kms:kme,jms:jme))
@@ -189,6 +167,28 @@
        if(.not.allocated(recloud_p)) allocate(recloud_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(reice_p)  ) allocate(reice_p(ims:ime,kms:kme,jms:jme)  )
        if(.not.allocated(resnow_p) ) allocate(resnow_p(ims:ime,kms:kme,jms:jme) )
+
+    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6")
+       !mass mixing ratios:
+       if(.not.allocated(qi_p)) allocate(qi_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(qs_p)) allocate(qs_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(qg_p)) allocate(qg_p(ims:ime,kms:kme,jms:jme))
+
+       !surface precipitation:
+       if(.not.allocated(sr_p)        ) allocate(sr_p(ims:ime,jms:jme)        )
+       if(.not.allocated(snownc_p)    ) allocate(snownc_p(ims:ime,jms:jme)    )
+       if(.not.allocated(snowncv_p)   ) allocate(snowncv_p(ims:ime,jms:jme)   )
+       if(.not.allocated(graupelnc_p) ) allocate(graupelnc_p(ims:ime,jms:jme) )
+       if(.not.allocated(graupelncv_p)) allocate(graupelncv_p(ims:ime,jms:jme))
+
+       !cloud water,cloud ice,and snow effective radii:
+       if(.not.allocated(recloud_p)) allocate(recloud_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(reice_p)  ) allocate(reice_p(ims:ime,kms:kme,jms:jme)  )
+       if(.not.allocated(resnow_p) ) allocate(resnow_p(ims:ime,kms:kme,jms:jme) )
+
+       !precipitation flux:
+       if(.not.allocated(rainprod_p)) allocate(rainprod_p(ims:ime,kms:kme,jms:jme))
+       if(.not.allocated(evapprod_p)) allocate(evapprod_p(ims:ime,kms:kme,jms:jme))
 
     microp2_select: select case(trim(microp_scheme))
        case("mp_thompson","mp_thompson_aerosols")
@@ -252,28 +252,6 @@
  if(allocated(rainncv_p)) deallocate(rainncv_p)
 
  microp_select: select case(trim(microp_scheme))
-    case ("mp_thompson","mp_thompson_aerosols","mp_wsm6")
-       !mass mixing ratios:
-       if(allocated(qi_p)) deallocate(qi_p)
-       if(allocated(qs_p)) deallocate(qs_p)
-       if(allocated(qg_p)) deallocate(qg_p)
-
-       !surface precipitation:
-       if(allocated(sr_p)        ) deallocate(sr_p        )
-       if(allocated(snownc_p)    ) deallocate(snownc_p    )
-       if(allocated(snowncv_p)   ) deallocate(snowncv_p   )
-       if(allocated(graupelnc_p) ) deallocate(graupelnc_p )
-       if(allocated(graupelncv_p)) deallocate(graupelncv_p)
-
-       !cloud water,cloud ice,and snow effective radii:
-       if(allocated(recloud_p)) deallocate(recloud_p)
-       if(allocated(reice_p)  ) deallocate(reice_p  )
-       if(allocated(resnow_p) ) deallocate(resnow_p )
-
-       !precipitation flux:
-       if(allocated(rainprod_p)) deallocate(rainprod_p)
-       if(allocated(evapprod_p)) deallocate(evapprod_p)
-
     case ("mp_tempo")
        !mass mixing ratios:
        if(allocated(qi_p)) deallocate(qi_p)
@@ -308,6 +286,28 @@
        if(allocated(recloud_p)) deallocate(recloud_p)
        if(allocated(reice_p)  ) deallocate(reice_p  )
        if(allocated(resnow_p) ) deallocate(resnow_p )
+
+   case ("mp_thompson","mp_thompson_aerosols","mp_wsm6")
+       !mass mixing ratios:
+       if(allocated(qi_p)) deallocate(qi_p)
+       if(allocated(qs_p)) deallocate(qs_p)
+       if(allocated(qg_p)) deallocate(qg_p)
+
+       !surface precipitation:
+       if(allocated(sr_p)        ) deallocate(sr_p        )
+       if(allocated(snownc_p)    ) deallocate(snownc_p    )
+       if(allocated(snowncv_p)   ) deallocate(snowncv_p   )
+       if(allocated(graupelnc_p) ) deallocate(graupelnc_p )
+       if(allocated(graupelncv_p)) deallocate(graupelncv_p)
+
+       !cloud water,cloud ice,and snow effective radii:
+       if(allocated(recloud_p)) deallocate(recloud_p)
+       if(allocated(reice_p)  ) deallocate(reice_p  )
+       if(allocated(resnow_p) ) deallocate(resnow_p )
+
+       !precipitation flux:
+       if(allocated(rainprod_p)) deallocate(rainprod_p)
+       if(allocated(evapprod_p)) deallocate(evapprod_p)
 
     microp2_select: select case(trim(microp_scheme))
        case("mp_thompson","mp_thompson_aerosols")
