@@ -721,6 +721,85 @@ end subroutine pre_microphysics
 
 !initialize cloud water species and aerosols as function of cloud microphysics scheme:
  mp_select: select case(trim(mp_scheme))
+    case("mp_tempo")
+       call mpas_pool_get_dimension(state,'index_qi',index_qi)
+       call mpas_pool_get_dimension(state,'index_qs',index_qs)
+       call mpas_pool_get_dimension(state,'index_qg',index_qg)
+       call mpas_pool_get_dimension(state,'index_ni',index_ni)
+       call mpas_pool_get_dimension(state,'index_nr',index_nr)
+
+       call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
+       call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
+       call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
+       call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
+
+       qi => scalars(index_qi,:,:)
+       qs => scalars(index_qs,:,:)
+       qg => scalars(index_qg,:,:)
+       ni   => scalars(index_ni,:,:)
+       nr   => scalars(index_nr,:,:)
+
+       do j = jts, jte
+       do k = kts, kte
+       do i = its, ite
+          qi_p(i,k,j) = qi(k,i)
+          qs_p(i,k,j) = qs(k,i)
+          qg_p(i,k,j) = qg(k,i)
+          ni_p(i,k,j) = ni(k,i)
+          nr_p(i,k,j) = nr(k,i)
+
+          recloud_p(i,k,j)  = re_cloud(k,i)
+          reice_p(i,k,j)    = re_ice(k,i)
+          resnow_p(i,k,j)   = re_snow(k,i)
+          refl10cm_p(i,k,j) = refl10cm(k,i)
+       enddo
+       enddo
+       enddo
+
+       if(config_tempo_aerosolaware) then
+          call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
+          call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
+          call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
+          nc   => scalars(index_nc,:,:)
+          nifa => scalars(index_nifa,:,:)
+          nwfa => scalars(index_nwfa,:,:)
+
+          do j = jts, jte
+          do k = kts, kte
+          do i = its, ite
+             nc_p(i,k,j) = nc(k,i)
+             nifa_p(i,k,j) = nifa(k,i)
+             nwfa_p(i,k,j) = nwfa(k,i)
+          enddo
+          enddo
+          enddo
+
+          call mpas_pool_get_array(diag_physics,'nifa2d',nifa2d)
+          call mpas_pool_get_array(diag_physics,'nwfa2d',nwfa2d)
+          do j = jts,jte
+          do i = its,ite
+             nifa2d_p(i,j) = nifa2d(i)
+             nwfa2d_p(i,j) = nwfa2d(i)
+          enddo
+          enddo
+       endif
+
+       if(config_tempo_hailaware) then
+          call mpas_pool_get_dimension(state,'index_ng'  ,index_ng  )
+          call mpas_pool_get_dimension(state,'index_volg',index_volg)
+          ng   => scalars(index_ng,:,:)
+          volg => scalars(index_volg,:,:)
+
+          do j = jts, jte
+          do k = kts, kte
+          do i = its, ite
+             ng_p(i,k,j) = ng(k,i)
+             volg_p(i,k,j) = volg(k,i)
+          enddo
+          enddo
+          enddo
+       endif
+
     case("mp_thompson","mp_thompson_aerosols","mp_wsm6")
        call mpas_pool_get_dimension(state,'index_qi',index_qi)
        call mpas_pool_get_dimension(state,'index_qs',index_qs)
@@ -803,85 +882,6 @@ end subroutine pre_microphysics
 
           case default
        end select mp2_select
-
-    case("mp_tempo")
-       call mpas_pool_get_dimension(state,'index_qi',index_qi)
-       call mpas_pool_get_dimension(state,'index_qs',index_qs)
-       call mpas_pool_get_dimension(state,'index_qg',index_qg)
-       call mpas_pool_get_dimension(state,'index_ni',index_ni)
-       call mpas_pool_get_dimension(state,'index_nr',index_nr)
-
-       call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
-       call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
-       call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
-       call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
-
-       qi => scalars(index_qi,:,:)
-       qs => scalars(index_qs,:,:)
-       qg => scalars(index_qg,:,:)
-       ni   => scalars(index_ni,:,:)
-       nr   => scalars(index_nr,:,:)
-
-       do j = jts, jte
-       do k = kts, kte
-       do i = its, ite
-          qi_p(i,k,j) = qi(k,i)
-          qs_p(i,k,j) = qs(k,i)
-          qg_p(i,k,j) = qg(k,i)
-          ni_p(i,k,j) = ni(k,i)
-          nr_p(i,k,j) = nr(k,i)
-
-          recloud_p(i,k,j)  = re_cloud(k,i)
-          reice_p(i,k,j)    = re_ice(k,i)
-          resnow_p(i,k,j)   = re_snow(k,i)
-          refl10cm_p(i,k,j) = refl10cm(k,i)
-       enddo
-       enddo
-       enddo
-
-       if(config_tempo_aerosolaware) then
-          call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
-          call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
-          call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
-          nc   => scalars(index_nc,:,:)
-          nifa => scalars(index_nifa,:,:)
-          nwfa => scalars(index_nwfa,:,:)
-
-          do j = jts, jte
-          do k = kts, kte
-          do i = its, ite
-             nc_p(i,k,j) = nc(k,i)
-             nifa_p(i,k,j) = nifa(k,i)
-             nwfa_p(i,k,j) = nwfa(k,i)
-          enddo
-          enddo
-          enddo
-
-          call mpas_pool_get_array(diag_physics,'nifa2d',nifa2d)
-          call mpas_pool_get_array(diag_physics,'nwfa2d',nwfa2d)
-          do j = jts,jte
-          do i = its,ite
-             nifa2d_p(i,j) = nifa2d(i)
-             nwfa2d_p(i,j) = nwfa2d(i)
-          enddo
-          enddo
-       endif
-
-       if(config_tempo_hailaware) then
-          call mpas_pool_get_dimension(state,'index_ng'  ,index_ng  )
-          call mpas_pool_get_dimension(state,'index_volg',index_volg)
-          ng   => scalars(index_ng,:,:)
-          volg => scalars(index_volg,:,:)
-
-          do j = jts, jte
-          do k = kts, kte
-          do i = its, ite
-             ng_p(i,k,j) = ng(k,i)
-             volg_p(i,k,j) = volg(k,i)
-          enddo
-          enddo
-          enddo
-       endif
 
     case default
  end select mp_select
@@ -1127,7 +1127,7 @@ end subroutine pre_microphysics
        nr   => scalars(index_nr,:,:)
 
        do j = jts,jte
-       do k = kts,kte
+       do k = kts,mp_top_level
        do i = its,ite
           qi(k,i) = qi_p(i,k,j)
           qs(k,i) = qs_p(i,k,j)
@@ -1142,6 +1142,20 @@ end subroutine pre_microphysics
        enddo
        enddo
        enddo
+
+       ! no microphysics updates above mp_top_level
+       if(kte .gt. mp_top_level) then
+          do i = its,ite
+          do k = mp_top_level+1,kte
+             qi(k,i) = 0.
+             qs(k,i) = 0.
+             qg(k,i) = 0.
+             re_cloud(k,i) = re_qc_bg
+             re_ice(k,i)   = re_qi_bg
+             re_snow(k,i)  = re_qs_bg
+          enddo
+          enddo
+       end if
 
        if(config_tempo_aerosolaware) then
           call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
