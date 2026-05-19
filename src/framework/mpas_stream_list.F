@@ -223,9 +223,18 @@ module mpas_stream_list
     !>  will return .false.
     !
     !-----------------------------------------------------------------------
+
+    ! Optimized; changes from original:
+    !   1. Pattern is compiled ONCE before the node loop (not once per node).
+    !   2. Compilation uses the cross-call cache in regex_matching.c, so each
+    !      unique pattern string is compiled at most once for the entire run.
+    !   3. regex_free_cached is a no-op (cache owns lifetime) but is called at
+    !      every exit point for forward-compatibility and readability.
+    !   4. Three interface blocks replace the single check_regex_match interface.
+
     logical function MPAS_stream_list_query(list, streamPattern, stream, ierr) result(found) !{{{
 
-        use iso_c_binding, only: c_char, c_int
+        use iso_c_binding, only: c_char, c_int, c_intptr_t
         use mpas_c_interfacing, only : mpas_f_to_c_string, mpas_c_to_f_string
 
         implicit none
@@ -237,21 +246,46 @@ module mpas_stream_list
 
         character(kind=c_char), dimension(StrKIND+1) :: c_pattern
         character(kind=c_char), dimension(StrKIND+1) :: c_test_string
-        integer(kind=c_int) :: c_match
+        integer(kind=c_int) :: c_match             ! 1=match, 0=no match, -1=error
+        integer(kind=c_int) :: c_compile_err       ! 0=ok, -1=error
+        integer(kind=c_intptr_t) :: c_regex_handle ! opaque cache index
 
         type (MPAS_stream_list_type), pointer :: node
 
         interface
+           ! Legacy function for backward compatibility
            subroutine check_regex_match(pattern, string, imatch) bind(c)
               use iso_c_binding, only: c_char, c_int
               character(kind=c_char), dimension(*), intent(in) :: pattern, string
               integer(kind=c_int), intent(out) :: imatch
            end subroutine check_regex_match
+
+           ! Compile (or retrieve from cache) a regex pattern.
+           ! Returns an opaque handle used by regex_exec_cached.
+           subroutine regex_compile_cached(pattern, handle, ierr_out) bind(c)
+              use iso_c_binding, only : c_char, c_int, c_intptr_t
+              character(kind=c_char), dimension(*), intent(in)  :: pattern
+              integer(kind=c_intptr_t),             intent(out) :: handle
+              integer(kind=c_int),                  intent(out) :: ierr_out
+           end subroutine regex_compile_cached
+
+           ! Test `string` against the pre-compiled pattern identified by `handle`.
+           subroutine regex_exec_cached(handle, string, imatch) bind(c)
+              use iso_c_binding, only : c_char, c_int, c_intptr_t
+              integer(kind=c_intptr_t),             intent(inout) :: handle
+              character(kind=c_char), dimension(*), intent(in)    :: string
+              integer(kind=c_int),                  intent(out)   :: imatch
+           end subroutine regex_exec_cached
+
+           ! Release the handle (no-op when using the cache; included for
+           ! forward-compatibility and to clearly mark every exit point).
+           subroutine regex_free_cached(handle) bind(c)
+              use iso_c_binding, only : c_intptr_t
+              integer(kind=c_intptr_t), intent(inout) :: handle
+           end subroutine regex_free_cached
         end interface
 
         LIST_DEBUG_WRITE(' -- Called MPAS_stream_list_query()')
-
-        call mpas_f_to_c_string(streamPattern, c_pattern)
 
         if (present(ierr)) ierr = MPAS_STREAM_LIST_NOERR
         found = .false.
@@ -262,6 +296,10 @@ module mpas_stream_list
             nullify(stream)
             return
         end if
+
+        ! Compile the pattern ONCE, before entering the node loop
+        call mpas_f_to_c_string(streamPattern, c_pattern)
+        call regex_compile_cached(c_pattern, c_regex_handle, c_compile_err)
 
         if ( associated(stream) ) then
            if ( associated(stream % next) ) then
@@ -276,7 +314,7 @@ module mpas_stream_list
         do while (associated(node))
             call mpas_f_to_c_string(node % name, c_test_string)
 
-            call check_regex_match(c_pattern, c_test_string, c_match)
+            call regex_exec_cached(c_regex_handle, c_test_string, c_match)
 
             if ( c_match == -1 ) then
                 call mpas_log_write('Regular expression matching failed.', MPAS_LOG_ERR)
@@ -287,10 +325,13 @@ module mpas_stream_list
             if ( c_match == 1 ) then
                 found = .true.
                 stream => node
+                call regex_free_cached(c_regex_handle)   ! no-op, but marks exit
                 return
             end if
             node => node % next
         end do
+
+        call regex_free_cached(c_regex_handle)           ! no-op, but marks exit
 
         LIST_DEBUG_WRITE(' -- No items matching '//trim(streamPattern)//' found in list.')
         nullify(stream)
