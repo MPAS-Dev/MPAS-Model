@@ -688,6 +688,13 @@
  real(kind=RKIND),dimension(:,:,:,:),allocatable:: asyaer_p   !aerosol asymmetry factor in RRTMG SW            [-]
 
 !=================================================================================================================
+!... variables and arrays related to parameterizations of long- and short-wave radiation, especially RRTMG:
+!=================================================================================================================
+
+ real(kind=RKIND):: &
+    co2_val            !co2 concentration                                                       [-]
+
+!=================================================================================================================
 !... variables and arrays related to parameterization of short-wave radiation:
 !=================================================================================================================
 

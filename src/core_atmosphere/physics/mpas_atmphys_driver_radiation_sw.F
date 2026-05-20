@@ -16,7 +16,7 @@
  use mpas_atmphys_camrad_init
  use mpas_atmphys_rrtmg_swinit
  use mpas_atmphys_vars
- use mpas_atmphys_functions, only: co2_estimate
+ use mpas_atmphys_radiation_utils, only: radconst
  
 !wrf physics:
  use module_mp_thompson_aerosols
@@ -29,8 +29,7 @@
  public:: allocate_radiation_sw,   &
           deallocate_radiation_sw, &
           driver_radiation_sw,     &
-          init_radiation_sw,       &
-          radconst
+          init_radiation_sw
 
 !MPAS driver for parameterization of shortwave radiation codes.
 !Laura D. Fowler (send comments to laura@ucar.edu).
@@ -44,7 +43,6 @@
 ! driver_radiation_sw    : main driver (called from subroutine physics_driver).
 ! radiation_sw_from_MPAS : initialize local arrays.
 ! radiation_sw_to_MPAS   : copy local arrays to MPAS arrays.
-! radconst               : calculate solar declination,...
 !
 ! WRF physics called from driver_radiation_sw:
 ! --------------------------------------------
@@ -863,7 +861,6 @@
  integer:: o3input
  integer:: cldovrlp,idcor
  real(kind=RKIND):: radt,xtime_m
- real(kind=RKIND):: co2
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write(' --- enter subroutine driver_radiation_sw: $i',intArgs=(/itimestep/))
@@ -881,9 +878,10 @@
 ! This should be OMP MASTER with barrier afterwards or OMP SINGLE, since declin and solcon
 ! are global variables in mpas_atmphys_vars.F and race conditions may occur otherwise!
 !$OMP SINGLE
-!... calculates solar declination:
+!... calculates solar declination and co2 concentration:
 !call radconst(declin,solcon,julday,degrad,dpd)
- call radconst(declin,solcon,curr_julday,degrad,dpd)
+ call radconst(declin,solcon,curr_julday,degrad,dpd,co2_val,year)
+!call mpas_log_write(' --- driver_radiation_sw after radconst')
 !call mpas_log_write('     ITIMESTEP   = $i', intArgs=(/itimestep/))
 !call mpas_log_write('     YEAR        = $i', intArgs=(/year/))
 !call mpas_log_write('     JULDAY      = $i', intArgs=(/julday/))
@@ -892,6 +890,7 @@
 !call mpas_log_write('     CURR_JULDAY = $r', realArgs=(/curr_julday/))
 !call mpas_log_write('     SOLCON      = $r', realArgs=(/solcon/))
 !call mpas_log_write('     DECLIN      = $r', realArgs=(/declin/))
+!call mpas_log_write('     CO2_VAL     = $r', realArgs=(/co2_val/))
 !$OMP END SINGLE
 
 !... convert the radiation time_step to minutes:
@@ -902,7 +901,6 @@
     case ("rrtmg_sw")
        o3input = 0
        if(config_o3climatology) o3input = 2
-       co2 = co2_estimate(year,curr_julday)
 
        !initialization of cloud overlap option:
        if(trim(radt_cld_overlap) == "none"              ) cldovrlp = 0
@@ -939,7 +937,7 @@
               swdnt      = swdnt_p       , swdntc   = swdntc_p    , swupb      = swupb_p      , &
               swupbc     = swupbc_p      , swdnb    = swdnb_p     , swdnbc     = swdnbc_p     , &
               swddir     = swddir_p      , swddni   = swddni_p    , swddif     = swddif_p     , &
-              co2        = co2           ,                                                      &
+              co2        = co2_val       ,                                                      &
               ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,           &
               ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,           &
               its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &
@@ -1006,50 +1004,6 @@
 !call mpas_log_write('--- end subroutine driver_radiation_sw.')
 
  end subroutine driver_radiation_sw
-
-!=================================================================================================================
- subroutine radconst(declin,solcon,julian,degrad,dpd)
-!=================================================================================================================
-
-!input arguments:
-!integer,intent(in):: julian
- real(kind=RKIND),intent(in):: julian
- real(kind=RKIND),intent(in):: degrad,dpd
-
-!output arguments:
- real(kind=RKIND),intent(out):: declin,solcon
-
-!local variables:
- real(kind=RKIND):: obecl,sinob,sxlong,arg,decdeg,djul,rjul,eccfac
-
-!-----------------------------------------------------------------------------------------------------------------
-
-   declin=0.
-   solcon=0.
-
-!obecl : obliquity = 23.5 degree.
-        
-   obecl=23.5*degrad
-   sinob=sin(obecl)
-        
-!calculate longitude of the sun from vernal equinox:        
-
-   if(julian.ge.80.)sxlong=dpd*(julian-80.)
-   if(julian.lt.80.)sxlong=dpd*(julian+285.)
-   sxlong=sxlong*degrad
-   arg=sinob*sin(sxlong)
-   declin=asin(arg)
-   decdeg=declin/degrad
-
-!solar constant eccentricity factor (paltridge and platt 1976)
-
-   djul=julian*360./365.
-   rjul=djul*degrad
-   eccfac=1.000110+0.034221*cos(rjul)+0.001280*sin(rjul)+0.000719*  &
-          cos(2*rjul)+0.000077*sin(2*rjul)
-   solcon=solcon_0*eccfac
-
- end subroutine radconst
 
 !=================================================================================================================
  end module mpas_atmphys_driver_radiation_sw
