@@ -16,6 +16,7 @@
  use mpas_atmphys_camrad_init
  use mpas_atmphys_rrtmg_swinit
  use mpas_atmphys_vars
+ use mpas_atmphys_functions, only: co2_estimate
  
 !wrf physics:
  use module_mp_thompson_aerosols
@@ -862,6 +863,7 @@
  integer:: o3input
  integer:: cldovrlp,idcor
  real(kind=RKIND):: radt,xtime_m
+ real(kind=RKIND):: co2
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write(' --- enter subroutine driver_radiation_sw: $i',intArgs=(/itimestep/))
@@ -900,6 +902,7 @@
     case ("rrtmg_sw")
        o3input = 0
        if(config_o3climatology) o3input = 2
+       co2 = co2_estimate(year,curr_julday)
 
        !initialization of cloud overlap option:
        if(trim(radt_cld_overlap) == "none"              ) cldovrlp = 0
@@ -919,8 +922,6 @@
        call rrtmg_swrad( &
               p3d        = pres_hyd_p    , p8w      = pres2_hyd_p , pi3d     = pi_p           , &
               t3d        = t_p           , t8w      = t2_p        , dz8w     = dz_p           , &
-!             qv3d       = qv_p          , qc3d     = qc_p        , qi3d     = qi_p           , &
-!             qs3d       = qs_p          , cldfra3d = cldfrac_p   , tsk      = tsk_p          , &
               qv3d       = qvrad_p       , qc3d     = qcrad_p     , qi3d     = qirad_p        , &
               qs3d       = qsrad_p       , cldfra3d = cldfrac_p   , tsk      = tsk_p          , &
               albedo     = sfc_albedo_p  , xland    = xland_p     , xice     = xice_p         , &
@@ -938,6 +939,7 @@
               swdnt      = swdnt_p       , swdntc   = swdntc_p    , swupb      = swupb_p      , &
               swupbc     = swupbc_p      , swdnb    = swdnb_p     , swdnbc     = swdnbc_p     , &
               swddir     = swddir_p      , swddni   = swddni_p    , swddif     = swddif_p     , &
+              co2        = co2           ,                                                      &
               ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,           &
               ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,           &
               its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte             &

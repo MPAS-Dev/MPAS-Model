@@ -14,7 +14,7 @@
 
  implicit none
  private
- public:: gammln,gammp,wgamma,rslf,rsif
+ public:: gammln,gammp,wgamma,rslf,rsif,co2_estimate
 
 
  contains
@@ -215,6 +215,29 @@
 !     ESI = EXP(9.550426 - 5723.265/T + 3.53068*ALOG(T) - 0.00728332*T)
 
       END FUNCTION RSIF
+
+!+---+-----------------------------------------------------------------+
+! This function calculates CO2 from an equation in WRF by J. Dudhia
+!
+      real(kind=rkind) function co2_estimate(year,curr_julday)
+
+      implicit none
+      integer, intent(in) :: year
+      real, intent(in) :: curr_julday
+      real(kind=rkind) :: rdays,ryear
+      integer :: ny1, ny2, ny3
+
+      rdays = 365.
+      ny1 = mod(year,4)
+      ny2 = mod(year,100)
+      ny3 = mod(year,400)
+      if(ny1.eq.0.and.ny2.ne.0.or.ny3.eq.0) rdays = 366.
+      ryear = float(year)+curr_julday/rdays
+
+! Annual function for co2 from WRF v4.2
+      co2_estimate = (280. + 90.*exp(0.02*(ryear-2000.)))*1.e-6
+
+      end function co2_estimate
 
 !=================================================================================================================
  end module mpas_atmphys_functions
