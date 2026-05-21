@@ -124,10 +124,20 @@ module atm_core_interface
       logical, pointer :: config_apply_lbcs
       logical, pointer :: config_jedi_da, jedi_daActive
       logical, pointer :: no_invariant_streamActive
+      logical, pointer :: ugwp_orog_streamActive
+      logical, pointer :: ugwp_ngw_streamActive
+      logical, pointer :: ugwp_diags_streamActive
+      character(len=StrKIND), pointer :: config_gwdo_scheme
+      logical, pointer :: config_ngw_scheme
+      logical, pointer :: config_ugwp_diags
       character(len=StrKIND) :: attvalue
       integer :: local_ierr
 
-      ierr = 0
+
+      ierr = atm_setup_packages_when(configs, packages)
+      if (ierr /= 0) then
+         return
+      end if
 
       !
       ! Incremental analysis update
@@ -206,6 +216,47 @@ module atm_core_interface
          ierr = ierr + 1
          call mpas_log_write('Package setup failed for atmphys in core_atmosphere', messageType=MPAS_LOG_ERR)
       end if
+
+      !
+      ! Optional gravity wave drag parameterization streams
+      !
+      call mpas_pool_get_config(configs, 'config_gwdo_scheme', config_gwdo_scheme)
+      nullify(ugwp_orog_streamActive)
+      call mpas_pool_get_package(packages, 'ugwp_orog_streamActive', ugwp_orog_streamActive)
+      if ( associated(config_gwdo_scheme) .and. associated(ugwp_orog_streamActive) ) then
+         if (trim(config_gwdo_scheme) == "bl_ugwp_gwdo") then
+            ugwp_orog_streamActive = .true.
+         else
+            ugwp_orog_streamActive = .false.
+         endif
+      else
+         ierr = ierr + 1
+         call mpas_log_write("Package setup failed for 'ugwp_orog_stream'. 'ugwp_orog_stream' is not a package.", &
+                             messageType=MPAS_LOG_ERR)
+      end if
+
+      call mpas_pool_get_config(configs, 'config_ngw_scheme', config_ngw_scheme)
+      nullify(ugwp_ngw_streamActive)
+      call mpas_pool_get_package(packages, 'ugwp_ngw_streamActive', ugwp_ngw_streamActive)
+      if ( associated(config_ngw_scheme) .and. associated(ugwp_ngw_streamActive) ) then
+            ugwp_ngw_streamActive = config_ngw_scheme
+      else
+         ierr = ierr + 1
+         call mpas_log_write("Package setup failed for 'ugwp_ngw_stream'. 'ugwp_ngw_stream' is not a package.", &
+                             messageType=MPAS_LOG_ERR)
+      end if
+
+      call mpas_pool_get_config(configs, 'config_ugwp_diags', config_ugwp_diags)
+      nullify(ugwp_diags_streamActive)
+      call mpas_pool_get_package(packages, 'ugwp_diags_streamActive', ugwp_diags_streamActive)
+      if ( associated(config_ugwp_diags) .and. associated(ugwp_diags_streamActive) ) then
+            ugwp_diags_streamActive = config_ugwp_diags
+      else
+         ierr = ierr + 1
+         call mpas_log_write("Package setup failed for 'ugwp_diags_stream'. 'ugwp_diags_stream' is not a package.", &
+                             messageType=MPAS_LOG_ERR)
+      end if
+
 #endif
 
    end function atm_setup_packages
@@ -262,9 +313,7 @@ module atm_core_interface
 
       use mpas_derived_types, only : mpas_log_type, domain_type
       use mpas_log, only : mpas_log_init, mpas_log_open
-#ifdef MPAS_OPENMP
-      use mpas_threading, only : mpas_threading_get_num_threads
-#endif
+      use mpas_framework, only : mpas_framework_report_settings
 
       implicit none
 
@@ -293,53 +342,8 @@ module atm_core_interface
       call mpas_log_write('')
       call mpas_log_write('MPAS-Atmosphere Version '//trim(domain % core % modelVersion))
       call mpas_log_write('')
-      call mpas_log_write('')
-      call mpas_log_write('Output from ''git describe --dirty'': '//trim(domain % core % git_version))
-      call mpas_log_write('')
-      call mpas_log_write('Compile-time options:')
-      call mpas_log_write('  Build target: '//trim(domain % core % build_target))
-      call mpas_log_write('  OpenMP support: ' // &
-#ifdef MPAS_OPENMP
-                          'yes')
-#else
-                          'no')
-#endif
-      call mpas_log_write('  OpenACC support: ' // &
-#ifdef MPAS_OPENACC
-                          'yes')
-#else
-                          'no')
-#endif
-      call mpas_log_write('  Default real precision: ' // &
-#ifdef SINGLE_PRECISION
-                          'single')
-#else
-                          'double')
-#endif
-      call mpas_log_write('  Compiler flags: ' // &
-#ifdef MPAS_DEBUG
-                          'debug')
-#else
-                          'optimize')
-#endif
-      call mpas_log_write('  I/O layer: ' // &
-#ifdef MPAS_PIO_SUPPORT
-#ifdef USE_PIO2
-                          'PIO 2.x')
-#else
-                          'PIO 1.x')
-#endif
-#else
-                          'SMIOL')
-#endif
-      call mpas_log_write('')
 
-      call mpas_log_write('Run-time settings:')
-      call mpas_log_write('  MPI task count: $i', intArgs=[domain % dminfo % nprocs])
-#ifdef MPAS_OPENMP
-      call mpas_log_write('  OpenMP max threads: $i', intArgs=[mpas_threading_get_max_threads()])
-#endif
-      call mpas_log_write('')
+      call mpas_framework_report_settings(domain)
 
    end function atm_setup_log!}}}
 
@@ -632,6 +636,8 @@ module atm_core_interface
 #include "block_dimension_routines.inc"
 
 #include "define_packages.inc"
+
+#include "setup_packages.inc"
 
 #include "structs_and_variables.inc"
 

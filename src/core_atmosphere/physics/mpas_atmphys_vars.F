@@ -8,6 +8,8 @@
 !=================================================================================================================
  module mpas_atmphys_vars
  use mpas_kind_types
+
+ use NoahmpIOVarType
  
  implicit none
  public
@@ -204,6 +206,7 @@
     qg_p               !graupel mixing ratio                                                [kg/kg]
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    nc_p,             &!cloud water droplet number concentration                             [#/kg]
     ni_p,             &!cloud ice crystal number concentration                               [#/kg]
     nr_p               !rain drop number concentration                                       [#/kg]
 
@@ -247,7 +250,7 @@
     f_qc,             &!parameter set to true to include the cloud water mixing ratio.
     f_qr,             &!parameter set to true to include the rain mixing ratio.
     f_qi,             &!parameter set to true to include the cloud ice mixing ratio.
-    f_qs,             &!parameter set to true to include the snow minxg ratio.
+    f_qs,             &!parameter set to true to include the snow mixing ratio.
     f_qg,             &!parameter set to true to include the graupel mixing ratio.
     f_qoz              !parameter set to true to include the ozone mixing ratio.
 
@@ -271,22 +274,28 @@
     graupelncv_p,     &!
     sr_p
 
-!... added for the thompson and wsm6 cloud microphysics:
  integer:: & 
     has_reqc,         &!
     has_reqi,         &!
     has_reqs
 
- real(kind=RKIND),dimension(:,:),allocatable:: &
-    ntc_p,            &!
-    muc_p              !
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rainprod_p,       &!
     evapprod_p,       &!
     recloud_p,        &!
     reice_p,          &!
-    resnow_p,         &!
-    refl10cm_p         !
+    resnow_p           !
+
+!... for Thompson cloud microphysics parameterization, including aerosol-aware option:
+ real(kind=RKIND),dimension(:,:),allocatable:: &
+    ntc_p,            &!
+    muc_p,            &!
+    nifa2d_p,         &!surface emission of "ice-friendly" aerosols                                     [#/kg-1/s]
+    nwfa2d_p           !surface emission of "water-friendly" aerosols                                   [#/kg-1/s]
+
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    nifa_p,           &!"ice-friendly" number concentration                                                 [#/kg]
+    nwfa_p             !"water-friendly" number concentration                                               [#/kg]
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of convection:
@@ -443,7 +452,10 @@
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rqsblten_p,       &!tendency of snow mixing ratio due to PBL processes.
-    rniblten_p         !tendency of cloud ice number concentration due to PBL processes.
+    rncblten_p,       &!tendency of cloud liquid water number concentration due to PBL processes.
+    rniblten_p,       &!tendency of cloud ice number concentration due to PBL processes.
+    rnifablten_p,     &!tendency of ice-friendly aerosol number concentration due to PBL processes.
+    rnwfablten_p       !tendency of water-friendly aerosol number concentration due to PBL processes.
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     pattern_spp_pbl    !stochastic forcing for the MYMM PBL and surface layer schemes.
@@ -478,6 +490,65 @@
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     dtaux3d_p,        &!gravity wave drag over orography u-stress                                          [m s-1]
     dtauy3d_p          !gravity wave drag over orography u-stress                                          [m s-1]
+
+!... variables for UGWP orographic gravity wave drag:
+
+ real(kind=RKIND),dimension(:,:),allocatable:: &
+    var2dls_p,        &!orographic variance (meso-scale orographic variation)                                  [m]
+    conls_p,          &!orographic convexity (meso-scale orographic variation)                                 [-]
+    oa1ls_p,          &!orographic direction asymmetry function (meso-scale orographic variation)              [-]
+    oa2ls_p,          &!orographic direction asymmetry function (meso-scale orographic variation)              [-]
+    oa3ls_p,          &!orographic direction asymmetry function (meso-scale orographic variation)              [-]
+    oa4ls_p,          &!orographic direction asymmetry function (meso-scale orographic variation)              [-]
+    ol1ls_p,          &!orographic direction asymmetry function (meso-scale orographic variation)              [-]
+    ol2ls_p,          &!orographic direction asymmetry function (meso-scale orographic variation)              [-]
+    ol3ls_p,          &!orographic direction asymmetry function (meso-scale orographic variation)              [-]
+    ol4ls_p,          &!orographic direction asymmetry function (meso-scale orographic variation)              [-]
+    var2dss_p,        &!orographic variance (small-scale orographic variation)                                 [m]
+    conss_p,          &!orographic convexity (small-scale orographic variation)                                [-]
+    oa1ss_p,          &!orographic direction asymmetry function (small-scale orographic variation)             [-]
+    oa2ss_p,          &!orographic direction asymmetry function (small-scale orographic variation)             [-]
+    oa3ss_p,          &!orographic direction asymmetry function (small-scale orographic variation)             [-]
+    oa4ss_p,          &!orographic direction asymmetry function (small-scale orographic variation)             [-]
+    ol1ss_p,          &!orographic direction asymmetry function (small-scale orographic variation)             [-]
+    ol2ss_p,          &!orographic direction asymmetry function (small-scale orographic variation)             [-]
+    ol3ss_p,          &!orographic direction asymmetry function (small-scale orographic variation)             [-]
+    ol4ss_p            !orographic direction asymmetry function (small-scale orographic variation)             [-]
+
+ real(kind=RKIND),dimension(:,:),allocatable:: &
+    dusfc_ls_p,       &!vertically-integrated mesoscale orog gravity wave drag u-stress                       [Pa]
+    dvsfc_ls_p,       &!vertically-integrated mesoscale orog gravity wave drag v-stress                       [Pa]
+    dusfc_bl_p,       &!vertically-integrated orog blocking drag u-stress                                     [Pa]
+    dvsfc_bl_p,       &!vertically-integrated orog blocking drag v-stress                                     [Pa]
+    dusfc_ss_p,       &!vertically-integrated small-scale orog gravity wave drag u-stres                      [Pa]
+    dvsfc_ss_p,       &!vertically-integrated small-scale orog gravity wave drag v-stres                      [Pa]
+    dusfc_fd_p,       &!vertically-integrated turb orog form drag u-stress                                    [Pa]
+    dvsfc_fd_p         !vertically-integrated turb orog form drag v-stress                                    [Pa]
+
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    dtaux3d_ls_p,     &!mesoscale orog gravity wave drag u-tendency                                        [m s-2]
+    dtauy3d_ls_p,     &!mesoscale orog gravity wave drag v-tendency                                        [m s-2]
+    dtaux3d_bl_p,     &!orog blocking drag u-tendency u-tendency                                           [m s-2]
+    dtauy3d_bl_p,     &!orog blocking drag u-tendency v-tendency                                           [m s-2]
+    dtaux3d_ss_p,     &!small-scale orog gravity wave drag u-tendency                                      [m s-2]
+    dtauy3d_ss_p,     &!small-scale orog gravity wave drag v-tendency                                      [m s-2]
+    dtaux3d_fd_p,     &!turb orog form drag u-tendency                                                     [m s-2]
+    dtauy3d_fd_p       !turb orog form drag u-tendency                                                     [m s-2]
+
+!... variables for UGWP non-stationary gravity wave (NGW) drag:
+
+ integer,dimension(:,:),allocatable:: &
+    jindx1_tau_p,     &!lower latitude index of NGW momentum flux for interpolation                            [-]
+    jindx2_tau_p       !upper latitude index of NGW momentum flux for interpolation                            [-]
+
+ real(kind=RKIND),dimension(:,:),allocatable:: &
+    ddy_j1tau_p,      &!latitude interpolation weight complement for NGW momentum flux                         [-]
+    ddy_j2tau_p        !latitude interpolation weight for NGW momentum flux                                    [-]
+
+ real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    dudt_ngw_p,       &!u-momentum tendency due to non-stationary gravity wave drag                        [m s-2]
+    dvdt_ngw_p,       &!v-momentum tendency due to non-stationary gravity wave drag                        [m s-2]
+    dtdt_ngw_p         !temperature tendency due to non-stationary gravity wave drag                       [K s-1]
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of surface layer:
@@ -586,6 +657,35 @@
     albsi_p,          &!surface albedo over seaice                                                             [-]
     snowsi_p,         &!snow depth over seaice                                                                 [m]
     icedepth_p         !seaice thickness                                                                       [m]
+
+!=================================================================================================================
+!... variables and arrays related to the calculation of the optical properties of aerosols: to date, the only kind
+!    of aerosols included in MPAS are the "water-friendly" and "ice-friendly" aerosols used in the Thompson cloud
+!    cloud microphysics scheme.
+!=================================================================================================================
+
+ integer,parameter:: taer_aod550_opt = 2!input option for nwfa, nifa optical depth at 500 nm.
+ integer,parameter:: taer_angexp_opt = 3!input option for nwfa, nifa aerosol Angstrom exponent.
+ integer,parameter:: taer_ssa_opt    = 3!input option for nwfa, nifa aerosol single-scattering albedo.
+ integer,parameter:: taer_asy_opt    = 3!input option for nwfa, nifa aerosol asymmetry factor.
+
+ integer:: aer_opt                      !=[0,3]  : 0 for no aerosols, 3 for "water-" and "ice-friendly" aerosols.
+ integer,dimension(:,:),allocatable:: &
+                     taer_type_p        !=[1,2,3]: 1 for rural, 2 is urban and 3 is maritime in WRF. In MPAS,
+                                        !aer_type is initialized as a function of landmask (=1 over land; =2 over
+                                        !oceans.
+
+ real(kind=RKIND),parameter:: aer_aod550_val = 0.12
+ real(kind=RKIND),parameter:: aer_angexp_val = 1.3
+ real(kind=RKIND),parameter:: aer_ssa_val    = 0.85
+ real(kind=RKIND),parameter:: aer_asy_val    = 0.9
+
+ real(kind=RKIND),dimension(:,:),allocatable  ::   taod5502d_p!total aerosol optical depth at 550 nm           [-]
+ real(kind=RKIND),dimension(:,:,:),allocatable::   taod5503d_p!aerosol optical depth at 550 nm                 [-]
+
+ real(kind=RKIND),dimension(:,:,:,:),allocatable:: tauaer_p   !aerosol optical depth in RRTMG SW               [-]
+ real(kind=RKIND),dimension(:,:,:,:),allocatable:: ssaaer_p   !aerosol single scatterin albedo in RRTMG SW     [-]
+ real(kind=RKIND),dimension(:,:,:,:),allocatable:: asyaer_p   !aerosol asymmetry factor in RRTMG SW            [-]
 
 !=================================================================================================================
 !... variables and arrays related to parameterization of short-wave radiation:
@@ -799,6 +899,12 @@
  real(kind=RKIND),dimension(:,:),allocatable:: &
     frc_urb_p,        &!urban fraction                                                                         [-]
     ust_urb_p          !urban u* in similarity theory                                                        [m/s]
+
+!=================================================================================================================
+!.. variables and arrays related to the Noahmp land-surface parameterization:
+!=================================================================================================================
+
+ type(NoahmpIO_type):: mpas_noahmp
 
 !=================================================================================================================
 !.. variables and arrays related to surface characteristics:

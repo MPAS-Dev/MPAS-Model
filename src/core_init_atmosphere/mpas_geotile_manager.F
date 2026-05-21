@@ -345,9 +345,9 @@ module mpas_geotile_manager
                 endif
             enddo
         enddo
-        deallocate(mgr % hash)
+        deallocate(mgr % hash, stat=ierr)
 
-        if (associated(mgr % hash)) then
+        if (associated(mgr % hash) .or. (ierr /= 0)) then
             call mpas_log_write("Problem deallocating the geotile hash table", messageType=MPAS_LOG_ERR)
             ierr = -1
             return

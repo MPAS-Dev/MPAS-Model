@@ -33,7 +33,7 @@ module mpas_abort
 #ifdef _MPI
 #ifndef NOMPIMOD
 #ifdef MPAS_USE_MPI_F08
-      use mpi_f08
+      use mpi_f08, only : MPI_COMM_WORLD, MPI_Comm_rank, MPI_Comm_size, MPI_Abort
 #else
       use mpi
 #endif
@@ -98,6 +98,8 @@ module mpas_abort
    
       if (.not. local_deferredAbort) then
 #ifdef _MPI
+         mpi_errcode = 6   ! corresponds to POSIX SIGABRT, though the specific
+                           ! value here probably does not matter much
          call MPI_Abort(MPI_COMM_WORLD, mpi_errcode, mpi_ierr)
 #else
          stop

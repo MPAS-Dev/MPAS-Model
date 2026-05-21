@@ -246,6 +246,19 @@ module mpas_stream_manager
            end if
 
            !
+           ! Remove all items from manager % alarms_in(put) list
+           !
+           stream_cursor => manager % alarms_in % head
+           do while (associated(stream_cursor))
+               call MPAS_stream_list_destroy(stream_cursor % streamList, ierr=err_local)
+               if (err_local /= MPAS_STREAM_LIST_NOERR) then
+                   if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
+                   STREAM_ERROR_WRITE('Problems while destroying input alarms item')
+               end if
+               stream_cursor => stream_cursor % next
+           end do
+
+           !
            ! Free up list of input alarms
            !
            call MPAS_stream_list_destroy(manager % alarms_in, ierr=err_local)
@@ -253,6 +266,19 @@ module mpas_stream_manager
                if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
                STREAM_ERROR_WRITE('Problems while destroying input alarms list')
            end if
+
+           !
+           ! Remove all items from manager % alarms_out(put) list
+           !
+           stream_cursor => manager % alarms_out % head
+           do while (associated(stream_cursor))
+               call MPAS_stream_list_destroy(stream_cursor % streamList, ierr=err_local)
+               if (err_local /= MPAS_STREAM_LIST_NOERR) then
+                   if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
+                   STREAM_ERROR_WRITE('Problems while destroying output alarms list')
+               end if
+               stream_cursor => stream_cursor % next
+           end do
 
            !
            ! Free up list of output alarms
@@ -1383,8 +1409,18 @@ module mpas_stream_manager
            nullify(alarmNode)
            if (direction == MPAS_STREAM_INPUT) then
                call MPAS_stream_list_remove(stream % alarmList_in, alarmID, alarmNode, ierr=ierr)
+               if (ierr /= MPAS_STREAM_LIST_NOERR) then
+                   if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
+                   STREAM_ERROR_WRITE('Problems unlinking alarm from alarmList_in for stream: '//trim(streamID))
+                   return
+               end if
            else if (direction == MPAS_STREAM_OUTPUT) then
                call MPAS_stream_list_remove(stream % alarmList_out, alarmID, alarmNode, ierr=ierr)
+               if (ierr /= MPAS_STREAM_LIST_NOERR) then
+                   if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
+                   STREAM_ERROR_WRITE('Problems unlinking alarm from alarmList_out for stream: '//trim(streamID))
+                   return
+               end if
            else
                if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
                STREAM_ERROR_WRITE('Requested to remove alarm from invalid direction from stream '//trim(streamID))
@@ -1396,6 +1432,11 @@ module mpas_stream_manager
            !
            if (associated(alarmNode)) then
                call MPAS_stream_list_remove(alarmNode % xref % streamList, streamID, streamNode, ierr=ierr)
+               if (ierr /= MPAS_STREAM_LIST_NOERR) then
+                   if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
+                   STREAM_ERROR_WRITE('Problems while removing stream from alarms streamList.')
+                   return
+               end if
            else
                if (direction == MPAS_STREAM_INPUT) then
                    STREAM_ERROR_WRITE('Input alarm '//trim(alarmID)//' does not exist on stream '//trim(streamID))
@@ -1417,9 +1458,19 @@ module mpas_stream_manager
                if (direction == MPAS_STREAM_INPUT) then
                    STREAM_ERROR_WRITE('Input alarm '//trim(alarmID)//' has no associated streams and will be deleted.')
                    call MPAS_stream_list_remove(manager % alarms_in, alarmID, alarmNode, ierr=ierr)
+                   if (ierr /= MPAS_STREAM_LIST_NOERR) then
+                       if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
+                       STREAM_ERROR_WRITE('Problems while removing stream from list of input alarm')
+                       return
+                   end if
                else
                    STREAM_ERROR_WRITE('Output alarm '//trim(alarmID)//' has no associated streams and will be deleted.')
                    call MPAS_stream_list_remove(manager % alarms_out, alarmID, alarmNode, ierr=ierr)
+                   if (ierr /= MPAS_STREAM_LIST_NOERR) then
+                       if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
+                       STREAM_ERROR_WRITE('Problems while removing stream from list of output alarm')
+                       return
+                   end if
                end if
            end if
         end if
@@ -4048,7 +4099,9 @@ module mpas_stream_manager
         type (MPAS_TimeInterval_type) :: filename_interval
         type (MPAS_Time_type) :: now_time
 
-        ierr = 0
+        if ( present(ierr) ) then
+           ierr = MPAS_STREAM_MGR_NOERR
+        end if
 
         if ( present(blockID) ) then
            blockID_local = blockID

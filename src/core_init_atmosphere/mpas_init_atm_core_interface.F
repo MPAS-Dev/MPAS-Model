@@ -112,19 +112,28 @@ module init_atm_core_interface
       type (mpas_pool_type), intent(inout) :: packages
       type (mpas_io_context_type), intent(inout) :: iocontext
       integer :: ierr
+      logical :: lexist
 
       logical, pointer :: initial_conds, sfc_update, lbcs
       logical, pointer :: gwd_stage_in, gwd_stage_out, vertical_stage_in, vertical_stage_out, met_stage_in, met_stage_out
+      logical, pointer :: gwd_gsl_stage_out
       logical, pointer :: config_native_gwd_static, config_static_interp, config_vertical_grid, config_met_interp
+      logical, pointer :: config_native_gwd_gsl_static
       logical, pointer :: first_guess_field
+      logical, pointer :: microphysics_aerosols
       integer, pointer :: config_init_case
+      logical, pointer :: noahmp, config_noahmp_static
 
 
-      ierr = 0
+      ierr = init_atm_setup_packages_when(configs, packages)
+      if (ierr /= 0) then
+         return
+      end if
 
       call mpas_pool_get_config(configs, 'config_init_case', config_init_case)
       call mpas_pool_get_config(configs, 'config_static_interp', config_static_interp)
       call mpas_pool_get_config(configs, 'config_native_gwd_static', config_native_gwd_static)
+      call mpas_pool_get_config(configs, 'config_native_gwd_gsl_static', config_native_gwd_gsl_static)
       call mpas_pool_get_config(configs, 'config_vertical_grid', config_vertical_grid)
       call mpas_pool_get_config(configs, 'config_met_interp', config_met_interp)
 
@@ -143,6 +152,9 @@ module init_atm_core_interface
       nullify(gwd_stage_out)
       call mpas_pool_get_package(packages, 'gwd_stage_outActive', gwd_stage_out)
 
+      nullify(gwd_gsl_stage_out)
+      call mpas_pool_get_package(packages, 'gwd_gsl_stage_outActive', gwd_gsl_stage_out)
+
       nullify(vertical_stage_in)
       call mpas_pool_get_package(packages, 'vertical_stage_inActive', vertical_stage_in)
 
@@ -155,14 +167,19 @@ module init_atm_core_interface
       nullify(met_stage_out)
       call mpas_pool_get_package(packages, 'met_stage_outActive', met_stage_out)
 
+      nullify(microphysics_aerosols)
+      call mpas_pool_get_package(packages, 'microphysics_aerosolsActive', microphysics_aerosols)
+
       if (.not. associated(initial_conds) .or. &
           .not. associated(sfc_update) .or. &
           .not. associated(gwd_stage_in) .or. &
           .not. associated(gwd_stage_out) .or. &
+          .not. associated(gwd_gsl_stage_out) .or. &
           .not. associated(vertical_stage_in) .or. &
           .not. associated(vertical_stage_out) .or. &
           .not. associated(met_stage_in) .or. &
-          .not. associated(met_stage_out)) then
+          .not. associated(met_stage_out) .or. &
+          .not. associated(microphysics_aerosols)) then
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_ERR)
          call mpas_log_write('* Error while setting up packages for init_atmosphere core.',                      messageType=MPAS_LOG_ERR)
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_ERR)
@@ -180,8 +197,12 @@ module init_atm_core_interface
 
       if (config_init_case == 9) then
          lbcs = .true.
+         microphysics_aerosols = .false.
+         inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
+         if(lexist) microphysics_aerosols = .true.
       else
          lbcs = .false.
+         microphysics_aerosols = .false.
       end if
 
       if (config_init_case == 7) then
@@ -194,6 +215,7 @@ module init_atm_core_interface
          gwd_stage_in = config_native_gwd_static .and. &
                         (.not. config_static_interp)
          gwd_stage_out = config_native_gwd_static
+         gwd_gsl_stage_out = config_native_gwd_gsl_static
          vertical_stage_in = config_vertical_grid .and. &
                              (.not. config_native_gwd_static) .and. &
                              (.not. config_static_interp)
@@ -204,9 +226,14 @@ module init_atm_core_interface
                         (.not. config_vertical_grid)
          met_stage_out = config_met_interp
 
+         microphysics_aerosols = .false.
+         inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
+         if((lexist .and. met_stage_out) .or. (lexist .and. met_stage_in)) microphysics_aerosols = .true.
+
       else if (config_init_case == 8) then
          gwd_stage_in = .false.
          gwd_stage_out = .false.
+         gwd_gsl_stage_out = .false.
          vertical_stage_in = .true.
          vertical_stage_out = .false.
          met_stage_in = .false.
@@ -219,16 +246,22 @@ module init_atm_core_interface
       else if (config_init_case == 9) then
          gwd_stage_in = .false.
          gwd_stage_out = .false.
+         gwd_gsl_stage_out = .false.
          vertical_stage_in = .false.
          vertical_stage_out = .false.
          met_stage_in = .true.
          met_stage_out = .true.
+
+         microphysics_aerosols = .false.
+         inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
+         if((lexist .and. met_stage_out) .or. (lexist .and. met_stage_in)) microphysics_aerosols = .true.
 
          initial_conds = .false.   ! Also, turn off the initial_conds package to avoid writing the IC "output" stream
 
       else if (config_init_case == 13) then
          gwd_stage_in = .false.
          gwd_stage_out = .false.
+         gwd_gsl_stage_out = .false.
          vertical_stage_in = .false.
          vertical_stage_out = .true.
          met_stage_in = .false.
@@ -237,6 +270,7 @@ module init_atm_core_interface
       else
          gwd_stage_in = .false.
          gwd_stage_out = .false.
+         gwd_gsl_stage_out = .false.
          vertical_stage_in = .false.
          vertical_stage_out = .false.
          met_stage_in = .false.
@@ -253,6 +287,32 @@ module init_atm_core_interface
       first_guess_field = .false.
       if ((config_init_case == 7 .and. config_met_interp) .or. config_init_case == 9) then
          first_guess_field = .true.
+      end if
+
+      !
+      ! Noah-MP
+      !
+      nullify(config_noahmp_static)
+      call mpas_pool_get_config(configs, 'config_noahmp_static', config_noahmp_static)
+
+      nullify(noahmp)
+      call mpas_pool_get_package(packages, 'noahmpActive', noahmp)
+
+      if (associated(config_noahmp_static) .and. associated(noahmp)) then
+         noahmp = config_noahmp_static
+      else
+         call mpas_log_write('********************************************************************************', &
+                             messageType=MPAS_LOG_ERR)
+         call mpas_log_write('* Error while setting up packages for init_atmosphere core:',                      &
+                             messageType=MPAS_LOG_ERR)
+         call mpas_log_write('*    Either the ''noahmp'' package or the ''config_noahmp_static'' namelist',      &
+                             messageType=MPAS_LOG_ERR)
+         call mpas_log_write('*    option is not defined.', &
+                             messageType=MPAS_LOG_ERR)
+         call mpas_log_write('********************************************************************************', &
+                             messageType=MPAS_LOG_ERR)
+         ierr = 1
+         return
       end if
 
    end function init_atm_setup_packages
@@ -325,9 +385,7 @@ module init_atm_core_interface
 
       use mpas_derived_types, only : mpas_log_type, domain_type
       use mpas_log, only : mpas_log_init, mpas_log_open
-#ifdef MPAS_OPENMP
-      use mpas_threading, only : mpas_threading_get_num_threads
-#endif
+      use mpas_framework, only : mpas_framework_report_settings
 
       implicit none
 
@@ -356,53 +414,8 @@ module init_atm_core_interface
       call mpas_log_write('')
       call mpas_log_write('MPAS Init-Atmosphere Version '//trim(domain % core % modelVersion))
       call mpas_log_write('')
-      call mpas_log_write('')
-      call mpas_log_write('Output from ''git describe --dirty'': '//trim(domain % core % git_version))
-      call mpas_log_write('')
-      call mpas_log_write('Compile-time options:')
-      call mpas_log_write('  Build target: '//trim(domain % core % build_target))
-      call mpas_log_write('  OpenMP support: ' // &
-#ifdef MPAS_OPENMP
-                          'yes')
-#else
-                          'no')
-#endif
-      call mpas_log_write('  OpenACC support: ' // &
-#ifdef MPAS_OPENACC
-                          'yes')
-#else
-                          'no')
-#endif
-      call mpas_log_write('  Default real precision: ' // &
-#ifdef SINGLE_PRECISION
-                          'single')
-#else
-                          'double')
-#endif
-      call mpas_log_write('  Compiler flags: ' // &
-#ifdef MPAS_DEBUG
-                          'debug')
-#else
-                          'optimize')
-#endif
-      call mpas_log_write('  I/O layer: ' // &
-#ifdef MPAS_PIO_SUPPORT
-#ifdef USE_PIO2
-                          'PIO 2.x')
-#else
-                          'PIO 1.x')
-#endif
-#else
-                          'SMIOL')
-#endif
-      call mpas_log_write('')
 
-      call mpas_log_write('Run-time settings:')
-      call mpas_log_write('  MPI task count: $i', intArgs=[domain % dminfo % nprocs])
-#ifdef MPAS_OPENMP
-      call mpas_log_write('  OpenMP max threads: $i', intArgs=[mpas_threading_get_max_threads()])
-#endif
-      call mpas_log_write('')
+      call mpas_framework_report_settings(domain)
 
    end function init_atm_setup_log!}}}
 
@@ -514,6 +527,8 @@ module init_atm_core_interface
 #include "block_dimension_routines.inc"
 
 #include "define_packages.inc"
+
+#include "setup_packages.inc"
 
 #include "structs_and_variables.inc"
 

@@ -1057,7 +1057,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 	const char *streamID2, *interval_in2, *interval_out2;
 	char interval_name[256];
 	char match_stream_name[256];
-	char *packages, *package;
+	char *packages, *packages_ptr, *package;
 	char filename_interval_string[256];
 	char ref_time_local[256];
 	char rec_intv_local[256];
@@ -1379,6 +1379,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		if (packagelist != NULL) {
 
 			packages = strdup(packagelist);
+			packages_ptr = packages;
 			package = strsep(&packages, ";");
 
 			stream_mgr_add_pkg_c(manager, streamID, package, &err);
@@ -1403,7 +1404,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 				}
 			}
 
-			free(packages);
+			free(packages_ptr);
 		}
 	}
 
@@ -1688,6 +1689,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		if (packagelist != NULL) {
 
 			packages = strdup(packagelist);
+			packages_ptr = packages;
 			package = strsep(&packages, ";");
 
 			stream_mgr_add_pkg_c(manager, streamID, package, &err);
@@ -1712,7 +1714,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 				}
 			}
 
-			free(packages);
+			free(packages_ptr);
 		}
 
 		for (varfile_xml = ezxml_child(stream_xml, "file"); varfile_xml; varfile_xml = ezxml_next(varfile_xml)) {

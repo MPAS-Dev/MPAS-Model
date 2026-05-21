@@ -229,6 +229,14 @@ module mpas_pool_routines
                      deallocate(ptr % data % simple_int)
                   end if
    
+               else if (ptr % contentsType == MPAS_POOL_PACKAGE) then
+   
+                  dptr => ptr % data
+   
+                  if (dptr % contentsType == MPAS_POOL_LOGICAL) then
+                     deallocate(dptr % simple_logical)
+                  end if
+   
                else if (ptr % contentsType == MPAS_POOL_CONFIG) then
    
                   dptr => ptr % data
@@ -4770,6 +4778,8 @@ module mpas_pool_routines
 
       type (mpas_pool_data_type), pointer :: mem
 
+      nullify(value)
+
       if ( present(record) ) then
          call mpas_pool_get_subpool(inPool, record, recordPool)
          mem => pool_get_member(recordPool, key, MPAS_POOL_CONFIG)
@@ -4811,6 +4821,8 @@ module mpas_pool_routines
       type (mpas_pool_type), pointer :: recordPool
 
       type (mpas_pool_data_type), pointer :: mem
+
+      nullify(value)
 
       if ( present(record) ) then
          call mpas_pool_get_subpool(inPool, record, recordPool)
@@ -4854,6 +4866,8 @@ module mpas_pool_routines
 
       type (mpas_pool_data_type), pointer :: mem
 
+      nullify(value)
+
       if ( present(record) ) then
          call mpas_pool_get_subpool(inPool, record, recordPool)
          mem => pool_get_member(recordPool, key, MPAS_POOL_CONFIG)
@@ -4896,6 +4910,8 @@ module mpas_pool_routines
       type (mpas_pool_type), pointer :: recordPool
 
       type (mpas_pool_data_type), pointer :: mem
+
+      nullify(value)
 
       if ( present(record) ) then
          call mpas_pool_get_subpool(inPool, record, recordPool)
@@ -5149,6 +5165,7 @@ module mpas_pool_routines
 
       type (mpas_pool_data_type), pointer :: mem
 
+      nullify(subPool)
 
       mem => pool_get_member(inPool, key, MPAS_POOL_SUBPOOL)
 
@@ -5228,6 +5245,7 @@ module mpas_pool_routines
 
       type (mpas_pool_data_type), pointer :: mem
 
+      nullify(package)
 
       mem => pool_get_member(inPool, key, MPAS_POOL_PACKAGE)
 
@@ -5785,6 +5803,7 @@ module mpas_pool_routines
                      end if
 
 !TODO: are there cases where we need to delete more data here?
+                     if (associated(ptr_prev % data)) deallocate(ptr_prev % data)
                      deallocate(ptr_prev)
                   end if
                   pool_remove_member = .true.
@@ -5818,6 +5837,7 @@ module mpas_pool_routines
                         end if
 
 !TODO: are there cases where we need to delete more data here?
+                        if (associated(ptr % data)) deallocate(ptr % data)
                         deallocate(ptr)
                      end if
                      pool_remove_member = .true.

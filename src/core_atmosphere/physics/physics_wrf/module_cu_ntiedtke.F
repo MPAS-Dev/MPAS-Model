@@ -1,12 +1,11 @@
 !=================================================================================================================
  module module_cu_ntiedtke
- use mpas_kind_types,only: RKIND,StrKIND
-
- use cu_ntiedtke,only: cu_ntiedtke_run,           &
-                       cu_ntiedtke_init,          &
-                       cu_ntiedtke_timestep_init, &
-                       cu_ntiedtke_timestep_final
+ use mpas_kind_types,only: kind_phys => RKIND
+ use cu_ntiedtke,only: cu_ntiedtke_run, &
+                       cu_ntiedtke_init
  use cu_ntiedtke_common
+ use cu_ntiedtke_post,only: cu_ntiedtke_post_run
+ use cu_ntiedtke_pre,only: cu_ntiedtke_pre_run
 
  implicit none
  private
@@ -94,7 +93,7 @@
 
  integer,intent(in):: itimestep,stepcu
 
- real(kind=RKIND),intent(in):: cp,grav,rd,rv,xlf,xls,xlv
+ real(kind=kind_phys),intent(in):: cp,grav,rd,rv,xlf,xls,xlv
 
  real(kind=kind_phys),intent(in):: dt
 
@@ -204,7 +203,7 @@
        enddo
     enddo
 
-    call cu_ntiedtke_timestep_init( &
+    call cu_ntiedtke_pre_run( &
                      its    = its       , ite     = ite     , kts     = kts     , kte       = kte       , &
                      im     = im        , kx      = kx      , kx1     = kx1     , itimestep = itimestep , &
                      stepcu = stepcu    , dt      = dt      , grav    = grav    , xland     = xland_hv  , &
@@ -216,7 +215,7 @@
                      qvf    = qvf       , qcf     = qcf     , qif     = qif     , uf        = uf        , &
                      vf     = vf        , prsi    = prsi    , ghti    = ghti    , omg       = omg       , &
                      errmsg = errmsg    , errflg  = errflg                                                &
-                                  )
+                            )
 
     call cu_ntiedtke_run( &
                      pu   = uf     , pv   = vf     , pt     = tf      , pqv    = qvf     , &
@@ -227,7 +226,7 @@
                      dt   = delt   , dx   = dx_hv  , errmsg = errmsg  , errflg = errflg    &
                         )
 
-    call cu_ntiedtke_timestep_final( &
+    call cu_ntiedtke_post_run( &
                      its      = its         , ite      = ite         , kts      = kts         , kte      = kte         , &
                      stepcu   = stepcu      , dt       = dt          , exner    = pi_hv       , qv       = qv_hv       , &
                      qc       = qc_hv       , qi       = qi_hv       , t        = t_hv        , u        = u_hv        , &
@@ -236,7 +235,7 @@
                      raincv   = raincv_hv   , pratec   = pratec_hv   , rthcuten = rthcuten_hv , rqvcuten = rqvcuten_hv , &
                      rqccuten = rqccuten_hv , rqicuten = rqicuten_hv , rucuten  = rucuten_hv  , rvcuten  = rvcuten_hv  , &
                      errmsg   = errmsg      , errflg   = errflg                                                          &
-                                   )
+                             )
 
     do i = its,ite
        raincv(i,j) = raincv_hv(i)

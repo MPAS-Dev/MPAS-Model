@@ -46,10 +46,7 @@ module mpas_domain_routines
       allocate(dom % dminfo)
       nullify(dom % blocklist)
 
-      allocate(dom % configs)
-      allocate(dom % packages)
       allocate(dom % clock)
-      allocate(dom % streamManager)
       allocate(dom % ioContext)
 
       call mpas_pool_create_pool(dom % configs)
@@ -87,9 +84,6 @@ module mpas_domain_routines
 
       b % domain => dom
 
-      allocate(b % structs)
-      allocate(b % dimensions)
-      allocate(b % allFields)
       call mpas_pool_create_pool(b % structs)
       call mpas_pool_create_pool(b % dimensions)
       call mpas_pool_create_pool(b % allFields)
@@ -138,6 +132,8 @@ module mpas_domain_routines
       deallocate(dom % clock)
       deallocate(dom % ioContext)
 
+      deallocate(dom % dminfo)
+
    end subroutine mpas_deallocate_domain!}}}
 
 
@@ -167,17 +163,17 @@ module mpas_domain_routines
       call mpas_pool_destroy_pool(b % structs)
       call mpas_pool_destroy_pool(b % dimensions)
 
-      deallocate(b % parinfo % cellsToSend)
-      deallocate(b % parinfo % cellsToRecv)
-      deallocate(b % parinfo % cellsToCopy)
+      call mpas_dmpar_destroy_mulithalo_exchange_list(b % parinfo % cellsToSend)
+      call mpas_dmpar_destroy_mulithalo_exchange_list(b % parinfo % cellsToRecv)
+      call mpas_dmpar_destroy_mulithalo_exchange_list(b % parinfo % cellsToCopy)
 
-      deallocate(b % parinfo % edgesToSend)
-      deallocate(b % parinfo % edgesToRecv)
-      deallocate(b % parinfo % edgesToCopy)
+      call mpas_dmpar_destroy_mulithalo_exchange_list(b % parinfo % edgesToSend)
+      call mpas_dmpar_destroy_mulithalo_exchange_list(b % parinfo % edgesToRecv)
+      call mpas_dmpar_destroy_mulithalo_exchange_list(b % parinfo % edgesToCopy)
 
-      deallocate(b % parinfo % verticesToSend)
-      deallocate(b % parinfo % verticesToRecv)
-      deallocate(b % parinfo % verticesToCopy)
+      call mpas_dmpar_destroy_mulithalo_exchange_list(b % parinfo % verticesToSend)
+      call mpas_dmpar_destroy_mulithalo_exchange_list(b % parinfo % verticesToRecv)
+      call mpas_dmpar_destroy_mulithalo_exchange_list(b % parinfo % verticesToCopy)
 
       deallocate(b % parinfo)
 

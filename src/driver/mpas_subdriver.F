@@ -512,6 +512,7 @@ module mpas_subdriver
      
       call MPAS_stream_mgr_add_att(domain % streamManager, 'model_name', domain % core % modelName)
       call MPAS_stream_mgr_add_att(domain % streamManager, 'core_name', domain % core % coreName)
+      call MPAS_stream_mgr_add_att(domain % streamManager, 'version', domain % core % modelVersion)
       call MPAS_stream_mgr_add_att(domain % streamManager, 'source', domain % core % source)
       call MPAS_stream_mgr_add_att(domain % streamManager, 'Conventions', domain % core % Conventions)
       call MPAS_stream_mgr_add_att(domain % streamManager, 'git_version', domain % core % git_version)

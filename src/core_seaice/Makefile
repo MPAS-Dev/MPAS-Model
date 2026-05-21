@@ -9,7 +9,7 @@ core_seaice: column_package shared analysis_members model_forward
 gen_includes:
 	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) Registry.xml > Registry_processed.xml
 	(if [ ! -d inc ]; then mkdir -p inc; fi) # To generate *.inc files
-	(cd inc; $(REG_PARSE) < ../Registry_processed.xml )
+	(cd inc; $(REG_PARSE) ../Registry_processed.xml $(CPPFLAGS) )
 
 core_input_gen:
 	if [ ! -e default_inputs ]; then  mkdir default_inputs; fi

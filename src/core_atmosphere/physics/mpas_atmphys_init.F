@@ -11,17 +11,20 @@
  use mpas_pool_routines
  use mpas_timekeeping
 
- use mpas_atmphys_driver_convection, only: init_convection
+ use mpas_atmphys_driver_convection,only: init_convection
  use mpas_atmphys_driver_lsm,only: init_lsm
- use mpas_atmphys_driver_microphysics
+ use mpas_atmphys_driver_microphysics,only: init_microphysics
  use mpas_atmphys_driver_pbl,only: init_pbl
- use mpas_atmphys_driver_radiation_lw, only: init_radiation_lw
- use mpas_atmphys_driver_radiation_sw, only: init_radiation_sw
- use mpas_atmphys_driver_sfclayer
+ use mpas_atmphys_driver_radiation_lw,only: init_radiation_lw
+ use mpas_atmphys_driver_radiation_sw,only: init_radiation_sw
+ use mpas_atmphys_driver_sfclayer,only: init_sfclayer
  use mpas_atmphys_vars,only: f_qc,f_qr,f_qi,f_qs,f_qg,f_qoz,f_nc,f_ni,f_nifa,f_nwfa,f_nbca
 
  use mpas_atmphys_landuse
  use mpas_atmphys_o3climatology
+ use mpas_atmphys_lsm_noahmpinit,only: init_lsm_noahmp
+
+ use bl_ugwpv1_ngw, only: ugwpv1_ngw_init
 
  implicit none
  private
@@ -68,18 +71,24 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-10-18.
 ! * added the subroutine init_physics_flags to initialize f_qc,f_qr,f_qi,f_qs,f_qg,f_nc,and f_ni.
 !   Laura D. Fowler (laura@ucar.edu) / 2024-02-14.
-
+! * added call to subroutine init_lsm_noahmp to initialize the Noah-MP land surface scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2024-03-11.
+! * added initialization of the integer variable mp_top_level to the physics_init code.
+!   Bill Skamarock / 2025-10-17 
 
  contains
 
 
 !=================================================================================================================
- subroutine physics_init(dminfo,clock,configs,mesh,diag,tend,state,time_lev,diag_physics, &
-                         atm_input,sfc_input)
+ subroutine physics_init(dminfo,stream_manager,clock,configs,mesh,diag,tend,tend_physics,state,time_lev,diag_physics, &
+                         diag_physics_noahmp,ngw_input,atm_input,sfc_input,output_noahmp)
 !=================================================================================================================
+
+use mpas_stream_manager
 
 !input arguments:
  type(dm_info),intent(in):: dminfo
+ type(MPAS_streamManager_type),intent(inout):: stream_manager
  type(mpas_pool_type),intent(in):: mesh
  type(mpas_pool_type),intent(in):: configs
  type(MPAS_Clock_type),intent(in):: clock
@@ -90,13 +99,18 @@
  type(mpas_pool_type),intent(inout):: state
  type(mpas_pool_type),intent(inout):: diag
  type(mpas_pool_type),intent(inout):: tend
+ type(mpas_pool_type),intent(inout):: tend_physics
  type(mpas_pool_type),intent(inout):: diag_physics
+ type(mpas_pool_type),intent(inout):: diag_physics_noahmp
+ type(mpas_pool_type),intent(inout):: ngw_input
  type(mpas_pool_type),intent(inout):: atm_input
  type(mpas_pool_type),intent(inout):: sfc_input
+ type(mpas_pool_type),intent(inout):: output_noahmp
 
 !local pointers:
- logical,pointer:: config_do_restart,       &
-                   config_o3climatology
+ logical,pointer:: config_do_restart,    &
+                   config_o3climatology, &
+                   config_oml1d
 
  character(len=StrKIND),pointer::            &
                    config_convection_scheme, &
@@ -108,39 +122,49 @@
                    config_radt_sw_scheme
 
  integer,pointer:: nCellsSolve,nLags
- integer,dimension(:),pointer  :: i_rainc,i_rainnc
- integer,dimension(:),pointer  :: i_acswdnb,i_acswdnbc,i_acswdnt,i_acswdntc, &
-                                  i_acswupb,i_acswupbc,i_acswupt,i_acswuptc, &
-                                  i_aclwdnb,i_aclwdnbc,i_aclwdnt,i_aclwdntc, &
-                                  i_aclwupb,i_aclwupbc,i_aclwupt,i_aclwuptc
+ integer,dimension(:),pointer:: i_rainc,i_rainnc
+ integer,dimension(:),pointer:: i_acswdnb,i_acswdnbc,i_acswdnt,i_acswdntc, &
+                                i_acswupb,i_acswupbc,i_acswupt,i_acswuptc, &
+                                i_aclwdnb,i_aclwdnbc,i_aclwdnt,i_aclwdntc, &
+                                i_aclwupb,i_aclwupbc,i_aclwupt,i_aclwuptc
 
- real(kind=RKIND),dimension(:),pointer  :: acswdnb,acswdnbc,acswdnt,acswdntc,  &
-                                           acswupb,acswupbc,acswupt,acswuptc,  &
-                                           aclwdnb,aclwdnbc,aclwdnt,aclwdntc,  &
-                                           aclwupb,aclwupbc,aclwupt,aclwuptc
- real(kind=RKIND),dimension(:),pointer  :: nsteps_accum,ndays_accum,tday_accum, &
-                                           tyear_accum,tyear_mean
- real(kind=RKIND),dimension(:),pointer  :: sst,sstsk,tmn,xice,xicem
+ real(kind=RKIND),dimension(:),pointer:: acswdnb,acswdnbc,acswdnt,acswdntc, &
+                                         acswupb,acswupbc,acswupt,acswuptc, &
+                                         aclwdnb,aclwdnbc,aclwdnt,aclwdntc, &
+                                         aclwupb,aclwupbc,aclwupt,aclwuptc
+ real(kind=RKIND),dimension(:),pointer:: nsteps_accum,ndays_accum,tday_accum, &
+                                         tyear_accum,tyear_mean
+ real(kind=RKIND),dimension(:),pointer:: sst,sstsk,tmn,xice,xicem
  real(kind=RKIND),dimension(:,:),pointer:: tlag
 
- real(kind=RKIND),dimension(:),pointer  :: t_oml, t_oml_initial, t_oml_200m_initial
- real(kind=RKIND),dimension(:),pointer  :: h_oml, h_oml_initial, hu_oml, hv_oml
- real(kind=RKIND), pointer :: config_oml_hml0
- integer,pointer:: nCells
- logical,pointer:: config_oml1d
- 
- 
+ real(kind=RKIND),pointer:: config_oml_hml0
+ real(kind=RKIND),dimension(:),pointer:: t_oml,t_oml_initial,t_oml_200m_initial
+ real(kind=RKIND),dimension(:),pointer:: h_oml,h_oml_initial,hu_oml,hv_oml
+ real(kind=RKIND),dimension(:),pointer:: rdzw,dzu
+ real(kind=RKIND),pointer:: config_dt
+ integer,pointer:: nCells,nVertLevels
+ character(len=StrKIND),pointer:: gwdo_scheme
+ logical,pointer:: ngw_scheme
+ integer,pointer:: ntau_d1y
+ real(kind=RKIND),pointer:: knob_ugwp_tauamp
+ real(kind=RKIND),dimension(:),pointer:: ugwp_taulat
+ integer,dimension(:),pointer:: jindx1_tau, jindx2_tau
+ real(kind=RKIND),dimension(:),pointer:: ddy_j1tau, ddy_j2tau
+ real(kind=RKIND),dimension(:),pointer:: latCell
+ real(kind=RKIND),pointer:: config_microphysics_top
+ integer,pointer:: mp_top_level
 
 !local variables and arrays:
  type(MPAS_Time_Type):: currTime
 
  logical:: init_done
  integer:: ierr,julday 
- integer:: iCell,iLag,iEdge,nEdges_m
+ integer:: iCell,iLag,k
+ real(kind=RKIND):: layer_height
 
 !-----------------------------------------------------------------------------------------------------------------
-! call mpas_log_write('')
-! call mpas_log_write('--- enter subroutine physics_init:')
+!call mpas_log_write('')
+!call mpas_log_write('--- enter subroutine physics_init:')
 
  call mpas_pool_get_config(configs,'config_do_restart'       ,config_do_restart       )
  call mpas_pool_get_config(configs,'config_o3climatology'    ,config_o3climatology    )
@@ -151,6 +175,7 @@
  call mpas_pool_get_config(configs,'config_sfclayer_scheme'  ,config_sfclayer_scheme  )
  call mpas_pool_get_config(configs,'config_radt_lw_scheme'   ,config_radt_lw_scheme   )
  call mpas_pool_get_config(configs,'config_radt_sw_scheme'   ,config_radt_sw_scheme   )
+ call mpas_pool_get_config(configs,'config_microphysics_top' ,config_microphysics_top )
 
  call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
  call mpas_pool_get_dimension(mesh,'nLags'      ,nLags      )
@@ -211,7 +236,14 @@
  call mpas_pool_get_array(diag_physics,'hv_oml'            ,hv_oml)
  call mpas_pool_get_config(configs,'config_oml1d'          ,config_oml1d  )
  call mpas_pool_get_config(configs,'config_oml_hml0'       ,config_oml_hml0  )
+ call mpas_pool_get_config(configs,'config_gwdo_scheme'    ,gwdo_scheme )
+ call mpas_pool_get_config(configs,'config_ngw_scheme'     ,ngw_scheme  )
+ call mpas_pool_get_config(configs,'config_dt'             ,config_dt  )
  call mpas_pool_get_dimension(mesh,'nCells',nCells)
+ call mpas_pool_get_dimension(mesh,'nVertLevels',nVertLevels  )
+ call mpas_pool_get_array(mesh,'rdzw'   ,rdzw   )
+ call mpas_pool_get_array(mesh,'dzu'    ,dzu    )
+ call mpas_pool_get_array(tend_physics,'mp_top_level',mp_top_level)
 
  currTime = mpas_get_clock_time(clock,MPAS_NOW,ierr)
  call mpas_get_time(curr_time=currTime,DoY=julday,ierr=ierr)
@@ -239,6 +271,17 @@
        i_rainnc(iCell) = 0
     enddo
  endif
+
+! set the level above which microphysics tendencies will be ignored
+ mp_top_level = 0
+ layer_height = 0.5/rdzw(1)
+ if(layer_height .le. config_microphysics_top) mp_top_level = 1
+ do k=2,nVertLevels
+    layer_height = layer_height + dzu(k)
+    if(layer_height .le. config_microphysics_top) mp_top_level = k
+ end do
+ call mpas_log_write('physics init: config_microphysics_top and level $r $i ', &
+                     realArgs=(/config_microphysics_top/),intArgs=(/mp_top_level/))
 
 !initialization of counters i_acsw* and i_aclw*. i_acsw* and i_aclw* track the number of times
 !the accumulated long and short-wave radiation fluxes exceed their prescribed theshold values.
@@ -284,7 +327,7 @@
 
 !initialization of xicem:
  if(.not.config_do_restart) then
-!    call mpas_log_write('--- initialization of xicem:')
+!   call mpas_log_write('--- initialization of xicem:')
     do iCell = 1, nCellsSolve
        xicem(iCell) = xice(iCell)
     enddo
@@ -294,47 +337,47 @@
 !sea-surface temperature is applied. This avoids having the array sstsk equal to
 !zero over land:
  if(.not. config_do_restart) then
-!    call mpas_log_write('--- initialization of sstsk:')
+!   call mpas_log_write('--- initialization of sstsk:')
     do iCell = 1, nCellsSolve
        sstsk(iCell) = sst(iCell)
     enddo
  endif
 
-! initialized the 1D ocean mixed-layer model  (code from wrf module_sf_oml)
- if (config_oml1d) then
-   if (.not. config_do_restart) then
-      call mpas_log_write('--- initialization of 1D ocean mixed layer model ')
-      do iCell = 1, nCellsSolve
-        t_oml(iCell) = sst(iCell)
-        t_oml_initial(iCell) = sst(iCell)
-      end do
-      if (config_oml_hml0 .gt. 0) then
-        do iCell = 1, nCellsSolve
-          h_oml(iCell) = config_oml_hml0
-          h_oml_initial(iCell) = config_oml_hml0
-          hu_oml(iCell) = 0.
-          hv_oml(iCell) = 0.
-          t_oml_200m_initial(iCell) = sst(iCell) - 5.
-        end do
-      else if (config_oml_hml0 .eq. 0) then
-! initializing with climatological mixed layer depth only
-        do iCell = 1, nCellsSolve
-          h_oml(iCell) = h_oml_initial(iCell)
-          hu_oml(iCell) = 0.
-          hv_oml(iCell) = 0.
-          t_oml_200m_initial(iCell) = sst(iCell) - 5.
-        end do
-      else
-        do iCell = 1, nCellsSolve
-          h_oml(iCell) = h_oml_initial(iCell)
-          ! WRF COMMENT:
-          ! fill in near coast area with SST: 200 K was set as missing value in ocean pre-processing code
-          if( (t_oml_200m_initial(iCell) > 200.) .and. (t_oml_200m_initial(iCell) <= 200.) )  &
-               t_oml_200m_initial(iCell) = sst(iCell)
-        end do
-      end if
-   end if
- end if
+!initialized the 1D ocean mixed-layer model (code from wrf module_sf_oml):
+ if(config_oml1d) then
+    if(.not. config_do_restart) then
+       call mpas_log_write('--- initialization of 1D ocean mixed layer model ')
+       do iCell = 1, nCellsSolve
+          t_oml(iCell) = sst(iCell)
+          t_oml_initial(iCell) = sst(iCell)
+       enddo
+       if(config_oml_hml0 .gt. 0) then
+          do iCell = 1, nCellsSolve
+             h_oml(iCell) = config_oml_hml0
+             h_oml_initial(iCell) = config_oml_hml0
+             hu_oml(iCell) = 0.
+             hv_oml(iCell) = 0.
+             t_oml_200m_initial(iCell) = sst(iCell) - 5.
+          enddo
+       elseif(config_oml_hml0 .eq. 0) then
+! initializing with climatological mixed layer depth only:
+          do iCell = 1, nCellsSolve
+             h_oml(iCell) = h_oml_initial(iCell)
+             hu_oml(iCell) = 0.
+             hv_oml(iCell) = 0.
+             t_oml_200m_initial(iCell) = sst(iCell) - 5.
+          enddo
+       else
+          do iCell = 1, nCellsSolve
+             h_oml(iCell) = h_oml_initial(iCell)
+             ! WRF COMMENT:
+             ! fill in near coast area with SST: 200 K was set as missing value in ocean pre-processing code
+             if( (t_oml_200m_initial(iCell) > 200.) .and. (t_oml_200m_initial(iCell) <= 200.) )  &
+                  t_oml_200m_initial(iCell) = sst(iCell)
+          enddo
+       endif
+    endif
+ endif
 
 !initialization of temperatures needed for updating the deep soil temperature:
  if(.not. config_do_restart) then
@@ -363,7 +406,7 @@
 
 !initialization of cloud microphysics processes:
  if(config_microp_scheme .ne. 'off') &
-    call microphysics_init(dminfo,configs,mesh,sfc_input,diag_physics)
+    call init_microphysics(dminfo,configs,mesh,state,time_lev,sfc_input,diag_physics)
 
 !initialization of PBL processes:
  if(config_pbl_scheme .ne. 'off') call init_pbl(configs)
@@ -372,10 +415,13 @@
  if(config_sfclayer_scheme .ne. 'off') call init_sfclayer(configs)
 
 !initialization of land-surface model:
-!if(.not. config_do_restart) then
-!   if(config_lsm_scheme .ne. 'off') call init_lsm(dminfo,mesh,configs,diag_physics,sfc_input)
-!endif
- if(config_lsm_scheme .ne. 'off') call init_lsm(dminfo,mesh,configs,diag_physics,sfc_input)
+ if(config_lsm_scheme .ne. 'off') then
+    if(config_lsm_scheme .eq. 'sf_noah') then
+       call init_lsm(dminfo,mesh,configs,diag_physics,sfc_input)
+    elseif(config_lsm_scheme .eq. 'sf_noahmp') then
+       call init_lsm_noahmp(configs,mesh,clock,diag_physics,diag_physics_noahmp,output_noahmp,sfc_input)
+    endif
+ endif
 
 !initialization of shortwave radiation processes:
  init_done = .false.
@@ -404,6 +450,30 @@
     endif
  endif
 
+!initialization of non-stationary gravity wave drag
+ if(trim(gwdo_scheme).eq.'bl_ugwp_gwdo') then
+    ! Read in ugwp_oro_data
+    call MPAS_stream_mgr_read(stream_manager, streamID='ugwp_oro_data_in', whence=MPAS_STREAM_NEAREST, ierr=ierr)
+    call MPAS_stream_mgr_reset_alarms(stream_manager, streamID='ugwp_oro_data_in', direction=MPAS_STREAM_INPUT, ierr=ierr)
+    if (ngw_scheme) then
+       call mpas_log_write('Initializing non-stationary GWD scheme',masterOnly=.true.)
+       call MPAS_stream_mgr_read(stream_manager, streamID='ugwp_ngw_in', whence=MPAS_STREAM_NEAREST, ierr=ierr)
+       call MPAS_stream_mgr_reset_alarms(stream_manager, streamID='ugwp_ngw_in', direction=MPAS_STREAM_INPUT, ierr=ierr)
+       call mpas_pool_get_config(configs,'config_knob_ugwp_tauamp', knob_ugwp_tauamp)
+       call mpas_pool_get_dimension(mesh,'lat',ntau_d1y)
+       call mpas_pool_get_array(ngw_input,'LATS',ugwp_taulat)
+       call mpas_pool_get_array(ngw_input,'jindx1_tau'  ,jindx1_tau  )
+       call mpas_pool_get_array(ngw_input,'jindx2_tau'  ,jindx2_tau  )
+       call mpas_pool_get_array(ngw_input,'ddy_j1tau'   ,ddy_j1tau   )
+       call mpas_pool_get_array(ngw_input,'ddy_j2tau'   ,ddy_j2tau   )
+       call mpas_pool_get_array(mesh,'latCell',latCell)
+       call mpas_log_write('--- Initializing UGWP non-stationary GWD parameters ---',masterOnly=.true.)
+       call ugwpv1_ngw_init(latCell,nVertLevels,config_dt,rdzw,dzu,ntau_d1y,          &
+               knob_ugwp_tauamp,ugwp_taulat,jindx1_tau,jindx2_tau,ddy_j1tau,ddy_j2tau)
+       call mpas_log_write('--- UGWP non-stationary GWD parameters initialized ---',masterOnly=.true.)
+    endif
+ endif
+
 ! call mpas_log_write('')
 ! call mpas_log_write('--- end subroutine physics_init')
 ! call mpas_log_write('')
@@ -423,7 +493,7 @@
 
 !local pointers:
  integer,pointer:: index_qc,index_qr,index_qi,index_qs,index_qg
- integer,pointer:: index_ni
+ integer,pointer:: index_nc,index_ni,index_nifa,index_nwfa
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -447,15 +517,20 @@
  if(index_qg .gt. -1) f_qg = .true.
 
 !initializes the logical assigned to number concentrations:
- f_nc   = .false. !nc is not defined in Registry.xml - therefore f_nc is initialized to false.
+ f_nc   = .false.
  f_ni   = .false.
- f_nifa = .false. !nifa is not defined in Registry.xml - therefore f_nc is initialized to false.
- f_nwfa = .false. !nwfa is not defined in Registry.xml - therefore f_nc is initialized to false.
+ f_nifa = .false.
+ f_nwfa = .false.
  f_nbca = .false. !nbca is not defined in Registry.xml - therefore f_nc is initialized to false.
+ call mpas_pool_get_dimension(state,'index_nc'  ,index_nc  )
+ call mpas_pool_get_dimension(state,'index_ni'  ,index_ni  )
+ call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
+ call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
 
- call mpas_pool_get_dimension(state,'index_ni',index_ni)
-
- if(index_ni .gt. -1) f_ni = .true.
+ if(index_nc   .gt. -1) f_nc   = .true.
+ if(index_ni   .gt. -1) f_ni   = .true.
+ if(index_nifa .gt. -1) f_nifa = .true.
+ if(index_nwfa .gt. -1) f_nwfa = .true.
 
  end subroutine init_physics_flags
 

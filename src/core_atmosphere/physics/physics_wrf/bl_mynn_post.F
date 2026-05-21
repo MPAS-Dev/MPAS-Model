@@ -1,6 +1,6 @@
 !=================================================================================================================
  module bl_mynn_post
- use ccpp_kinds,only: kind_phys
+ use ccpp_kind_types,only: kind_phys
 
  implicit none
  private
@@ -57,6 +57,9 @@
  end subroutine bl_mynn_post_finalize
 
 !=================================================================================================================
+!>\section arg_table_bl_mynn_post_run
+!!\html\include bl_mynn_post_run.html
+!!
  subroutine bl_mynn_post_run(its,ite,kte,f_qc,f_qi,f_qs,delt,qv,qc,qi,qs,dqv,dqc,dqi,dqs,errmsg,errflg)
 !=================================================================================================================
 

@@ -1,11 +1,9 @@
 !=================================================================================================================
  module module_sf_sfclayrev
- use mpas_log
- use ccpp_kinds,only: kind_phys
+ use mpas_kind_types,only: kind_phys => RKIND
 
- use sf_sfclayrev,only: sf_sfclayrev_run, &
-                        sf_sfclayrev_timestep_init
-
+ use sf_sfclayrev,only: sf_sfclayrev_run
+ use sf_sfclayrev_pre,only: sf_sfclayrev_pre_run
 
  implicit none
  private
@@ -24,13 +22,12 @@
                       u10,v10,th2,t2,q2,                            &
                       gz1oz0,wspd,br,isfflx,dx,                     &
                       svp1,svp2,svp3,svpt0,ep1,ep2,                 &
-                      karman,eomeg,stbolt,                          &
-                      p1000mb,                                      &
+                      karman,p1000mb,lakemask,                      &
                       ids,ide,jds,jde,kds,kde,                      &
                       ims,ime,jms,jme,kms,kme,                      &
                       its,ite,jts,jte,kts,kte,                      &
                       ustm,ck,cka,cd,cda,isftcflx,iz0tlnd,          &
-                      shalwater_z0,water_depth,shalwater_depth,     &
+                      shalwater_z0,water_depth,                     &
                       scm_force_flux,errmsg,errflg)
 !=================================================================================================================
                                                                
@@ -45,10 +42,9 @@
  integer,intent(in),optional:: scm_force_flux
 
  real(kind=kind_phys),intent(in):: svp1,svp2,svp3,svpt0
- real(kind=kind_phys),intent(in):: ep1,ep2,karman,eomeg,stbolt
- real(kind=kind_phys),intent(in):: P1000mb
+ real(kind=kind_phys),intent(in):: ep1,ep2,karman
+ real(kind=kind_phys),intent(in):: p1000mb
  real(kind=kind_phys),intent(in):: cp,g,rovcp,r,xlv
- real(kind=kind_phys),intent(in):: shalwater_depth 
 
  real(kind=kind_phys),intent(in),dimension(ims:ime,jms:jme):: &
     dx,         &
@@ -57,6 +53,7 @@
     psfc,       &
     tsk,        &
     xland,      &
+    lakemask,   &
     water_depth
 
  real(kind=kind_phys),intent(in),dimension(ims:ime,kms:kme,jms:jme):: &
@@ -115,11 +112,15 @@
     ustm
 
 !--- local variables and arrays:
+ logical:: l_isfflx
+ logical:: l_shalwater_z0
+ logical:: l_scm_force_flux
+
  integer:: i,j,k
  real(kind=kind_phys),dimension(its:ite):: dz1d,u1d,v1d,qv1d,p1d,t1d
 
  real(kind=kind_phys),dimension(its:ite):: &
-    dx_hv,mavail_hv,pblh_hv,psfc_hv,tsk_hv,xland_hv,water_depth_hv
+    dx_hv,mavail_hv,pblh_hv,psfc_hv,tsk_hv,xland_hv,water_depth_hv,lakemask_hv
  real(kind=kind_phys),dimension(its:ite,kts:kte):: &
     dz_hv,u_hv,v_hv,qv_hv,p_hv,t_hv
 
@@ -137,6 +138,13 @@
 
 !-----------------------------------------------------------------------------------------------------------------
 
+ l_isfflx         = .false.
+ l_shalwater_z0   = .false.
+ l_scm_force_flux = .false.
+ if(isfflx .eq. 1) l_isfflx = .true.
+ if(shalwater_z0 .eq. 1) l_shalwater_z0 = .true.
+ if(scm_force_flux .eq. 1) l_scm_force_flux = .true.
+
  do j = jts,jte
 
     do i = its,ite
@@ -147,6 +155,7 @@
        psfc_hv(i)        = psfc(i,j)
        tsk_hv(i)         = tsk(i,j)
        xland_hv(i)       = xland(i,j)
+       lakemask_hv(i)    = lakemask(i,j)
        water_depth_hv(i) = water_depth(i,j)
 
        do k = kts,kte
@@ -190,7 +199,7 @@
        enddo
     endif
 
-    call sf_sfclayrev_timestep_init(dz2d=dz_hv,u2d=u_hv,v2d=v_hv,qv2d=qv_hv,p2d=p_hv,t2d=t_hv,     &
+    call sf_sfclayrev_pre_run(dz2d=dz_hv,u2d=u_hv,v2d=v_hv,qv2d=qv_hv,p2d=p_hv,t2d=t_hv,           &
                                     dz1d=dz1d,u1d=u1d,v1d=v1d,qv1d=qv1d,p1d=p1d,t1d=t1d,           &
                                     its=its,ite=ite,kts=kts,kte=kte,errmsg=errmsg,errflg=errflg)
 
@@ -199,20 +208,16 @@
                           chs2=chs2_hv,cqs2=cqs2_hv,cpm=cpm_hv,pblh=pblh_hv,                       &
                           rmol=rmol_hv,znt=znt_hv,ust=ust_hv,mavail=mavail_hv,                     &
                           zol=zol_hv,mol=mol_hv,regime=regime_hv,psim=psim_hv,                     &
-                          psih=psih_hv,fm=fm_hv,fh=fh_hv,xland=xland_hv,                           &
+                          psih=psih_hv,fm=fm_hv,fh=fh_hv,xland=xland_hv,lakemask=lakemask_hv,      &
                           hfx=hfx_hv,qfx=qfx_hv,tsk=tsk_hv,u10=u10_hv,                             &
                           v10=v10_hv,th2=th2_hv,t2=t2_hv,q2=q2_hv,flhc=flhc_hv,                    &
                           flqc=flqc_hv,qgh=qgh_hv,qsfc=qsfc_hv,lh=lh_hv,                           &
-                          gz1oz0=gz1oz0_hv,wspd=wspd_hv,br=br_hv,isfflx=isfflx,dx=dx_hv,           &
+                          gz1oz0=gz1oz0_hv,wspd=wspd_hv,br=br_hv,isfflx=l_isfflx,dx=dx_hv,         &
                           svp1=svp1,svp2=svp2,svp3=svp3,svpt0=svpt0,ep1=ep1,ep2=ep2,karman=karman, &
-                          eomeg=eomeg,stbolt=stbolt,p1000mb=p1000mb,                               &
-                          shalwater_z0=shalwater_z0,water_depth=water_depth_hv,                    &
-                          shalwater_depth=shalwater_depth,                                         &
+                          p1000mb=p1000mb,shalwater_z0=l_shalwater_z0,water_depth=water_depth_hv,  &
+                          isftcflx=isftcflx,iz0tlnd=iz0tlnd,scm_force_flux=l_scm_force_flux,       &
+                          ustm=ustm_hv,ck=ck_hv,cka=cka_hv,cd=cd_hv,cda=cda_hv,                    &
                           its=its,ite=ite,errmsg=errmsg,errflg=errflg                              &
-#if ( ( EM_CORE == 1 ) || ( defined(mpas) ) )
-                          ,isftcflx=isftcflx,iz0tlnd=iz0tlnd,scm_force_flux=scm_force_flux,        &
-                          ustm=ustm_hv,ck=ck_hv,cka=cka_hv,cd=cd_hv,cda=cda_hv                     &
-#endif
                          )
 
     do i = its,ite

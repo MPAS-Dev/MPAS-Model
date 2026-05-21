@@ -6,16 +6,10 @@ include Makefile.in.$(ESM)
 
 else
 
-ifeq "$(AUTOCLEAN)" "true"
-AUTOCLEAN_DEPS=clean_shared
-else
-AUTOCLEAN_DEPS=
-endif
-
 all: mpas
 
 mpas: $(AUTOCLEAN_DEPS) externals frame ops dycore drver
-	$(LINKER) $(LDFLAGS) -o $(EXE_NAME) driver/*.o -L. -ldycore -lops -lframework $(LIBS) -I./external/esmf_time_f90 -L./external/esmf_time_f90 -lesmf_time
+	$(LINKER) $(LDFLAGS) -o $(EXE_NAME) driver/*.o -L. -ldycore -lops -lframework $(LIBS) $(MPAS_ESMF_INC) $(MPAS_ESMF_LIB)
 
 externals: $(AUTOCLEAN_DEPS)
 	( cd external; $(MAKE) FC="$(FC)" SFC="$(SFC)" CC="$(CC)" SCC="$(SCC)" FFLAGS="$(FFLAGS)" CFLAGS="$(CFLAGS)" CPP="$(CPP)" NETCDF="$(NETCDF)" CORE="$(CORE)" all )
@@ -45,18 +39,24 @@ dycore: $(AUTOCLEAN_DEPS) build_tools externals frame ops
 clean: clean_shared clean_core
 
 clean_core:
+ifeq "$(AUTOCLEAN)" "true"
+	$(info )
+	$(info *********************************************************************************************)
+	$(info The $(CORE) core will be cleaned and re-compiled.)
+	$(info *********************************************************************************************)
+	$(info )
+endif
 	if [ -d core_$(CORE) ] ; then \
 	   ( cd core_$(CORE); $(MAKE) clean ) \
 	fi;
 
 clean_shared:
 ifeq "$(AUTOCLEAN)" "true"
-	@echo ""
-	@echo "*********************************************************************************************"
-	@echo "The MPAS infrastructure is currently built for a core different from $(CORE)."
-	@echo "The infrastructure will be cleaned and re-built for the $(CORE) core."
-	@echo "*********************************************************************************************"
-	@echo ""
+	$(info )
+	$(info *********************************************************************************************)
+	$(info The infrastructure will be cleaned and re-compiled.)
+	$(info *********************************************************************************************)
+	$(info )
 endif
 	$(RM) libframework.a libops.a libdycore.a lib$(CORE).a *.o
 	( cd tools; $(MAKE) clean )

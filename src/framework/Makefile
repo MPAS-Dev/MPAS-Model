@@ -36,6 +36,8 @@ OBJS = mpas_kind_types.o \
        mpas_log.o \
        mpas_halo.o \
        mpas_string_utils.o \
+       mpas_ptscotch_interface.o \
+       ptscotch_interface.o \
        mpas_stream_inquiry.o \
        stream_inquiry.o
 
@@ -85,7 +87,7 @@ mpas_timekeeping.o: mpas_string_utils.o mpas_kind_types.o mpas_derived_types.o m
 
 mpas_timer.o: mpas_kind_types.o mpas_dmpar.o mpas_threading.o mpas_log.o
 
-mpas_block_decomp.o: mpas_derived_types.o mpas_hash.o mpas_io_units.o mpas_dmpar.o
+mpas_block_decomp.o: mpas_derived_types.o mpas_hash.o mpas_io_units.o mpas_dmpar.o mpas_timer.o mpas_ptscotch_interface.o
 
 mpas_block_creator.o: mpas_dmpar.o mpas_hash.o mpas_sort.o mpas_io_units.o mpas_block_decomp.o mpas_stream_manager.o mpas_decomp.o mpas_abort.o $(DEPS)
 
@@ -112,6 +114,8 @@ xml_stream_parser.o: xml_stream_parser.c
 
 mpas_halo.o: mpas_derived_types.o mpas_pool_routines.o mpas_log.o
 
+mpas_ptscotch_interface.o : mpas_derived_types.o mpas_log.o
+
 mpas_stream_inquiry.o : mpas_derived_types.o mpas_log.o mpas_c_interfacing.o
 
 clean:
@@ -124,9 +128,9 @@ clean:
 	$(RM) $@ $*.mod
 ifeq "$(GEN_F90)" "true"
 	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) $< > $*.f90
-	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I../external/esmf_time_f90
+	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) $(MPAS_ESMF_INC)
 else
-	$(FC) $(CPPFLAGS) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) -I../external/esmf_time_f90
+	$(FC) $(CPPFLAGS) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) $(MPAS_ESMF_INC)
 endif
 
 .c.o:

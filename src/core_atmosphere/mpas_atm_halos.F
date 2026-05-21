@@ -10,23 +10,9 @@ module mpas_atm_halos
    use mpas_pool_routines
    use mpas_log, only : mpas_log_write, mpas_log_info
 
-   !
-   ! Abstract interface for routine used to communicate halos of fields
-   ! in a named group
-   !
-   abstract interface
-      subroutine halo_exchange_routine(domain, halo_group, ierr)
+   ! Provides definition of halo_exchange_routine
+#include "mpas_halo_interface.inc"
 
-         use mpas_derived_types, only : domain_type
-
-         type (domain_type), intent(inout) :: domain
-         character(len=*), intent(in) :: halo_group
-         integer, intent(out), optional :: ierr
-
-      end subroutine halo_exchange_routine
-   end interface
-
-   character(len=StrKIND), pointer, private :: config_halo_exch_method
    procedure (halo_exchange_routine), pointer :: exchange_halo_group
 
 
@@ -56,8 +42,13 @@ module mpas_atm_halos
       use mpas_halo, only  : mpas_halo_init, mpas_halo_exch_group_create, mpas_halo_exch_group_add_field, &
                              mpas_halo_exch_group_complete, mpas_halo_exch_group_full_halo_exch
 
+      ! Arguments
       type (domain_type), intent(inout) :: domain
       integer, intent(inout) :: ierr
+
+      ! Local variables
+      character(len=StrKIND), pointer :: config_halo_exch_method
+
 
       !
       ! Determine from the namelist option config_halo_exch_method which halo exchange method to employ
@@ -350,9 +341,15 @@ module mpas_atm_halos
       use mpas_dmpar, only : mpas_dmpar_exch_group_destroy
       use mpas_halo, only  : mpas_halo_exch_group_destroy, mpas_halo_finalize
 
+      ! Arguments
       type (domain_type), intent(inout) :: domain
       integer, intent(inout) :: ierr
 
+      ! Local variables
+      character(len=StrKIND), pointer :: config_halo_exch_method
+
+
+      call mpas_pool_get_config(domain % blocklist % configs, 'config_halo_exch_method', config_halo_exch_method)
 
       if (trim(config_halo_exch_method) == 'mpas_dmpar') then
          !

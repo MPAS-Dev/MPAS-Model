@@ -249,6 +249,8 @@ module mpas_block_creator
      call mpas_dmpar_alltoall_field(cellsOnCellBlock, cellsOnCell_0Halo, sendingHaloLayers)
      call mpas_dmpar_alltoall_field(verticesOnCellBlock, verticesOnCell_0Halo, sendingHaloLayers)
      call mpas_dmpar_alltoall_field(edgesOnCellBlock, edgesOnCell_0Halo, sendingHaloLayers)
+
+     deallocate(sendingHaloLayers)
    end subroutine mpas_block_creator_build_0halo_cell_fields!}}}
 
 !***********************************************************************
@@ -715,6 +717,7 @@ module mpas_block_creator
      ! Deallocate array and field.
      deallocate(sendingHaloLayers)
      call mpas_deallocate_field(offSetField)
+     call mpas_deallocate_field(cellLimitField)
 
    end subroutine mpas_block_creator_build_cell_halos!}}}
 
@@ -984,6 +987,7 @@ module mpas_block_creator
      type (field1dInteger), pointer :: nCellsCursor, nEdgesCursor, nVerticesCursor
      type (field1dInteger), pointer :: indexToCellCursor, indexToEdgeCursor, indexToVertexCursor
 
+     integer :: nCells, nEdges, nVertices
      integer :: nCellsSolve_0Halo, nVerticesSolve_0Halo, nEdgesSolve_0Halo
      integer :: blockID, localBlockID, err_level, iErr
 

@@ -366,12 +366,16 @@ contains
     !>  the use of the non-blocking, buffered interface for writing. If the bufsize
     !>  argument is not present, a default buffer size of 128 MiB is used.
     !>
+    !>  When a file is opened with a mode of SMIOL_FILE_CREATE, the fformat optional
+    !>  argument is used to set the file format. Otherwise, fformat is ignored. If
+    !>  not present, the default file format is SMIOL_FORMAT_CDF5.
+    !>
     !>  Upon successful completion, SMIOL_SUCCESS is returned, and the file handle argument
     !>  will point to a valid file handle. Otherwise, the file handle is not associated
     !>  and an error code other than SMIOL_SUCCESS is returned.
     !
     !-----------------------------------------------------------------------
-    integer function SMIOLf_open_file(context, filename, mode, file, bufsize) result(ierr)
+    integer function SMIOLf_open_file(context, filename, mode, file, bufsize, fformat) result(ierr)
 
         use iso_c_binding, only : c_loc, c_ptr, c_null_ptr, c_char, c_size_t, c_associated, c_f_pointer
 
@@ -382,6 +386,7 @@ contains
         integer, intent(in) :: mode
         type (SMIOLf_file), pointer :: file
         integer(kind=c_size_t), intent(in), optional :: bufsize
+        integer, intent(in), optional :: fformat
 
         ! Default buffer size to use if optional bufsize argument is not provided
         integer (kind=c_size_t), parameter :: default_bufsize = int(128*1024*1024, kind=c_size_t)
@@ -390,16 +395,18 @@ contains
         type (c_ptr) :: c_file = c_null_ptr
         integer(kind=c_int) :: c_mode
         character(kind=c_char), dimension(:), pointer :: c_filename
+        integer(kind=c_int) :: c_fformat
 
         ! C interface definitions
         interface
-            function SMIOL_open_file(context, filename, mode, file, bufsize) result(ierr) bind(C, name='SMIOL_open_file')
+            function SMIOL_open_file(context, filename, mode, file, bufsize, fformat) result(ierr) bind(C, name='SMIOL_open_file')
                 use iso_c_binding, only : c_char, c_ptr, c_int, c_size_t
                 type (c_ptr), value :: context
                 character(kind=c_char), dimension(*) :: filename
                 integer(kind=c_int), value :: mode
                 type (c_ptr) :: file
                 integer(kind=c_size_t), value :: bufsize
+                integer(kind=c_int), value :: fformat
                 integer(kind=c_int) :: ierr
             end function
         end interface
@@ -416,12 +423,18 @@ contains
 
         c_mode = mode
 
+        if (present(fformat)) then
+            c_fformat = fformat
+        else
+            c_fformat = SMIOL_FORMAT_CDF5
+        end if
+
         if (present(bufsize)) then
             ierr = SMIOL_open_file(c_context, c_filename, c_mode, c_file, &
-                                   bufsize)
+                                   bufsize, c_fformat)
         else
             ierr = SMIOL_open_file(c_context, c_filename, c_mode, c_file, &
-                                   default_bufsize)
+                                   default_bufsize, c_fformat)
         end if
 
         deallocate(c_filename)
