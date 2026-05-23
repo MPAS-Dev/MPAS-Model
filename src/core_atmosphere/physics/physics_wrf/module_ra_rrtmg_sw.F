@@ -10205,7 +10205,7 @@ CONTAINS
        !    (https://gml.noaa.gov/grad/solcalc/solareqns.PDF).
        !    do not call rrtmg_sw at night-time:
        dorrsw = .true.
-       da=2.*pii*julian/365.-0.5
+       da=2.*pii*(julian-0.5)/365.
        eot=(0.000075+0.001868*cos(da)-0.032077*sin(da) &
             -0.014615*cos(2*da)-0.040849*sin(2*da))*(229.18)
        xt24 = mod(xtime+radt*0.5,1440.)+eot
