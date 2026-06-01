@@ -97,10 +97,10 @@ ifeq "$(GEN_F90)" "true"
 	$(CPP) $(CPPFLAGS) $(PHYSICS) $(CHEMISTRY) $(CPPINCLUDES) -I./inc $< > $*.f90
 	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) -I../framework -I../operators -I./physics \
          -I./dynamics -I./diagnostics -I./physics/physics_wrf -I./physics/physics_mmm \
-         -I./physics/physics_noaa/UGWP -I./physics_noaa/NSSL-MP $(MPAS_ESMF_INC) -I./chemistry
+         -I./physics/physics_noaa/UGWP -I./physics/physics_noaa/NSSL-MP $(MPAS_ESMF_INC) -I./chemistry
 else
 	$(FC) $(CPPFLAGS) $(PHYSICS) $(CHEMISTRY) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) \
          -I./inc -I../framework -I../operators -I./physics -I./dynamics -I./diagnostics      \
          -I./physics/physics_wrf -I./physics/physics_mmm -I./physics/physics_noaa/UGWP       \
-         -I./physics_noaa/NSSL-MP $(MPAS_ESMF_INC) -I./chemistry
+         -I./physics/physics_noaa/NSSL-MP $(MPAS_ESMF_INC) -I./chemistry
 endif

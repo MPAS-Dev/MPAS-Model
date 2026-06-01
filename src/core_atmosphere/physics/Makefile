@@ -61,7 +61,7 @@ core_physics_mmm: core_physics_init
 	(cd physics_mmm; $(MAKE) -f Makefile.mpas all)
 
 core_microphysics: core_physics_init core_physics_mmm
-	(cd physics_noaa/NSSL-MP; cp ./MPAS/Makefile .; cp ./MPAS/mp_nssl.F90 .; $(MAKE) COREDEF="$(COREDEF)")
+	(cd physics_noaa/NSSL-MP; ln -sf ./MPAS/Makefile .; ln -sf ./MPAS/mp_nssl.F90 .; $(MAKE) COREDEF="$(COREDEF)")
 
 core_UGWP: core_physics_init
 	(cd physics_noaa/UGWP; $(MAKE) all)
