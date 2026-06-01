@@ -313,7 +313,7 @@
  end subroutine deallocate_microphysics
 
 !=================================================================================================================
- subroutine init_microphysics(dminfo,configs,mesh,state,time_lev,sfc_input,diag_physics)
+ subroutine init_microphysics(dminfo,configs,mesh,state,time_lev,sfc_input,diag_physics,namelist_filename)
 !=================================================================================================================
 
 !input arguments:
@@ -322,6 +322,7 @@
  type(mpas_pool_type),intent(in):: mesh
  type(mpas_pool_type),intent(in):: sfc_input
  integer,intent(in):: time_lev
+ character(len=StrKIND), intent(in) :: namelist_filename
 
 !inout arguments:
  type(mpas_pool_type),intent(inout):: diag_physics
@@ -377,6 +378,7 @@
      case("mp_nssl")
        nml_name = 'namelist.atmosphere' ! at some point need to get name if -n option is used
        i = 1 ! always treat CCN as CCNA (for now)
+       nml_name = namelist_filename ! could try to use an internal namelist file instead of reading
        call mp_nssl_init( errflg=errflg, errmsg=errmsg, threads=1, restart=.false., &
                               fn_nml=nml_name,                                      &
                               mpirank = dminfo%my_proc_id, mpiroot = IO_NODE,    &
@@ -387,7 +389,7 @@
                               nssl_alphar=config_nssl_alphar, nssl_ehw0=config_nssl_ehw0, nssl_ehlw0=config_nssl_ehlw0,   &
                               nssl_ccn_on=config_nssl_ccn_on, nssl_hail_on=config_nssl_hail_on, nssl_invertccn=.false., &
                               nssl_3moment=config_nssl_3moment, nssl_ccn_is_ccna=i )
-     
+
     case("mp_wsm6")
        call mp_wsm6_init(den0=rho_a,denr=rho_r,dens=rho_s,cl=cliq,cpv=cpv, &
                          hail_opt=hail_opt,errmsg=errmsg,errflg=errflg)

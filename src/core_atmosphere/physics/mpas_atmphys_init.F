@@ -81,7 +81,7 @@
 
 !=================================================================================================================
  subroutine physics_init(dminfo,stream_manager,clock,configs,mesh,diag,tend,tend_physics,state,time_lev,diag_physics, &
-                         diag_physics_noahmp,ngw_input,atm_input,sfc_input,output_noahmp)
+                         diag_physics_noahmp,ngw_input,atm_input,sfc_input,output_noahmp,namelist_filename)
 !=================================================================================================================
 
 use mpas_stream_manager
@@ -92,6 +92,7 @@ use mpas_stream_manager
  type(mpas_pool_type),intent(in):: mesh
  type(mpas_pool_type),intent(in):: configs
  type(MPAS_Clock_type),intent(in):: clock
+ character(len=StrKIND), intent(in) :: namelist_filename
 
  integer,intent(in):: time_lev
 
@@ -406,7 +407,7 @@ use mpas_stream_manager
 
 !initialization of cloud microphysics processes:
  if(config_microp_scheme .ne. 'off') &
-    call init_microphysics(dminfo,configs,mesh,state,time_lev,sfc_input,diag_physics)
+    call init_microphysics(dminfo,configs,mesh,state,time_lev,sfc_input,diag_physics,namelist_filename)
 
 !initialization of PBL processes:
  if(config_pbl_scheme .ne. 'off') call init_pbl(configs)

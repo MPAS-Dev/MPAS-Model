@@ -256,7 +256,7 @@ module atm_core
          call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
          call mpas_pool_get_subpool(block % structs, 'state', state)
 
-         call atm_mpas_init_block(domain % dminfo, domain % streamManager, block, mesh, dt)
+         call atm_mpas_init_block(domain % dminfo, domain % streamManager, block, mesh, dt, domain%namelist_filename)
 
          call mpas_pool_get_array(state, 'xtime', xtime, 1)
          xtime = startTimeStamp
@@ -363,7 +363,7 @@ module atm_core
    end subroutine atm_simulation_clock_init
 
 
-   subroutine atm_mpas_init_block(dminfo, stream_manager, block, mesh, dt)
+   subroutine atm_mpas_init_block(dminfo, stream_manager, block, mesh, dt, namelist_filename)
    
       use atm_time_integration
       use mpas_rbf_interpolation
@@ -384,6 +384,7 @@ module atm_core
       type (block_type), intent(inout) :: block
       type (mpas_pool_type), intent(inout) :: mesh     !MGD does this need to be a pointer?
       real (kind=RKIND), intent(in) :: dt
+      character(len=StrKIND), intent(in) :: namelist_filename
 
       type (mpas_pool_type), pointer :: state
       type (mpas_pool_type), pointer :: diag
@@ -592,7 +593,8 @@ module atm_core
 
          !initialization of all physics:
          call physics_init(dminfo, stream_manager, clock, block % configs, mesh, diag, tend, tend_physics, state, 1, &
-                           diag_physics, diag_physics_noahmp, ngw_input, atm_input, sfc_input, output_noahmp)
+                           diag_physics, diag_physics_noahmp, ngw_input, atm_input, sfc_input, output_noahmp,        &
+                           namelist_filename)
       endif
 #endif
    
