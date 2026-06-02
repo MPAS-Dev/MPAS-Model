@@ -10008,7 +10008,7 @@
 
 !------------------------------------------------------------------
 MODULE module_ra_rrtmg_sw
-use mpas_atmphys_constants,only : cp,g=>gravity
+use mpas_atmphys_constants,only : cp,g=>gravity,pii
 use module_ra_rrtmg_vinterp,only: vinterp_ozn
 
 use parrrsw, only : nbndsw, ngptsw, naerec
@@ -10042,7 +10042,6 @@ CONTAINS
                        its,ite, jts,jte, kts,kte                       &
                        )
 
- use mpas_constants, only : pii
  implicit none
 
 !=================================================================================================================
