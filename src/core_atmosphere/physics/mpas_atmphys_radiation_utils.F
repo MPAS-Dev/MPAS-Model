@@ -20,20 +20,16 @@
  contains
 
 !=================================================================================================================
- subroutine radconst(declin,solcon,julian,degrad,dpd,co2,year)
+ subroutine radconst(declin,solcon,julian,degrad,dpd)
 !=================================================================================================================
-!
-! computes solar declination
-! computes co2 concentration from WRF v4.2 (Jimy Dudhia)
-!
+
 !input arguments:
+!integer,intent(in):: julian
  real(kind=RKIND),intent(in):: julian
  real(kind=RKIND),intent(in):: degrad,dpd
- integer, intent(in):: year
 
 !output arguments:
  real(kind=RKIND),intent(out):: declin,solcon
- real(kind=RKIND),intent(out):: co2
 
 !local variables:
  real(kind=RKIND):: obecl,sinob,sxlong,arg,decdeg,djul,rjul,eccfac
@@ -54,7 +50,6 @@
 
  if(julian.ge.80.)sxlong=dpd*(julian-80.)
  if(julian.lt.80.)sxlong=dpd*(julian+285.)
-
  sxlong=sxlong*degrad
  arg=sinob*sin(sxlong)
  declin=asin(arg)
@@ -68,10 +63,6 @@
         cos(2*rjul)+0.000077*sin(2*rjul)
  solcon=solcon_0*eccfac
 
-!estimate co2 concentration from an equation from WRF4.2
-
- co2 = co2_estimate(year,julian)
-
  end subroutine radconst
 
 !=================================================================================================================
@@ -79,6 +70,8 @@
 !=================================================================================================================
 
 ! This function calculates CO2 from an equation in WRF by J. Dudhia
+! The function is a smoothly increasing, time-dependent CO2 concentration function.
+! The function form is a close fit for past CO2 growth and extrapolates it for the future.
 
  implicit none
 

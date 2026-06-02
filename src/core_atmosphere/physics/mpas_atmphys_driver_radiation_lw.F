@@ -16,7 +16,7 @@
  use mpas_atmphys_camrad_init
  use mpas_atmphys_rrtmg_lwinit
  use mpas_atmphys_vars
- use mpas_atmphys_radiation_utils, only: radconst
+ use mpas_atmphys_radiation_utils, only: radconst, co2_estimate
 
 !wrf physics:
  use module_ra_cam            
@@ -844,8 +844,10 @@
 ! This should be OMP MASTER with barrier afterwards or OMP SINGLE, since declin and solcon
 ! are global variables in mpas_atmphys_vars.F and race conditions may occur otherwise!
 !$OMP SINGLE
-!... calculates solar declination and co2 concentration:
- call radconst(declin,solcon,curr_julday,degrad,dpd,co2_val,year)
+!... calculates solar declination:
+ call radconst(declin,solcon,curr_julday,degrad,dpd)
+!... estimates co2 concentration using a function of year: 
+ co2_val = co2_estimate(year,curr_julday) 
 !$OMP END SINGLE
 
 !call to longwave radiation scheme:
