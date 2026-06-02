@@ -21,6 +21,7 @@ module mpas_stream_manager
               MPAS_stream_mgr_finalize, &
               MPAS_stream_mgr_create_stream, &
               MPAS_stream_mgr_validate_streams, &
+              MPAS_stream_mgr_validate_streams2, &
               MPAS_stream_mgr_destroy_stream, &
               MPAS_stream_mgr_get_clock, &
               MPAS_stream_mgr_set_property, &
@@ -566,6 +567,90 @@ module mpas_stream_manager
 
     end subroutine MPAS_stream_mgr_validate_streams!}}}
 
+
+
+    !-----------------------------------------------------------------------
+    !  routine MPAS_stream_mgr_validate_streams2
+    !
+    !> \brief Validate all streams or one stream, if optional argument streamID is present.
+    !> \author Dom Heinzeller
+    !> \date   12 September 2017
+    !> \details
+    !>  Validates all streams of a stream manager, or one stream if optional argument
+    !>  streamID is specified. A low-level validation of streams happens within
+    !>  xml_stream_parser in xml_stream_parser.c (e.g. immutable streams must not be
+    !>  specified as mutable streams etc.). MPAS_stream_mgr_validate_streams performs
+    !>  higher-level checks that should stay separate from the low-level checks and
+    !>  that may require additional logic or settings not necessarily present when
+    !>  calling xml_stream_parser.
+    !
+    !-----------------------------------------------------------------------
+    subroutine MPAS_stream_mgr_validate_streams2(manager, ierr)!{{{
+
+        implicit none
+
+        type (MPAS_streamManager_type), intent(inout) :: manager
+        integer, intent(out), optional :: ierr
+
+        character(len=StrKIND) :: stream1_name, stream2_name, stream1_filename, stream2_filename
+        character(len=StrKIND) :: filename_interval
+        integer :: direction, io_type, threadNum, err_local
+        character (len=StrKIND) :: message, streamID
+        type (MPAS_stream_list_type), pointer :: stream1_cursor, stream2_cursor
+
+        logical :: stream1_active, stream2_active, stream1_pkg_active, stream2_pkg_active
+
+        STREAM_DEBUG_WRITE('-- Called MPAS_stream_mgr_validate_streams2() for all streams')
+
+        threadNum = mpas_threading_get_thread_num()
+
+        if ( threadNum == 0 ) then
+
+        streamID = '.*' !  query all streams
+
+        nullify(stream1_cursor)
+        do while (MPAS_stream_list_query(manager % streams, streamID, stream1_cursor, ierr=err_local))
+            
+            stream1_name = stream1_cursor % name
+            stream1_active = stream1_cursor % active_stream
+            stream1_filename = stream1_cursor % filename_template
+            stream1_pkg_active = stream_active_pkg_check(stream1_cursor)
+
+            call mpas_log_write('Stream 1 '//trim(stream1_name)//' filename '//trim(stream1_filename)//' &
+             active = $l  packages_active $l',logicArgs=(/stream1_active, stream1_pkg_active/))
+
+            if ( stream1_active .and. stream1_pkg_active) then
+            
+                nullify(stream2_cursor)
+                do while (MPAS_stream_list_query(manager % streams, streamID, stream2_cursor, ierr=err_local))
+
+                    stream2_name = stream2_cursor % name
+                    stream2_active = stream2_cursor % active_stream
+                    stream2_pkg_active = stream_active_pkg_check(stream2_cursor)
+
+                    ! uniqueness_check has already checked that two different streams do not have the same name
+                    if ( trim(stream1_name) /= trim(stream2_name) .and. stream2_active .and. stream2_pkg_active) then
+
+                        stream2_filename = stream2_cursor % filename_template
+                        call mpas_log_write('Stream 2 '//trim(stream2_name)//' filename '//trim(stream2_filename)//' &
+                            active = $l  pkg_active: $l',logicArgs=(/stream2_active, stream2_pkg_active/))
+                        
+                        if ( trim(stream1_filename) == trim(stream2_filename) ) then
+                            message = 'Filename template ''' // trim(stream1_filename) // ''' is used by multiple active streams (e.g. stream ''' // trim(stream1_name) // ''' and stream ''' // trim(stream2_name) // '''). This may lead to file conflicts. Please ensure that each active stream has a unique filename template.'
+                            call mpas_log_write(message, MPAS_LOG_CRIT)
+                        end if
+
+                    end if
+                end do
+                
+            end if
+
+        end do
+        
+        end if
+
+                    
+    end subroutine MPAS_stream_mgr_validate_streams2!}}}
 
     !-----------------------------------------------------------------------
     !  routine MPAS_stream_mgr_destroy_stream
