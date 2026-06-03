@@ -486,13 +486,6 @@ int uniqueness_check(ezxml_t stream1, ezxml_t stream2)
 			fmt_err(msgbuf);
 			return 1;
 		}
-		// if (strstr(type, "output") != NULL || strstr(type2, "output") != NULL){
-		// 	if (strcmp(filename, filename2) == 0) {
-		// 		snprintf(msgbuf, MSGSIZE, "Output streams \"%s\" and \"%s\" cannot share the filename_template \"%s\".", name, name2, filename);
-		// 		fmt_err(msgbuf);
-		// 		return 1;
-		// 	}
-		// }
 	}
 
 	return 0;
