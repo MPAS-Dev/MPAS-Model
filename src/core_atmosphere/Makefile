@@ -84,6 +84,7 @@ clean:
 	( cd utils; $(MAKE) clean )
 	( cd ../..; rm -f *TBL )
 	( cd ../..; rm -f *DATA* )
+	( cd ../..; rm -f ccn_activate.bin )
 	$(RM) -r libphys
 	$(RM) *.o *.mod *.f90 libdycore.a
 	$(RM) Registry_processed.xml
