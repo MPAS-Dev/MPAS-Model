@@ -21,7 +21,6 @@ module mpas_stream_manager
               MPAS_stream_mgr_finalize, &
               MPAS_stream_mgr_create_stream, &
               MPAS_stream_mgr_validate_streams, &
-              MPAS_stream_mgr_validate_streams2, &
               MPAS_stream_mgr_destroy_stream, &
               MPAS_stream_mgr_get_clock, &
               MPAS_stream_mgr_set_property, &
@@ -564,28 +563,30 @@ module mpas_stream_manager
 #endif
 
         end do
+        
+        ! Only check filename_template uniqueness when validating all streams 
+        if (.not. present(streamID)) then
+            call MPAS_stream_mgr_check_filename_template(manager, ierr=err_local)
+        end if
 
     end subroutine MPAS_stream_mgr_validate_streams!}}}
 
 
 
     !-----------------------------------------------------------------------
-    !  routine MPAS_stream_mgr_validate_streams2
+    !  routine MPAS_stream_mgr_check_filename_template
     !
-    !> \brief Validate all streams or one stream, if optional argument streamID is present.
-    !> \author Dom Heinzeller
-    !> \date   12 September 2017
+    !> \brief Check for identical filename templates in active output streams.
+    !> \author Abishek Gopal
+    !> \date   June 3 2026
     !> \details
-    !>  Validates all streams of a stream manager, or one stream if optional argument
-    !>  streamID is specified. A low-level validation of streams happens within
-    !>  xml_stream_parser in xml_stream_parser.c (e.g. immutable streams must not be
-    !>  specified as mutable streams etc.). MPAS_stream_mgr_validate_streams performs
-    !>  higher-level checks that should stay separate from the low-level checks and
-    !>  that may require additional logic or settings not necessarily present when
-    !>  calling xml_stream_parser.
+    !>  Checks that there are no identical filename templates among active output
+    !>  streams in the stream manager, which may lead to file conflicts. This 
+    !>  routine can be called from within MPAS_stream_mgr_validate_streams or 
+    !>  separately as needed. 
     !
     !-----------------------------------------------------------------------
-    subroutine MPAS_stream_mgr_validate_streams2(manager, ierr)!{{{
+    subroutine MPAS_stream_mgr_check_filename_template(manager, ierr)!{{{
 
         implicit none
 
@@ -601,7 +602,7 @@ module mpas_stream_manager
         logical :: stream1_active, stream2_active, stream1_pkg_active, stream2_pkg_active
         logical :: stream1_output, stream2_output
 
-        STREAM_DEBUG_WRITE('-- Called MPAS_stream_mgr_validate_streams2() for all streams')
+        STREAM_DEBUG_WRITE('-- Called MPAS_stream_mgr_check_filename_template() for all streams')
 
         threadNum = mpas_threading_get_thread_num()
 
@@ -657,7 +658,7 @@ module mpas_stream_manager
         end if
 
                     
-    end subroutine MPAS_stream_mgr_validate_streams2!}}}
+    end subroutine MPAS_stream_mgr_check_filename_template!}}}
 
     !-----------------------------------------------------------------------
     !  routine MPAS_stream_mgr_destroy_stream
