@@ -299,7 +299,7 @@
                      description="Whether to recompute subgrid-scale orography statistics for the GSL drag directly on the native MPAS mesh (case 7 only)"
                      possible_values="true or false"/>
 
-                <nml_option name="config_gwd_cell_scaling"      type="real"          default_value="1.0"      in_defaults="false"
+                <nml_option name="config_gwd_cell_scaling"      type="real"          default_value="2.0"      in_defaults="false"
                      units="-"
                      description="Scaling factor for the effective grid cell diameter used in computation of GWD static fields"
                      possible_values="Positive real values"/>
@@ -474,6 +474,7 @@
                         <var name="ol2" packages="vertical_stage_in;met_stage_in"/>
                         <var name="ol3" packages="vertical_stage_in;met_stage_in"/>
                         <var name="ol4" packages="vertical_stage_in;met_stage_in"/>
+                        <var name="elvmax" packages="vertical_stage_in;met_stage_in"/>
                         <var name="deriv_two" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="cell_gradient_coef_x" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="cell_gradient_coef_y" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
@@ -577,6 +578,7 @@
                         <var name="ol2" packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
                         <var name="ol3" packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
                         <var name="ol4" packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
+                        <var name="elvmax" packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
                         <var name="deriv_two"/>
                         <var name="cell_gradient_coef_x"/>
                         <var name="cell_gradient_coef_y"/>
@@ -939,6 +941,10 @@
                 <var name="ol4" type="real" dimensions="nCells" units="unitless"
                      description="effective orographic length for north-westerly flow"
                      packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
+                <var name="elvmax" type="real" dimensions="nCells" units="m"
+                     description="elevation maximum over a grid cell"
+                     packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
+
 
                 <!-- GSL GWDO fields - meso-scale -->
                 <var name="var2dls" type="real" dimensions="nCells" units="m"

@@ -370,6 +370,7 @@ module atm_core
       use mpas_vector_reconstruction
       use mpas_stream_manager
       use mpas_atm_boundaries, only : mpas_atm_setup_bdy_masks
+      use mpas_constants, only : omega
 #ifdef DO_PHYSICS
 !     use mpas_atmphys_aquaplanet
       use mpas_atmphys_control
@@ -404,6 +405,7 @@ module atm_core
       real (kind=RKIND), dimension(:), pointer :: dvEdge, invDvEdge
       real (kind=RKIND), dimension(:), pointer :: dcEdge, invDcEdge
       real (kind=RKIND), dimension(:), pointer :: areaTriangle, invAreaTriangle
+      real (kind=RKIND), dimension(:), pointer :: fcell, latcell
       integer, pointer :: nCells_ptr, nEdges_ptr, nVertices_ptr, nVertLevels_ptr, nEdgesSolve
       integer :: nCells, nEdges, nVertices, nVertLevels
       integer :: thread
@@ -447,6 +449,8 @@ module atm_core
       
       call mpas_pool_get_array(mesh, 'areaTriangle', areaTriangle)
       call mpas_pool_get_array(mesh, 'invAreaTriangle', invAreaTriangle)
+      call mpas_pool_get_array(mesh, 'fCell', fcell)
+      call mpas_pool_get_array(mesh, 'latCell', latcell)
       
       call mpas_pool_get_dimension(mesh, 'nCells', nCells_ptr)      
       call mpas_pool_get_dimension(mesh, 'nEdges', nEdges_ptr)
@@ -472,6 +476,10 @@ module atm_core
          invAreaTriangle(iVertex) = 1.0_RKIND / areaTriangle(iVertex)
       end do
       
+      do iCell=1,nCells 
+         fcell(iCell) =  2. * omega * sin(latcell(iCell))
+      end do
+
       !!!!! End compute inverses
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

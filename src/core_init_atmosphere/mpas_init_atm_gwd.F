@@ -97,6 +97,9 @@ module mpas_init_atm_gwd
    !>  con
    !>  ol{1,2,3,4}
    !>  oa{1,2,3,4}
+   !>  
+   !>  Added elvmax for blocking, revised oa and ol computations 
+   !>  date : 24 August 2025, Songyou Hong (hong@ucar.edu) 
    !
    !-----------------------------------------------------------------------
    function compute_gwd_fields(domain) result(iErr)
@@ -113,7 +116,7 @@ module mpas_init_atm_gwd
 
       type (mpas_pool_type), pointer :: mesh, state
       integer :: iCell, i
-      real (kind=RKIND) :: dc
+      real (kind=RKIND) :: dc, hratio
       real (kind=RKIND), pointer :: config_gwd_cell_scaling
       integer, pointer :: nCells
       integer, pointer :: nEdges
@@ -210,7 +213,7 @@ module mpas_init_atm_gwd
       call mpas_pool_get_array(mesh, 'oa2', oa2)
       call mpas_pool_get_array(mesh, 'oa3', oa3)
       call mpas_pool_get_array(mesh, 'oa4', oa4)
-      ! call mpas_pool_get_array(mesh, 'elvmax', elvmax)
+      call mpas_pool_get_array(mesh, 'elvmax', elvmax)
       ! call mpas_pool_get_array(mesh, 'theta', htheta)
       ! call mpas_pool_get_array(mesh, 'gamma', hgamma)
       ! call mpas_pool_get_array(mesh, 'sigma', hsigma)
@@ -247,6 +250,7 @@ module mpas_init_atm_gwd
          ! cell by averaging the distances to each of the neighboring cells
          !
          dc = 0.0
+         hratio = 0.0
          do i=1,nEdgesOnCell(iCell)
             dc = dc + dcEdge(edgesOnCell(i,iCell))
          end do
@@ -255,7 +259,13 @@ module mpas_init_atm_gwd
             dc = dc * sphere_radius
          end if
          dc = dc * config_gwd_cell_scaling
-
+         !
+         ! for effective grid spacing (dc) being too small to compute mountain statistics, 
+         ! apply a scale awareness with the ratio of dc / mtn data resolution (sg_delta ) 
+         ! minimum number of points in a box is assumed at 4 x 4
+         ! it apples to standard deviation (var)
+         hratio = dc / (sg_delta)
+         if(hratio <  4.0) dc = sg_delta * 4.0
          !
          ! Cut out a rectangular piece of the global 30-arc-second topography
          ! data that is centered at the lat/lon (in radians) of the current cell being
@@ -279,6 +289,9 @@ module mpas_init_atm_gwd
          ! subroutines to compute each sub-grid orography statistic
          !
          var2d(iCell) = get_var(box, box_mean, nx, ny)
+         if(hratio <  4.0) then
+           var2d(iCell) = var2d(iCell) * hratio * 0.25
+         endif
          con(iCell) = get_con(box, box_landuse, box_mean, nx, ny)
          oa1(iCell) = get_oa1(box, box_mean, nx, ny)
          oa2(iCell) = get_oa2(box, box_mean, nx, ny)
@@ -290,14 +303,14 @@ module mpas_init_atm_gwd
          ! in a General Circulation Model. J. Climate, 9, 2698-2717.
          hc = 1116.2_RKIND - 0.878_RKIND * var2d(iCell)
 
-         ol1(iCell) = get_ol1(box, nx, ny)
-         ol2(iCell) = get_ol2(box, nx, ny)
-         ol3(iCell) = get_ol3(box, nx, ny)
-         ol4(iCell) = get_ol4(box, nx, ny)
+         ol1(iCell) = get_ol1(box, box_mean, nx, ny)
+         ol2(iCell) = get_ol2(box, box_mean, nx, ny)
+         ol3(iCell) = get_ol3(box, box_mean, nx, ny)
+         ol4(iCell) = get_ol4(box, box_mean, nx, ny)
 
          hlanduse(iCell) = get_dom_landmask(box_landuse, nx, ny)  ! get dominant land mask in cell
 
-         ! elvmax(iCell) = get_elvmax(box, nx, ny)
+         elvmax(iCell) = get_elvmax(box, nx, ny)
          ! htheta(iCell) = get_htheta(box, dxm, nx, ny)
          ! hgamma(iCell) = get_hgamma(box, dxm, nx, ny)
          ! hsigma(iCell) = get_hsigma(box, dxm, nx, ny)
@@ -945,9 +958,16 @@ module mpas_init_atm_gwd
       nu = 0
       nd = 0
       do j=1,ny
-         do i=1,nx/2
-            if (box(i,j) > box_mean) nu = nu + 1
-         end do
+        if(mod(nx,2).eq.0.) then
+          do i=1,nx/2
+             if (box(i,j) > box_mean) nu = nu + 1
+          end do
+        else
+          do i=1,nx/2 + 1
+             if (box(i,j) > box_mean) nu = nu + 1
+          end do
+        endif
+
          do i=nx/2+1,nx
             if (box(i,j) > box_mean) nd = nd + 1
          end do
@@ -987,11 +1007,19 @@ module mpas_init_atm_gwd
 
       nu = 0
       nd = 0
-      do j=1,ny/2
-         do i=1,nx
+      if(mod(ny,2).eq.0.) then
+        do j=1,ny/2
+          do i=1,nx
             if (box(i,j) > box_mean) nu = nu + 1
-         end do
-      end do
+          end do
+        end do
+      else
+        do j=1,ny/2 + 1
+          do i=1,nx
+            if (box(i,j) > box_mean) nu = nu + 1
+          end do
+        end do
+      endif
       do j=ny/2+1,ny
          do i=1,nx
             if (box(i,j) > box_mean) nd = nd + 1
@@ -1036,9 +1064,10 @@ module mpas_init_atm_gwd
       ratio = real(ny,RKIND)/real(nx,RKIND)
       do j=1,ny
          do i=1,nx
-            if (nint(real(i,RKIND) * ratio) < (ny - j)) then
+            if (nint(real(i,RKIND) * ratio) <= (ny - j + 1)) then
                if (box(i,j) > box_mean) nu = nu + 1
-            else
+            endif
+            if (nint(real(i,RKIND) * ratio) >= (ny - j + 1)) then
                if (box(i,j) > box_mean) nd = nd + 1
             end if
          end do
@@ -1082,9 +1111,10 @@ module mpas_init_atm_gwd
       ratio = real(ny,RKIND)/real(nx,RKIND)
       do j=1,ny
          do i=1,nx
-            if (nint(real(i,RKIND) * ratio) < j) then
+            if (nint(real(i,RKIND) * ratio) <= j) then
                if (box(i,j) > box_mean) nu = nu + 1
-            else
+            endif
+            if (nint(real(i,RKIND) * ratio) >= j) then
                if (box(i,j) > box_mean) nd = nd + 1
             end if
          end do
@@ -1109,10 +1139,11 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_ol1(box, nx, ny)
+   real (kind=RKIND) function get_ol1(box, box_mean, nx, ny)
 
       implicit none
 
+      real (kind=RKIND), intent(in) :: box_mean
       real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
       integer, intent(in) :: nx, ny
 
@@ -1125,7 +1156,7 @@ module mpas_init_atm_gwd
 
       do j=ny/4,3*ny/4
          do i=1,nx
-            if (box(i,j) > hc) nw = nw + 1
+            if (box(i,j) > box_mean) nw = nw + 1
             nt = nt + 1
          end do
       end do
@@ -1145,10 +1176,11 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_ol2(box, nx, ny)
+   real (kind=RKIND) function get_ol2(box, box_mean, nx, ny)
 
       implicit none
 
+      real (kind=RKIND), intent(in) :: box_mean
       real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
       integer, intent(in) :: nx, ny
 
@@ -1161,7 +1193,7 @@ module mpas_init_atm_gwd
 
       do j=1,ny
          do i=nx/4,3*nx/4
-            if (box(i,j) > hc) nw = nw + 1
+            if (box(i,j) > box_mean) nw = nw + 1
             nt = nt + 1
          end do
       end do
@@ -1181,10 +1213,11 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_ol3(box, nx, ny)
+   real (kind=RKIND) function get_ol3(box, box_mean, nx, ny)
 
       implicit none
 
+      real (kind=RKIND), intent(in) :: box_mean
       real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
       integer, intent(in) :: nx, ny
 
@@ -1197,13 +1230,13 @@ module mpas_init_atm_gwd
 
       do j=1,ny/2
          do i=1,nx/2
-            if (box(i,j) > hc) nw = nw + 1
+            if (box(i,j) > box_mean) nw = nw + 1
             nt = nt + 1
          end do
       end do
       do j=ny/2+1,ny
          do i=nx/2+1,nx
-            if (box(i,j) > hc) nw = nw + 1
+            if (box(i,j) > box_mean) nw = nw + 1
             nt = nt + 1
          end do
       end do
@@ -1223,10 +1256,11 @@ module mpas_init_atm_gwd
    !> \details 
    !
    !-----------------------------------------------------------------------
-   real (kind=RKIND) function get_ol4(box, nx, ny)
+   real (kind=RKIND) function get_ol4(box, box_mean, nx, ny)
 
       implicit none
 
+      real (kind=RKIND), intent(in) :: box_mean
       real (kind=RKIND), dimension(:,:), pointer, intent(in) :: box   ! Subset of topography covering a grid cell
       integer, intent(in) :: nx, ny
 
@@ -1239,13 +1273,13 @@ module mpas_init_atm_gwd
 
       do j=ny/2+1,ny
          do i=1,nx/2
-            if (box(i,j) > hc) nw = nw + 1
+            if (box(i,j) > box_mean) nw = nw + 1
             nt = nt + 1
          end do
       end do
       do j=1,ny/2
          do i=nx/2+1,nx
-            if (box(i,j) > hc) nw = nw + 1
+            if (box(i,j) > box_mean) nw = nw + 1
             nt = nt + 1
          end do
       end do
