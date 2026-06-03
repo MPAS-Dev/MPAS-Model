@@ -52,6 +52,7 @@ physcore: mpas_atm_dimensions.o
 	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_wrf/files/*TBL .)
 	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_wrf/files/*DATA* .)
 	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_noahmp/parameters/*TBL .)
+	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_noaa/TEMPO/tables/ccn_activate.bin .)
 
 chemcore:
 	( cd chemistry; $(MAKE) all CHEMISTRY="$(CHEMISTRY)" )
