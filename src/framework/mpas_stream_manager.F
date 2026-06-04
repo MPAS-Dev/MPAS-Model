@@ -581,9 +581,9 @@ module mpas_stream_manager
     !> \date   June 3 2026
     !> \details
     !>  Checks that there are no identical filename templates among active output
-    !>  streams in the stream manager, which may lead to file conflicts. This 
-    !>  routine can be called from within MPAS_stream_mgr_validate_streams or 
-    !>  separately as needed. 
+    !>  streams in the stream manager, which may lead to file conflicts. This
+    !>  routine can be called from within MPAS_stream_mgr_validate_streams or
+    !>  separately as needed.
     !
     !-----------------------------------------------------------------------
     subroutine MPAS_stream_mgr_check_filename_template(manager, ierr)!{{{
@@ -611,7 +611,7 @@ module mpas_stream_manager
 
         nullify(stream1_cursor)
         do while (MPAS_stream_list_query(manager % streams, streamID, stream1_cursor, ierr=err_local))
-            
+
             stream1_name = stream1_cursor % name
             stream1_active = stream1_cursor % active_stream
             stream1_filename = stream1_cursor % filename_template
@@ -623,7 +623,7 @@ module mpas_stream_manager
              & active = $l output = $l  packages_active $l',logicArgs=(/stream1_active, stream1_output, stream1_pkg_active/))
 
             if ( stream1_active .and. stream1_output .and. stream1_pkg_active) then
-            
+   
                 nullify(stream2_cursor)
                 do while (MPAS_stream_list_query(manager % streams, streamID, stream2_cursor, ierr=err_local))
 
@@ -639,7 +639,7 @@ module mpas_stream_manager
                         stream2_filename = stream2_cursor % filename_template
                         call mpas_log_write('Stream 2 '//trim(stream2_name)//' filename '//trim(stream2_filename)//' &
                             & active = $l output = $l pkg_active: $l',logicArgs=(/stream2_active, stream2_output, stream2_pkg_active/))
-                        
+
                         if ( trim(stream1_filename) == trim(stream2_filename) ) then
                             message = 'Found identical values of the filename_template attribute for multiple active output streams &
                                        & (' // trim(stream1_name) // ' and ' // trim(stream2_name) // ') in streams.<CORE>. This may &
@@ -649,14 +649,14 @@ module mpas_stream_manager
 
                     end if
                 end do
-                
+
             end if
 
         end do
-        
+
         end if
 
-                    
+      
     end subroutine MPAS_stream_mgr_check_filename_template!}}}
 
     !-----------------------------------------------------------------------
