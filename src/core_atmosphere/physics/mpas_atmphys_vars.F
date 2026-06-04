@@ -374,11 +374,11 @@
 !=================================================================================================================
 
  logical,parameter:: &
-    flag_bep = .false. !flag to use BEP/BEP+BEM for use in the YSU PBL scheme (with urban physics). since we do
+    flag_bep = .false. !flag to use BEP/BEP+BEM for use in the SHINHONG/YSU PBL scheme (with urban physics). since we do
                        !not run urban physics, flag_bep is always set to false.
 
  integer,parameter:: &
-    idiff = 0          !BEP/BEM+BEM diffusion flag for use in the YSU PBL scheme (with urban physics). since we
+    idiff = 0          !BEP/BEM+BEM diffusion flag for use in the SHINHONG/YSU PBL scheme (with urban physics). since we
                        !do not run urban physics, idiff is set to zero.
 
  integer:: ysu_pblmix
@@ -394,6 +394,7 @@
     hpbl_p,           &!PBL height                                                                             [m]
     delta_p,          &!
     wstar_p,          &!
+    fcell_p,          &!
     uoce_p,           &!
     voce_p             !
 
@@ -469,8 +470,8 @@
     sina_p             !sine of map rotation                                                                   [-]
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
-    var2d_p,          &!orographic variance                                                                   [m2]
-    con_p,            &!orographic convexity                                                                  [m2]
+    var2d_p,          &!orographic variance (indeed standard deviation)                                                                   [m]
+    con_p,            &!orographic convexity                                                                   [-]
     oa1_p,            &!orographic direction asymmetry function                                                [-]
     oa2_p,            &!orographic direction asymmetry function                                                [-]
     oa3_p,            &!orographic direction asymmetry function                                                [-]
