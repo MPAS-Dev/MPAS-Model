@@ -567,6 +567,7 @@ module mpas_stream_manager
         ! Only check filename_template uniqueness when validating all streams 
         if (.not. present(streamID)) then
             call MPAS_stream_mgr_check_filename_template(manager, ierr=err_local)
+            if (present(ierr)) ierr = err_local
         end if
 
     end subroutine MPAS_stream_mgr_validate_streams!}}}
@@ -592,13 +593,15 @@ module mpas_stream_manager
         type (MPAS_streamManager_type), intent(inout) :: manager
         integer, intent(out), optional :: ierr
 
-        integer :: threadNum, err_local
+        integer :: threadNum
         character (len=StrKIND) :: message, streamID
         type (MPAS_stream_list_type), pointer :: stream1_cursor, stream2_cursor
         logical :: stream1_pkg_active, stream2_pkg_active
         logical :: stream1_output, stream2_output
 
         STREAM_DEBUG_WRITE('-- Called MPAS_stream_mgr_check_filename_template() for all streams')
+
+        if (present(ierr)) ierr = MPAS_STREAM_LIST_NOERR
 
         threadNum = mpas_threading_get_thread_num()
 
@@ -607,7 +610,7 @@ module mpas_stream_manager
             streamID = '.*' !  query all streams
 
             nullify(stream1_cursor)
-            do while (MPAS_stream_list_query(manager % streams, streamID, stream1_cursor, ierr=err_local))
+            do while (MPAS_stream_list_query(manager % streams, streamID, stream1_cursor))
 
                 stream1_pkg_active = stream_active_pkg_check(stream1_cursor)
                 stream1_output = (stream1_cursor % direction == MPAS_STREAM_OUTPUT) .or. &
@@ -622,7 +625,7 @@ module mpas_stream_manager
                 end if
 
                 nullify(stream2_cursor)
-                do while (MPAS_stream_list_query(manager % streams, streamID, stream2_cursor, ierr=err_local))
+                do while (MPAS_stream_list_query(manager % streams, streamID, stream2_cursor))
 
                     stream2_pkg_active = stream_active_pkg_check(stream2_cursor)
                     stream2_output = (stream2_cursor % direction == MPAS_STREAM_OUTPUT) .or. &
@@ -639,11 +642,14 @@ module mpas_stream_manager
                     call mpas_log_write('Stream 2 '//trim(stream2_cursor % name)//' filename '//trim(stream2_cursor % filename_template)//' &
                         & active = $l output = $l pkg_active: $l',logicArgs=(/stream2_cursor % active_stream, stream2_output, stream2_pkg_active/))
 
-                    if ( trim(stream1_cursor % filename_template) == trim(stream2_cursor % filename_template) ) then
-                        message = 'Found identical values of the filename_template attribute for multiple active output streams &
-                                    & (' // trim(stream1_cursor % name) // ' and ' // trim(stream2_cursor % name) // ') in streams.<CORE>. This may &
-                                    & result in file conflicts.'
-                        call mpas_log_write(message, MPAS_LOG_CRIT)
+                    if (trim(stream1_cursor % filename_template) == trim(stream2_cursor % filename_template)) then
+                        message = 'Found identical values of the filename_template attribute for multiple &
+                                  active output streams (' // trim(stream1_cursor % name) // ' and ' // &
+                                  trim(stream2_cursor % name) // ') in streams.<CORE>. This may result in &
+                                  file conflicts.'
+                        call mpas_log_write(message)
+                        if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
+                        return
                     end if
 
                 end do
