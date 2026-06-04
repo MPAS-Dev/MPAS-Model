@@ -594,7 +594,6 @@ module mpas_stream_manager
         integer, intent(out), optional :: ierr
 
         character(len=StrKIND) :: stream1_name, stream2_name, stream1_filename, stream2_filename
-        character(len=StrKIND) :: filename_interval
         integer :: threadNum, err_local
         character (len=StrKIND) :: message, streamID
         type (MPAS_stream_list_type), pointer :: stream1_cursor, stream2_cursor
@@ -621,7 +620,7 @@ module mpas_stream_manager
                              (stream1_cursor % direction == MPAS_STREAM_INPUT_OUTPUT)
 
             call mpas_log_write('Stream 1 '//trim(stream1_name)//' filename '//trim(stream1_filename)//' &
-             active = $l output = $l  packages_active $l',logicArgs=(/stream1_active, stream1_output, stream1_pkg_active/))
+             & active = $l output = $l  packages_active $l',logicArgs=(/stream1_active, stream1_output, stream1_pkg_active/))
 
             if ( stream1_active .and. stream1_output .and. stream1_pkg_active) then
             
@@ -639,12 +638,12 @@ module mpas_stream_manager
 
                         stream2_filename = stream2_cursor % filename_template
                         call mpas_log_write('Stream 2 '//trim(stream2_name)//' filename '//trim(stream2_filename)//' &
-                            active = $l output = $l pkg_active: $l',logicArgs=(/stream2_active, stream2_output, stream2_pkg_active/))
+                            & active = $l output = $l pkg_active: $l',logicArgs=(/stream2_active, stream2_output, stream2_pkg_active/))
                         
                         if ( trim(stream1_filename) == trim(stream2_filename) ) then
                             message = 'Found identical values of the filename_template attribute for multiple active output streams &
-                                       (' // trim(stream1_name) // ' and ' // trim(stream2_name) // ') in streams.<CORE>. This may &
-                                        result in file conflicts.'
+                                       & (' // trim(stream1_name) // ' and ' // trim(stream2_name) // ') in streams.<CORE>. This may &
+                                       & result in file conflicts.'
                             call mpas_log_write(message, MPAS_LOG_CRIT)
                         end if
 
