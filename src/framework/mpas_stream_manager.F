@@ -572,7 +572,6 @@ module mpas_stream_manager
     end subroutine MPAS_stream_mgr_validate_streams!}}}
 
 
-
     !-----------------------------------------------------------------------
     !  routine MPAS_stream_mgr_check_filename_template
     !
@@ -593,12 +592,10 @@ module mpas_stream_manager
         type (MPAS_streamManager_type), intent(inout) :: manager
         integer, intent(out), optional :: ierr
 
-        character(len=StrKIND) :: stream1_name, stream2_name, stream1_filename, stream2_filename
         integer :: threadNum, err_local
         character (len=StrKIND) :: message, streamID
         type (MPAS_stream_list_type), pointer :: stream1_cursor, stream2_cursor
-
-        logical :: stream1_active, stream2_active, stream1_pkg_active, stream2_pkg_active
+        logical :: stream1_pkg_active, stream2_pkg_active
         logical :: stream1_output, stream2_output
 
         STREAM_DEBUG_WRITE('-- Called MPAS_stream_mgr_check_filename_template() for all streams')
@@ -607,57 +604,56 @@ module mpas_stream_manager
 
         if ( threadNum == 0 ) then
 
-        streamID = '.*' !  query all streams
+            streamID = '.*' !  query all streams
 
-        nullify(stream1_cursor)
-        do while (MPAS_stream_list_query(manager % streams, streamID, stream1_cursor, ierr=err_local))
+            nullify(stream1_cursor)
+            do while (MPAS_stream_list_query(manager % streams, streamID, stream1_cursor, ierr=err_local))
 
-            stream1_name = stream1_cursor % name
-            stream1_active = stream1_cursor % active_stream
-            stream1_filename = stream1_cursor % filename_template
-            stream1_pkg_active = stream_active_pkg_check(stream1_cursor)
-            stream1_output = (stream1_cursor % direction == MPAS_STREAM_OUTPUT) .or. &
-                             (stream1_cursor % direction == MPAS_STREAM_INPUT_OUTPUT)
+                stream1_pkg_active = stream_active_pkg_check(stream1_cursor)
+                stream1_output = (stream1_cursor % direction == MPAS_STREAM_OUTPUT) .or. &
+                                 (stream1_cursor % direction == MPAS_STREAM_INPUT_OUTPUT)
 
-            call mpas_log_write('Stream 1 '//trim(stream1_name)//' filename '//trim(stream1_filename)//' &
-             & active = $l output = $l  packages_active $l',logicArgs=(/stream1_active, stream1_output, stream1_pkg_active/))
+                call mpas_log_write('Stream 1 '//trim(stream1_cursor % name)//' filename '//trim(stream1_cursor % filename_template)//' &
+                & active = $l output = $l  packages_active $l',logicArgs=(/stream1_cursor % active_stream, stream1_output, stream1_pkg_active/))
 
-            if ( stream1_active .and. stream1_output .and. stream1_pkg_active) then
-   
+                if (.not. stream1_cursor % active_stream .or. .not. stream1_output &
+                    .or. .not. stream1_pkg_active) then
+                    cycle
+                end if
+
                 nullify(stream2_cursor)
                 do while (MPAS_stream_list_query(manager % streams, streamID, stream2_cursor, ierr=err_local))
 
-                    stream2_name = stream2_cursor % name
-                    stream2_active = stream2_cursor % active_stream
                     stream2_pkg_active = stream_active_pkg_check(stream2_cursor)
                     stream2_output = (stream2_cursor % direction == MPAS_STREAM_OUTPUT) .or. &
-                             (stream2_cursor % direction == MPAS_STREAM_INPUT_OUTPUT)
+                                     (stream2_cursor % direction == MPAS_STREAM_INPUT_OUTPUT)
 
                     ! uniqueness_check has already checked that two different streams do not have the same name
-                    if ( trim(stream1_name) /= trim(stream2_name) .and. stream2_active .and. stream2_output .and. stream2_pkg_active) then
-
-                        stream2_filename = stream2_cursor % filename_template
-                        call mpas_log_write('Stream 2 '//trim(stream2_name)//' filename '//trim(stream2_filename)//' &
-                            & active = $l output = $l pkg_active: $l',logicArgs=(/stream2_active, stream2_output, stream2_pkg_active/))
-
-                        if ( trim(stream1_filename) == trim(stream2_filename) ) then
-                            message = 'Found identical values of the filename_template attribute for multiple active output streams &
-                                       & (' // trim(stream1_name) // ' and ' // trim(stream2_name) // ') in streams.<CORE>. This may &
-                                       & result in file conflicts.'
-                            call mpas_log_write(message, MPAS_LOG_CRIT)
-                        end if
-
+                    if (trim(stream1_cursor % name) == trim(stream2_cursor % name) &
+                        .or. .not. stream2_cursor % active_stream &
+                        .or. .not. stream2_output &
+                        .or. .not. stream2_pkg_active) then
+                        cycle
                     end if
+
+                    call mpas_log_write('Stream 2 '//trim(stream2_cursor % name)//' filename '//trim(stream2_cursor % filename_template)//' &
+                        & active = $l output = $l pkg_active: $l',logicArgs=(/stream2_cursor % active_stream, stream2_output, stream2_pkg_active/))
+
+                    if ( trim(stream1_cursor % filename_template) == trim(stream2_cursor % filename_template) ) then
+                        message = 'Found identical values of the filename_template attribute for multiple active output streams &
+                                    & (' // trim(stream1_cursor % name) // ' and ' // trim(stream2_cursor % name) // ') in streams.<CORE>. This may &
+                                    & result in file conflicts.'
+                        call mpas_log_write(message, MPAS_LOG_CRIT)
+                    end if
+
                 end do
 
-            end if
-
-        end do
+            end do
 
         end if
-
       
     end subroutine MPAS_stream_mgr_check_filename_template!}}}
+
 
     !-----------------------------------------------------------------------
     !  routine MPAS_stream_mgr_destroy_stream
