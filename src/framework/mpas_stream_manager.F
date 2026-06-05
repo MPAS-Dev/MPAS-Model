@@ -601,7 +601,7 @@ module mpas_stream_manager
 
         STREAM_DEBUG_WRITE('-- Called MPAS_stream_mgr_check_filename_template() for all streams')
 
-        if (present(ierr)) ierr = MPAS_STREAM_LIST_NOERR
+        if (present(ierr)) ierr = MPAS_STREAM_MGR_NOERR
 
         threadNum = mpas_threading_get_thread_num()
 
@@ -616,11 +616,7 @@ module mpas_stream_manager
                 stream1_output = (stream1_cursor % direction == MPAS_STREAM_OUTPUT) .or. &
                                  (stream1_cursor % direction == MPAS_STREAM_INPUT_OUTPUT)
 
-                call mpas_log_write('Stream 1 '//trim(stream1_cursor % name)//' filename '//trim(stream1_cursor % filename_template)//' &
-                & active = $l output = $l  packages_active $l',logicArgs=(/stream1_cursor % active_stream, stream1_output, stream1_pkg_active/))
-
-                if (.not. stream1_cursor % active_stream .or. .not. stream1_output &
-                    .or. .not. stream1_pkg_active) then
+                if (.not. stream1_cursor % active_stream .or. .not. stream1_output .or. .not. stream1_pkg_active) then
                     cycle
                 end if
 
@@ -639,15 +635,11 @@ module mpas_stream_manager
                         cycle
                     end if
 
-                    call mpas_log_write('Stream 2 '//trim(stream2_cursor % name)//' filename '//trim(stream2_cursor % filename_template)//' &
-                        & active = $l output = $l pkg_active: $l',logicArgs=(/stream2_cursor % active_stream, stream2_output, stream2_pkg_active/))
-
                     if (trim(stream1_cursor % filename_template) == trim(stream2_cursor % filename_template)) then
-                        message = 'Found identical values of the filename_template attribute for multiple &
-                                  active output streams (' // trim(stream1_cursor % name) // ' and ' // &
-                                  trim(stream2_cursor % name) // ') in streams.<CORE>. This may result in &
-                                  file conflicts.'
-                        call mpas_log_write(message)
+                        message = 'Found identical values of the filename_template attribute for multiple active output streams, ' &
+                                  // trim(stream1_cursor % name) // ' and ' // trim(stream2_cursor % name) // &
+                                  ', in streams.<CORE>. This may result in file conflicts.'
+                        call mpas_log_write(message, messageType=MPAS_LOG_ERR)
                         if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
                         return
                     end if
@@ -657,7 +649,7 @@ module mpas_stream_manager
             end do
 
         end if
-      
+
     end subroutine MPAS_stream_mgr_check_filename_template!}}}
 
 
