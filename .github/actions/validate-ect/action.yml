@@ -46,6 +46,7 @@ runs:
         # not stored in ci-config.env. See .github/actions/mpas-version.
         echo "summary-file=${ECT_SUMMARY_FILE}" >> $GITHUB_OUTPUT
         echo "pycect-tag=${PYCECT_TAG}" >> $GITHUB_OUTPUT
+        echo "pycect-commit=${PYCECT_COMMIT}" >> $GITHUB_OUTPUT
         echo "release-tag=ect-v${{ inputs.mpas-version }}" >> $GITHUB_OUTPUT
 
     - name: Install PyCECT dependencies
@@ -56,8 +57,17 @@ runs:
       shell: bash
       run: |
         TAG="${{ steps.config.outputs.pycect-tag }}"
-        echo "Cloning PyCECT at tag ${TAG}..."
-        git clone --depth 1 --branch "${TAG}" https://github.com/NCAR/PyCECT.git pycect
+        COMMIT="${{ steps.config.outputs.pycect-commit }}"
+        echo "Cloning PyCECT at tag ${TAG} (commit ${COMMIT})..."
+        git clone --branch "${TAG}" https://github.com/NCAR/PyCECT.git pycect
+        cd pycect
+        if [ -n "${COMMIT}" ]; then
+          ACTUAL=$(git rev-parse HEAD)
+          if [ "${ACTUAL}" != "${COMMIT}" ]; then
+            echo "::error::PyCECT commit mismatch: expected ${COMMIT}, got ${ACTUAL}"
+            exit 1
+          fi
+        fi
 
     - name: Download ensemble summary file
       id: summary

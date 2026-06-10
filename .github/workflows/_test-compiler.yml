@@ -40,7 +40,7 @@ jobs:
       image: ${{ steps.container.outputs.image }}
       mpas-version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           sparse-checkout: |
             .github
@@ -63,14 +63,14 @@ jobs:
       image: ${{ needs.config.outputs.image }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           repository: ${{ inputs.mpas-repository || github.repository }}
           ref: ${{ inputs.mpas-ref || '' }}
           submodules: 'true'
           persist-credentials: false
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         if: ${{ inputs.mpas-repository != '' }}
         with:
           path: _ci
@@ -92,7 +92,7 @@ jobs:
           precision: double
 
       - name: Upload executable
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: exe-${{ inputs.compiler }}-${{ inputs.mpi }}-smiol
           path: atmosphere_model
@@ -112,13 +112,13 @@ jobs:
       image: ${{ needs.config.outputs.image }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           persist-credentials: false
 
       - name: Download executable
         id: download
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         continue-on-error: true
         with:
           name: exe-${{ inputs.compiler }}-${{ inputs.mpi }}-smiol
@@ -133,7 +133,7 @@ jobs:
       - name: Restore cached restart
         if: steps.download.outcome == 'success'
         id: cache-restart
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: spinup-restart.nc
           key: ect-spinup-restart-${{ hashFiles('.github/ci-config.env') }}
@@ -185,7 +185,7 @@ jobs:
           restart-file: ${{ steps.restart.outputs.available == 'true' && steps.restart.outputs.file || '' }}
 
       - name: Upload history file
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always() && steps.download.outcome == 'success'
         with:
           name: ect-history-${{ inputs.compiler }}-${{ inputs.mpi }}-member${{ matrix.member }}
@@ -199,19 +199,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           sparse-checkout: .github
           persist-credentials: false
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: '3.11'
 
       - name: Download history files
         id: download
         continue-on-error: true
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           pattern: ect-history-${{ inputs.compiler }}-${{ inputs.mpi }}-*
           path: ect-test-files
@@ -231,7 +231,7 @@ jobs:
 
       - name: Upload result
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: ect-result-${{ inputs.compiler }}-${{ inputs.mpi }}
           path: ect-result.txt
