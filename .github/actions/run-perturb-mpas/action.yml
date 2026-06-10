@@ -1,0 +1,284 @@
+name: 'Run Perturbed MPAS'
+description: >
+  Run one or more perturbed MPAS-A ensemble members for ECT.
+  Handles IC perturbation, namelist/stream configuration, model execution,
+  and optional history file trimming. Supports both single-member
+  (ect-test) and batched (ect-ensemble-gen) use cases.
+
+inputs:
+  base-dir:
+    description: 'Path to the base test case directory (copied per member)'
+    required: true
+  executable:
+    description: 'Path to atmosphere_model executable'
+    required: true
+  member-start:
+    description: 'First ensemble member index'
+    required: true
+  member-end:
+    description: 'Last ensemble member index (same as member-start for single member)'
+    required: true
+  run-duration:
+    description: 'Model run duration per member (format: D_HH:MM:SS)'
+    required: true
+  run-timeout:
+    description: 'Per-member timeout in minutes'
+    required: false
+    default: '45'
+  num-ranks:
+    description: 'Number of MPI ranks per member'
+    required: false
+    default: '1'
+  mpi-impl:
+    description: 'MPI implementation (openmpi, mpich)'
+    required: false
+    default: 'openmpi'
+  output-dir:
+    description: 'Directory to collect trimmed history files'
+    required: false
+    default: 'history-output'
+  trim:
+    description: 'Trim history files after run (true/false)'
+    required: false
+    default: 'true'
+  restart-file:
+    description: 'Path to a spun-up restart file. When set, each member starts from this restart (with config_do_restart=.true.) instead of init.nc.'
+    required: false
+    default: ''
+  verbose:
+    description: 'Print detailed diagnostics for each member (namelist dumps, theta stats)'
+    required: false
+    default: 'false'
+
+outputs:
+  status:
+    description: 'Overall status (success/partial/failed)'
+    value: ${{ steps.run-members.outputs.status }}
+  members-completed:
+    description: 'Number of members that produced history files'
+    value: ${{ steps.run-members.outputs.members-completed }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run perturbed members
+      id: run-members
+      shell: bash
+      run: |
+        source /container/config_env.sh
+
+        if command -v conda &>/dev/null; then
+          eval "$(conda shell.bash hook)" 2>/dev/null
+          conda activate base 2>/dev/null || true
+        fi
+
+        if ! python3 -c "import netCDF4, numpy" 2>/dev/null; then
+          if python3 -m pip install --quiet netCDF4 numpy 2>/dev/null; then
+            echo "Installed netCDF4/numpy via pip"
+          elif command -v conda &>/dev/null; then
+            conda install -y -q netCDF4 numpy
+            echo "Installed netCDF4/numpy via conda"
+          else
+            echo "::error::Could not install netCDF4 (no pip, no conda)"
+            exit 1
+          fi
+        fi
+        echo "python3: $(which python3) — $(python3 --version)"
+
+        if [ -z "${LD_LIBRARY_PATH}" ]; then
+          export LD_LIBRARY_PATH="/usr/lib64:/usr/lib"
+        fi
+
+        CI_CONFIG="${GITHUB_WORKSPACE}/.github/ci-config.env"
+        if [ -f "${CI_CONFIG}" ]; then
+          source "${CI_CONFIG}"
+        fi
+        ulimit -s unlimited 2>/dev/null || true
+
+        BASEDIR="${{ inputs.base-dir }}"
+        EXE="${{ inputs.executable }}"
+        MEMBER_START=${{ inputs.member-start }}
+        MEMBER_END=${{ inputs.member-end }}
+        NRANKS=${{ inputs.num-ranks }}
+        MPI_IMPL="${{ inputs.mpi-impl }}"
+        OUTDIR="${{ inputs.output-dir }}"
+        TRIM="${{ inputs.trim }}"
+        RESTART_FILE="${{ inputs.restart-file }}"
+        VERBOSE="${{ inputs.verbose }}"
+        RUN_DURATION="${{ inputs.run-duration }}"
+        RUN_TIMEOUT="${{ inputs.run-timeout }}"
+
+        MPI_FLAGS=""
+        if [ "${MPI_IMPL}" = "openmpi" ]; then
+          MPI_FLAGS="${OPENMPI_RUN_FLAGS:---allow-run-as-root --oversubscribe}"
+        fi
+
+        EXCLUDE_FILE=""
+        if [ -n "${ECT_EXCLUDED_VARS}" ]; then
+          EXCLUDE_FILE="${GITHUB_WORKSPACE}/${ECT_EXCLUDED_VARS}"
+        fi
+
+        mkdir -p "${OUTDIR}"
+
+        TOTAL=0
+        COMPLETED=0
+
+        for MEMBER in $(seq ${MEMBER_START} ${MEMBER_END}); do
+          TOTAL=$((TOTAL + 1))
+          MEMBER_ID=$(printf "%04d" ${MEMBER})
+          RUNDIR="run-ect-${MEMBER_ID}"
+          echo ""
+          echo "=========================================="
+          echo "  Ensemble member ${MEMBER_ID}"
+          echo "=========================================="
+
+          cp -r "${BASEDIR}" "${RUNDIR}"
+          chmod +x "${EXE}"
+          ln -sf $(realpath "${EXE}") "${RUNDIR}/atmosphere_model"
+
+          if [ -n "${RESTART_FILE}" ]; then
+            RESTART_TIME=$(python3 -c "
+        import netCDF4, sys
+        ds = netCDF4.Dataset(sys.argv[1])
+        print(ds.variables['xtime'][0].tobytes().decode().strip())
+        ds.close()
+        " "${RESTART_FILE}")
+            RESTART_FNAME="restart.$(echo ${RESTART_TIME} | tr ':' '.').nc"
+            cp "${RESTART_FILE}" "${RUNDIR}/${RESTART_FNAME}"
+            echo "${RESTART_TIME}" > "${RUNDIR}/restart_timestamp"
+            PERTURB_FILE="${RUNDIR}/${RESTART_FNAME}"
+            echo "[$(date +%H:%M:%S)] Restart mode: ${RESTART_FNAME} (time=${RESTART_TIME})"
+          else
+            PERTURB_FILE="${RUNDIR}/init.nc"
+            if [ ! -f "${PERTURB_FILE}" ]; then
+              PERTURB_FILE=$(ls ${RUNDIR}/*.init*.nc 2>/dev/null | head -1)
+            fi
+          fi
+
+          if [ -z "${PERTURB_FILE}" ] || [ ! -f "${PERTURB_FILE}" ]; then
+            echo "::error::Member ${MEMBER_ID}: could not find file to perturb"
+            rm -rf "${RUNDIR}"
+            continue
+          fi
+
+          echo "[$(date +%H:%M:%S)] Perturbing theta (seed=${MEMBER})..."
+          python3 ${GITHUB_WORKSPACE}/.github/actions/run-perturb-mpas/perturb_theta.py \
+            "${PERTURB_FILE}" --seed ${MEMBER} --magnitude ${ECT_PERTURB_MAGNITUDE}
+
+          if [ "${VERBOSE}" = "true" ]; then
+            echo "  Restart MD5: $(md5sum "${PERTURB_FILE}" | cut -d' ' -f1)"
+          fi
+
+          cd "${RUNDIR}"
+
+          if [ -n "${RESTART_FILE}" ]; then
+            sed -i "s/config_do_restart.*/config_do_restart = .true./" namelist.atmosphere
+            sed -i "s/config_start_time.*/config_start_time = 'file'/" namelist.atmosphere
+            sed -i '/&restart/a\    config_do_DAcycling = .true.' namelist.atmosphere
+          fi
+
+          sed -i "s/config_run_duration = '[^']*'/config_run_duration = '${RUN_DURATION}'/" namelist.atmosphere
+          sed -i '/<immutable_stream name="restart"/,/\/>/ s/output_interval="[^"]*"/output_interval="none"/' streams.atmosphere
+          sed -i '/<stream name="output"/,/>/ s/output_interval="[^"]*"/output_interval="'"${RUN_DURATION}"'"/' streams.atmosphere
+
+          echo "[$(date +%H:%M:%S)] Running MPAS-A (${RUN_DURATION}, ${NRANKS} ranks)..."
+          set +e
+          timeout ${RUN_TIMEOUT}m mpirun -n ${NRANKS} ${MPI_FLAGS} ./atmosphere_model
+          RUN_STATUS=$?
+          set -e
+          echo "[$(date +%H:%M:%S)] Model finished (exit code ${RUN_STATUS})"
+
+          for LOGFILE in log.atmosphere.*.out log.atmosphere.*.err; do
+            [ -f "${LOGFILE}" ] || continue
+            EXT="${LOGFILE##*.}"
+            BASE="${LOGFILE%.*}"
+            cp "${LOGFILE}" "../${OUTDIR}/${BASE}.member${MEMBER_ID}.${EXT}"
+          done
+
+          if [ "${VERBOSE}" = "true" ]; then
+            echo "[$(date +%H:%M:%S)] === Namelist config ==="
+            grep -E 'config_do_restart|config_start_time|config_run_duration' namelist.atmosphere || true
+            echo "[$(date +%H:%M:%S)] === Restart stream ==="
+            grep -A2 'immutable_stream name="restart"' streams.atmosphere || true
+            echo "[$(date +%H:%M:%S)] === Output stream ==="
+            grep -A2 'stream name="output"' streams.atmosphere || true
+
+            RESTART_NC=$(ls restart.*.nc 2>/dev/null | head -1)
+            if [ -n "${RESTART_NC}" ]; then
+              echo "[$(date +%H:%M:%S)] === Restart theta check ==="
+              python3 -c "
+        import netCDF4 as nc, numpy as np, sys
+        ds = nc.Dataset(sys.argv[1])
+        th = ds.variables['theta'][:]
+        print(f'  File: {sys.argv[1]}')
+        print(f'  theta dtype={th.dtype} shape={th.shape} mean={np.mean(th):.15e}')
+        ds.close()
+        " "${RESTART_NC}"
+            fi
+          fi
+
+          echo "[$(date +%H:%M:%S)] History files produced:"
+          ls -la history.*.nc 2>/dev/null || echo "  (none)"
+          HIST_FILE=$(ls -t history.*.nc 2>/dev/null | head -1 || true)
+          if [ -n "${HIST_FILE}" ]; then
+            if [ "${VERBOSE}" = "true" ]; then
+              echo "[$(date +%H:%M:%S)] === History theta check ==="
+              python3 -c "
+        import netCDF4 as nc, numpy as np, sys
+        ds = nc.Dataset(sys.argv[1])
+        if 'theta' in ds.variables:
+            th = ds.variables['theta']
+            data = th[:]
+            print(f'  theta dtype={data.dtype} shape={data.shape} mean={np.mean(data):.15e} min={np.min(data):.10e} max={np.max(data):.10e}')
+        else:
+            print('  theta NOT in history variables')
+            print(f'  Available: {list(ds.variables.keys())[:15]}...')
+        ds.close()
+        " "${HIST_FILE}"
+            fi
+            TSLICE=$(python3 -c "
+        import netCDF4, sys
+        ds = netCDF4.Dataset(sys.argv[1])
+        print(ds.dimensions['Time'].size - 1)
+        ds.close()
+        " "${HIST_FILE}")
+            echo "[$(date +%H:%M:%S)] Using tslice=${TSLICE} (last time slice)"
+            if [ "${TRIM}" = "true" ] && [ -n "${EXCLUDE_FILE}" ] && [ -f "${EXCLUDE_FILE}" ]; then
+              python3 ${GITHUB_WORKSPACE}/.github/actions/run-perturb-mpas/trim_history.py \
+                "${HIST_FILE}" "../${OUTDIR}/history.${MEMBER_ID}.nc" \
+                --tslice ${TSLICE} \
+                --exclude-file "${EXCLUDE_FILE}"
+              echo "[$(date +%H:%M:%S)] Saved trimmed history for member ${MEMBER_ID}"
+            else
+              cp "${HIST_FILE}" "../${OUTDIR}/history.${MEMBER_ID}.nc"
+              echo "[$(date +%H:%M:%S)] Saved history for member ${MEMBER_ID}"
+            fi
+            COMPLETED=$((COMPLETED + 1))
+          else
+            echo "::warning::Member ${MEMBER_ID} failed (exit ${RUN_STATUS}, no history file)"
+          fi
+
+          cd ..
+          rm -rf "${RUNDIR}"
+        done
+
+        echo ""
+        echo "=== Completed ${COMPLETED}/${TOTAL} members ==="
+        ls -la "${OUTDIR}/"
+
+        echo "members-completed=${COMPLETED}" >> $GITHUB_OUTPUT
+        if [ ${COMPLETED} -eq ${TOTAL} ]; then
+          echo "status=success" >> $GITHUB_OUTPUT
+        elif [ ${COMPLETED} -gt 0 ]; then
+          echo "status=partial" >> $GITHUB_OUTPUT
+        else
+          echo "status=failed" >> $GITHUB_OUTPUT
+          echo "::error::No ensemble members produced history files"
+          exit 1
+        fi
+
+    - name: Print MPAS logs
+      if: always()
+      uses: ./.github/actions/print-mpas-logs
+      with:
+        log-dir: ${{ inputs.output-dir }}

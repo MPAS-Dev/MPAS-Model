@@ -1,0 +1,100 @@
+name: 'ECT Summary'
+description: >
+  Generate a consolidated Ensemble Consistency Test results table from
+  enriched result files produced by the validate-ect action. Writes a
+  Markdown table to $GITHUB_STEP_SUMMARY with auto-discovered columns.
+
+inputs:
+  results-path:
+    description: 'Directory containing downloaded ect-result-* artifact subdirectories'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Generate summary table
+      shell: bash
+      run: |
+        RESULTS_PATH="${{ inputs.results-path }}"
+
+        # Collect all result files
+        RESULT_FILES=()
+        for f in "${RESULTS_PATH}"/ect-result-*/ect-result.txt; do
+          [ -f "$f" ] && RESULT_FILES+=("$f")
+        done
+
+        if [ ${#RESULT_FILES[@]} -eq 0 ]; then
+          echo "::warning::No ECT result files found in ${RESULTS_PATH}"
+          echo "## Ensemble Consistency Test (ECT) Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "No results available." >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+        fi
+
+        # Discover column names from the first result file (all keys except "result")
+        COLUMNS=()
+        while IFS='=' read -r key value; do
+          [ -z "$key" ] && continue
+          if [ "$key" != "result" ]; then
+            COLUMNS+=("$key")
+          fi
+        done < "${RESULT_FILES[0]}"
+
+        # Build header row
+        HEADER="| "
+        SEPARATOR="| "
+        for col in "${COLUMNS[@]}"; do
+          COL_TITLE=$(echo "$col" | sed 's/.*/\u&/')
+          HEADER+="${COL_TITLE} | "
+          SEPARATOR+="--- | "
+        done
+        HEADER+="Result |"
+        SEPARATOR+="--- |"
+
+        # Build data rows
+        PASS=0 FAIL=0 ERROR=0 SKIP=0 TOTAL=0
+        ROWS=""
+        for f in "${RESULT_FILES[@]}"; do
+          TOTAL=$((TOTAL + 1))
+
+          # Parse key=value pairs
+          declare -A DATA=()
+          while IFS='=' read -r key value; do
+            [ -z "$key" ] && continue
+            DATA["$key"]="$value"
+          done < "$f"
+
+          RESULT="${DATA[result]}"
+          case "$RESULT" in
+            PASSED)  ICON="PASSED"; PASS=$((PASS + 1)) ;;
+            FAILED)  ICON="**FAILED**"; FAIL=$((FAIL + 1)) ;;
+            SKIPPED) ICON="SKIPPED"; SKIP=$((SKIP + 1)) ;;
+            *)       ICON="ERROR"; ERROR=$((ERROR + 1)) ;;
+          esac
+
+          ROW="| "
+          for col in "${COLUMNS[@]}"; do
+            ROW+="${DATA[$col]:-—} | "
+          done
+          ROW+="${ICON} |"
+          ROWS+="${ROW}"$'\n'
+
+          unset DATA
+        done
+
+        SORTED_ROWS=$(echo "$ROWS" | sort)
+
+        {
+          echo "## Ensemble Consistency Test (ECT) Results"
+          echo ""
+          echo "$HEADER"
+          echo "$SEPARATOR"
+          echo "$SORTED_ROWS"
+          echo ""
+          echo "**Total: ${TOTAL}** — ${PASS} passed, ${FAIL} failed, ${ERROR} error, ${SKIP} skipped"
+
+          if [ ${FAIL} -gt 0 ] || [ ${ERROR} -gt 0 ]; then
+            echo ""
+            echo "> One or more ECT validations failed. Check individual ECT Validate job logs for PyCECT details."
+          fi
+        } >> "$GITHUB_STEP_SUMMARY"

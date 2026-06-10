@@ -1,0 +1,64 @@
+name: 'Print MPAS Logs'
+description: >
+  Print MPAS per-rank log files (log.atmosphere.<rank>.out / .err) to the
+  workflow log inside collapsible ::group:: blocks. Read-only; never fails
+  on its own (use if: always() at the call site).
+
+inputs:
+  log-dir:
+    description: 'Directory to scan for log files'
+    required: true
+  pattern:
+    description: >
+      Glob (relative to log-dir) of files to print. Default catches both
+      .out and .err per rank.
+    required: false
+    default: 'log.atmosphere.*'
+  max-lines:
+    description: >
+      If set, print only the last N lines of each file via tail. Empty (default)
+      prints the whole file.
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Print logs
+      shell: bash
+      run: |
+        LOG_DIR="${{ inputs.log-dir }}"
+        PATTERN="${{ inputs.pattern }}"
+        MAX_LINES="${{ inputs.max-lines }}"
+
+        if [ ! -d "${LOG_DIR}" ]; then
+          echo "print-mpas-logs: directory '${LOG_DIR}' does not exist; nothing to print."
+          exit 0
+        fi
+
+        cd "${LOG_DIR}"
+        shopt -s nullglob
+
+        # Sort so .out comes before .err per rank (lexical order does this).
+        FILES=( $(ls -1 ${PATTERN} 2>/dev/null | sort) )
+
+        if [ ${#FILES[@]} -eq 0 ]; then
+          echo "print-mpas-logs: no files matching '${PATTERN}' in ${LOG_DIR}."
+          exit 0
+        fi
+
+        echo "print-mpas-logs: ${#FILES[@]} file(s) from ${LOG_DIR}"
+        # Close the implicit group GitHub opens for the run: script source so
+        # the per-file groups below render at the step's top level (collapsible
+        # at normal font size) instead of nested inside the script-source group.
+        echo "::endgroup::"
+        for f in "${FILES[@]}"; do
+          echo "::group::${f}"
+          if [ -n "${MAX_LINES}" ]; then
+            echo "(last ${MAX_LINES} lines)"
+            tail -n "${MAX_LINES}" "${f}" || true
+          else
+            cat "${f}" || true
+          fi
+          echo "::endgroup::"
+        done

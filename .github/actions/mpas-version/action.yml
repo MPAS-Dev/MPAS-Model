@@ -1,0 +1,47 @@
+name: 'Get MPAS Version'
+description: >
+  Read the MPAS version string from src/core_atmosphere/Registry.xml.
+  Strict — fails the workflow if the file is missing or the version
+  attribute cannot be parsed (no silent "unknown" fallback).
+
+inputs:
+  registry-path:
+    description: 'Path to Registry.xml relative to GITHUB_WORKSPACE'
+    required: false
+    default: 'src/core_atmosphere/Registry.xml'
+
+outputs:
+  version:
+    description: 'MPAS version string (e.g., 8.4.0)'
+    value: ${{ steps.extract.outputs.version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: extract
+      shell: bash
+      run: |
+        python3 - "${{ inputs.registry-path }}" <<'PYEOF'
+        import os
+        import sys
+        import xml.etree.ElementTree as ET
+
+        path = sys.argv[1]
+        if not os.path.isfile(path):
+            print(f"::error::MPAS Registry not found at {path}")
+            sys.exit(1)
+        try:
+            root = ET.parse(path).getroot()
+        except ET.ParseError as e:
+            print(f"::error::Could not parse {path}: {e}")
+            sys.exit(1)
+
+        version = root.attrib.get('version')
+        if not version:
+            print(f"::error::No version attribute on <registry> in {path}")
+            sys.exit(1)
+
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+            f.write(f"version={version}\n")
+        print(f"MPAS version: {version}")
+        PYEOF

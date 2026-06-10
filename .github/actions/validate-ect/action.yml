@@ -1,0 +1,200 @@
+name: 'Validate ECT'
+description: >
+  Run PyCECT against an ensemble summary file to validate history output.
+  Installs PyCECT at the pinned version from ci-config.env, downloads the
+  ensemble summary from a GitHub release, runs pyCECT, and writes an
+  enriched result file with dimension metadata for the summary action.
+
+inputs:
+  history-dir:
+    description: 'Path to directory containing history .nc files to validate'
+    required: true
+  label:
+    description: 'Human-readable label for log annotations (e.g. gcc/mpich3/smiol/4proc)'
+    required: true
+  mpas-version:
+    description: 'MPAS version string (used to build the ect-v{version} release tag)'
+    required: true
+  dimensions:
+    description: 'Multi-line key=value pairs describing this test combination (written into result file)'
+    required: false
+    default: ''
+
+outputs:
+  result:
+    description: 'ECT result: PASSED, FAILED, SKIPPED, or ERROR'
+    value: ${{ steps.outcome.outputs.result }}
+  available:
+    description: 'Whether the ensemble summary file was found (true/false)'
+    value: ${{ steps.summary.outputs.available }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Load ECT configuration
+      id: config
+      shell: bash
+      run: |
+        CI_CONFIG=".github/ci-config.env"
+        if [ ! -f "${CI_CONFIG}" ]; then
+          echo "::error::ci-config.env not found"
+          exit 1
+        fi
+        source "${CI_CONFIG}"
+
+        # ECT release tag is derived from the MPAS version (passed in),
+        # not stored in ci-config.env. See .github/actions/mpas-version.
+        echo "summary-file=${ECT_SUMMARY_FILE}" >> $GITHUB_OUTPUT
+        echo "pycect-tag=${PYCECT_TAG}" >> $GITHUB_OUTPUT
+        echo "release-tag=ect-v${{ inputs.mpas-version }}" >> $GITHUB_OUTPUT
+
+    - name: Install PyCECT dependencies
+      shell: bash
+      run: pip install "numpy<2" scipy netCDF4
+
+    - name: Clone PyCECT
+      shell: bash
+      run: |
+        TAG="${{ steps.config.outputs.pycect-tag }}"
+        echo "Cloning PyCECT at tag ${TAG}..."
+        git clone --depth 1 --branch "${TAG}" https://github.com/NCAR/PyCECT.git pycect
+
+    - name: Download ensemble summary file
+      id: summary
+      shell: bash
+      run: |
+        source .github/ci-config.env
+        SUMMARY="${{ steps.config.outputs.summary-file }}"
+        TAG="${{ steps.config.outputs.release-tag }}"
+        REPO="${DATA_REPOSITORY:-${GITHUB_REPOSITORY}}"
+        URL="https://github.com/${REPO}/releases/download/${TAG}/${SUMMARY}"
+
+        echo "Downloading ${SUMMARY} from release ${TAG}..."
+        HTTP_CODE=$(curl --retry 5 --retry-delay 5 -sL -w "%{http_code}" \
+          "${URL}" -o "${SUMMARY}")
+        if [ "${HTTP_CODE}" != "200" ]; then
+          echo "::warning::Ensemble summary not available at ${URL} (HTTP ${HTTP_CODE})"
+          echo "available=false" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        echo "Downloaded summary file: $(du -h ${SUMMARY})"
+        echo "available=true" >> $GITHUB_OUTPUT
+        echo "summary-file=${SUMMARY}" >> $GITHUB_OUTPUT
+
+    - name: List test files
+      if: steps.summary.outputs.available == 'true'
+      shell: bash
+      run: |
+        echo "=== ECT test history files ==="
+        ls -la ${{ inputs.history-dir }}/ 2>/dev/null || echo "No history files found"
+
+    - name: Run PyCECT
+      id: pycect
+      if: steps.summary.outputs.available == 'true'
+      shell: bash
+      run: |
+        LABEL="${{ inputs.label }}"
+        # --tslice 0 is invariant: history files are pre-trimmed to a single
+        # time slice by run-perturb-mpas (trim_history.py creates Time=1).
+        set +e
+        python pycect/pyCECT.py \
+          --sumfile ${{ steps.summary.outputs.summary-file }} \
+          --indir ${{ inputs.history-dir }} \
+          --tslice 0 \
+          --mpas \
+          --verbose \
+          --printStdMean \
+          2>&1 | tee pycect_output.txt
+        PYCECT_STATUS=$?
+        set -e
+
+        if [ $PYCECT_STATUS -ne 0 ]; then
+          echo "::error::pyCECT crashed with exit code ${PYCECT_STATUS}"
+          echo "result=ERROR" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+
+        if grep -qF '****PASSED****' pycect_output.txt; then
+          echo "::notice::ECT (${LABEL}): PASSED"
+          echo "result=PASSED" >> $GITHUB_OUTPUT
+        elif grep -qF '****FAILED****' pycect_output.txt; then
+          echo "::error::ECT (${LABEL}): FAILED"
+          echo "result=FAILED" >> $GITHUB_OUTPUT
+          exit 1
+        else
+          echo "::warning::Could not determine ECT result from pyCECT output"
+          echo "result=ERROR" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+
+    - name: ECT Results
+      if: steps.pycect.outputs.result != ''
+      shell: bash
+      run: |
+        LABEL="${{ inputs.label }}"
+        RESULT="${{ steps.pycect.outputs.result }}"
+
+        if [ "${RESULT}" = "PASSED" ]; then
+          ICON=":white_check_mark:"
+        else
+          ICON=":x:"
+        fi
+
+        {
+          echo "## ECT Result: ${ICON} ${RESULT}"
+          echo ""
+          echo "**Configuration:** \`${LABEL}\`"
+          echo ""
+          echo '```'
+          grep -E '(PASSED|FAILED|global|regional|Overall)' pycect_output.txt || true
+          echo '```'
+          if grep -q 'standardized mean' pycect_output.txt; then
+            echo ""
+            echo "<details><summary>Standardized Mean Summary</summary>"
+            echo ""
+            echo '```'
+            grep 'standardized mean' pycect_output.txt || true
+            echo '```'
+            echo "</details>"
+          fi
+        } >> "$GITHUB_STEP_SUMMARY"
+
+        echo "================================"
+        echo "  ECT Result: ${RESULT}"
+        echo "  Label:      ${LABEL}"
+        echo "================================"
+
+    - name: Fail if summary unavailable
+      if: steps.summary.outputs.available != 'true'
+      shell: bash
+      run: |
+        {
+          echo "## ECT Result: :warning: SKIPPED"
+          echo ""
+          echo "Ensemble summary file not found. Run \`ect-ensemble-gen.yml\` first."
+        } >> "$GITHUB_STEP_SUMMARY"
+        echo "::error::ECT validation cannot run — ensemble summary file not found. Run ect-ensemble-gen.yml first."
+        exit 1
+
+    - name: Write result file
+      id: outcome
+      if: always()
+      shell: bash
+      run: |
+        RESULT="${{ steps.pycect.outputs.result }}"
+        if [ -z "${RESULT}" ]; then
+          if [ "${{ steps.summary.outputs.available }}" != "true" ]; then
+            RESULT="SKIPPED"
+          else
+            RESULT="NO_DATA"
+          fi
+        fi
+        echo "result=${RESULT}" >> $GITHUB_OUTPUT
+
+        {
+          echo "result=${RESULT}"
+          DIMS="${{ inputs.dimensions }}"
+          if [ -n "${DIMS}" ]; then
+            echo "${DIMS}"
+          fi
+        } > ect-result.txt

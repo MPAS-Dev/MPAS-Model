@@ -1,0 +1,97 @@
+name: 'Download Test Data'
+description: 'Download and extract an MPAS test case archive from GitHub releases'
+
+inputs:
+  resolution:
+    description: 'Test case resolution (e.g., 240km, 120km). Used to look up RELEASE_TESTDATA_{RES} in ci-config.env.'
+    required: true
+  dest-dir:
+    description: 'Destination directory name for the extracted test case'
+    required: false
+    default: ''
+
+outputs:
+  case-dir:
+    description: 'Path to the extracted test case directory'
+    value: ${{ steps.extract.outputs.case-dir }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve release tag and archive
+      id: resolve
+      shell: bash
+      run: |
+        RESOLUTION="${{ inputs.resolution }}"
+        ARCHIVE="${RESOLUTION}.tar.gz"
+
+        CI_CONFIG="${GITHUB_WORKSPACE}/.github/ci-config.env"
+        if [ ! -f "${CI_CONFIG}" ]; then
+          echo "::error::ci-config.env not found at ${CI_CONFIG}"
+          exit 1
+        fi
+        source "${CI_CONFIG}"
+
+        RES_UPPER=$(echo "${RESOLUTION}" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+        TAG_VAR="RELEASE_TESTDATA_${RES_UPPER}"
+        TAG="${!TAG_VAR}"
+
+        if [ -z "${TAG}" ]; then
+          echo "::error::No release tag for resolution '${RESOLUTION}'. Add ${TAG_VAR}= to ci-config.env."
+          exit 1
+        fi
+
+        REPO="${DATA_REPOSITORY:-${GITHUB_REPOSITORY}}"
+        URL="https://github.com/${REPO}/releases/download/${TAG}/${ARCHIVE}"
+
+        echo "release-tag=${TAG}" >> $GITHUB_OUTPUT
+        echo "archive=${ARCHIVE}" >> $GITHUB_OUTPUT
+        echo "url=${URL}" >> $GITHUB_OUTPUT
+        echo "Resolved: ${TAG_VAR}=${TAG} → ${URL}"
+
+    - name: Cache test case archive
+      id: cache
+      uses: actions/cache@v5
+      with:
+        path: ${{ steps.resolve.outputs.archive }}
+        key: testdata-${{ steps.resolve.outputs.release-tag }}
+
+    - name: Download test case archive
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        URL="${{ steps.resolve.outputs.url }}"
+        ARCHIVE="${{ steps.resolve.outputs.archive }}"
+        echo "Downloading ${ARCHIVE} from ${URL}..."
+        curl -fsSL --retry 5 --retry-delay 5 "${URL}" -o "${ARCHIVE}"
+        echo "Downloaded $(du -h "${ARCHIVE}" | cut -f1)"
+
+    - name: Extract test case
+      id: extract
+      shell: bash
+      run: |
+        ARCHIVE="${{ steps.resolve.outputs.archive }}"
+        DEST="${{ inputs.dest-dir }}"
+
+        echo "Cache hit: ${{ steps.cache.outputs.cache-hit }}"
+        echo "Archive: ${ARCHIVE} ($(du -h "${ARCHIVE}" | cut -f1))"
+
+        tar xzf "${ARCHIVE}"
+
+        CASE_DIR=$(tar tzf "${ARCHIVE}" 2>/dev/null | head -1 | cut -d/ -f1 || true)
+        if [ -z "${CASE_DIR}" ]; then
+          CASE_DIR=$(ls -td */ 2>/dev/null | head -1 | tr -d '/')
+        fi
+
+        if [ -z "${CASE_DIR}" ] || [ ! -d "${CASE_DIR}" ]; then
+          echo "::error::Failed to extract test case from ${ARCHIVE}"
+          exit 1
+        fi
+
+        if [ -n "${DEST}" ] && [ "${DEST}" != "${CASE_DIR}" ]; then
+          mv "${CASE_DIR}" "${DEST}"
+          CASE_DIR="${DEST}"
+        fi
+
+        echo "case-dir=${CASE_DIR}" >> $GITHUB_OUTPUT
+        echo "Extracted test case to: ${CASE_DIR}"

@@ -1,0 +1,195 @@
+name: 'Run MPAS'
+description: 'Run MPAS-Atmosphere test case'
+
+inputs:
+  executable:
+    description: 'Path to atmosphere_model executable'
+    required: false
+    default: './atmosphere_model'
+  num-procs:
+    description: 'Number of MPI processes'
+    required: false
+    default: '1'
+  run-duration:
+    description: 'Run duration (format: D_HH:MM:SS). If empty, uses the namelist default from the test case archive.'
+    required: false
+    default: ''
+  restart-interval:
+    description: 'Restart output interval (format: D_HH:MM:SS). If empty, uses the streams.atmosphere default.'
+    required: false
+    default: ''
+  resolution:
+    description: 'Test case resolution name (e.g., 240km). Used to download the archive and name the working directory.'
+    required: false
+    default: '240km'
+  mpi-impl:
+    description: 'MPI implementation (openmpi, mpich)'
+    required: false
+    default: ''
+  run-timeout:
+    description: 'Run timeout in minutes'
+    required: false
+    default: '20'
+  working-dir:
+    description: 'Working directory name for the run'
+    required: false
+    default: ''
+  strict-exit-check:
+    description: 'Fail on non-zero exit code (default true). Set false when gfortran IEEE warnings produce non-zero exit but model output is valid.'
+    required: false
+    default: 'true'
+
+outputs:
+  log-dir:
+    description: 'Directory containing log files'
+    value: ${{ steps.run.outputs.log-dir }}
+  status:
+    description: 'Run status (success/failed)'
+    value: ${{ steps.run.outputs.status }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Resolve configuration
+      id: config
+      shell: bash
+      run: |
+        RESOLUTION="${{ inputs.resolution }}"
+        WORKDIR="${{ inputs.working-dir }}"
+        if [ -z "${WORKDIR}" ]; then
+          WORKDIR="run-${RESOLUTION}"
+        fi
+
+        echo "workdir=${WORKDIR}" >> $GITHUB_OUTPUT
+        echo "resolution=${RESOLUTION}" >> $GITHUB_OUTPUT
+
+        echo "=== Run configuration ==="
+        echo "  Resolution: ${RESOLUTION}"
+        echo "  Work dir:   ${WORKDIR}"
+        echo "  Timeout:    ${{ inputs.run-timeout }}m"
+        if [ -n "${{ inputs.run-duration }}" ]; then
+          echo "  Duration:   ${{ inputs.run-duration }} (override)"
+        else
+          echo "  Duration:   (namelist default)"
+        fi
+
+    - name: Download test case
+      uses: ./.github/actions/download-testdata
+      id: download
+      with:
+        resolution: ${{ inputs.resolution }}
+        dest-dir: ${{ steps.config.outputs.workdir }}
+
+    - name: Link executable
+      shell: bash
+      run: |
+        WORKDIR="${{ steps.config.outputs.workdir }}"
+        chmod +x ${{ inputs.executable }}
+        ln -sf $(realpath ${{ inputs.executable }}) "${WORKDIR}/atmosphere_model"
+
+    - name: Configure namelist overrides
+      shell: bash
+      working-directory: ${{ steps.config.outputs.workdir }}
+      run: |
+        if [ -n "${{ inputs.run-duration }}" ]; then
+          DURATION="${{ inputs.run-duration }}"
+          sed -i "s/config_run_duration = '[^']*'/config_run_duration = '${DURATION}'/" namelist.atmosphere
+          echo "Overrode config_run_duration = '${DURATION}'"
+        fi
+
+        if [ -n "${{ inputs.restart-interval }}" ]; then
+          RESTART="${{ inputs.restart-interval }}"
+          sed -i '/<immutable_stream name="restart"/,/\/>/ s/output_interval="[^"]*"/output_interval="'"${RESTART}"'"/' streams.atmosphere
+          echo "Overrode restart output_interval = '${RESTART}'"
+        fi
+
+        echo "=== Namelist ==="
+        grep config_run_duration namelist.atmosphere
+
+    - name: Run MPAS-A
+      id: run
+      shell: bash
+      working-directory: ${{ steps.config.outputs.workdir }}
+      run: |
+        TIMEOUT="${{ inputs.run-timeout }}"
+
+        if [ -f /container/config_env.sh ]; then
+          source /container/config_env.sh
+        fi
+
+        # Workaround: some containers omit LD_LIBRARY_PATH from config_env.sh
+        if [ -z "${LD_LIBRARY_PATH}" ]; then
+          export LD_LIBRARY_PATH="/usr/lib64:/usr/lib"
+        fi
+
+        if [ -n "${{ inputs.mpi-impl }}" ]; then
+          export MPI_IMPL="${{ inputs.mpi-impl }}"
+        fi
+
+        CI_CONFIG="${GITHUB_WORKSPACE}/.github/ci-config.env"
+        if [ -f "${CI_CONFIG}" ]; then
+          source "${CI_CONFIG}"
+        fi
+
+        MPI_FLAGS=""
+        if [ "${MPI_IMPL}" = "openmpi" ]; then
+          MPI_FLAGS="${OPENMPI_RUN_FLAGS:---allow-run-as-root --oversubscribe}"
+        fi
+
+        ulimit -s unlimited 2>/dev/null || echo "Warning: Could not set unlimited stack size"
+
+        echo "=== Run configuration ==="
+        echo "  Resolution: ${{ steps.config.outputs.resolution }}"
+        echo "  Processors: ${{ inputs.num-procs }}"
+        echo "  MPI_IMPL: ${MPI_IMPL:-auto}"
+        echo "  MPI_FLAGS: ${MPI_FLAGS}"
+        echo "  Stack limit: $(ulimit -s)"
+        echo "  Available CPUs: $(nproc 2>/dev/null || echo unknown)"
+        echo "  Available RAM: $(free -m 2>/dev/null | awk '/^Mem:/{print $2 "MB"}' || echo unknown)"
+        echo "  LD_LIBRARY_PATH: ${LD_LIBRARY_PATH:-not set}"
+
+        set +e
+        timeout ${TIMEOUT}m mpirun -n ${{ inputs.num-procs }} ${MPI_FLAGS} ./atmosphere_model
+        RUN_STATUS=$?
+        set -e
+
+        echo "log-dir=$(pwd)" >> $GITHUB_OUTPUT
+        echo "run-exit-code=${RUN_STATUS}" >> $GITHUB_OUTPUT
+        if [ $RUN_STATUS -eq 0 ]; then
+          echo "status=success" >> $GITHUB_OUTPUT
+        elif [ "${{ inputs.strict-exit-check }}" = "false" ]; then
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "::warning::Model exited with status ${RUN_STATUS} (non-strict mode, treating as success)"
+        else
+          echo "status=failed" >> $GITHUB_OUTPUT
+          echo "::warning::Model run exited with status $RUN_STATUS"
+        fi
+
+    - name: List output files
+      shell: bash
+      if: always()
+      run: |
+        WORKDIR="${{ steps.config.outputs.workdir }}"
+        echo "=== Output files ==="
+        if [ -d "${WORKDIR}" ]; then
+          cd "${WORKDIR}"
+          ls -la log.* 2>/dev/null || echo "No log files found"
+          ls -la *.nc 2>/dev/null || echo "No NetCDF files found"
+        else
+          echo "Working directory ${WORKDIR} does not exist"
+        fi
+
+    - name: Print MPAS logs
+      if: always()
+      uses: ./.github/actions/print-mpas-logs
+      with:
+        log-dir: ${{ steps.config.outputs.workdir }}
+
+    - name: Check run status
+      shell: bash
+      if: always()
+      run: |
+        if [ "${{ steps.run.outputs.status }}" = "failed" ]; then
+          echo "::error::MPAS model run failed with exit code ${{ steps.run.outputs.run-exit-code }}"
+          exit 1
+        fi

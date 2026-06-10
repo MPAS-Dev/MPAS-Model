@@ -1,0 +1,141 @@
+name: 'Build MPAS'
+description: 'Build MPAS-Atmosphere with specified compiler configuration'
+
+inputs:
+  compiler:
+    description: 'Compiler family (gcc, nvhpc, oneapi, etc.)'
+    required: true
+  use-pio:
+    description: 'Use PIO library (true/false)'
+    required: false
+    default: 'false'
+  openacc:
+    description: 'Enable OpenACC (true/false)'
+    required: false
+    default: 'false'
+  precision:
+    description: 'Floating-point precision (single or double)'
+    required: false
+    default: 'single'
+  build-timeout:
+    description: 'Build timeout in minutes'
+    required: false
+    default: '20'
+
+outputs:
+  executable:
+    description: 'Path to built executable'
+    value: ${{ steps.build.outputs.executable }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Build MPAS-A
+      id: build
+      shell: bash
+      run: |
+        # Source container environment if available
+        # This sets NETCDF, PNETCDF, PIO, and other library paths
+        if [ -f /container/config_env.sh ]; then
+          echo "Sourcing container environment from /container/config_env.sh"
+          source /container/config_env.sh
+        fi
+
+        # MPAS Makefile uses `cpp` for Registry preprocessing.
+        # Some containers (e.g. openSUSE Leap) don't ship it separately.
+        if ! command -v cpp &>/dev/null; then
+          echo "cpp not found, installing..."
+          if command -v zypper &>/dev/null; then
+            zypper install -y --no-recommends cpp
+          elif command -v dnf &>/dev/null; then
+            dnf install -y cpp
+          elif command -v apt-get &>/dev/null; then
+            apt-get update && apt-get install -y cpp
+          fi
+        fi
+        
+        # Map compiler input to COMPILER_FAMILY if not already set
+        # The container should set this, but we provide a fallback
+        if [ -z "${COMPILER_FAMILY}" ]; then
+          case "${{ inputs.compiler }}" in
+            gcc|gfortran|gnu)   export COMPILER_FAMILY="gcc" ;;
+            nvhpc|nvfortran)    export COMPILER_FAMILY="nvhpc" ;;
+            oneapi|intel|ifx)   export COMPILER_FAMILY="oneapi" ;;
+            llvm|flang|clang)   export COMPILER_FAMILY="clang" ;;
+            *)                  export COMPILER_FAMILY="${{ inputs.compiler }}" ;;
+          esac
+        fi
+        
+        # Set up I/O configuration
+        if [ "${{ inputs.use-pio }}" = "true" ]; then
+          export PIO_ROOT=${PIO_ROOT:-/container/pio}
+          export USE_PIO2=true
+        else
+          unset PIO
+          export USE_PIO2=false
+        fi
+        
+        # Set up accelerator configuration
+        if [ "${{ inputs.openacc }}" = "true" ]; then
+          export OPENACC=true
+        fi
+        
+        echo "Build configuration:"
+        echo "  Compiler input: ${{ inputs.compiler }}"
+        echo "  COMPILER_FAMILY: ${COMPILER_FAMILY}"
+        echo "  NETCDF: ${NETCDF:-not set}"
+        echo "  PNETCDF: ${PNETCDF:-not set}"
+        echo "  USE_PIO2: ${USE_PIO2}"
+        echo "  OPENACC: ${OPENACC:-false}"
+        echo "  PRECISION: ${{ inputs.precision }}"
+        
+        # Settings from .github/ci-config.env — edit that file to change targets/workarounds
+        CI_CONFIG="${GITHUB_WORKSPACE}/.github/ci-config.env"
+        if [ -f "${CI_CONFIG}" ]; then
+          source "${CI_CONFIG}"
+        fi
+
+        # Map COMPILER_FAMILY to make target via ci-config.env lookup
+        VARNAME="MAKE_TARGET_${COMPILER_FAMILY}"
+        MAKE_TARGET="${!VARNAME}"
+        if [ -z "${MAKE_TARGET}" ]; then
+          echo "::error::No make target for COMPILER_FAMILY=${COMPILER_FAMILY}. Add MAKE_TARGET_${COMPILER_FAMILY}= to .github/ci-config.env"
+          exit 1
+        fi
+
+        EXTRA_MAKE_FLAGS=""
+        if [ "${COMPILER_FAMILY}" = "nvhpc" ]; then
+          ARCH="${NVHPC_TARGET_ARCH:--tp=px}"
+          sed -i "/^nvhpc:/,/^[a-z]/ s/\"FFLAGS_OPT = /\"FFLAGS_OPT = ${ARCH} /" Makefile
+          sed -i "/^nvhpc:/,/^[a-z]/ s/\"CFLAGS_OPT = /\"CFLAGS_OPT = ${ARCH} /" Makefile
+          sed -i "/^nvhpc:/,/^[a-z]/ s/\"CXXFLAGS_OPT = /\"CXXFLAGS_OPT = ${ARCH} /" Makefile
+          sed -i "/^nvhpc:/,/^[a-z]/ s/\"LDFLAGS_OPT = /\"LDFLAGS_OPT = ${ARCH} /" Makefile
+          EXTRA_MAKE_FLAGS="${NVHPC_EXTRA_MAKE_FLAGS}"
+        elif [ "${COMPILER_FAMILY}" = "oneapi" ]; then
+          EXTRA_MAKE_FLAGS="${ONEAPI_EXTRA_MAKE_FLAGS}"
+        fi
+
+        echo "  Make target: ${MAKE_TARGET}"
+        echo "  Extra make flags: ${EXTRA_MAKE_FLAGS:-<none>}"
+        echo "  Parallel jobs: ${MAKE_J_PROCS:-$(nproc)}"
+
+        PRECISION_FLAG=""
+        if [ "${{ inputs.precision }}" = "double" ]; then
+          PRECISION_FLAG="PRECISION=double"
+        fi
+
+        timeout ${{ inputs.build-timeout }}m \
+          make ${MAKE_TARGET} CORE=atmosphere ${EXTRA_MAKE_FLAGS} ${PRECISION_FLAG} --jobs ${MAKE_J_PROCS:-$(nproc)}
+        
+        # Set output
+        echo "executable=$(pwd)/atmosphere_model" >> $GITHUB_OUTPUT
+
+    - name: Verify executable
+      shell: bash
+      run: |
+        if [ ! -f atmosphere_model ]; then
+          echo "ERROR: atmosphere_model not found!"
+          exit 1
+        fi
+        ls -la atmosphere_model
+        file atmosphere_model
