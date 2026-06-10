@@ -1,0 +1,19 @@
+# Subset CI: GNU + OpenMPI (CPU)
+# Quick ECT validation with 4 MPI ranks.
+
+name: "GNU+OpenMPI (CPU)"
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, develop, 'feature/ci-cpu-testing']
+  pull_request:
+    branches: [master, develop, 'feature/ci-cpu-testing']
+
+jobs:
+  test:
+    uses: ./.github/workflows/_test-compiler.yml
+    with:
+      compiler: gcc
+      mpi: openmpi
+
