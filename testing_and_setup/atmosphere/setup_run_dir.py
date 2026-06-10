@@ -159,7 +159,7 @@ if __name__ == '__main__':
             ]
         ]
 
-    atm_files_to_link = ['atmosphere_model', 'build_tables']
+    atm_files_to_link = ['atmosphere_model', 'build_tables', 'tempo_build_tables']
     atm_files_to_link = atm_files_to_link + physics_wrf + physics_noahmp + physics_tempo
     atm_opt_files_to_link = opt_physics_wrf
     atm_files_to_copy = ['default_inputs/' + f
