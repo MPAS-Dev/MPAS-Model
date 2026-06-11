@@ -1590,25 +1590,6 @@ module mpas_timekeeping
       
    end subroutine mpas_set_timeInterval
 
-   subroutine mpas_check_alarms(clock, alarmListPtr, alarmPresent)
-
-      implicit none
-
-      type (MPAS_Clock_type), intent(in) :: clock
-      type (MPAS_stream_list_type), pointer :: alarmListPtr
-      logical, intent(out) :: alarmPresent
-
-      type (MPAS_Alarm_type), pointer :: alarmPtr
-
-      alarmPresent = .false.
-
-      if(associated(alarmListPtr)) then
-         alarmPtr => clock % alarmListHead
-         if (associated(alarmPtr)) alarmPresent = .true.
-      end if
-
-   end subroutine mpas_check_alarms
-
 
    subroutine mpas_get_timeInterval(interval, StartTimeIn, DD, H, M, S, S_n, S_d, S_i8, timeString, dt, ierr)
 ! TODO: add double-precision seconds
