@@ -126,6 +126,7 @@
  integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs
  integer,pointer:: index_nc,index_ni,index_nifa,index_nwfa
  integer,pointer:: nCells,nCellsSolve,nEdges,nEdgesSolve
+ logical,pointer:: config_tempo_aerosolaware
 
  real(kind=RKIND),dimension(:,:),pointer:: mass          ! time level 2 rho_zz
  real(kind=RKIND),dimension(:,:),pointer:: mass_edge     ! diag rho_edge
@@ -159,6 +160,7 @@
  call mpas_pool_get_config(configs,'config_pbl_scheme'       ,pbl_scheme       )
  call mpas_pool_get_config(configs,'config_radt_lw_scheme'   ,radt_lw_scheme   )
  call mpas_pool_get_config(configs,'config_radt_sw_scheme'   ,radt_sw_scheme   )
+ call mpas_pool_get_config(configs,'config_tempo_aerosolaware',config_tempo_aerosolaware)
 
  call mpas_pool_get_array(state,'theta_m' ,theta_m,1)
  call mpas_pool_get_array(state,'scalars' ,scalars,1)
@@ -242,6 +244,7 @@
  call physics_get_tend_work( &
               block,mesh,nCells,nEdges,nCellsSolve,nEdgesSolve,rk_step,dynamics_substep, &
               pbl_scheme,convection_scheme,microp_scheme,radt_lw_scheme,radt_sw_scheme,  &
+              config_tempo_aerosolaware,                                                 &
               index_qv,index_qc,index_qr,index_qi,index_qs,                              &
               index_nc,index_ni,index_nifa,index_nwfa,                                   &
               mass,mass_edge,theta_m,scalars,                                            &
@@ -304,6 +307,7 @@
  subroutine physics_get_tend_work( &
                     block,mesh,nCells,nEdges,nCellsSolve,nEdgesSolve,rk_step,dynamics_substep, &
                     pbl_scheme,convection_scheme,microp_scheme,radt_lw_scheme,radt_sw_scheme,  &
+                    config_tempo_aerosolaware,                                                 &
                     index_qv,index_qc,index_qr,index_qi,index_qs,                              &
                     index_nc,index_ni,index_nifa,index_nwfa,                                   &
                     mass,mass_edge,theta_m,scalars,                                            &
@@ -326,6 +330,7 @@
  character(len=StrKIND),intent(in):: pbl_scheme
  character(len=StrKIND),intent(in):: radt_lw_scheme
  character(len=StrKIND),intent(in):: radt_sw_scheme
+ logical,intent(in):: config_tempo_aerosolaware
 
  integer,intent(in):: nCells,nEdges,nCellsSolve,nEdgesSolve
  integer,intent(in):: rk_step,dynamics_substep
@@ -412,6 +417,16 @@
           enddo
 
           if(trim(microp_scheme) == 'mp_thompson_aerosols') then
+             do i = 1, nCellsSolve
+             do k = 1, nVertLevels
+                tend_scalars(index_nc,k,i) = tend_scalars(index_nc,k,i) + rncblten(k,i)*mass(k,i)
+                tend_scalars(index_nifa,k,i) = tend_scalars(index_nifa,k,i) + rnifablten(k,i)*mass(k,i)
+                tend_scalars(index_nwfa,k,i) = tend_scalars(index_nwfa,k,i) + rnwfablten(k,i)*mass(k,i)
+             enddo
+             enddo
+          endif
+
+          if(trim(microp_scheme) == 'mp_tempo' .and. config_tempo_aerosolaware) then
              do i = 1, nCellsSolve
              do k = 1, nVertLevels
                 tend_scalars(index_nc,k,i) = tend_scalars(index_nc,k,i) + rncblten(k,i)*mass(k,i)
