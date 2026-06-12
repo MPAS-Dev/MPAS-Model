@@ -640,6 +640,7 @@ module mpas_stream_manager
                 end if
 
                 nullify(stream2_cursor)
+                stream2_cursor => stream1_cursor
                 do while (MPAS_stream_list_query(manager % streams, streamID, stream2_cursor))
 
                     stream2_input_nalarms = MPAS_stream_mgr_get_num_alarms(manager, trim(stream2_cursor % name), &
@@ -657,9 +658,8 @@ module mpas_stream_manager
 
                      call mpas_log_write('Stream 2 '//trim(stream2_cursor % name)//' filename '//trim(stream2_cursor % filename_template)//' &
                         & active = $l input = $l output = $l pkg_active: $l',logicArgs=(/stream2_cursor % active_stream, stream2_input, stream2_output, stream2_pkg_active/))
-                    ! uniqueness_check has already checked that two different streams do not have the same name
-                    if (trim(stream1_cursor % name) == trim(stream2_cursor % name) & ! Skip comparing the stream to itself
-                        .or. .not. stream2_cursor % active_stream & ! Skip if Stream 2 is not active
+
+                    if (.not. stream2_cursor % active_stream & ! Skip if Stream 2 is not active
                         .or. .not. (stream2_input .or. stream2_output) &
                         .or. (stream1_input .and. stream2_input) & ! Skip if Streams 1 and 2 are both input streams
                         .or. .not. stream2_pkg_active) then ! Skip if Stream 2 is inactive due to inactive package
