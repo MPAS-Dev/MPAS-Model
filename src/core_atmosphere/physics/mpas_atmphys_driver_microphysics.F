@@ -613,6 +613,7 @@
     !ensure that we only call compute_radar_reflectivity() if we are using an MPS that supports
     !the computation of simulated radar reflectivity:
     if(trim(microp_scheme) == "mp_wsm6"     .or. &
+       trim(microp_scheme) == "mp_tempo"    .or. &
        trim(microp_scheme) == "mp_thompson" .or. &
        trim(microp_scheme) == "mp_thompson_aerosols") then
        call compute_radar_reflectivity(configs,diag_physics,its,ite)
@@ -931,6 +932,35 @@
        if(allocated(qs1d) ) deallocate(qs1d )
        if(allocated(qg1d) ) deallocate(qg1d )
        if(allocated(nr1d) ) deallocate(nr1d )
+       if(allocated(dBz1d)) deallocate(dBZ1d)
+       if(allocated(zp)   ) deallocate(zp   )
+
+    case ("mp_tempo")
+       ! reflectivity is already computed in 3D in the refl10cm_p array, so just read out the values
+       if(.not.allocated(dBz1d)) allocate(dBZ1d(kts:kte))
+       if(.not.allocated(zp)   ) allocate(zp(kts:kte)   )
+
+       do j = jts,jte
+       do i = its,ite
+          do k = kts,kte
+             dBZ1d(k) = -35._RKIND
+             zp(k) = z_p(i,k,j) - z_p(i,1,j) + 0.5*dz_p(i,k,j) ! height AGL
+          enddo
+
+          kp = 1
+          do k = kts,kte
+             dBZ1d(k) = max(-35._RKIND,refl10cm_p(i,k,j))
+             if(zp(k) .lt. 1000.) kp = k
+          enddo
+
+          refl10cm_max(i) = maxval(dBZ1d(:))
+          w1 = (zp(kp+1)-1000.)/(zp(kp+1)-zp(kp))
+          w2 = 1.0 - w1
+          refl10cm_1km(i) = w1*dBZ1d(kp) + w2*dBZ1d(kp+1)
+          refl10cm_1km_max(i) = max(refl10cm_1km_max(i),refl10cm_1km(i))
+        enddo
+        enddo
+
        if(allocated(dBz1d)) deallocate(dBZ1d)
        if(allocated(zp)   ) deallocate(zp   )
 
