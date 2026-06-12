@@ -16,7 +16,7 @@ module init_atm_cases
    use atm_advection
    use mpas_RBF_interpolation
    use mpas_vector_reconstruction
-   use init_atm_vinterp, only: vertical_interp
+   use init_atm_vinterp, only: vertical_interp, vertical_interp_ecmwf
    use mpas_timer
    use mpas_init_atm_static
    use mpas_init_atm_surface
@@ -388,6 +388,155 @@ module init_atm_cases
             call mpas_log_write(' returned from test case setup ')
             block_ptr => block_ptr % next
          end do
+
+      else if (config_init_case == 11) then
+
+         call mpas_log_write('Real-data ECMWF model-level test case (ERA5/IFS)')
+         block_ptr => domain % blocklist
+
+         do while (associated(block_ptr))
+
+            call mpas_pool_get_config(block_ptr % configs, 'config_static_interp', config_static_interp)
+            call mpas_pool_get_config(block_ptr % configs, 'config_native_gwd_static', config_native_gwd_static)
+            call mpas_pool_get_config(block_ptr % configs, 'config_native_gwd_gsl_static', config_native_gwd_gsl_static)
+            call mpas_pool_get_config(block_ptr % configs, 'config_met_interp', config_met_interp)
+            call mpas_pool_get_config(block_ptr % configs, 'config_blend_bdy_terrain', config_blend_bdy_terrain)
+
+            call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
+            call mpas_pool_get_subpool(block_ptr % structs, 'fg', fg)
+            call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
+            call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
+            call mpas_pool_get_subpool(block_ptr % structs, 'diag_physics', diag_physics)
+
+            call mpas_pool_get_dimension(block_ptr % dimensions, 'nCells', nCells)
+            call mpas_pool_get_dimension(block_ptr % dimensions, 'nEdges', nEdges)
+            call mpas_pool_get_dimension(block_ptr % dimensions, 'nVertLevels', nVertLevels)
+
+            if (config_blend_bdy_terrain) then
+                call mpas_pool_get_config(block_ptr % configs, 'config_start_time', config_start_time)
+                call mpas_pool_get_config(block_ptr % configs, 'config_met_prefix', config_met_prefix)
+
+                call blend_bdy_terrain(config_met_prefix, config_start_time, &
+                                       nCells, latCell, lonCell, bdyMaskCell, ter, .true., ierr)
+                if (ierr /= 0) then
+                    call mpas_log_write('*************************************************************', messageType=MPAS_LOG_ERR)
+                    call mpas_log_write('Blending of terrain along domain boundaries would fail, and', messageType=MPAS_LOG_ERR)
+                    call mpas_log_write('config_blend_bdy_terrain = true in the namelist.init_atmosphere file.', &
+                                        messageType=MPAS_LOG_ERR)
+                    call mpas_log_write('*************************************************************', messageType=MPAS_LOG_CRIT)
+                end if
+            end if
+
+            if (config_static_interp) then
+               call init_atm_static(mesh, block_ptr % dimensions, block_ptr % configs)
+            end if
+
+            if (config_native_gwd_static) then
+               call mpas_log_write(' ')
+               call mpas_log_write('Computing GWDO static fields on the native MPAS mesh')
+               call mpas_log_write(' ')
+               ierr = compute_gwd_fields(domain)
+               if (ierr /= 0) then
+                  call mpas_log_write('****************************************************************', messageType=MPAS_LOG_ERR)
+                  call mpas_log_write('Error while trying to compute sub-grid-scale orography',           messageType=MPAS_LOG_ERR)
+                  call mpas_log_write('statistics for use with the GWDO scheme.',                         messageType=MPAS_LOG_ERR)
+                  call mpas_log_write('****************************************************************', messageType=MPAS_LOG_CRIT)
+               end if
+            end if
+
+            if (config_native_gwd_gsl_static) then
+               call mpas_log_write(' ')
+               call mpas_log_write('Computing GWDO static fields for UGWP orog drag on the native MPAS mesh')
+               call mpas_log_write(' ')
+               call calc_gsl_oro_data(domain,ierr)
+               if (ierr /= 0) then
+                  call mpas_log_write('****************************************************************', messageType=MPAS_LOG_ERR)
+                  call mpas_log_write('Error while trying to compute sub-grid-scale GSL orography',       messageType=MPAS_LOG_ERR)
+                  call mpas_log_write('statistics for use with the GWDO scheme.',                         messageType=MPAS_LOG_ERR)
+                  call mpas_log_write('****************************************************************', messageType=MPAS_LOG_CRIT)
+               end if
+            end if
+
+            call mpas_pool_get_array(mesh, 'mminlu', mminlu)
+            if (len_trim(mminlu) == 0) then
+                  call mpas_log_write('****************************************************************')
+                  call mpas_log_write('No information on land use dataset is available.')
+                  call mpas_log_write('Assume that we are using ''USGS''.')
+                  call mpas_log_write('****************************************************************')
+                  write(mminlu,'(a)') 'USGS'
+            end if
+
+            call init_atm_case_ecmwf(block_ptr, mesh, nCells, nEdges, nVertLevels, fg, state, &
+                                     diag, diag_physics, block_ptr % dimensions, block_ptr % configs)
+
+            if (config_met_interp) then
+               call init_atm_thompson_aerosols(block_ptr, mesh, block_ptr % configs, diag, state)
+               call physics_initialize_real(mesh, fg, domain % dminfo, block_ptr % dimensions, block_ptr % configs)
+            end if
+
+            block_ptr => block_ptr % next
+         end do
+
+      else if (config_init_case == 12) then
+
+         call mpas_log_write('ECMWF model-level LBC case (ERA5/IFS)')
+
+         clock_interval = mpas_get_clock_timestep(domain % clock, ierr=ierr)
+         lbc_stream_interval = MPAS_stream_mgr_get_stream_interval(stream_manager, 'lbc', MPAS_STREAM_OUTPUT, ierr)
+         if (clock_interval /= lbc_stream_interval) then
+            call mpas_log_write('****************************************************************',   messageType=MPAS_LOG_ERR)
+            call mpas_log_write('The intermediate file interval specified by ''config_fg_interval''', messageType=MPAS_LOG_ERR)
+            call mpas_log_write('does not match the output_interval for the ''lbc'' stream.',         messageType=MPAS_LOG_ERR)
+            call mpas_log_write('Please correct the namelist.init_atmosphere and/or',                 messageType=MPAS_LOG_ERR)
+            call mpas_log_write('streams.init_atmosphere files.',                                     messageType=MPAS_LOG_ERR)
+            call mpas_log_write('****************************************************************',   messageType=MPAS_LOG_CRIT)
+         end if
+
+         curr_time = mpas_get_clock_time(domain % clock, MPAS_NOW)
+         stop_time = mpas_get_clock_time(domain % clock, MPAS_STOP_TIME)
+         start_time = mpas_get_clock_time(domain % clock, MPAS_START_TIME)
+
+         do while (curr_time <= stop_time)
+
+            block_ptr => domain % blocklist
+            do while (associated(block_ptr))
+               call mpas_pool_get_subpool(block_ptr % structs, 'mesh', mesh)
+               call mpas_pool_get_subpool(block_ptr % structs, 'fg', fg)
+               call mpas_pool_get_subpool(block_ptr % structs, 'state', state)
+               call mpas_pool_get_subpool(block_ptr % structs, 'diag', diag)
+               call mpas_pool_get_subpool(block_ptr % structs, 'lbc_state', lbc_state)
+
+               call mpas_pool_get_array(state, 'xtime', xtime)
+               call mpas_pool_get_array(state, 'Time', Time)
+
+               call mpas_pool_get_dimension(block_ptr % dimensions, 'nCells', nCells)
+               call mpas_pool_get_dimension(block_ptr % dimensions, 'nEdges', nEdges)
+               call mpas_pool_get_dimension(block_ptr % dimensions, 'nVertLevels', nVertLevels)
+
+               call mpas_get_time(curr_time, dateTimeString=timeString)
+               xtime = timeString
+               time_since_start = curr_time - start_time
+               call mpas_get_TimeInterval(time_since_start, dt=dt)
+               Time = dt
+
+               call init_atm_case_lbc_ecmwf(timeString, block_ptr, mesh, nCells, nEdges, nVertLevels, fg, state, &
+                                            diag, lbc_state, block_ptr % dimensions, block_ptr % configs)
+
+               call mpas_get_time(start_time, dateTimeString=timeStart)
+               call init_atm_thompson_aerosols_lbc(timeString, timeStart, block_ptr, mesh, diag, lbc_state)
+
+               block_ptr => block_ptr % next
+            end do
+
+            call mpas_stream_mgr_write(stream_manager, streamID='lbc', ierr=ierr)
+            call mpas_stream_mgr_reset_alarms(stream_manager, streamID='lbc', direction=MPAS_STREAM_OUTPUT, ierr=ierr)
+
+            call mpas_advance_clock(domain % clock)
+            curr_time = mpas_get_clock_time(domain % clock, MPAS_NOW)
+
+         end do
+
+         call mpas_stream_mgr_reset_alarms(stream_manager, streamID='lbc', direction=MPAS_STREAM_OUTPUT, ierr=ierr)
 
       else if (config_init_case == 13 ) then
 
@@ -2652,9 +2801,13 @@ module init_atm_cases
    end subroutine init_atm_case_mtn_wave
 
 
-   subroutine init_atm_case_gfs(block, mesh, nCells, nEdges, nVertLevels, fg, state, diag, diag_physics, dims, configs)
+   subroutine init_atm_case(block, mesh, nCells, nEdges, nVertLevels, fg, state, diag, diag_physics, dims, configs, use_ecmwf)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   ! Real-data test case using GFS data
+   ! Shared core for real-data initialization.
+   ! use_ecmwf=.false. → GFS/standard behaviour (3-level LS window, extrap_airtemp)
+   ! use_ecmwf=.true.  → ECMWF model-level behaviour (physical-depth LS window)
+   ! Callers should use init_atm_case_gfs or init_atm_case_ecmwf; 
+   ! do not call this subroutine directly from the dispatch block.
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       use mpas_dmpar
@@ -2677,6 +2830,7 @@ module init_atm_cases
       type (mpas_pool_type), intent(inout):: diag_physics
       type (mpas_pool_type), intent(inout):: dims
       type (mpas_pool_type), intent(inout):: configs
+      logical, intent(in) :: use_ecmwf   ! .true. selects physical-depth LS extrapolation
 
       type (parallel_info), pointer :: parinfo
       type (dm_info), pointer :: dminfo
@@ -2835,7 +2989,7 @@ module init_atm_cases
       real (kind=RKIND), dimension(:,:), pointer :: t_fg
       real (kind=RKIND), dimension(:,:), pointer :: rh_fg
       real (kind=RKIND), dimension(:,:), pointer :: sh_fg
-      real (kind=RKIND), dimension(:,:), pointer :: gfs_z
+      real (kind=RKIND), dimension(:,:), pointer :: ght_fg
       real (kind=RKIND), dimension(:,:), pointer :: p_fg
       real (kind=RKIND), dimension(:,:), pointer :: st_fg
       real (kind=RKIND), dimension(:,:), pointer :: sm_fg
@@ -2975,7 +3129,7 @@ module init_atm_cases
       call mpas_pool_get_array(fg, 't', t_fg)
       call mpas_pool_get_array(fg, 'rh', rh_fg)
       call mpas_pool_get_array(fg, 'sh', sh_fg)
-      call mpas_pool_get_array(fg, 'gfs_z', gfs_z)
+      call mpas_pool_get_array(fg, 'ght_fg', ght_fg)
       call mpas_pool_get_array(fg, 'p', p_fg)
 
       call mpas_pool_get_dimension(dims, 'nVertLevels', nz1)
@@ -5023,91 +5177,145 @@ call mpas_log_write('Done with soil consistency check')
 
       do iCell=1,nCells
 
-         ! T
+         ! Temperature
+
          sorted_arr(:,:) = -999.0
+
          do k = 1, nfglevels_actual
             sorted_arr(1,k) = z_fg(k,iCell)
             if (vert_level(k) == 200100.0) sorted_arr(1,k) = 99999.0
             sorted_arr(2,k) = t_fg(k,iCell)
          end do
+
          call mpas_quicksort(nfglevels_actual, sorted_arr)
+
          do k = 1, nVertLevels
             target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
-            t(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
-                                         sorted_arr(:,1:nfglevels_actual-1), order=1, &
-                                         extrap=extrap_airtemp, ierr=istatus)
+            if (use_ecmwf) then
+               t(k,iCell) = vertical_interp_ecmwf(target_z, nfglevels_actual-1, &
+                                                   sorted_arr(:,1:nfglevels_actual-1), ierr=istatus)
+            else
+               t(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                            sorted_arr(:,1:nfglevels_actual-1), order=1, &
+                                            extrap=extrap_airtemp, ierr=istatus)
+            end if
+
             if (istatus /= 0) then
                write(errstring,'(a,i4,a,i10)') 'Error in interpolation of t(k,iCell) for k=', k, ', iCell=', iCell
                call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
                call mpas_log_write(trim(errstring),                                                     messageType=MPAS_LOG_ERR)
                call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_CRIT)
             end if
+
          end do
 
 
-         ! RH
+         ! Relative humidity: if first-guess values are negative, set those values to zero before
+         ! vertical interpolation.
+
          sorted_arr(:,:) = -999.0
          relhum(:,iCell) = 0._RKIND
+
          do k = 1, nfglevels_actual
             sorted_arr(1,k) = z_fg(k,iCell)
             if (vert_level(k) == 200100.0) sorted_arr(1,k) = 99999.0
             sorted_arr(2,k) = rh_fg(k,iCell)
          end do
+
          call mpas_quicksort(nfglevels_actual, sorted_arr)
+
          do k = nVertLevels, 1, -1
             target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
-            relhum(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
-                                       sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=0)
+            if (use_ecmwf) then
+               relhum(k,iCell) = vertical_interp_ecmwf(target_z, nfglevels_actual-1, &
+                                                        sorted_arr(:,1:nfglevels_actual-1))
+            else
+               relhum(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                          sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=2)
+            end if
+            ! RH is physically bounded to [0, 100]; clamp after LS extrapolation
+            relhum(k,iCell) = max(0.0_RKIND, min(100.0_RKIND, relhum(k,iCell)))
          end do
 
 
          ! SPECHUM: if first-guess values are negative, set those values to zero before
          ! vertical interpolation.
+
          sorted_arr(:,:) = -999.0
          spechum(:,iCell) = 0._RKIND
+
          do k = 1, nfglevels_actual
             sorted_arr(1,k) = z_fg(k,iCell)
             if (vert_level(k) == 200100.0) sorted_arr(1,k) = 99999.0
             sorted_arr(2,k) = max(0._RKIND,sh_fg(k,iCell))
          end do
+
          call mpas_quicksort(nfglevels_actual, sorted_arr)
+
          do k = nVertLevels, 1, -1
             target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
-            spechum(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
-                                        sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=0)
+            if (use_ecmwf) then
+               spechum(k,iCell) = vertical_interp_ecmwf(target_z, nfglevels_actual-1, &
+                                                         sorted_arr(:,1:nfglevels_actual-1))
+            else
+               spechum(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                           sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=2)
+            end if
+            ! Specific humidity must be non-negative; clamp after LS extrapolation
+            spechum(k,iCell) = max(0.0_RKIND, spechum(k,iCell))
          end do
 
 
-         ! GHT
+         ! Geopotential height
+
          sorted_arr(:,:) = -999.0
+
          do k = 1, nfglevels_actual
             sorted_arr(1,k) = z_fg(k,iCell)
             if (vert_level(k) == 200100.0) sorted_arr(1,k) = 99999.0
             sorted_arr(2,k) = z_fg(k,iCell)
          end do
+
          call mpas_quicksort(nfglevels_actual, sorted_arr)
+
          do k = 1, nVertLevels
             target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
-            gfs_z(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
-                                      sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=1)
+            if (use_ecmwf) then
+               ght_fg(k,iCell) = vertical_interp_ecmwf(target_z, nfglevels_actual-1, &
+                                                        sorted_arr(:,1:nfglevels_actual-1))
+            else
+               ght_fg(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                          sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=2)
+            end if
          end do
 
 
-         ! PRESSURE
+         ! PRESSURE: interpolate log(p) so exp() recovers a strictly positive pressure.
+         ! LS lapse-rate extrapolation of ln(p) is equivalent to fitting a local scale
+         ! height from the bottom three levels. 
+
          sorted_arr(:,:) = -999.0
+
          do k = 1, nfglevels_actual
             sorted_arr(1,k) = z_fg(k,iCell)
-            if (vert_level(k) == 200100.0) then 
+            if (vert_level(k) == 200100.0) then
                sorted_arr(1,k) = 99999.0
                sfc_k = k
             end if
             sorted_arr(2,k) = log(p_fg(k,iCell))
          end do
+
          call mpas_quicksort(nfglevels_actual, sorted_arr)
+
          do k = 1, nVertLevels
             target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
-            pressure(k,iCell) = exp(vertical_interp(target_z, nfglevels_actual-1, &
-                                    sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=1))
+            if (use_ecmwf) then
+               pressure(k,iCell) = exp(vertical_interp_ecmwf(target_z, nfglevels_actual-1, &
+                                        sorted_arr(:,1:nfglevels_actual-1)))
+            else
+               pressure(k,iCell) = exp(vertical_interp(target_z, nfglevels_actual-1, &
+                                       sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=2))
+            end if
          end do
 
       end do
@@ -5115,19 +5323,26 @@ call mpas_log_write('Done with soil consistency check')
 
       do iEdge=1,nEdges
 
-         ! U
+         ! Wind: interpolate normal wind component to edges. We will reconstruct zonal and meridional winds later.
+
          sorted_arr(:,:) = -999.0
+
          do k=1,nfglevels_actual
             sorted_arr(1,k) = 0.5 * (z_fg(k,cellsOnEdge(1,iEdge)) + z_fg(k,cellsOnEdge(2,iEdge)))
 !NOSFC            if (vert_level(k) == 200100.0) sorted_arr(1,k) = 0.5 * (fg % soilz % array(cellsOnEdge(1,iEdge)) + fg % soilz % array(cellsOnEdge(2,iEdge)))
             if (vert_level(k) == 200100.0) sorted_arr(1,k) = 99999.0
             sorted_arr(2,k) = u_fg(k,iEdge)
          end do
+
          call mpas_quicksort(nfglevels_actual, sorted_arr)
+
          do k=1,nVertLevels
             target_z = 0.25 * (zgrid(k,cellsOnEdge(1,iEdge)) + zgrid(k+1,cellsOnEdge(1,iEdge)) + zgrid(k,cellsOnEdge(2,iEdge)) + zgrid(k+1,cellsOnEdge(2,iEdge)))
-!           u(k,iEdge) = vertical_interp(target_z, nfglevels_actual, sorted_arr, order=1, extrap=0)
-            u(k,iEdge) = vertical_interp(target_z, nfglevels_actual-1, sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=0)
+            if (use_ecmwf) then
+               u(k,iEdge) = vertical_interp_ecmwf(target_z, nfglevels_actual-1, sorted_arr(:,1:nfglevels_actual-1))
+            else
+               u(k,iEdge) = vertical_interp(target_z, nfglevels_actual-1, sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=2)
+            end if
          end do
 
       end do
@@ -5167,7 +5382,11 @@ call mpas_log_write('Done with soil consistency check')
             end do
             call mpas_quicksort(nfglevels_actual, sorted_arr)
             target_z = zgrid(1,iCell)
-            psfc(iCell) = exp(vertical_interp(target_z, nfglevels_actual, sorted_arr, order=1, extrap=1))
+            if (use_ecmwf) then
+               psfc(iCell) = exp(vertical_interp_ecmwf(target_z, nfglevels_actual, sorted_arr))
+            else
+               psfc(iCell) = exp(vertical_interp(target_z, nfglevels_actual, sorted_arr, order=1, extrap=2))
+            end if
 
       end do
 
@@ -5414,7 +5633,59 @@ call mpas_log_write('Done with soil consistency check')
 
       end if    ! config_met_interp
 
+   end subroutine init_atm_case
+
+
+   !------------------------------------------------------------------------------
+   ! Routine: init_atm_case_gfs 
+   !
+   ! Purpose: thin wrapper around init_atm_case to select the GFS/standard pathway
+   !           (i.e., no ECMWF-specific handling of interpolation/extrapolation). 
+   !
+   ! Author:  Rubaiat Islam, NCAR/MMM, 2026-05-01
+   !------------------------------------------------------------------------------
+   subroutine init_atm_case_gfs(block, mesh, nCells, nEdges, nVertLevels, fg, state, diag, diag_physics, dims, configs)
+      implicit none
+      type (block_type), intent(inout), target :: block
+      type (mpas_pool_type), intent(inout) :: mesh
+      integer, intent(in) :: nCells
+      integer, intent(in) :: nEdges
+      integer, intent(in) :: nVertLevels
+      type (mpas_pool_type), intent(inout) :: fg
+      type (mpas_pool_type), intent(inout) :: state
+      type (mpas_pool_type), intent(inout) :: diag
+      type (mpas_pool_type), intent(inout) :: diag_physics
+      type (mpas_pool_type), intent(inout) :: dims
+      type (mpas_pool_type), intent(inout) :: configs
+      call init_atm_case(block, mesh, nCells, nEdges, nVertLevels, fg, state, diag, &
+                         diag_physics, dims, configs, use_ecmwf=.false.)
    end subroutine init_atm_case_gfs
+
+
+   !-----------------------------------------------------------------------
+   ! Routine: init_atm_case_ecmwf
+   !
+   ! Purpose: thin wrapper around init_atm_case to select the ECMWF-specific pathway
+   !           (i.e., use of physical-depth-based vertical interpolation/extrapolation).
+   ! 
+   ! Author:  Rubaiat Islam, NCAR/MMM, 2026-05-01
+   !-----------------------------------------------------------------------
+   subroutine init_atm_case_ecmwf(block, mesh, nCells, nEdges, nVertLevels, fg, state, diag, diag_physics, dims, configs)
+      implicit none
+      type (block_type), intent(inout), target :: block
+      type (mpas_pool_type), intent(inout) :: mesh
+      integer, intent(in) :: nCells
+      integer, intent(in) :: nEdges
+      integer, intent(in) :: nVertLevels
+      type (mpas_pool_type), intent(inout) :: fg
+      type (mpas_pool_type), intent(inout) :: state
+      type (mpas_pool_type), intent(inout) :: diag
+      type (mpas_pool_type), intent(inout) :: diag_physics
+      type (mpas_pool_type), intent(inout) :: dims
+      type (mpas_pool_type), intent(inout) :: configs
+      call init_atm_case(block, mesh, nCells, nEdges, nVertLevels, fg, state, diag, &
+                         diag_physics, dims, configs, use_ecmwf=.true.)
+   end subroutine init_atm_case_ecmwf
 
 
    !-----------------------------------------------------------------------
@@ -5431,7 +5702,7 @@ call mpas_log_write('Done with soil consistency check')
    !>  fields that are needed as model lateral boundary conditions.
    !
    !-----------------------------------------------------------------------
-   subroutine init_atm_case_lbc(timestamp, block, mesh, nCells, nEdges, nVertLevels, fg, state, diag, lbc_state, dims, configs)
+   subroutine init_atm_lbc_core(timestamp, block, mesh, nCells, nEdges, nVertLevels, fg, state, diag, lbc_state, dims, configs, use_ecmwf)
 
       use mpas_dmpar, only : mpas_dmpar_min_real, mpas_dmpar_max_real
       use init_atm_read_met, only : met_data, read_met_init, read_met_close, read_next_met_field
@@ -5453,6 +5724,7 @@ call mpas_log_write('Done with soil consistency check')
       type (mpas_pool_type), intent(inout) :: lbc_state
       type (mpas_pool_type), intent(inout):: dims
       type (mpas_pool_type), intent(inout):: configs
+      logical, intent(in) :: use_ecmwf   ! .true. selects physical-depth LS extrapolation
 
       type (dm_info), pointer :: dminfo
 
@@ -5932,9 +6204,14 @@ call mpas_log_write('Done with soil consistency check')
          call mpas_quicksort(nfglevels_actual, sorted_arr)
          do k = 1, nVertLevels
             target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
-            t(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
-                                         sorted_arr(:,1:nfglevels_actual-1), order=1, &
-                                         extrap=extrap_airtemp, ierr=istatus)
+            if (use_ecmwf) then
+               t(k,iCell) = vertical_interp_ecmwf(target_z, nfglevels_actual-1, &
+                                                   sorted_arr(:,1:nfglevels_actual-1), ierr=istatus)
+            else
+               t(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                            sorted_arr(:,1:nfglevels_actual-1), order=1, &
+                                            extrap=extrap_airtemp, ierr=istatus)
+            end if
             if (istatus /= 0) then
                write(errstring,'(a,i4,a,i10)') 'Error in interpolation of t(k,iCell) for k=', k, ', iCell=', iCell
                call mpas_log_write('*****************************************************************', messageType=MPAS_LOG_ERR)
@@ -5955,8 +6232,15 @@ call mpas_log_write('Done with soil consistency check')
          call mpas_quicksort(nfglevels_actual, sorted_arr)
          do k = nVertLevels, 1, -1
             target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
-            relhum(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
-                                       sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=0)
+            if (use_ecmwf) then
+               relhum(k,iCell) = vertical_interp_ecmwf(target_z, nfglevels_actual-1, &
+                                                        sorted_arr(:,1:nfglevels_actual-1))
+            else
+               relhum(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                          sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=2)
+            end if
+            ! RH is physically bounded to [0, 100]; clamp after LS extrapolation
+            relhum(k,iCell) = max(0.0_RKIND, min(100.0_RKIND, relhum(k,iCell)))
          end do
 
 
@@ -5972,8 +6256,15 @@ call mpas_log_write('Done with soil consistency check')
          call mpas_quicksort(nfglevels_actual, sorted_arr)
          do k = nVertLevels, 1, -1
             target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
-            spechum(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
-                                        sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=0)
+            if (use_ecmwf) then
+               spechum(k,iCell) = vertical_interp_ecmwf(target_z, nfglevels_actual-1, &
+                                                         sorted_arr(:,1:nfglevels_actual-1))
+            else
+               spechum(k,iCell) = vertical_interp(target_z, nfglevels_actual-1, &
+                                           sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=2)
+            end if
+            ! Specific humidity must be non-negative; clamp after LS extrapolation
+            spechum(k,iCell) = max(0.0_RKIND, spechum(k,iCell))
          end do
 
 
@@ -5991,8 +6282,13 @@ call mpas_log_write('Done with soil consistency check')
          call mpas_quicksort(nfglevels_actual, sorted_arr)
          do k = 1, nVertLevels
             target_z = 0.5 * (zgrid(k,iCell) + zgrid(k+1,iCell))
-            pressure(k,iCell) = exp(vertical_interp(target_z, nfglevels_actual-1, &
-                                    sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=1))
+            if (use_ecmwf) then
+               pressure(k,iCell) = exp(vertical_interp_ecmwf(target_z, nfglevels_actual-1, &
+                                        sorted_arr(:,1:nfglevels_actual-1)))
+            else
+               pressure(k,iCell) = exp(vertical_interp(target_z, nfglevels_actual-1, &
+                                       sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=2))
+            end if
          end do
 
       end do
@@ -6011,7 +6307,11 @@ call mpas_log_write('Done with soil consistency check')
          do k=1,nVertLevels
             target_z = 0.25 * (zgrid(k,cellsOnEdge(1,iEdge)) + zgrid(k+1,cellsOnEdge(1,iEdge)) &
                              + zgrid(k,cellsOnEdge(2,iEdge)) + zgrid(k+1,cellsOnEdge(2,iEdge)))
-            u(k,iEdge) = vertical_interp(target_z, nfglevels_actual-1, sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=1)
+            if (use_ecmwf) then
+               u(k,iEdge) = vertical_interp_ecmwf(target_z, nfglevels_actual-1, sorted_arr(:,1:nfglevels_actual-1))
+            else
+               u(k,iEdge) = vertical_interp(target_z, nfglevels_actual-1, sorted_arr(:,1:nfglevels_actual-1), order=1, extrap=2)
+            end if
          end do
 
       end do
@@ -6215,7 +6515,63 @@ call mpas_log_write('Done with soil consistency check')
          end do
       end do
 
+   end subroutine init_atm_lbc_core
+
+
+   !-----------------------------------------------------------------------
+   ! Routine: init_atm_case_lbc
+   !
+   ! Purpose: This is a thin wrapper around init_atm_lbc_core for the standard 
+   !          LBC pathway, which does not use ECMWF/ERA5/IFS-specific vertical 
+   !          interpolation.
+   !
+   ! Author:  Rubaiat Islam, NCAR/MMM, 2026-05-01
+   !-----------------------------------------------------------------------
+   subroutine init_atm_case_lbc(timestamp, block, mesh, nCells, nEdges, nVertLevels, fg, state, diag, lbc_state, dims, configs)
+      implicit none
+      character(len=*), intent(in) :: timestamp
+      type (block_type), intent(inout), target :: block
+      type (mpas_pool_type), intent(inout) :: mesh
+      integer, intent(in) :: nCells
+      integer, intent(in) :: nEdges
+      integer, intent(in) :: nVertLevels
+      type (mpas_pool_type), intent(inout) :: fg
+      type (mpas_pool_type), intent(inout) :: state
+      type (mpas_pool_type), intent(inout) :: diag
+      type (mpas_pool_type), intent(inout) :: lbc_state
+      type (mpas_pool_type), intent(inout) :: dims
+      type (mpas_pool_type), intent(inout) :: configs
+      call init_atm_lbc_core(timestamp, block, mesh, nCells, nEdges, nVertLevels, fg, state, &
+                             diag, lbc_state, dims, configs, use_ecmwf=.false.)
    end subroutine init_atm_case_lbc
+
+
+   !-----------------------------------------------------------------------
+   ! Routine: init_atm_case_lbc_ecmwf
+   !
+   ! Purpose: This is a thin wrapper around init_atm_lbc_core for the ERA5/IFS 
+   !          LBC pathway, which uses ECMWF-specific vertical interpolation.
+   !
+   ! Author:  Rubaiat Islam, NCAR/MMM, 2026-05-01
+   !-----------------------------------------------------------------------
+   subroutine init_atm_case_lbc_ecmwf(timestamp, block, mesh, nCells, nEdges, nVertLevels, fg, state, diag, lbc_state, dims, configs)
+      implicit none
+      character(len=*), intent(in) :: timestamp
+      type (block_type), intent(inout), target :: block
+      type (mpas_pool_type), intent(inout) :: mesh
+      integer, intent(in) :: nCells
+      integer, intent(in) :: nEdges
+      integer, intent(in) :: nVertLevels
+      type (mpas_pool_type), intent(inout) :: fg
+      type (mpas_pool_type), intent(inout) :: state
+      type (mpas_pool_type), intent(inout) :: diag
+      type (mpas_pool_type), intent(inout) :: lbc_state
+      type (mpas_pool_type), intent(inout) :: dims
+      type (mpas_pool_type), intent(inout) :: configs
+      call init_atm_lbc_core(timestamp, block, mesh, nCells, nEdges, nVertLevels, fg, state, &
+                             diag, lbc_state, dims, configs, use_ecmwf=.true.)
+   end subroutine init_atm_case_lbc_ecmwf
+
 
 !---------------------
 
