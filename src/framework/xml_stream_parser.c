@@ -25,7 +25,7 @@
 /*
  *  Interface routines for building streams at run-time; defined in mpas_stream_manager.F
  */
-void stream_mgr_create_stream_c(void *, const char *, int *, const char *, const char *, const char *, const char *, int *, int *, int *, int *, int *);
+void stream_mgr_create_stream_c(void *, const char *, int *, const char *, const char *, const char *, const char *, int *, int *, int *, int *, int *, int *);
 void stream_mgr_add_field_c(void *, const char *, const char *, const char *, int *);
 void stream_mgr_add_immutable_stream_fields_c(void *, const char *, const char *, const char *, int *);
 void stream_mgr_add_pool_c(void *, const char *, const char *, const char *, int *);
@@ -1053,6 +1053,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 	const char *streamID, *filename_template, *filename_interval, *direction, *varfile, *fieldname_const, *reference_time, *record_interval, *streamname_const, *precision;
 	const char *interval_in, *interval_out, *packagelist;
 	const char *clobber;
+	const char *gattr_update;
 	const char *iotype;
 	const char *streamID2, *interval_in2, *interval_out2;
 	char interval_name[256];
@@ -1068,6 +1069,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 	char msgbuf[MSGSIZE];
 	int itype;
 	int iclobber;
+	int igattr_update;
 	int i_iotype;
 	int iprec;
 	int immutable;
@@ -1114,6 +1116,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		precision = ezxml_attr(stream_xml, "precision");
 		packagelist = ezxml_attr(stream_xml, "packages");
 		clobber = ezxml_attr(stream_xml, "clobber_mode");
+		gattr_update = ezxml_attr(stream_xml, "gattr_update");
 		iotype = ezxml_attr(stream_xml, "io_type");
 
 		/* Extract the input interval, if it refer to other streams */
@@ -1236,6 +1239,26 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 			}
 		}
 
+		/* NB: These gattr_update constants must match those in the mpas_stream_manager module! */
+		igattr_update = 1;
+		if (gattr_update != NULL) {
+			if (strstr(gattr_update, "yes") != NULL) {
+				igattr_update = 1;
+				snprintf(msgbuf, MSGSIZE, "        %-20s%s", "gattr_update:", "yes");
+				mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
+			}
+			else if (strstr(gattr_update, "no") != NULL) {
+				igattr_update = 0;
+				snprintf(msgbuf, MSGSIZE, "        %-20s%s", "gattr_update:", "no");
+				mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
+			}
+			else {
+				igattr_update = 1;
+				snprintf(msgbuf, MSGSIZE, "        *** unrecognized gattr_update specification; global attributes will be updated by default");
+				mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
+			}
+		}
+
 		/* NB: These io_type constants must match those in the mpas_stream_manager module! */
 		i_iotype = 0;
 		if (iotype != NULL) {
@@ -1337,7 +1360,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		}
 
 		stream_mgr_create_stream_c(manager, streamID, &itype, filename_template, filename_interval_string, ref_time_local, rec_intv_local,
-					&immutable, &iprec, &iclobber, &i_iotype, &err);
+					&immutable, &iprec, &iclobber, &igattr_update, &i_iotype, &err);
 		if (err != 0) {
 			*status = 1;
 			return;
@@ -1424,6 +1447,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		precision = ezxml_attr(stream_xml, "precision");
 		packagelist = ezxml_attr(stream_xml, "packages");
 		clobber = ezxml_attr(stream_xml, "clobber_mode");
+		gattr_update = ezxml_attr(stream_xml, "gattr_update");
 		iotype = ezxml_attr(stream_xml, "io_type");
 
 		/* Extract the input interval, if it refer to other streams */
@@ -1546,6 +1570,26 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 			}
 		}
 
+		/* NB: These gattr_update constants must match those in the mpas_stream_manager module! */
+		igattr_update = 1;
+		if (gattr_update != NULL) {
+			if (strstr(gattr_update, "yes") != NULL) {
+				igattr_update = 1;
+				snprintf(msgbuf, MSGSIZE, "        %-20s%s", "gattr_update:", "yes");
+				mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
+			}
+			else if (strstr(gattr_update, "no") != NULL) {
+				igattr_update = 0;
+				snprintf(msgbuf, MSGSIZE, "        %-20s%s", "gattr_update:", "no");
+				mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
+			}
+			else {
+				igattr_update = 1;
+				snprintf(msgbuf, MSGSIZE, "        *** unrecognized gattr_update specification; global attributes will be updated by default");
+				mpas_log_write_c(msgbuf, "MPAS_LOG_OUT");
+			}
+		}
+
 		/* NB: These io_type constants must match those in the mpas_stream_manager module! */
 		i_iotype = 0;
 		if (iotype != NULL) {
@@ -1647,7 +1691,7 @@ void xml_stream_parser(char *fname, void *manager, int *mpi_comm, int *status)
 		}
 
 		stream_mgr_create_stream_c(manager, streamID, &itype, filename_template, filename_interval_string, ref_time_local, rec_intv_local,
-					&immutable, &iprec, &iclobber, &i_iotype, &err);
+					&immutable, &iprec, &iclobber, &igattr_update, &i_iotype, &err);
 		if (err != 0) {
 			*status = 1;
 			return;
