@@ -593,7 +593,7 @@ module mpas_stream_manager
         type (MPAS_streamManager_type), intent(inout) :: manager
         integer, intent(out), optional :: ierr
 
-        integer :: threadNum, err_local,err_local1, err_local2
+        integer :: threadNum, err_local
         character (len=StrKIND) :: message, streamID
         type (MPAS_stream_list_type), pointer :: stream1_cursor, stream2_cursor
         type (MPAS_TimeInterval_type)  :: clock_interval
@@ -619,9 +619,9 @@ module mpas_stream_manager
                 stream1_pkg_active = stream_active_pkg_check(stream1_cursor)
 
                 stream1_input_nalarms = MPAS_stream_mgr_get_num_alarms(manager, trim(stream1_cursor % name), &
-                                                                       MPAS_STREAM_INPUT, err_local1)
+                                                                       MPAS_STREAM_INPUT)
                 stream1_output_nalarms = MPAS_stream_mgr_get_num_alarms(manager, trim(stream1_cursor % name), &
-                                                                        MPAS_STREAM_OUTPUT, err_local2)
+                                                                        MPAS_STREAM_OUTPUT)
 
                 stream1_input = ((stream1_cursor % direction == MPAS_STREAM_INPUT .or. &
                                 stream1_cursor % direction == MPAS_STREAM_INPUT_OUTPUT) .and. &
@@ -644,9 +644,9 @@ module mpas_stream_manager
                 do while (MPAS_stream_list_query(manager % streams, streamID, stream2_cursor))
 
                     stream2_input_nalarms = MPAS_stream_mgr_get_num_alarms(manager, trim(stream2_cursor % name), &
-                                                                           MPAS_STREAM_INPUT, err_local1)
+                                                                           MPAS_STREAM_INPUT)
                     stream2_output_nalarms = MPAS_stream_mgr_get_num_alarms(manager, trim(stream2_cursor % name), &
-                                                                            MPAS_STREAM_OUTPUT, err_local2)
+                                                                            MPAS_STREAM_OUTPUT)
 
                     stream2_pkg_active = stream_active_pkg_check(stream2_cursor)
                     stream2_input = ((stream2_cursor % direction == MPAS_STREAM_INPUT .or. &
@@ -1906,28 +1906,31 @@ module mpas_stream_manager
        type (MPAS_streamManager_type), intent(in) :: manager
        character(len=*), intent(in) :: streamID
        integer, intent(in) :: direction
-       integer, intent(out) :: ierr
+       integer, intent(out), optional :: ierr
 
        type (mpas_stream_list_type), pointer :: streamCursor
+       integer :: err_local
 
        numAlarms = 0
-       ierr = MPAS_STREAM_MGR_NOERR
+       err_local = MPAS_STREAM_MGR_NOERR
        nullify(streamCursor)
 
        if ( mpas_stream_list_query(manager % streams, streamID, streamCursor) ) then
           if (direction == MPAS_STREAM_INPUT) then
-            numAlarms = MPAS_stream_list_length(streamCursor % alarmList_in, ierr)
+            numAlarms = MPAS_stream_list_length(streamCursor % alarmList_in, err_local)
           else if (direction == MPAS_STREAM_OUTPUT) then
-            numAlarms = MPAS_stream_list_length(streamCursor % alarmList_out, ierr)
+            numAlarms = MPAS_stream_list_length(streamCursor % alarmList_out, err_local)
           else
-            ierr = MPAS_STREAM_MGR_ERROR
+            err_local = MPAS_STREAM_MGR_ERROR
             call MPAS_stream_mesg(manager % errorLevel, 'Invalid direction encountered in MPAS_stream_mgr_get_num_alarms')
           end if
        else
-          ierr = MPAS_STREAM_MGR_ERROR
+          err_local = MPAS_STREAM_MGR_ERROR
           call MPAS_stream_mesg(manager % errorLevel, 'Stream ''' // trim(streamID) // ''' &
                                 does not exist. Cannot retrieve number of alarms in stream.')
        end if
+
+       if (present(ierr)) ierr = err_local
 
     end function MPAS_stream_mgr_get_num_alarms
 
