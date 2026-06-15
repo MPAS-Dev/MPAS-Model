@@ -134,11 +134,6 @@ module atm_core_interface
       integer :: local_ierr
 
 
-      ierr = atm_setup_packages_when(configs, packages)
-      if (ierr /= 0) then
-         return
-      end if
-
       !
       ! Incremental analysis update
       !
@@ -258,6 +253,11 @@ module atm_core_interface
       end if
 
 #endif
+
+      ierr = atm_setup_packages_when(configs, packages)
+      if (ierr /= 0) then
+         return
+      end if
 
    end function atm_setup_packages
 
