@@ -485,9 +485,11 @@
                 <package name="les"
                          description="Variables and options associated with LES models"
                          active_when="trim(config_les_model) /= 'none'"/>
+#ifdef DO_PHYSICS
                 <package name="sfclayer"
                          description="Variables and options associated with surface layer physics"
                          active_when="trim(config_sfclayer_scheme) /= 'off'"/>
+#endif
         </packages>
 
 
