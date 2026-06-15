@@ -65,7 +65,6 @@ module mpas_framework
       integer, intent(in), optional :: external_comm
 #endif
 
-      allocate(dminfo)
       call mpas_dmpar_init(dminfo, external_comm)
 
    end subroutine mpas_framework_init_phase1!}}}
@@ -182,13 +181,13 @@ module mpas_framework
 
       call MPAS_io_finalize(domain % ioContext, .false.)
 
-      call mpas_deallocate_domain(domain)
-
       call mpas_dmpar_finalize(dminfo)
 
       call mpas_finish_block_proc_list(dminfo)
 
       call mpas_timekeeping_finalize()
+
+      call mpas_deallocate_domain(domain)
 
    end subroutine mpas_framework_finalize!}}}
 

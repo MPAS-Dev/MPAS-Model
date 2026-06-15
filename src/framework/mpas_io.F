@@ -210,7 +210,6 @@ module mpas_io
 #endif
 
 #ifdef MPAS_SMIOL_SUPPORT
-         allocate(ioContext % smiol_context)
 #ifdef MPAS_USE_MPI_F08
          local_ierr = SMIOLf_init(ioContext % dminfo % comm % mpi_val, &
 #else
@@ -1256,6 +1255,7 @@ module mpas_io
             ! TODO: Can we get the dimension sizes to see whether they match those from the file?
    
          end if
+         if (associated(inq_dimnames)) deallocate(inq_dimnames)
 
          return
       end if
@@ -6335,6 +6335,7 @@ module mpas_io
             if (attlist_del % atthandle % attType == MPAS_ATT_INTA) deallocate(attlist_del % atthandle % attValueIntA)
             if (attlist_del % atthandle % attType == MPAS_ATT_REALA) deallocate(attlist_del % atthandle % attValueRealA)
             deallocate(attlist_del % atthandle)
+            deallocate(attlist_del)
          end do
          nullify(fieldlist_del % fieldhandle % attlist_head)
          nullify(fieldlist_del % fieldhandle % attlist_tail)
@@ -6342,6 +6343,7 @@ module mpas_io
          deallocate(fieldlist_del % fieldhandle % dims)
 
          deallocate(fieldlist_del % fieldhandle)
+         deallocate(fieldlist_del)
       end do
       nullify(handle % fieldlist_head)
       nullify(handle % fieldlist_tail)
@@ -6351,6 +6353,7 @@ module mpas_io
          dimlist_del => dimlist_ptr 
          dimlist_ptr => dimlist_ptr % next
          deallocate(dimlist_del % dimhandle)
+         deallocate(dimlist_del)
       end do
       nullify(handle % dimlist_head)
       nullify(handle % dimlist_tail)
@@ -6362,6 +6365,7 @@ module mpas_io
          if (attlist_del % atthandle % attType == MPAS_ATT_INTA) deallocate(attlist_del % atthandle % attValueIntA)
          if (attlist_del % atthandle % attType == MPAS_ATT_REALA) deallocate(attlist_del % atthandle % attValueRealA)
          deallocate(attlist_del % atthandle)
+         deallocate(attlist_del)
       end do
       nullify(handle % attlist_head)
       nullify(handle % attlist_tail)

@@ -25,17 +25,37 @@ module init_atm_read_met
 
    ! Derived types
    type met_data
-      integer                       :: version, nx, ny, iproj
-      real (kind=real32)                 :: xfcst, xlvl, startlat, startlon, starti, startj, &
-                                       deltalat, deltalon, dx, dy, xlonc, &
-                                       truelat1, truelat2, earth_radius
-      real (kind=real32), pointer, dimension(:,:) :: slab
-      logical                       :: is_wind_grid_rel
-      character (len=9)             :: field
-      character (len=24)            :: hdate
-      character (len=25)            :: units
-      character (len=32)            :: map_source
-      character (len=46)            :: desc
+      integer :: version = 5, &         ! Format version (must =5 for WPS format)
+                 nx      = 0, &         ! First (x) dimension of 2-d array 'slab'
+                 ny      = 0, &         ! Second (y) dimension of 2-d array 'slab'
+                 iproj   = PROJ_LATLON  ! Code for projection of data in array
+
+      real (kind=real32) :: xfcst        = 0.0_real32, &  ! Forecast hour of data
+                            xlvl         = 0.0_real32, &  ! Vertical level of data in 2-d array 'slab'
+                            startlat     = 0.0_real32, &  ! Latitude of starting point (degrees)
+                            startlon     = 0.0_real32, &  ! Longitude of starting point (degrees)
+                            starti       = 1.0_real32, &  ! Starting x-/i-index
+                            startj       = 1.0_real32, &  ! Starting y-/j-index
+                            deltalat     = 0.0_real32, &  ! Grid spacing (degrees) in meridional direction
+                            deltalon     = 0.0_real32, &  ! Grid spacing (degrees) in zonal direction
+                            dx           = 0.0_real32, &  ! Grid spacing (km) in x-direction
+                            dy           = 0.0_real32, &  ! Grid spacing (km) in y-direction
+                            xlonc        = 0.0_real32, &  ! Standard longitude of projection
+                            truelat1     = 0.0_real32, &  ! First true latitude of projection
+                            truelat2     = 0.0_real32, &  ! Second true latitude of projection
+                            earth_radius = EARTH_RADIUS_M / 1000.0_real32  ! Earth radius (km)
+
+      real (kind=real32), pointer, dimension(:,:) :: slab => null()  ! 2-d array of data
+
+      logical :: is_wind_grid_rel = .false.  ! Flag indicating whether winds are
+                                             !       relative to source grid (.true.) or
+                                             !       relative to earth (.false.)
+
+      character (len=9)  :: field      = ''  ! Name of the field
+      character (len=24) :: hdate      = ''  ! Valid date for data YYYY:MM:DD_HH:mm:ss
+      character (len=25) :: units      = ''  ! Units of data
+      character (len=32) :: map_source = ''  !  Source model / originating center
+      character (len=46) :: desc       = ''  ! Short description of data
    end type met_data
 
 

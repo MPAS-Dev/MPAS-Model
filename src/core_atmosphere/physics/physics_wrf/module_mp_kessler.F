@@ -216,6 +216,7 @@ CONTAINS
        gam = 2.5e+06/(1004.*pii(i,k,j))
 !      qvs       = 380.*exp(17.27*(temp-273.)/(temp- 36.))/pressure
        es        = 1000.*svp1*exp(svp2*(temp-svpt0)/(temp-svp3))
+       es        = min(es, 0.99*pressure)
        qvs       = ep2*es/(pressure-es)
 !      prod(i,k,j) = (qv(i,k,j)-qvs) / (1.+qvs*f5/(temp-36.)**2)
        prod(i,k,j) = (qv(i,k,j)-qvs) / (1.+pressure/(pressure-es)*qvs*f5/(temp-svp3)**2)

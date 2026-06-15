@@ -1918,7 +1918,7 @@ module atm_time_integration
       type (mpas_pool_type), pointer :: diag_physics
       type (mpas_pool_type), pointer :: mesh
       type (mpas_pool_type), pointer :: tend
-      type (mpas_pool_type), pointer :: tend_physics => null()
+      type (mpas_pool_type), pointer :: tend_physics
       type (mpas_pool_type), pointer :: lbc  ! regional_MPAS addition
 
       real (kind=RKIND), dimension(:,:), pointer :: w
@@ -5809,11 +5809,11 @@ module atm_time_integration
       ! Dummy arguments
       !
       type (mpas_pool_type), intent(inout) :: tend
-      type (mpas_pool_type), pointer :: tend_physics
+      type (mpas_pool_type), pointer, intent(in) :: tend_physics
       type (mpas_pool_type), intent(in) :: state
       type (mpas_pool_type), intent(in) :: diag
       type (mpas_pool_type), intent(in) :: mesh
-      type (mpas_pool_type), intent(in) :: diag_physics
+      type (mpas_pool_type), pointer, intent(in) :: diag_physics
       type (mpas_pool_type), intent(in) :: configs
       integer, intent(in) :: nVertLevels              ! for allocating stack variables
       integer, intent(in) :: rk_step, dynamics_substep

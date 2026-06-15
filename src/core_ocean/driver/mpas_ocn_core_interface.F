@@ -95,7 +95,7 @@ module ocn_core_interface
    !>   *not* allocated until after this routine is called.
    !
    !-----------------------------------------------------------------------
-   function ocn_setup_packages(configPool, streamInfo, packagePool, iocontext) result(ierr)!{{{
+   function ocn_setup_packages(configPool, streamInfo, packagePool, iocontext, dminfo) result(ierr)!{{{
 
       use ocn_analysis_driver
 
@@ -103,6 +103,7 @@ module ocn_core_interface
       type (MPAS_streamInfo_type), intent(inout) :: streamInfo
       type (mpas_pool_type), intent(inout) :: packagePool
       type (mpas_io_context_type), intent(inout) :: iocontext
+      type (dm_info), intent(in) :: dminfo
 
       integer :: ierr
 

@@ -88,7 +88,7 @@ module seaice_core_interface
    !>   *not* allocated until after this routine is called.
    !
    !-----------------------------------------------------------------------
-   function seaice_setup_packages(configPool, streamInfo, packagePool, iocontext) result(ierr)!{{{
+   function seaice_setup_packages(configPool, streamInfo, packagePool, iocontext, dminfo) result(ierr)!{{{
 
       use mpas_derived_types
 
@@ -98,6 +98,7 @@ module seaice_core_interface
       type (MPAS_streamInfo_type), intent(inout) :: streamInfo
       type (mpas_pool_type), intent(inout) :: packagePool
       type (mpas_io_context_type), intent(inout) :: iocontext
+      type (dm_info), intent(in) :: dminfo
 
       integer :: ierr
 

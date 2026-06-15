@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<registry model="mpas" core="init_atmosphere" core_abbrev="init_atm" version="8.4.0">
+<registry model="mpas" core="init_atmosphere" core_abbrev="init_atm" version="8.4.1">
 
 <!-- **************************************************************************************** -->
 <!-- ************************************** Dimensions ************************************** -->
@@ -217,6 +217,11 @@
                      description="Whether to use specific-humidity as the first-guess moisture variable. If this option is False, relative humidity will be used."
                      possible_values="true or false"/>
 
+                <nml_option name="config_active_hydrometeors"   type="character"   default_value="detect_automatically"
+                     units="-"
+                     description="The set of hydrometeor species that are to be processed from input intermediate files when generating ICs and LBCs for real-data simulations."
+                     possible_values="`detect_automatically', or a semicolon-separated list of hydrometeor names (e.g., `qc;qr'"/>
+
         </nml_record>
 
         <nml_record name="vertical_grid" in_defaults="true">
@@ -385,8 +390,10 @@
                 <package name="met_stage_in" description="Active only if meteorological fields are being interpolated"/>
                 <package name="met_stage_out" description="Active only if meteorological fields are being interpolated"/>
                 <package name="first_guess_field" description="3-d atmospheric or land-surface fields on first-guess levels"/>
-                <package name="mp_thompson_aers_in" description="initialization of GOCART-based Thompson water- and ice-friendly aerosols"/>
+                <package name="microphysics_aerosols" description="Initialization of GOCART-based water- and ice-friendly aerosols for Thompson and TEMPO microphysics"/>
                 <package name="noahmp" description="Whether to process, read, and write static fields only required by Noah-MP"/>
+                <package name="qc" description="Whether QC is available for inclusion in ICs and LBCs"/>
+                <package name="qr" description="Whether QR is available for inclusion in ICs and LBCs"/>
         </packages>
 
 
@@ -599,7 +606,7 @@
                         <var name="v_init" packages="met_stage_out"/>
                         <var name="t_init" packages="met_stage_out"/>
                         <var name="qv_init" packages="met_stage_out"/>
-                        <var_array name="scalars" packages="met_stage_out;mp_thompson_aers_in"/>
+                        <var_array name="scalars" packages="met_stage_out;microphysics_aerosols"/>
                         <var name="u" packages="met_stage_out"/>
                         <var name="w" packages="met_stage_out"/>
                         <var name="dz" packages="met_stage_out"/>
@@ -1025,15 +1032,15 @@
                 <!-- GOCART aerosol fields -->
                 <var name="nifa_gocart_clim" type="real" dimensions="nMonths nGocartLevels nCells" units="nb kg^{-1}"
                      description="climatological Gocart ice-friendly number concentration"
-                     packages="mp_thompson_aers_in"/>
+                     packages="microphysics_aerosols"/>
 
                 <var name="nwfa_gocart_clim" type="real" dimensions="nMonths nGocartLevels nCells" units="nb kg^{-1}"
                      description="climatological Gocart water-friendly number concentration"
-                     packages="mp_thompson_aers_in"/>
+                     packages="microphysics_aerosols"/>
 
                 <var name="pwif_gocart_clim" type="real"  dimensions="nMonths nGocartLevels nCells" units="Pa"
                      description="climatological Gocart pressure levels"
-                     packages="mp_thompson_aers_in"/>
+                     packages="microphysics_aerosols"/>
 
                 <!-- description of the vertical grid structure -->
                 <var name="hx" type="real" dimensions="nVertLevelsP1 nCells" units="m"
@@ -1159,18 +1166,21 @@
                              description="Water vapor mixing ratio"/>
 
                         <var name="qc" array_group="moist" units="kg kg^{-1}"
-                             description="Cloud water mixing ratio"/>
+                             description="Cloud water mixing ratio"
+                             packages="qc"/>
 
                         <var name="qr" array_group="moist" units="kg kg^{-1}"
-                             description="Rain water mixing ratio"/>
+                             description="Rain water mixing ratio"
+                             packages="qr"/>
 
                         <var name="nifa" array_group="number" units="nb kg^{-1}"
                              description="Gocart ice-friendly aerosol number concentration"
-                             packages="mp_thompson_aers_in"/>
+                             packages="microphysics_aerosols"/>
 
                         <var name="nwfa" array_group="number" units="nb kg^{-1}"
                              description="Gocart water-friendly aerosol number concentration"
-                             packages="mp_thompson_aers_in"/>
+                             packages="microphysics_aerosols"/>
+
                         <var name="tke" array_group="turbulence" units="m^2 s^{-2}"
                              description="Turbulent kinetic energy for the prognostic tke LES scheme"/>
                 </var_array>
@@ -1203,18 +1213,20 @@
                              description="Water vapor mixing ratio on lateral boundary cells"/>
 
                         <var name="lbc_qc" array_group="moist" units="kg kg^{-1}"
-                             description="Cloud water mixing ratio on lateral boundary cells"/>
+                             description="Cloud water mixing ratio on lateral boundary cells"
+                             packages="qc"/>
 
                         <var name="lbc_qr" array_group="moist" units="kg kg^{-1}"
-                             description="Rain water mixing ratio on lateral boundary cells"/>
+                             description="Rain water mixing ratio on lateral boundary cells"
+                             packages="qr"/>
 
                         <var name="lbc_nifa" array_group="number" units="nb kg^{-1}"
                              description="Gocart ice-friendly aerosol number concentration on lateral boundary cells"
-                             packages="mp_thompson_aers_in"/>
+                             packages="microphysics_aerosols"/>
 
                         <var name="lbc_nwfa" array_group="number" units="nb kg^{-1}"
                              description="Gocart water-friendly aerosol number concentration on lateral boundary cells"
-                             packages="mp_thompson_aers_in"/>
+                             packages="microphysics_aerosols"/>
                 </var_array>
 
         </var_struct>

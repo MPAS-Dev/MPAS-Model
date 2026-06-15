@@ -14,6 +14,9 @@ module init_atm_core_interface
    use mpas_io_units
    use mpas_log, only : mpas_log_write
 
+   private :: setup_hydrometeor_packages, &
+              mpas_split_string_new
+
    contains
 
 
@@ -100,7 +103,7 @@ module init_atm_core_interface
    !>  not allocated until after this routine has been called.
    !
    !-----------------------------------------------------------------------
-   function init_atm_setup_packages(configs, streamInfo, packages, iocontext) result(ierr)
+   function init_atm_setup_packages(configs, streamInfo, packages, iocontext, dminfo) result(ierr)
 
       use mpas_derived_types, only : mpas_pool_type, mpas_io_context_type, MPAS_streamInfo_type
       use mpas_pool_routines, only : mpas_pool_get_config, mpas_pool_get_package
@@ -111,6 +114,7 @@ module init_atm_core_interface
       type (MPAS_streamInfo_type), intent(inout) :: streamInfo
       type (mpas_pool_type), intent(inout) :: packages
       type (mpas_io_context_type), intent(inout) :: iocontext
+      type (dm_info), intent(in) :: dminfo
       integer :: ierr
       logical :: lexist
 
@@ -120,7 +124,7 @@ module init_atm_core_interface
       logical, pointer :: config_native_gwd_static, config_static_interp, config_vertical_grid, config_met_interp
       logical, pointer :: config_native_gwd_gsl_static
       logical, pointer :: first_guess_field
-      logical, pointer :: mp_thompson_aers_in
+      logical, pointer :: microphysics_aerosols
       integer, pointer :: config_init_case
       logical, pointer :: noahmp, config_noahmp_static
 
@@ -167,8 +171,8 @@ module init_atm_core_interface
       nullify(met_stage_out)
       call mpas_pool_get_package(packages, 'met_stage_outActive', met_stage_out)
 
-      nullify(mp_thompson_aers_in)
-      call mpas_pool_get_package(packages, 'mp_thompson_aers_inActive', mp_thompson_aers_in)
+      nullify(microphysics_aerosols)
+      call mpas_pool_get_package(packages, 'microphysics_aerosolsActive', microphysics_aerosols)
 
       if (.not. associated(initial_conds) .or. &
           .not. associated(sfc_update) .or. &
@@ -179,7 +183,7 @@ module init_atm_core_interface
           .not. associated(vertical_stage_out) .or. &
           .not. associated(met_stage_in) .or. &
           .not. associated(met_stage_out) .or. &
-          .not. associated(mp_thompson_aers_in)) then
+          .not. associated(microphysics_aerosols)) then
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_ERR)
          call mpas_log_write('* Error while setting up packages for init_atmosphere core.',                      messageType=MPAS_LOG_ERR)
          call mpas_log_write('********************************************************************************', messageType=MPAS_LOG_ERR)
@@ -197,12 +201,12 @@ module init_atm_core_interface
 
       if (config_init_case == 9) then
          lbcs = .true.
-         mp_thompson_aers_in = .false.
+         microphysics_aerosols = .false.
          inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
-         if(lexist) mp_thompson_aers_in = .true.
+         if(lexist) microphysics_aerosols = .true.
       else
          lbcs = .false.
-         mp_thompson_aers_in = .false.
+         microphysics_aerosols = .false.
       end if
 
       if (config_init_case == 7) then
@@ -226,9 +230,9 @@ module init_atm_core_interface
                         (.not. config_vertical_grid)
          met_stage_out = config_met_interp
 
-         mp_thompson_aers_in = .false.
+         microphysics_aerosols = .false.
          inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
-         if((lexist .and. met_stage_out) .or. (lexist .and. met_stage_in)) mp_thompson_aers_in = .true.
+         if((lexist .and. met_stage_out) .or. (lexist .and. met_stage_in)) microphysics_aerosols = .true.
 
       else if (config_init_case == 8) then
          gwd_stage_in = .false.
@@ -252,9 +256,9 @@ module init_atm_core_interface
          met_stage_in = .true.
          met_stage_out = .true.
 
-         mp_thompson_aers_in = .false.
+         microphysics_aerosols = .false.
          inquire(file="QNWFA_QNIFA_SIGMA_MONTHLY.dat",exist=lexist)
-         if((lexist .and. met_stage_out) .or. (lexist .and. met_stage_in)) mp_thompson_aers_in = .true.
+         if((lexist .and. met_stage_out) .or. (lexist .and. met_stage_in)) microphysics_aerosols = .true.
 
          initial_conds = .false.   ! Also, turn off the initial_conds package to avoid writing the IC "output" stream
 
@@ -315,7 +319,200 @@ module init_atm_core_interface
          return
       end if
 
+      if (config_init_case == 7 .or. config_init_case == 9) then
+         if (met_stage_out) then
+             call setup_hydrometeor_packages(packages, configs, dminfo, ierr)
+         end if
+      end if
+
    end function init_atm_setup_packages
+
+
+   !***********************************************************************
+   !
+   !  function setup_hydrometeor_packages
+   !
+   !> \brief   Set up packages for hydrometeors based on contents of intermediate file
+   !> \author  Michael Duda
+   !> \date    27 May 2026
+   !> \details
+   !> This routine is responsible for setting up packages for hydrometeor species (qc,
+   !> qr, etc.) based on the value of the 'config_active_hydrometeors' namelist option,
+   !> and possibly on the contents of the initial intermediate file (i.e., the
+   !> intermediate file valid at the start time of a simulation; the assumption is
+   !> that all intermediate files contain the same set of fields).
+   !>
+   !> 1) If config_active_hydrometeors is set to 'detect_automatically', packages will
+   !>    be set up by scanning through the fields in the initial intermediate file,
+   !>    with packages being activated only for those hydrometeors that are present in
+   !>    the file.
+   !>
+   !> 2) Alternatively, and to avoid the need to scan through all fields in the
+   !>    initial intermediate file, if config_active_hydrometeors is set to a
+   !>    semicolon-separated list of zero or more hydrometeor names (e.g., 'qc;qr'),
+   !>    packages for those specified hydrometeors will be active, and the packages
+   !>    for all unspecified hydrometeors will be inactive.
+   !>
+   !> If the setup of all hydrometeor packages is successful, a value of 0 is returned
+   !> in the ierr output argument; otherwise, a non-zero value is returned.
+   !
+   !-----------------------------------------------------------------------
+   subroutine setup_hydrometeor_packages(packages, configs, dminfo, ierr)
+
+      use init_atm_read_met, only : read_met_init, read_next_met_field, read_met_close, met_data
+      use mpas_timer, only : mpas_timer_start, mpas_timer_stop
+
+      implicit none
+
+      type (mpas_pool_type), intent(inout) :: packages
+      type (mpas_pool_type), intent(in) :: configs
+      type (dm_info), intent(in) :: dminfo
+      integer, intent(out) :: ierr
+
+      character(len=StrKIND), pointer :: config_active_hydrometeors
+      character(len=StrKIND), pointer :: config_met_prefix, config_start_time
+      integer :: istatus
+      type (met_data) :: field
+
+      integer :: i
+      character(len=:), dimension(:), allocatable :: hydrometeors
+
+      logical, pointer :: qc, qr
+
+
+      call mpas_timer_start('setup_hydrometeor_packages')
+
+      ierr = 0
+
+      call mpas_pool_get_config(configs, 'config_active_hydrometeors', config_active_hydrometeors)
+
+      if (.not. associated(config_active_hydrometeors)) then
+         call mpas_log_write( &
+                 "The namelist option 'config_active_hydrometeors' could not be found when setting up hydrometeor packages.", &
+                 messageType=MPAS_LOG_ERR)
+
+         ierr = 1
+         call mpas_timer_stop('setup_hydrometeor_packages')
+         return
+      end if
+
+      call mpas_pool_get_package(packages, 'qcActive', qc)
+      call mpas_pool_get_package(packages, 'qrActive', qr)
+
+      if (.not. associated(qc) &
+          .or. .not. associated(qr) &
+         ) then
+
+         call mpas_log_write('One or more packages could not be found when setting up hydrometeor packages.', &
+                             messageType=MPAS_LOG_ERR)
+
+         ierr = 1
+         call mpas_timer_stop('setup_hydrometeor_packages')
+         return
+      end if
+
+      qc = .false.
+      qr = .false.
+
+      if (trim(config_active_hydrometeors) == 'detect_automatically') then
+
+         call mpas_pool_get_config(configs, 'config_met_prefix', config_met_prefix)
+         call mpas_pool_get_config(configs, 'config_start_time', config_start_time)
+
+         if (.not. associated(config_met_prefix) &
+             .or. .not. associated(config_start_time) &
+            ) then
+
+            call mpas_log_write( &
+                    'One or more namelist options could not be found when setting up hydrometeor packages.', &
+                    messageType=MPAS_LOG_ERR)
+
+            ierr = 1
+            call mpas_timer_stop('setup_hydrometeor_packages')
+            return
+         end if
+
+         call mpas_log_write('Setting up hydrometeor packages from '//trim(config_met_prefix)//':'//config_start_time(1:13))
+
+         if (dminfo % my_proc_id == IO_NODE) then
+            call read_met_init(trim(config_met_prefix), .false., config_start_time(1:13), ierr)
+
+            if (ierr == 0) then
+               call read_next_met_field(field, istatus)
+            else
+               call mpas_log_write('Could not open intermediate file ' &
+                                   //trim(config_met_prefix)//':'//config_start_time(1:13) &
+                                   //' to set up hydrometeor packages.', &
+                                   messageType=MPAS_LOG_ERR)
+               istatus = 1
+            end if
+
+            do while (istatus == 0)
+               if (trim(field % field) == 'QC') then
+                  qc = .true.
+               else if (trim(field % field) == 'QR') then
+                  qr = .true.
+               end if
+
+               deallocate(field % slab)
+
+               ! If all packages are true, there is no point in scanning through the rest
+               ! of the intermediate file, since this loop over fields can only switch packages
+               ! from false to true.
+               if (qc .and. qr) exit
+
+               call read_next_met_field(field, istatus)
+            end do
+
+            call read_met_close()
+
+            call mpas_dmpar_bcast_int(dminfo, ierr)
+            call mpas_dmpar_bcast_logical(dminfo, qc)
+            call mpas_dmpar_bcast_logical(dminfo, qr)
+         else
+            call mpas_dmpar_bcast_int(dminfo, ierr)
+            call mpas_dmpar_bcast_logical(dminfo, qc)
+            call mpas_dmpar_bcast_logical(dminfo, qr)
+         end if
+
+      else
+
+         call mpas_log_write('Setting up hydrometeor packages from config_active_hydrometeors list: ' &
+                             //trim(config_active_hydrometeors))
+
+         call mpas_split_string_new(trim(config_active_hydrometeors), ';', hydrometeors)
+
+         do i = 1, size(hydrometeors)
+            select case (trim(hydrometeors(i)))
+               case ('qc')
+                  qc = .true.
+               case ('qr')
+                  qr = .true.
+               case default
+                  call mpas_log_write('Unrecognized hydrometeor '//trim(hydrometeors(i)) &
+                                      //' found in config_active_hydrometeors', &
+                                      messageType=MPAS_LOG_WARN)
+            end select
+         end do
+
+         deallocate(hydrometeors)
+
+      end if
+
+      if (ierr /= 0) then
+         call mpas_log_write('Failed to set up hydrometeor packages.', messageType=MPAS_LOG_ERR)
+         call mpas_timer_stop('setup_hydrometeor_packages')
+         return
+      end if
+
+      call mpas_log_write('  QC = $l', logicArgs=[qc])
+      call mpas_log_write('  QR = $l', logicArgs=[qr])
+      call mpas_log_write('----- done setting up hydrometeor packages -----')
+      call mpas_log_write('')
+
+      call mpas_timer_stop('setup_hydrometeor_packages')
+
+   end subroutine setup_hydrometeor_packages
 
 
    !***********************************************************************
@@ -520,6 +717,82 @@ module init_atm_core_interface
       call init_atm_generate_structs(block, block % structs, block % dimensions, block % packages)
 
    end function init_atm_setup_block
+
+
+   !-----------------------------------------------------------------------
+   !  routine mpas_split_string_new
+   !
+   !> \brief Splits a string at a specified delimiter, returning an array of strings
+   !> \author Michael Duda
+   !> \date   28 May 2026
+   !> \details
+   !>  This routine takes as input a string and a delimiter character, and returns an
+   !>  array of sub-strings from the input string that are separated by one or more
+   !>  delimiter characters.
+   !>
+   !>  If more than one delimiter character appears consecutively, no empty string
+   !>  in the output subStrings array is generated.
+   !>
+   !>  The length of the strings in the output subStrings argument is equal to the
+   !>  length of the longest substring in the input string.
+   !
+   !-----------------------------------------------------------------------
+   subroutine mpas_split_string_new(string, delimiter, subStrings)
+
+      implicit none
+
+      ! Arguments
+      character(len=*), intent(in) :: string
+      character, intent(in) :: delimiter
+      character(len=:), dimension(:), allocatable, intent(inout) :: subStrings
+
+      ! Local variables
+      integer :: i, j, n_strs, strlen, max_strlen
+
+
+      i = 1
+      n_strs = 0
+      strlen = 0
+      max_strlen = 1
+      PARSE_LOOP: do while (i <= len(string))
+         do while (string(i:i) == delimiter)
+            i = i + 1
+            if (i > len(string)) exit PARSE_LOOP
+         end do
+
+         n_strs = n_strs + 1
+         strlen = 0
+         do while (string(i:i) /= delimiter)
+            i = i + 1
+            strlen = strlen + 1
+            if (i > len(string)) exit
+         end do
+         max_strlen = max(strlen, max_strlen)
+      end do PARSE_LOOP
+
+      if (allocated(subStrings)) deallocate(subStrings)
+      allocate(character(len=max_strlen) :: subStrings(n_strs))
+
+      i = 1
+      n_strs = 0
+      COPY_LOOP: do while (i <= len(string))
+         do while (string(i:i) == delimiter)
+            i = i + 1
+            if (i > len(string)) exit COPY_LOOP
+         end do
+
+         n_strs = n_strs + 1
+         j = 1
+         do while (string(i:i) /= delimiter)
+            subStrings(n_strs)(j:j) = string(i:i)
+            i = i + 1
+            j = j + 1
+            if (i > len(string)) exit
+         end do
+         subStrings(n_strs)(j:max_strlen) = ''
+      end do COPY_LOOP
+
+   end subroutine mpas_split_string_new
 
 
 #include "setup_immutable_streams.inc"

@@ -99,7 +99,7 @@ module atm_core_interface
    !>  not allocated until after this routine has been called.
    !
    !-----------------------------------------------------------------------
-   function atm_setup_packages(configs, streamInfo, packages, iocontext) result(ierr)
+   function atm_setup_packages(configs, streamInfo, packages, iocontext, dminfo) result(ierr)
 
       use mpas_dmpar
       use mpas_derived_types, only : mpas_pool_type, mpas_io_context_type, MPAS_streamInfo_type
@@ -116,6 +116,7 @@ module atm_core_interface
       type (MPAS_streamInfo_type), intent(inout) :: streamInfo
       type (mpas_pool_type), intent(inout) :: packages
       type (mpas_io_context_type), intent(inout) :: iocontext
+      type (dm_info), intent(in) :: dminfo
       integer :: ierr
 
       logical, pointer :: iauActive

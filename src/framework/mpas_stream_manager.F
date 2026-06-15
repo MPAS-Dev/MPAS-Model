@@ -246,6 +246,19 @@ module mpas_stream_manager
            end if
 
            !
+           ! Remove all items from manager % alarms_in(put) list
+           !
+           stream_cursor => manager % alarms_in % head
+           do while (associated(stream_cursor))
+               call MPAS_stream_list_destroy(stream_cursor % streamList, ierr=err_local)
+               if (err_local /= MPAS_STREAM_LIST_NOERR) then
+                   if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
+                   STREAM_ERROR_WRITE('Problems while destroying input alarms item')
+               end if
+               stream_cursor => stream_cursor % next
+           end do
+
+           !
            ! Free up list of input alarms
            !
            call MPAS_stream_list_destroy(manager % alarms_in, ierr=err_local)
@@ -253,6 +266,19 @@ module mpas_stream_manager
                if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
                STREAM_ERROR_WRITE('Problems while destroying input alarms list')
            end if
+
+           !
+           ! Remove all items from manager % alarms_out(put) list
+           !
+           stream_cursor => manager % alarms_out % head
+           do while (associated(stream_cursor))
+               call MPAS_stream_list_destroy(stream_cursor % streamList, ierr=err_local)
+               if (err_local /= MPAS_STREAM_LIST_NOERR) then
+                   if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
+                   STREAM_ERROR_WRITE('Problems while destroying output alarms list')
+               end if
+               stream_cursor => stream_cursor % next
+           end do
 
            !
            ! Free up list of output alarms

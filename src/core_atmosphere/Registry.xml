@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<registry model="mpas" core="atmosphere" core_abbrev="atm" version="8.4.0">
+<registry model="mpas" core="atmosphere" core_abbrev="atm" version="8.4.1">
 
 <!-- **************************************************************************************** -->
 <!-- ************************************** Dimensions ************************************** -->
@@ -490,6 +490,9 @@
                 <package name="les"
                          description="Variables and options associated with LES models"
                          active_when="trim(config_les_model) /= 'none'"/>
+                <package name="sfclayer"
+                         description="Variables and options associated with surface layer physics"
+                         active_when="(trim(config_physics_suite) /= 'none' .and. trim(config_sfclayer_scheme) == 'suite') .or.  any(trim(config_sfclayer_scheme) == [ character(len=StrKind) :: 'sf_monin_obukhov', 'sf_monin_obukhov_rev', 'sf_mynn' ])"/>
         </packages>
 
 
@@ -2911,7 +2914,7 @@
 
                 <var name="hpbl" type="real" dimensions="nCells Time" units="m"
                      description="Planetary Boundary Layer (PBL) height"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_ysu_in;sfclayer"/>
 
 		<var name="kzh" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-1}"
                      description="vertical diffusion coefficient of potential temperature"
@@ -3048,131 +3051,131 @@
 
                 <var name="hfx" type="real" dimensions="nCells Time" units="W m^{-2}"
                      description="upward heat flux at the surface"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="mavail" type="real" dimensions="nCells Time" units="unitless"
                      description="surface moisture availability (between 0 and 1)"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="mol" type="real" dimensions="nCells Time" units="K"
                      description="T* in similarity theory"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="qfx" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
                      description="upward moisture flux at the surface"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="qsfc" type="real"  dimensions="nCells Time" units="kg kg^{-1}"
                      description="specific humidity at lower boundary"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="ust" type="real" dimensions="nCells Time" units="m s^{-1}"
                      description="U* in similarity theory"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="ustm" type="real" dimensions="nCells Time" units="m s^{-1}"
                      description="U* in similarity theory without vconv"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="zol" type="real" dimensions="nCells Time" units="unitless"
                      description="z/L height over Monin-Obukhov length"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="br" type="real" dimensions="nCells Time" units="unitless"
                      description="Richardson number"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="cd" type="real" dimensions="nCells Time" units="unitless"
                      description="drag coefficient at 10-meter"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="cda" type="real" dimensions="nCells Time" units="unitless"
                      description="drag coefficient at lowest model level"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="chs" type="real" dimensions="nCells Time" units="m s^{-1}"
                      description="surface exchange coefficient for heat and moisture"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="chs2" type="real" dimensions="nCells Time" units="m s^{-1}"
                      description="surface exchange coefficient for heat at 2-meter"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="cqs2" type="real" dimensions="nCells Time" units="m s^{-1}"
                      description="surface exchange coefficient for moisture at 2-meter"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="ck" type="real" dimensions="nCells Time" units="unitless"
                      description="enthalpy exchange coeff at 10-meter"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="cka" type="real" dimensions="nCells Time" units="unitless"
                      description="enthalpy exchange coefficient at lowest model level"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="cpm" type="real" dimensions="nCells Time" units="J K^{-1} kg^{-1}"
                      description="specific heat of dry air at constant pressure at lowest model level"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="flhc" type="real" dimensions="nCells Time" units="W m^{-2} K^{-1}"
                      description="exchange coefficient for heat"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="flqc" type="real" dimensions="nCells Time" units="kg m^{-2} s^{-1}"
                      description="exchange coefficient for moisture"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="gz1oz0" type="real" dimensions="nCells Time" units="unitless"
                      description="log(z/z0) where z0 is roughness length"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="lh" type="real" dimensions="nCells Time" units="W m^{-2}"
                      description="latent heat flux at the surface"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="psim" type="real" dimensions="nCells Time" units="unitless"
                      description="similarity stability function for momentum"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="psih" type="real" dimensions="nCells Time" units="unitless"
                      description="similarity stability function for heat"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="qgh" type="real" dimensions="nCells Time" units="kg kg^{-1}"
                      description="lowest level saturation mixing ratio"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="regime" type="real" dimensions="nCells Time" units="unitless"
                      description="flag indicating the PBL regime (stable,unstable,...)"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="rmol" type="real" dimensions="nCells Time" units="unitless"
                      description="1./L Monin Obukhov length"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="wspd" type="real" dimensions="nCells Time" units="m s^{-1}"
                      description="wind speed at lowest model level"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="sfclayer"/>
 
 
                 <!-- ... MONIN-OBUKHOV (SFCLAY): -->
                 <var name="fh" type="real" dimensions="nCells Time" units="unitless"
                      description="integrated stability function for heat"
-                     packages="bl_ysu_in"/>
+                     packages="sfclayer"/>
 
                 <var name="fm" type="real" dimensions="nCells Time" units="unitless"
                      description="integrated stability function for moisture"
-                     packages="bl_ysu_in"/>
+                     packages="sfclayer"/>
 
 
                 <!-- ... MYNN: -->
                 <var name="ch" type="real" dimensions="nCells Time" units="m s^{-1}"
                      description="surface exchange coefficient for heat"
-                     packages="bl_mynn_in"/>
+                     packages="sfclayer"/>
 
                 <var name="qcg" type="real" dimensions="nCells Time" units="kg kg^{-1}"
                      description="cloud water mixing ratio at the ground surface"
-                     packages="bl_mynn_in"/>
+                     packages="sfclayer"/>
 
                 <var name="sh3d" type="real" dimensions="nVertLevels nCells Time" units="unitless"
                      description="stability function for heat"
@@ -3183,20 +3186,20 @@
                      packages="bl_mynn_in"/>
 
 
-                <!-- DIAGNOSTICS: -->
-                <var name="u10" type="real" dimensions="nCells Time" packages="bl_mynn_in;bl_ysu_in" units="m s^{-1}"
+                <!-- SURFACE DIAGNOSTICS: -->
+                <var name="u10" type="real" dimensions="nCells Time" packages="sfclayer" units="m s^{-1}"
                      description="10-meter zonal wind"/>
 
-                <var name="v10" type="real" dimensions="nCells Time" packages="bl_mynn_in;bl_ysu_in" units="m s^{-1}"
+                <var name="v10" type="real" dimensions="nCells Time" packages="sfclayer" units="m s^{-1}"
                      description="10-meter meridional wind"/>
 
-                <var name="q2" type="real" dimensions="nCells Time" packages="bl_mynn_in;bl_ysu_in" units="kg kg^{-1}"
+                <var name="q2" type="real" dimensions="nCells Time" packages="sfclayer" units="kg kg^{-1}"
                      description="2-meter specific humidity"/>
 
-                <var name="t2m" type="real" dimensions="nCells Time" packages="bl_mynn_in;bl_ysu_in" units="K"
+                <var name="t2m" type="real" dimensions="nCells Time" packages="sfclayer" units="K"
                      description="2-meter temperature"/>
 
-                <var name="th2m" type="real" dimensions="nCells Time" packages="bl_mynn_in;bl_ysu_in" units="K"
+                <var name="th2m" type="real" dimensions="nCells Time" packages="sfclayer" units="K"
                      description="2-meter potential temperature"/>
 
 

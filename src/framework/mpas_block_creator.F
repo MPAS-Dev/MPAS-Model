@@ -249,6 +249,8 @@ module mpas_block_creator
      call mpas_dmpar_alltoall_field(cellsOnCellBlock, cellsOnCell_0Halo, sendingHaloLayers)
      call mpas_dmpar_alltoall_field(verticesOnCellBlock, verticesOnCell_0Halo, sendingHaloLayers)
      call mpas_dmpar_alltoall_field(edgesOnCellBlock, edgesOnCell_0Halo, sendingHaloLayers)
+
+     deallocate(sendingHaloLayers)
    end subroutine mpas_block_creator_build_0halo_cell_fields!}}}
 
 !***********************************************************************

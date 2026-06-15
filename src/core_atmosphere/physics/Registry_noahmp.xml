@@ -16,7 +16,7 @@
       <dim name="nSnowLevels" definition="3"
                 description="The number of snow layers used by the NOAHMP land-surface scheme"/>
 
-      <dim name="nzSnowLevels" definition="7"
+      <dim name="nzSnowLevels" definition="nSoilLevels+nSnowLevels"
                 description="The number of snow layer depths used by the NOAHMP land-surface scheme"/>
 
  </dims>
