@@ -777,6 +777,34 @@ endif
 	LIBS += $(NCLIB)
 endif
 
+export SCOTCH ?= false
+ifeq "$(SCOTCH)" "true"
+	ifeq ($(wildcard $(SCOTCH_ROOT)), )
+		export SCOTCH_RELPATH=src/external/scotch
+		export SCOTCH_ROOT=${CURDIR}/${SCOTCH_RELPATH}/install
+		export SCOTCH_LIB_DIR=lib
+	else
+		ifneq ($(wildcard $(SCOTCH_ROOT)/lib/libptscotch.a), )
+			SCOTCH_LIB_DIR=lib64
+		else ifneq ($(wildcard $(SCOTCH_ROOT)/lib64/libptscotch.a), )
+			SCOTCH_LIB_DIR=lib64
+		else
+			$(error Could not find SCOTCH library in $(SCOTCH_ROOT)/lib or $(SCOTCH_ROOT)/lib64)
+		endif
+	endif
+	SCOTCH_INCLUDES += -I$(SCOTCH_ROOT)/include
+	SCOTCH_LIBS += -L$(SCOTCH_ROOT)/$(SCOTCH_LIB_DIR) -lptscotch -lscotch  -lptscotcherr -lm
+	SCOTCH_FLAGS = -DMPAS_SCOTCH
+	CPPINCLUDES += $(SCOTCH_INCLUDES)
+	LIBS += $(SCOTCH_LIBS)
+	override CPPFLAGS += $(SCOTCH_FLAGS)
+	SCOTCH_MESSAGE="MPAS was built with an external SCOTCH library using SCOTCH path"
+else ifeq "$(SCOTCH)" "false"
+	SCOTCH_MESSAGE="MPAS was built with the embedded SCOTCH library."
+else
+	$(error Invalid SCOTCH option: $(SCOTCH) - valid options "true", "false")
+endif
+
 ifneq "$(SCOTCH)" ""
 	SCOTCH_INCLUDES += -I$(SCOTCH)/include
 	SCOTCH_LIBS += -L$(SCOTCH)/lib64 -lptscotch -lscotch  -lptscotcherr -lm
@@ -1086,6 +1114,7 @@ rebuild_check:
 	OPENMP=$(OPENMP)\n$\
 	OPENMP_OFFLOAD=$(OPENMP_OFFLOAD)\n$\
 	OPENACC=$(OPENACC)\n$\
+	SCOTCH=$(SCOTCH)\n$\
 	TAU=$(TAU)\n$\
 	PICFLAG=$(PICFLAG)\n$\
 	TIMER_LIB=$(TIMER_LIB)\n$\
@@ -1442,11 +1471,22 @@ musica_fortran_test:
 	$(eval MUSICA_FORTRAN_VERSION := $(shell pkg-config --modversion musica-fortran))
 	$(if $(findstring 1,$(MUSICA_FORTRAN_TEST)), $(info Built a simple test program with MUSICA-Fortran version $(MUSICA_FORTRAN_VERSION)), )
 
-scotch_c_test:
+$(SCOTCH_ROOT)/$(SCOTCH_LIB_DIR)/libptscotch.a:
+	@#
+	@# Build the Scotch library if it is not already built
+	@#
+	$(info Building Scotch library...)
+	src/core_atmosphere/tools/manage_externals/checkout_externals --externals src/Externals.cfg;
+	cd ${SCOTCH_RELPATH} && mkdir -p build;
+	cd ${SCOTCH_RELPATH}/build && cmake .. -DCMAKE_INSTALL_PREFIX=$(SCOTCH_ROOT) -DCMAKE_INSTALL_LIBDIR=$(SCOTCH_LIB_DIR) -DCMAKE_BUILD_TYPE=Release;
+	cd ${SCOTCH_RELPATH}/build && make -j$(nproc);
+	cd ${SCOTCH_RELPATH}/build && make install;
+
+scotch_c_test: $(SCOTCH_ROOT)/$(SCOTCH_LIB_DIR)/libptscotch.a
 	@#
 	@# Create a C test program and try to build against the PT-SCOTCH library
 	@#
-	$(info Checking for a working Scotch library...)
+	$(info Checking for a working Scotch library in $(SCOTCH_ROOT)...)
 	$(eval SCOTCH_C_TEST := $(shell $\
 	    printf "#include <stdio.h>\n\
 			&#include \"mpi.h\"\n\
@@ -1529,7 +1569,7 @@ else
 MUSICA_MESSAGE = "MPAS was not linked with the MUSICA-Fortran library."
 endif
 
-ifneq "$(SCOTCH)" ""
+ifeq "$(SCOTCH)" "true"
 MAIN_DEPS += scotch_c_test
 SCOTCH_MESSAGE = "MPAS has been linked with the Scotch graph partitioning library."
 else
