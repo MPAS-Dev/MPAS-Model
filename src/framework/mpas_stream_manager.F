@@ -576,14 +576,22 @@ module mpas_stream_manager
     !-----------------------------------------------------------------------
     !  routine MPAS_stream_mgr_check_filename_template
     !
-    !> \brief Check for identical filename templates in active I/O streams.
+    !> \brief Check for filename_template conflicts between active output and I/O streams.
     !> \author Abishek Gopal
     !> \date   June 3 2026
     !> \details
-    !>  Checks that there are no identical filename templates among active I/O
-    !>  streams in the stream manager, which may lead to file conflicts. This
-    !>  routine can be called from within MPAS_stream_mgr_validate_streams or
-    !>  separately as needed.
+    !>  Checks that there are no active output streams that share an identical
+    !>  filename_template attribute with any other active input or output streams
+    !>  in the stream manager, which may lead to file conflicts. An active stream
+    !>  in this context is a stream with active_stream = .true. and is not
+    !>  deactivated by an inactive package and is either an input or output
+    !>  stream with at least one active alarm.
+    !>
+    !>  If this routine detects any filename_template conflicts, an error message
+    !>  is logged for each pair of conflicting streams, and an MPAS_STREAM_MGR_ERROR
+    !>  error code is returned. In the case of a successful check, an
+    !>  MPAS_STREAM_MGR_NOERR error code is returned. This routine can be called
+    !>  from within MPAS_stream_mgr_validate_streams or separately as needed.
     !
     !-----------------------------------------------------------------------
     subroutine MPAS_stream_mgr_check_filename_template(manager, ierr)!{{{
@@ -609,7 +617,7 @@ module mpas_stream_manager
 
         threadNum = mpas_threading_get_thread_num()
 
-        if ( threadNum == 0 ) then
+        if (threadNum == 0) then
 
             streamID = '.*' !  query all streams
 
@@ -667,9 +675,10 @@ module mpas_stream_manager
                     end if
 
                     if (trim(stream1_cursor % filename_template) == trim(stream2_cursor % filename_template)) then
-                        message = 'Found identical values of the filename_template attribute for multiple active output streams, ' &
-                                  // trim(stream1_cursor % name) // ' and ' // trim(stream2_cursor % name) // &
-                                  ', in streams.<CORE>. This may result in file conflicts.'
+                        message = 'Detected identical values of filename_template between an active output stream and an I/O stream'
+                        call mpas_log_write(message, messageType=MPAS_LOG_ERR)
+                        message = 'Streams '// trim(stream1_cursor % name) // ' and ' // trim(stream2_cursor % name) // &
+                                  ' share the filename_template attribute in streams.<CORE>. This may result in file conflicts.'
                         call mpas_log_write(message, messageType=MPAS_LOG_ERR)
                         if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
                     end if
@@ -1915,7 +1924,7 @@ module mpas_stream_manager
        err_local = MPAS_STREAM_MGR_NOERR
        nullify(streamCursor)
 
-       if ( mpas_stream_list_query(manager % streams, streamID, streamCursor) ) then
+       if (mpas_stream_list_query(manager % streams, streamID, streamCursor)) then
           if (direction == MPAS_STREAM_INPUT) then
             numAlarms = MPAS_stream_list_length(streamCursor % alarmList_in, err_local)
           else if (direction == MPAS_STREAM_OUTPUT) then
