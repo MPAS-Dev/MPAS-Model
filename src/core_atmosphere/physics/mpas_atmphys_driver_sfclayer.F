@@ -15,6 +15,7 @@
  use mpas_atmphys_vars
 
  use module_sf_mynn,only: sfclay_mynn
+ use module_sf_pxsfclay
  use module_sf_sfclay
  use module_sf_sfclayrev,only: sfclayrev
  use sf_mynn,only: sf_mynn_init
@@ -48,7 +49,8 @@
 !
 ! WRF physics called from driver_sfclayer:
 ! ----------------------------------------
-! * module_sf_sfclay: Monin-Obukhov surface layer scheme.
+! * module_sf_sfclay   : Monin-Obukhov surface layer scheme.
+! * module_sf_pxsfclay : PX surface layer scheme.
 !
 ! add-ons and modifications to sourcecode:
 ! ----------------------------------------
@@ -73,6 +75,8 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-25.
 ! * added the implementation of the MYNN surface layer scheme from WRF 3.6.1.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-30.
+! * added PX surface layer (pxsfclay) option.
+!   Jon Pleim (pleim.jon@epa.gov) and Hosein Foroutan (hosein@vt.edu) / 2016-05-04.
 ! * added the calculation of surface layer variables over seaice cells when config_frac_seaice is set to true.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-10-03.
 ! * changed the definition of dx_p to match that used in other physics parameterizations.
@@ -829,6 +833,9 @@
     case("sf_mynn")
        call sf_mynn_init(errmsg,errflg)
 
+    case("sf_pxsfclay")
+       call pxsfclayinit(allowed_to_read)
+
     case default
 
  end select sfclayer_select
@@ -1075,6 +1082,60 @@
                           )
        endif
        call mpas_timer_stop('sf_mynn')
+
+     case("sf_pxsfclay")
+       call mpas_timer_start('sf_pxsfclay')
+       call pxsfclay( &
+                   p3d   = pres_hyd_p , psfc   = psfc_p   , t3d   = t_p                  , &
+                   u3d   = u_p        , v3d    = v_p      , qv3d  = qv_p                 , &
+                   dz8w  = dz_p       , cp     = cp       , g     = gravity              , &
+                   rovcp = rcp        , R      = R_d      , xlv   = xlv                  , &
+                   chs   = chs_p      , chs2   = chs2_p   , cqs2  = cqs2_p               , &
+                   cpm   = cpm_p      , znt    = znt_p    , ust   = ust_p                , &
+                   pblh  = hpbl_p     , mavail = mavail_p , zol    = zol_p               , &
+                   mol   = mol_p      , regime = regime_p , psim   = psim_p              , &
+                   psih  = psih_p     , th3d   = th_p     , xland  = xland_p             , &
+                   hfx   = hfx_p      , qfx    = qfx_p    , lh     = lh_p                , &
+                   tsk   = tsk_p      , flhc   = flhc_p   , ta2    = t2m_p               , &
+                   th2   = th2m_p     , qa2    = q2_p     , flqc   = flqc_p              , &
+                   qgh   = qgh_p      , qsfc   = qsfc_p   , rmol   = rmol_p              , &
+                   u10   = u10_p      , v10    = v10_p    , gz1oz0 = gz1oz0_p            , &
+                   wspd  = wspd_p     , br     = br_p     , isfflx = isfflx              , &
+                   dx    = dx_p       , svp1   = svp1     , svp2   = svp2                , &
+                   svp3  = svp3       , svpt0  = svpt0    , ep1    = ep_1                , &
+                   ep2   = ep_2       , karman = karman                                  , &
+                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
+                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme , &
+                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
+                  )
+
+!      Note that fractional sea-ice is currently not supported by PX.
+!      if(config_frac_seaice) then
+!         call pxsfclay( &
+!                     p3d   = pres_hyd_p , psfc   = psfc_p     , t3d      = t_p             , &
+!                     u3d   = u_p        , v3d    = v_p        , qv3d     = qv_p            , &
+!                     dz8w  = dz_p       , cp     = cp         , g        = gravity         , &
+!                     rovcp = rcp        , R      = R_d        , xlv      = xlv             , &
+!                     chs   = chs_sea    , chs2   = chs2_sea   , cqs2     = cqs2_sea        , &
+!                     cpm   = cpm_sea    , znt    = znt_sea    , ust      = ust_sea         , &
+!                     pblh  = hpbl_p     , mavail = mavail_sea , zol      = zol_sea         , &
+!                     mol   = mol_sea    , regime = regime_sea , psim     = psim_sea        , &
+!                     psih  = psih_sea   , th3d   = th_p       , xland    = xland_sea       , &
+!                     hfx   = hfx_sea    , qfx    = qfx_sea    , lh       = lh_sea          , &
+!                     tsk   = tsk_sea    , flhc   = flhc_sea   , ta2      = t2m_sea         , &
+!                     th2   = th2m_sea   , qa2    = q2_sea     , flqc     = flqc_sea        , &
+!                     qgh   = qgh_sea    , qsfc   = qsfc_sea   , rmol     = rmol_sea        , &
+!                     u10   = u10_sea    , v10    = v10_sea    , gz1oz0   = gz1oz0_sea      , &
+!                     wspd  = wspd_sea   , br     = br_sea     , isfflx   = isfflx          , &
+!                     dx    = dx_p       , svp1   = svp1       , svp2     = svp2            , &
+!                     svp3  = svp3       , svpt0  = svpt0      , ep1      = ep_1            , &
+!                     ep2   = ep_2       , karman = karman                                  , &
+!                     ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
+!                     ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme , &
+!                     its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
+!                      )
+!      endif
+       call mpas_timer_stop('sf_pxsfclay')
 
     case default
 
