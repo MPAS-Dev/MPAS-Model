@@ -78,7 +78,6 @@ module mpas_init_atm_gwd
    integer (kind=I1KIND), parameter :: WATER = 16
 
    integer (kind=I1KIND), dimension(:), pointer :: hlanduse ! Dominant land mask (0 or 1)
-   real (kind=RKIND) :: hc   ! critical height
 
    contains
 
@@ -298,10 +297,11 @@ module mpas_init_atm_gwd
          oa3(iCell) = get_oa3(box, box_mean, nx, ny)
          oa4(iCell) = get_oa4(box, box_mean, nx, ny)
 
+         ! Previous hc (critical height) formula, no longer used as of June 2026:
          ! Critical height, to be used in OL computation
          ! See Appendix of Kim, Y-J, 1996: Representation of Sub-Grid Scale Orographic Effects
          ! in a General Circulation Model. J. Climate, 9, 2698-2717.
-         hc = 1116.2_RKIND - 0.878_RKIND * var2d(iCell)
+         ! hc = 1116.2_RKIND - 0.878_RKIND * var2d(iCell)
 
          ol1(iCell) = get_ol1(box, box_mean, nx, ny)
          ol2(iCell) = get_ol2(box, box_mean, nx, ny)
