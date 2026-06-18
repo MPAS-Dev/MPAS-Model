@@ -4871,20 +4871,19 @@ module atm_time_integration
             end do
             end do
 
-            !$acc loop seq
-            do i=1,nEdgesOnCell(iCell)
-               iEdge = edgesOnCell(i,iCell)
-
+            !$acc loop vector collapse(2)
+            do k=1,nVertLevels
+            do iScalar=1,num_scalars
                ! here we add the horizontal flux divergence into the scalar tendency.
                ! note that the scalar tendency is modified.
-               !$acc loop vector collapse(2)
-               do k=1,nVertLevels
-                  do iScalar=1,num_scalars
+               !$acc loop seq
+               do i=1,nEdgesOnCell(iCell)
+                  iEdge = edgesOnCell(i,iCell)
                         scalar_tend_column(iScalar,k) = scalar_tend_column(iScalar,k) &
                                - edgesOnCell_sign(i,iCell) * uhAvg(k,iEdge)*horiz_flux_arr(iScalar,k,iEdge)
-                  end do
+   
                end do
-
+            end do
             end do
 
             !$acc loop vector collapse(2)
