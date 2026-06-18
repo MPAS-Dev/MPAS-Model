@@ -4854,6 +4854,7 @@ module atm_time_integration
       !$acc enter data create(scalar_tend_column)
       MPAS_ACC_TIMER_STOP('atm_advance_scalars [ACC_data_xfer]')
 
+      MPAS_ACC_TIMER_START('atm_advance_scalars_4857')
       !$acc parallel wait
       !$acc loop gang worker private(scalar_tend_column, wdtn)
       do iCell=cellSolveStart,cellSolveEnd
@@ -4931,6 +4932,8 @@ module atm_time_integration
 
       end do
       !$acc end parallel
+
+      MPAS_ACC_TIMER_STOP('atm_advance_scalars_4857')
 
       MPAS_ACC_TIMER_START('atm_advance_scalars [ACC_data_xfer]')
       !$acc exit data delete(scalar_tend_column)
