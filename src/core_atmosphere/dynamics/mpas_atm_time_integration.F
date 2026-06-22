@@ -4803,16 +4803,9 @@ module atm_time_integration
                do k=1,nVertLevels
                   do iScalar=1,num_scalars
                      horiz_flux_arr(iScalar,k,iEdge) = 0.0_RKIND
-                  end do
-               end do
-
-               !$acc loop seq
-               do j=1,nAdvCellsForEdge(iEdge)
-                  iAdvCell = advCellsForEdge(j,iEdge)
-
-                  !$acc loop vector collapse(2)
-                  do k=1,nVertLevels
-                     do iScalar=1,num_scalars
+                     !$acc loop seq
+                     do j=1,nAdvCellsForEdge(iEdge)
+                        iAdvCell = advCellsForEdge(j,iEdge)
                         scalar_weight = adv_coefs(j,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(j,iEdge)
                         horiz_flux_arr(iScalar,k,iEdge) = horiz_flux_arr(iScalar,k,iEdge) &
                                                         + scalar_weight * scalar_new(iScalar,k,iAdvCell)
