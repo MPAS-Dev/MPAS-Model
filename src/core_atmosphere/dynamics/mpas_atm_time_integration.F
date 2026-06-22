@@ -4756,7 +4756,7 @@ module atm_time_integration
       end if
       weight_time_old = 1. - weight_time_new
 
-
+      call mpas_timer_start('atm_advance_scalars_4760')
       !$acc parallel async
       !$acc loop gang worker private(scalar_weight2, ica)
       do iEdge=edgeStart,edgeEnd
@@ -4842,7 +4842,7 @@ module atm_time_integration
           end if ! end of regional MPAS test
       end do
       !$acc end parallel
-
+      call mpas_timer_stop('atm_advance_scalars_4760')
 !$OMP BARRIER
 
       !
