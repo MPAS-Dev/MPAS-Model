@@ -4758,7 +4758,7 @@ module atm_time_integration
 
       call mpas_timer_start('atm_advance_scalars_4760')
       !$acc parallel async
-      !$acc loop gang worker private(scalar_weight2, ica)
+      !$acc loop gang worker private(scalar_weight2)
       do iEdge=edgeStart,edgeEnd
 
          if ((.not.config_apply_lbcs) &
@@ -4775,25 +4775,20 @@ module atm_time_integration
                   end do
                end do
 
-               !$acc loop vector
-               do j=1,10
-                  ica(j) = advCellsForEdge(j,iEdge)
-               end do
-
                !$acc loop vector collapse(2)
                do k = 1,nVertLevels
                   do iScalar = 1,num_scalars
                      horiz_flux_arr(iScalar,k,iEdge) = &
-                          scalar_weight2(k,1)  * scalar_new(iScalar,k,ica(1)) + &
-                          scalar_weight2(k,2)  * scalar_new(iScalar,k,ica(2)) + &
-                          scalar_weight2(k,3)  * scalar_new(iScalar,k,ica(3)) + &
-                          scalar_weight2(k,4)  * scalar_new(iScalar,k,ica(4)) + &
-                          scalar_weight2(k,5)  * scalar_new(iScalar,k,ica(5)) + &
-                          scalar_weight2(k,6)  * scalar_new(iScalar,k,ica(6)) + &
-                          scalar_weight2(k,7)  * scalar_new(iScalar,k,ica(7)) + &
-                          scalar_weight2(k,8)  * scalar_new(iScalar,k,ica(8)) + &
-                          scalar_weight2(k,9)  * scalar_new(iScalar,k,ica(9)) + &
-                          scalar_weight2(k,10) * scalar_new(iScalar,k,ica(10))
+                          scalar_weight2(k,1)  * scalar_new(iScalar,k,advCellsForEdge(1,iEdge)) + &
+                          scalar_weight2(k,2)  * scalar_new(iScalar,k,advCellsForEdge(2,iEdge)) + &
+                          scalar_weight2(k,3)  * scalar_new(iScalar,k,advCellsForEdge(3,iEdge)) + &
+                          scalar_weight2(k,4)  * scalar_new(iScalar,k,advCellsForEdge(4,iEdge)) + &
+                          scalar_weight2(k,5)  * scalar_new(iScalar,k,advCellsForEdge(5,iEdge)) + &
+                          scalar_weight2(k,6)  * scalar_new(iScalar,k,advCellsForEdge(6,iEdge)) + &
+                          scalar_weight2(k,7)  * scalar_new(iScalar,k,advCellsForEdge(7,iEdge)) + &
+                          scalar_weight2(k,8)  * scalar_new(iScalar,k,advCellsForEdge(8,iEdge)) + &
+                          scalar_weight2(k,9)  * scalar_new(iScalar,k,advCellsForEdge(9,iEdge)) + &
+                          scalar_weight2(k,10) * scalar_new(iScalar,k,advCellsForEdge(10,iEdge))
                   end do
                end do
 
