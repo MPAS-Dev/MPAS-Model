@@ -6648,7 +6648,7 @@ module atm_time_integration
       !
       !  horizontal advection for w
       !
-
+      call mpas_timer_start('atm_dyn_tend_work_6652')
       !$acc parallel default(present)
       !$acc loop gang worker private(ru_edge_w, flux_arr)
       do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
@@ -6696,7 +6696,7 @@ module atm_time_integration
          end do
       end do
       !$acc end parallel
-
+      call mpas_timer_stop('atm_dyn_tend_work_6652')
 #ifdef CURVATURE
       !$acc parallel default(present)
       !$acc loop gang worker
