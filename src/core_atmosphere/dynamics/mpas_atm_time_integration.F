@@ -4725,7 +4725,7 @@ module atm_time_integration
 
       real (kind=RKIND) :: weight_time_old, weight_time_new
       real (kind=RKIND), dimension(num_scalars,nVertLevels) :: scalar_tend_column  ! local storage to accumulate tendency
-      real (kind=RKIND) :: u_direction, u_positive, u_negative
+      real (kind=RKIND) :: u_direction, u_positive, u_negative, local_sign
 
       flux4(q_im2, q_im1, q_i, q_ip1, ua) =                     &
           ua*( 7.*(q_i + q_im1) - (q_ip1 + q_im2) )/12.0
@@ -4755,7 +4755,7 @@ module atm_time_integration
          if(rk_step == 3) weight_time_new = 1.
       end if
       weight_time_old = 1. - weight_time_new
-
+      local_sign = 1.0_RKIND
       call mpas_timer_start('atm_advance_scalars_4760')
       !$acc parallel async
       !$acc loop gang worker
@@ -4771,17 +4771,18 @@ module atm_time_integration
                !$acc loop vector collapse(2)
                do k = 1,nVertLevels
                   do iScalar = 1,num_scalars
+                     local_sign = sign(1.0_RKIND,uhAvg(k,iEdge))
                      horiz_flux_arr(iScalar,k,iEdge) = &
-                          (adv_coefs(1,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(1,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(1,iEdge)) + &
-                          (adv_coefs(2,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(2,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(2,iEdge)) + &
-                          (adv_coefs(3,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(3,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(3,iEdge)) + &
-                          (adv_coefs(4,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(4,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(4,iEdge)) + &
-                          (adv_coefs(5,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(5,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(5,iEdge)) + &
-                          (adv_coefs(6,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(6,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(6,iEdge)) + &
-                          (adv_coefs(7,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(7,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(7,iEdge)) + &
-                          (adv_coefs(8,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(8,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(8,iEdge)) + &
-                          (adv_coefs(9,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(9,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(9,iEdge)) + &
-                          (adv_coefs(10,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(10,iEdge)) * scalar_new(iScalar,k,advCellsForEdge(10,iEdge))
+                          (adv_coefs(1,iEdge) + local_sign*adv_coefs_3rd(1,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(1,iEdge)) + &
+                          (adv_coefs(2,iEdge) + local_sign*adv_coefs_3rd(2,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(2,iEdge)) + &
+                          (adv_coefs(3,iEdge) + local_sign*adv_coefs_3rd(3,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(3,iEdge)) + &
+                          (adv_coefs(4,iEdge) + local_sign*adv_coefs_3rd(4,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(4,iEdge)) + &
+                          (adv_coefs(5,iEdge) + local_sign*adv_coefs_3rd(5,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(5,iEdge)) + &
+                          (adv_coefs(6,iEdge) + local_sign*adv_coefs_3rd(6,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(6,iEdge)) + &
+                          (adv_coefs(7,iEdge) + local_sign*adv_coefs_3rd(7,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(7,iEdge)) + &
+                          (adv_coefs(8,iEdge) + local_sign*adv_coefs_3rd(8,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(8,iEdge)) + &
+                          (adv_coefs(9,iEdge) + local_sign*adv_coefs_3rd(9,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(9,iEdge)) + &
+                          (adv_coefs(10,iEdge) + local_sign*adv_coefs_3rd(10,iEdge)) * scalar_new(iScalar,k,advCellsForEdge(10,iEdge))
                   end do
                end do
 
