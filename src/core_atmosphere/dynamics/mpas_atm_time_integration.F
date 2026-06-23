@@ -7145,10 +7145,9 @@ module atm_time_integration
 !  the first openmp barrier below is set so that ke_edge is computed
 !  it would be good to move this somewhere else?
 
-         efac = dcEdge(iEdge)*dvEdge(iEdge)
          !$acc loop vector
          do k=1,nVertLevels
-            ke_edge(k,iEdge) = efac*u(k,iEdge)**2
+            ke_edge(k,iEdge) = dcEdge(iEdge)*dvEdge(iEdge)*u(k,iEdge)**2
          end do
 
       end do
