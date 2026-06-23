@@ -7162,13 +7162,15 @@ module atm_time_integration
          do k=1,nVertLevels
             vorticity(k,iVertex) = 0.0_RKIND
          end do
-         !$acc loop seq
-         do i=1,vertexDegree
-            iEdge = edgesOnVertex(i,iVertex)
-            s = edgesOnVertex_sign(i,iVertex) * dcEdge(iEdge)
 !DIR$ IVDEP
-            !$acc loop vector
-            do k=1,nVertLevels
+         !$acc loop vector
+         do k=1,nVertLevels
+            !$acc loop seq
+            do i=1,vertexDegree
+               iEdge = edgesOnVertex(i,iVertex)
+               s = edgesOnVertex_sign(i,iVertex) * dcEdge(iEdge)
+
+            
                vorticity(k,iVertex) = vorticity(k,iVertex) + s * u(k,iEdge)
             end do
          end do
