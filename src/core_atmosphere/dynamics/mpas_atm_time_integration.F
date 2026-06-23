@@ -4772,16 +4772,16 @@ module atm_time_integration
                do k = 1,nVertLevels
                   do iScalar = 1,num_scalars
                      horiz_flux_arr(iScalar,k,iEdge) = &
-                          adv_coefs(1,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(1,iEdge)  * scalar_new(iScalar,k,advCellsForEdge(1,iEdge)) + &
-                          adv_coefs(2,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(2,iEdge)  * scalar_new(iScalar,k,advCellsForEdge(2,iEdge)) + &
-                          adv_coefs(3,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(3,iEdge)  * scalar_new(iScalar,k,advCellsForEdge(3,iEdge)) + &
-                          adv_coefs(4,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(4,iEdge)  * scalar_new(iScalar,k,advCellsForEdge(4,iEdge)) + &
-                          adv_coefs(5,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(5,iEdge)  * scalar_new(iScalar,k,advCellsForEdge(5,iEdge)) + &
-                          adv_coefs(6,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(6,iEdge)  * scalar_new(iScalar,k,advCellsForEdge(6,iEdge)) + &
-                          adv_coefs(7,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(7,iEdge)  * scalar_new(iScalar,k,advCellsForEdge(7,iEdge)) + &
-                          adv_coefs(8,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(8,iEdge)  * scalar_new(iScalar,k,advCellsForEdge(8,iEdge)) + &
-                          adv_coefs(9,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(9,iEdge)  * scalar_new(iScalar,k,advCellsForEdge(9,iEdge)) + &
-                          adv_coefs(10,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(10,iEdge) * scalar_new(iScalar,k,advCellsForEdge(10,iEdge))
+                          (adv_coefs(1,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(1,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(1,iEdge)) + &
+                          (adv_coefs(2,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(2,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(2,iEdge)) + &
+                          (adv_coefs(3,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(3,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(3,iEdge)) + &
+                          (adv_coefs(4,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(4,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(4,iEdge)) + &
+                          (adv_coefs(5,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(5,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(5,iEdge)) + &
+                          (adv_coefs(6,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(6,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(6,iEdge)) + &
+                          (adv_coefs(7,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(7,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(7,iEdge)) + &
+                          (adv_coefs(8,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(8,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(8,iEdge)) + &
+                          (adv_coefs(9,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(9,iEdge))  * scalar_new(iScalar,k,advCellsForEdge(9,iEdge)) + &
+                          (adv_coefs(10,iEdge) + sign(1.0_RKIND,uhAvg(k,iEdge))*adv_coefs_3rd(10,iEdge)) * scalar_new(iScalar,k,advCellsForEdge(10,iEdge))
                   end do
                end do
 
