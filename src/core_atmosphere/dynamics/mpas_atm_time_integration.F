@@ -7127,12 +7127,12 @@ module atm_time_integration
       logical :: reconstruct_v
 
 
-
+      call mpas_timer_start('atm_comp_solve_diag_7134')
       !
       ! Compute height on cell edges at velocity locations
       !
       !$acc parallel default(present)
-      !$acc loop gang
+      !$acc loop gang worker
       do iEdge=edgeStart,edgeEnd
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
@@ -7156,7 +7156,7 @@ module atm_time_integration
       !
       ! Compute circulation and relative vorticity at each vertex
       !
-      !$acc loop gang
+      !$acc loop gang worker
       do iVertex=vertexStart,vertexEnd
          !$acc loop vector
          do k=1,nVertLevels
@@ -7183,7 +7183,7 @@ module atm_time_integration
       !
       ! Compute the divergence at each cell center
       !
-      !$acc loop gang
+      !$acc loop gang worker
       do iCell=cellStart,cellEnd
          !$acc loop vector
          do k=1,nVertLevels
@@ -7206,7 +7206,7 @@ module atm_time_integration
          end do
       end do
       !$acc end parallel
-
+      call mpas_timer_stop('atm_comp_solve_diag_7134')
 
 !$OMP BARRIER
 
