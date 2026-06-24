@@ -4724,8 +4724,9 @@ module atm_time_integration
       logical :: local_advance_density
 
       real (kind=RKIND) :: weight_time_old, weight_time_new
-      real (kind=RKIND), dimension(num_scalars,nVertLevels) :: scalar_tend_column  ! local storage to accumulate tendency
+      !real (kind=RKIND), dimension(num_scalars,nVertLevels) :: scalar_tend_column  ! local storage to accumulate tendency
       real (kind=RKIND) :: u_direction, u_positive, u_negative
+      real (kind=RKIND) :: scalar_tend_column_tmp
 
       flux4(q_im2, q_im1, q_i, q_ip1, ua) =                     &
           ua*( 7.*(q_i + q_im1) - (q_ip1 + q_im2) )/12.0
@@ -4851,54 +4852,18 @@ module atm_time_integration
       !
 
       MPAS_ACC_TIMER_START('atm_advance_scalars [ACC_data_xfer]')
-      !$acc enter data create(scalar_tend_column)
+      !!$acc enter data create(scalar_tend_column)
       MPAS_ACC_TIMER_STOP('atm_advance_scalars [ACC_data_xfer]')
 
+      call mpas_timer_start('atm_advance_scalars_4857')
       !$acc parallel wait
-      !$acc loop gang worker private(scalar_tend_column, wdtn)
+      !$acc loop gang worker private(wdtn)
       do iCell=cellSolveStart,cellSolveEnd
 
          if(bdyMaskCell(iCell) <= nRelaxZone) then  ! specified zone for regional_MPAS is not updated in this routine
-
-            !$acc loop vector collapse(2)
-            do k=1,nVertLevels
-            do iScalar=1,num_scalars
-               scalar_tend_column(iScalar,k) = 0.0_RKIND
-#ifndef DO_PHYSICS
-               scalar_tend_save(iScalar,k,iCell) = 0.0_RKIND  !  testing purposes - we have no sources or sinks
-#endif
-            end do
-            end do
-
-            !$acc loop seq
-            do i=1,nEdgesOnCell(iCell)
-               iEdge = edgesOnCell(i,iCell)
-
-               ! here we add the horizontal flux divergence into the scalar tendency.
-               ! note that the scalar tendency is modified.
-               !$acc loop vector collapse(2)
-               do k=1,nVertLevels
-                  do iScalar=1,num_scalars
-                        scalar_tend_column(iScalar,k) = scalar_tend_column(iScalar,k) &
-                               - edgesOnCell_sign(i,iCell) * uhAvg(k,iEdge)*horiz_flux_arr(iScalar,k,iEdge)
-                  end do
-               end do
-
-            end do
-
-            !$acc loop vector collapse(2)
-            do k=1,nVertLevels
-               do iScalar=1,num_scalars
-                     scalar_tend_column(iScalar,k) = scalar_tend_column(iScalar,k) * invAreaCell(iCell) &
-                                                   + scalar_tend_save(iScalar,k,iCell)
-               end do
-            end do
-
-
             !
             !  vertical flux divergence and update of the scalars
             !
-
             !$acc loop vector
             do iScalar=1,num_scalars
                wdtn(iScalar,1) = 0.0
@@ -4920,11 +4885,27 @@ module atm_time_integration
 
             !$acc loop vector collapse(2)
             do k=1,nVertLevels
-               do iScalar=1,num_scalars
-                  rho_zz_new_inv = 1.0_RKIND / (weight_time_old*rho_zz_old(k,iCell) + weight_time_new*rho_zz_new(k,iCell))
-                  scalar_new(iScalar,k,iCell) = (   scalar_old(iScalar,k,iCell)*rho_zz_old(k,iCell) &
-                        + dt*( scalar_tend_column(iScalar,k) -rdnw(k)*(wdtn(iScalar,k+1)-wdtn(iScalar,k)) ) ) * rho_zz_new_inv
+            do iScalar=1,num_scalars
+               scalar_tend_column_tmp = 0.0_RKIND
+#ifndef DO_PHYSICS
+               scalar_tend_save(iScalar,k,iCell) = 0.0_RKIND  !  testing purposes - we have no sources or sinks
+#endif
+               ! here we add the horizontal flux divergence into the scalar tendency.
+               ! note that the scalar tendency is modified.
+               !$acc loop seq
+               do i=1,nEdgesOnCell(iCell)
+                  iEdge = edgesOnCell(i,iCell)
+                  scalar_tend_column_tmp = scalar_tend_column_tmp &
+                           - edgesOnCell_sign(i,iCell) * uhAvg(k,iEdge)*horiz_flux_arr(iScalar,k,iEdge)   
                end do
+
+               scalar_tend_column_tmp = scalar_tend_column_tmp * invAreaCell(iCell) &
+                                             + scalar_tend_save(iScalar,k,iCell)
+
+               rho_zz_new_inv = 1.0_RKIND / (weight_time_old*rho_zz_old(k,iCell) + weight_time_new*rho_zz_new(k,iCell))
+               scalar_new(iScalar,k,iCell) = (   scalar_old(iScalar,k,iCell)*rho_zz_old(k,iCell) &
+                        + dt*( scalar_tend_column_tmp -rdnw(k)*(wdtn(iScalar,k+1)-wdtn(iScalar,k)) ) ) * rho_zz_new_inv
+            end do
             end do
 
          end if ! specified zone regional_MPAS test
@@ -4932,8 +4913,10 @@ module atm_time_integration
       end do
       !$acc end parallel
 
+      call mpas_timer_stop('atm_advance_scalars_4857')
+
       MPAS_ACC_TIMER_START('atm_advance_scalars [ACC_data_xfer]')
-      !$acc exit data delete(scalar_tend_column)
+      !!$acc exit data delete(scalar_tend_column)
       MPAS_ACC_TIMER_STOP('atm_advance_scalars [ACC_data_xfer]')
 
    end subroutine atm_advance_scalars_work
