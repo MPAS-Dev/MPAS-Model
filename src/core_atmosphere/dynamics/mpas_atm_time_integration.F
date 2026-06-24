@@ -6674,12 +6674,23 @@ module atm_time_integration
             !$acc loop vector
             do k=2,nVertLevels
                flux_arr_local = 0.0_RKIND
-               !$acc loop seq
-               do j=1,nAdvCellsForEdge(iEdge)
-                  iAdvCell = advCellsForEdge(j,iEdge)
-                  scalar_weight = adv_coefs(j,iEdge) + sign(1.0_RKIND,ru_edge_w(k)) * adv_coefs_3rd(j,iEdge)
-                  flux_arr_local = flux_arr_local + scalar_weight * w(k,iAdvCell)
-               end do
+
+               select case(nAdvCellsForEdge(iEdge))
+               case (10)
+                  !$acc loop seq
+                  do j=1,nAdvCellsForEdge(iEdge)
+                     iAdvCell = advCellsForEdge(j,iEdge)
+                     scalar_weight = adv_coefs(j,iEdge) + sign(1.0_RKIND,ru_edge_w(k)) * adv_coefs_3rd(j,iEdge)
+                     flux_arr_local = flux_arr_local + scalar_weight * w(k,iAdvCell)
+                  end do
+               case default
+                  !$acc loop seq
+                  do j=1,nAdvCellsForEdge(iEdge)
+                     iAdvCell = advCellsForEdge(j,iEdge)
+                     scalar_weight = adv_coefs(j,iEdge) + sign(1.0_RKIND,ru_edge_w(k)) * adv_coefs_3rd(j,iEdge)
+                     flux_arr_local = flux_arr_local + scalar_weight * w(k,iAdvCell)
+                  end do
+               end select
                tend_w(k,iCell) = tend_w(k,iCell) - edgesOnCell_sign(i,iCell) * ru_edge_w(k)*flux_arr_local
             end do
 
