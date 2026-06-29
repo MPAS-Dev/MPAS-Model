@@ -3961,6 +3961,7 @@ module atm_time_integration
          end do
          !$acc end parallel
       else
+         call mpas_timer_start('advance_acoustic_step_3964')
          !$acc parallel default(present)
          !$acc loop gang worker collapse(2)
          do iCell=cellStart,cellEnd
@@ -3969,6 +3970,7 @@ module atm_time_integration
             end do
          end do
          !$acc end parallel
+         call mpas_timer_stop('advance_acoustic_step_3964')
       end if
 
 !$OMP BARRIER
