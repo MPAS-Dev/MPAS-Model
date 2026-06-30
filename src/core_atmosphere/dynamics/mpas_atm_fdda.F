@@ -182,7 +182,7 @@
 
 	!calculate time fraction within FDDA target data interval
 	 tfrac = mod(xtime_s,fdda_int)/fdda_int
-         call mpas_log_write('inside FDDA: tfrac = $r', realArgs=(/tfrac/))
+         !call mpas_log_write('inside FDDA: tfrac = $r', realArgs=(/tfrac/))
 
 	 fdda_select: select case(fdda_scheme)
 
@@ -246,8 +246,8 @@
 		   if (fdda_t .and. k.gt.fdda_t_min_layer .and. (fdda_t_in_pbl .or. k.gt.kpbl(i))) then
 		      t_target = (1.0_RKIND-tfrac)*theta_fdda_old(k,i)+tfrac*theta_fdda_new(k,i)
 		      rthfddaten(k,i) = fdda_t_coef * ( t_target - theta_p )
-                      if (i.eq.1 .and. k.eq.1 ) call mpas_log_write('t_target, theta_p, theta_fdda_old, theta_fdda_new = $r, $r, $r, $r', &
-                                                   realArgs=(/t_target, theta_p, theta_fdda_old(k,i), theta_fdda_new(k,i)/) )
+                      !if (i.eq.1 .and. k.eq.1 ) call mpas_log_write('t_target, theta_p, theta_fdda_old, theta_fdda_new = $r, $r, $r, $r', &
+                      !                             realArgs=(/t_target, theta_p, theta_fdda_old(k,i), theta_fdda_new(k,i)/) )
 		   else
 		      rthfddaten(k,i) = 0._RKIND
 		   endif
@@ -271,10 +271,10 @@
 	 
 		  ENDDO
 	       ENDDO
-               call mpas_log_write('in apply_fdda: min,max rthfddaten = $r, $r', realArgs=(/minval(rthfddaten), maxval(rthfddaten)/) )
-               call mpas_log_write('in apply_fdda: min,max rqvfddaten = $r, $r', realArgs=(/minval(rqvfddaten), maxval(rqvfddaten)/) )
-               call mpas_log_write('in apply_fdda: min,max rufddaten = $r, $r', realArgs=(/minval(rufddaten), maxval(rufddaten)/) )
-               call mpas_log_write('in apply_fdda: min,max rvfddaten = $r, $r', realArgs=(/minval(rvfddaten), maxval(rvfddaten)/) )
+               !call mpas_log_write('in apply_fdda: min,max rthfddaten = $r, $r', realArgs=(/minval(rthfddaten), maxval(rthfddaten)/) )
+               !call mpas_log_write('in apply_fdda: min,max rqvfddaten = $r, $r', realArgs=(/minval(rqvfddaten), maxval(rqvfddaten)/) )
+               !call mpas_log_write('in apply_fdda: min,max rufddaten = $r, $r', realArgs=(/minval(rufddaten), maxval(rufddaten)/) )
+               !call mpas_log_write('in apply_fdda: min,max rvfddaten = $r, $r', realArgs=(/minval(rvfddaten), maxval(rvfddaten)/) )
 
 	    case default
 
