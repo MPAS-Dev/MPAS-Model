@@ -6972,6 +6972,8 @@ call mpas_log_write('Done with soil consistency check')
    !  routine init_atm_case_fdda
    !
    !> \brief Computes theta_fdda, qv_fdda, u_fdda, v_fdda fields for FDDA nudging 
+   !> \author Michael Duda, May Wong
+   !> \date   2025-07-30 
    !> \details
    !>  This routine is similar to the init_atm_case_lbc routine in that it reads
    !>  atmospheric fields from "intermediate" files and horizontally and vertically

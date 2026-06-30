@@ -208,7 +208,7 @@ module init_atm_core_interface
          mp_thompson_aers_in = .false.
       end if
 
-      if (config_init_case == 10) then
+      if (config_init_case == 11) then
          fdda = .true.
       else
          fdda = .false.
@@ -271,7 +271,7 @@ module init_atm_core_interface
       ! When interpolating FDDA input fields, we need all inputs that would be needed for the interpolation
       ! of ICs (similar to LBC), so met_stage_in = .true.
       !
-      else if (config_init_case == 10) then
+      else if (config_init_case == 11) then
          gwd_stage_in = .false.
          gwd_stage_out = .false.
          vertical_stage_in = .false.
@@ -308,7 +308,7 @@ module init_atm_core_interface
       call mpas_pool_get_package(packages, 'first_guess_fieldActive', first_guess_field)
 
       first_guess_field = .false.
-      if ((config_init_case == 7 .and. config_met_interp) .or. config_init_case == 9 .or. config_init_case == 10) then
+      if ((config_init_case == 7 .and. config_met_interp) .or. config_init_case == 9 .or. config_init_case == 11) then
          first_guess_field = .true.
       end if
 
