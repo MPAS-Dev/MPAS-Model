@@ -174,7 +174,7 @@ module NoahmpIOVarType
     real(kind=kind_noahmp), allocatable, dimension(:)      ::  acsnom              ! accumulated snow melt leaving pack
     real(kind=kind_noahmp), allocatable, dimension(:)      ::  acsnow              ! accumulated snow on grid
     real(kind=kind_noahmp), allocatable, dimension(:)      ::  emiss               ! surface bulk emissivity
-    real(kind=kind_noahmp), allocatable, dimension(:)      ::  qsfc                ! bulk surface specific humidity
+    real(kind=kind_noahmp), allocatable, dimension(:)      ::  qsfc                ! bulk surface mixing ratio
 
     ! INOUT (with no Noah LSM equivalent) (as defined in WRF)
     integer, allocatable, dimension(:)                     ::  isnowxy             ! actual no. of snow layers

@@ -2905,7 +2905,7 @@
                      packages="sfclayer"/>
 
                 <var name="qsfc" type="real"  dimensions="nCells Time" units="kg kg^{-1}"
-                     description="specific humidity at lower boundary"
+                     description="mixing ratio at lower boundary"
                      packages="sfclayer"/>
 
                 <var name="ust" type="real" dimensions="nCells Time" units="m s^{-1}"
@@ -3033,7 +3033,7 @@
                      description="10-meter meridional wind"/>
 
                 <var name="q2" type="real" dimensions="nCells Time" packages="sfclayer" units="kg kg^{-1}"
-                     description="2-meter specific humidity"/>
+                     description="2-meter water vapor mixing ratio"/>
 
                 <var name="t2m" type="real" dimensions="nCells Time" packages="sfclayer" units="K"
                      description="2-meter temperature"/>
