@@ -179,6 +179,8 @@
           if(.not.allocated(refl10cm_p)) allocate(refl10cm_p(ims:ime,kms:kme,jms:jme))
           if(.not.allocated(zdr_p)) allocate(zdr_p(ims:ime,kms:kme,jms:jme))
           if(.not.allocated(kdp_p)) allocate(kdp_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(smlf_p)) allocate(smlf_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(gmlf_p)) allocate(gmlf_p(ims:ime,kms:kme,jms:jme))
 
        case default
     end select microp2_select
@@ -272,6 +274,8 @@
           if(allocated(refl10cm_p)) deallocate(refl10cm_p)
           if(allocated(zdr_p)) deallocate(zdr_p)
           if(allocated(kdp_p)) deallocate(kdp_p)
+          if(allocated(smlf_p)) deallocate(smlf_p)
+          if(allocated(gmlf_p)) deallocate(gmlf_p)
 
        case default
     end select microp2_select
@@ -491,14 +495,14 @@
        call mp_tcwa2(TH = th_p, P = pres_p, DZ = dz_p, W = w_p, PII = pi_p, DT_MP = dt_microp,  &
                      XLAND = xland_p, QV = qv_p, QC = qc_p, QR = qr_p, QI = qi_p, QS = qs_p,    &
                      QG = qg_p, NC = nc_p, NR = nr_p, NI = ni_p, NS = ns_p, NG = ng_p,          &
-                     DBZM = refl10cm_p, ZDR = zdr_p, KDP = kdp_p, re_cloud = recloud_p,         &
-                     re_ice = reice_p, re_snow = resnow_p, has_reqc = has_reqc,                 &
-                     has_reqi = has_reqi, has_reqs = has_reqs, SR = sr_p, RAINNC = rainnc_p,    &
-                     RAINNCV = rainncv_p, SNOWNC = snownc_p, SNOWNCV = snowncv_p,               &
-                     GRAPNC = graupelnc_p, GRAPNCV = graupelncv_p, IDS = ids, IDE = ide,        &
-                     JDS = jds, JDE = jde, KDS = kds, KDE = kde, IMS = ims, IME = ime,          &
-                     JMS = jms, JME = jme, KMS = kms, KME = kme, ITS = its, ITE = ite,          &
-                     JTS = jts, JTE = jte, KTS = kts, KTE = kte)
+                     DBZM = refl10cm_p, ZDR = zdr_p, KDP = kdp_p, SMLF = smlf_p, GMLF = gmlf_p, &
+                     re_cloud = recloud_p, re_ice = reice_p, re_snow = resnow_p,                &
+                     has_reqc = has_reqc, has_reqi = has_reqi, has_reqs = has_reqs, SR = sr_p,  &
+                     RAINNC = rainnc_p, RAINNCV = rainncv_p, SNOWNC = snownc_p,                 &
+                     SNOWNCV = snowncv_p, GRAPNC = graupelnc_p, GRAPNCV = graupelncv_p,         &
+                     IDS = ids, IDE = ide, JDS = jds, JDE = jde, KDS = kds, KDE = kde,          &
+                     IMS = ims, IME = ime, JMS = jms, JME = jme, KMS = kms, KME = kme,          &
+                     ITS = its, ITE = ite, JTS = jts, JTE = jte, KTS = kts, KTE = kte)
        call mpas_timer_stop('mp_tcwa2')
 
     case default

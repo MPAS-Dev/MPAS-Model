@@ -696,6 +696,8 @@
 			<var name="re_snow"/>
 			<var name="zdr"/>
 			<var name="kdp"/>
+                        <var name="smlf"/>
+                        <var name="gmlf"/>
 			<var name="nwfa2d"/>
 			<var name="nifa2d"/>
 			<var name="nt_c"/>
@@ -2629,6 +2631,14 @@
 
 		<var name="kdp" type="real" dimensions="nVertLevels nCells Time" units="deg/km"
                      description="specific differential phase"
+                     packages="mp_tcwa2_in"/>
+
+                <var name="smlf" type="real" dimensions="nVertLevels nCells Time" units="unitless"
+                     description="melted fraction of snow-aggregates"
+                     packages="mp_tcwa2_in"/>
+
+                <var name="gmlf" type="real" dimensions="nVertLevels nCells Time" units="unitless"
+                     description="melted fraction of rimed ice (graupel)"
                      packages="mp_tcwa2_in"/>
 
                 <var name="i_rainnc" type="integer" dimensions="nCells Time" units="unitless"

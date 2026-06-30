@@ -623,7 +623,7 @@ end subroutine pre_microphysics
  real(kind=RKIND),dimension(:,:),pointer  :: rho_zz,theta_m,pressure_p
  real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qi,qs,qg
  real(kind=RKIND),dimension(:,:),pointer  :: nc,ni,nr,ns,ng,nifa,nwfa
- real(kind=RKIND),dimension(:,:),pointer  :: rainprod,evapprod,refl10cm,zdr,kdp
+ real(kind=RKIND),dimension(:,:),pointer  :: rainprod,evapprod,refl10cm,zdr,kdp,smlf,gmlf
  real(kind=RKIND),dimension(:,:),pointer  :: re_cloud,re_ice,re_snow
  real(kind=RKIND),dimension(:,:),pointer  :: rthmpten,rqvmpten,rqcmpten,rqrmpten,rqimpten,rqsmpten,rqgmpten
  real(kind=RKIND),dimension(:,:),pointer  :: rncmpten,rnimpten,rnrmpten,rnsmpten,rngmpten,rnifampten,rnwfampten
@@ -767,6 +767,8 @@ end subroutine pre_microphysics
              call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
              call mpas_pool_get_array(diag_physics,'zdr',zdr)
              call mpas_pool_get_array(diag_physics,'kdp',kdp)
+             call mpas_pool_get_array(diag_physics,'smlf',smlf)
+             call mpas_pool_get_array(diag_physics,'gmlf',gmlf)
              call mpas_pool_get_array(sfc_input,'xland',xland)
              nc   => scalars(index_nc,:,:)
              nr   => scalars(index_nr,:,:)
@@ -789,6 +791,8 @@ end subroutine pre_microphysics
                 refl10cm_p(i,k,j) = refl10cm(k,i)
                 zdr_p(i,k,j) = zdr(k,i)
                 kdp_p(i,k,j) = kdp(k,i)
+                smlf_p(i,k,j) = smlf(k,i)
+                gmlf_p(i,k,j) = gmlf(k,i)
              enddo
              enddo
              enddo
@@ -907,7 +911,7 @@ end subroutine pre_microphysics
  real(kind=RKIND),dimension(:,:),pointer  :: dtheta_dt_mp
  real(kind=RKIND),dimension(:,:),pointer  :: qv,qc,qr,qi,qs,qg
  real(kind=RKIND),dimension(:,:),pointer  :: nc,ni,nr,ns,ng,nifa,nwfa
- real(kind=RKIND),dimension(:,:),pointer  :: rainprod,evapprod,refl10cm,zdr,kdp
+ real(kind=RKIND),dimension(:,:),pointer  :: rainprod,evapprod,refl10cm,zdr,kdp,smlf,gmlf
  real(kind=RKIND),dimension(:,:),pointer  :: re_cloud,re_ice,re_snow
  real(kind=RKIND),dimension(:,:),pointer  :: rthmpten,rqvmpten,rqcmpten,rqrmpten,rqimpten,rqsmpten,rqgmpten
  real(kind=RKIND),dimension(:,:),pointer  :: rncmpten,rnimpten,rnrmpten,rnsmpten,rngmpten,rnifampten,rnwfampten
@@ -1119,6 +1123,8 @@ end subroutine pre_microphysics
             call mpas_pool_get_array(diag_physics,'refl10cm',refl10cm)
             call mpas_pool_get_array(diag_physics,'zdr',zdr)
             call mpas_pool_get_array(diag_physics,'kdp',kdp)
+            call mpas_pool_get_array(diag_physics,'smlf',smlf)
+            call mpas_pool_get_array(diag_physics,'gmlf',gmlf)
             nc   => scalars(index_nc,:,:)
             nr   => scalars(index_nr,:,:)
             ni   => scalars(index_ni,:,:)
@@ -1135,6 +1141,8 @@ end subroutine pre_microphysics
                refl10cm(k,i) = refl10cm_p(i,k,j)
                zdr(k,i) = zdr_p(i,k,j)
                kdp(k,i) = kdp_p(i,k,j)
+               smlf(k,i) = smlf_p(i,k,j)
+               gmlf(k,i) = gmlf_p(i,k,j)
             enddo
             enddo
             enddo
