@@ -2,7 +2,7 @@
 .SUFFIXES: .F .o .cpp
 .PHONY: mode_forward shared analysis_members
 
-SHARED_INCLUDES  = -I$(PWD)/../framework -I$(PWD)/../external/esmf_time_f90 -I$(PWD)/../operators
+SHARED_INCLUDES  = -I$(PWD)/../framework $(MPAS_ESMF_INC) -I$(PWD)/../operators
 SHARED_INCLUDES += -I$(PWD)/shared -I$(PWD)/analysis_members -I$(PWD)/mode_forward
 
 all: core_landice

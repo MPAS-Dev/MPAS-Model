@@ -606,6 +606,7 @@
  real(kind=RKIND),pointer:: tsk_seaice_threshold
  real(kind=RKIND),dimension(:),pointer  :: vegfra
  real(kind=RKIND),dimension(:),pointer  :: seaice,snoalb,xice
+ real(kind=RKIND),dimension(:),pointer  :: snow, snowh, snowc
  real(kind=RKIND),dimension(:),pointer  :: skintemp,tmn,xland
  real(kind=RKIND),dimension(:,:),pointer:: tslb,smois,sh2o,smcrel
 
@@ -637,6 +638,9 @@
 
  call mpas_pool_get_array(input, 'seaice', seaice)
  call mpas_pool_get_array(input, 'xice', xice)
+ call mpas_pool_get_array(input, 'snowc', snowc)
+ call mpas_pool_get_array(input, 'snowh', snowh)
+ call mpas_pool_get_array(input, 'snow', snow)
  call mpas_pool_get_array(input, 'vegfra', vegfra)
 
  call mpas_pool_get_array(input, 'skintemp', skintemp)
@@ -699,6 +703,11 @@
           call mpas_log_write('$i $r $r $r', intArgs=(/iCell/), &
                                              realArgs=(/real(landmask(iCell),kind=RKIND),xland(iCell),xice(iCell)/))
        xice(iCell) = 0._RKIND
+       if(landmask(iCell) .eq. 0) then
+          snowc(iCell) = 0._RKIND  ! snow = 0 over water points
+          snowh(iCell) = 0._RKIND
+          snow(iCell) = 0._RKIND
+       endif
     endif
 
  enddo

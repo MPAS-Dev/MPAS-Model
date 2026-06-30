@@ -249,7 +249,7 @@ contains
         call mpas_f_to_c_string(streamname, c_streamname)
 
         if (present(attname)) then
-            allocate(c_attname(len(attname)))
+            allocate(c_attname(len(attname)+1))
             call mpas_f_to_c_string(attname, c_attname)
             c_attname_ptr = c_loc(c_attname)
         else

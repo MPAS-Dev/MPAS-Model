@@ -26,8 +26,14 @@ module mpas_framework
    use mpas_io
    use mpas_io_units
    use mpas_block_decomp
+#ifdef MPAS_USE_MUSICA
+   use musica_micm, only : get_micm_version
+   use musica_util, only : string_t
+#endif
 
+#ifdef MPAS_OPENACC
    private :: report_acc_devices
+#endif
 
 
    contains
@@ -207,7 +213,9 @@ module mpas_framework
       implicit none
 
       type (domain_type), pointer :: domain
-
+#ifdef MPAS_USE_MUSICA
+      type(string_t) :: micm_version
+#endif
 
       call mpas_log_write('')
       call mpas_log_write('Output from ''git describe --dirty'': '//trim(domain % core % git_version))
@@ -248,6 +256,20 @@ module mpas_framework
 #endif
 #else
                           'SMIOL')
+#endif
+      call mpas_log_write('  MUSICA support: ' // &
+#ifdef MPAS_USE_MUSICA
+                          'yes')
+      micm_version = get_micm_version()
+      call mpas_log_write('  - MICM version: '//trim(micm_version % value_))
+#else
+                          'no')
+#endif
+      call mpas_log_write('  SCOTCH support: ' // &
+#ifdef MPAS_SCOTCH
+                              'yes')
+#else
+                              'no')
 #endif
       call mpas_log_write('')
 

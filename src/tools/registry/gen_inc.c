@@ -28,11 +28,13 @@ int package_logic_routine(FILE *fd, regex_t *preg, const char *corename,
                           const char *packagename, const char *packagewhen,
                           ezxml_t registry);
 void gen_pkg_debug_info(FILE *fd, regex_t *preg, ezxml_t registry,
-                        const char *packagename, const char *packagewhen);
+                        const char *packagename, const char *packagewhen,
+						char **nmloptions_list, int num_nmloptions);
 
 #define NUM_MODIFIED_ATTRS 2
 #define NUM_IGNORED_ATTRS 9
 #define NUM_NUMERIC_ATTRS 1
+#define MAX_LIST_SIZE 20
 
 static const char *NUMERIC_ATTRS[NUM_NUMERIC_ATTRS] = {
 	"missing_value"
@@ -2727,6 +2729,46 @@ int generate_package_logic(ezxml_t registry)/*{{{*/
 
 /******************************************************************************
  *
+ * add_unique_key_to_list
+ *
+ * Adds a string to a list of strings, if it is not already present.
+ * Allocates a copy of the key string and stores it at the next available
+ * index in string_list.
+ *
+ * Inputs:
+ *   string_list - an array of char pointers to store strings
+ *   key - a null-terminated string containing the key to add
+ *   num_keys - the current number of keys stored in string_list
+ *
+ * Outputs:
+ *   string_list - updated with the new key appended, if not a duplicate
+ *   num_keys - incremented by 1 if the key was successfully added
+ *
+ * Return value: 0 if the key was added successfully, 1 if the key was
+ *   already present in the list, and -1 if the list is full.
+ *
+ ******************************************************************************/
+int add_unique_key_to_list(char **string_list, const char *key, int *num_keys)
+{
+
+	for (int i = 0; i < *num_keys; i++) {
+		if (strcmp(string_list[i], key) == 0) {
+			return 1;
+		}
+	}
+
+	if (*num_keys < MAX_LIST_SIZE) {
+		string_list[*num_keys] = strdup(key);
+		(*num_keys)++;
+		return 0;
+	} else {
+		return -1;
+	}
+}
+
+
+/******************************************************************************
+ *
  * package_logic_routine
  *
  * Generates code for the Fortran routine 'setup_X_package' that defines the active
@@ -2756,7 +2798,9 @@ int package_logic_routine(FILE *fd, regex_t *preg, const char *corename,
 	ezxml_t packages_xml, package_xml;
 	char *match;
 	regoff_t next;
-
+	char *nmloptions_list[MAX_LIST_SIZE];
+	int num_nmloptions = 0;
+	int ierr;
 
 	fortprintf(fd, "\n");
 	fortprintf(fd, "   !\n");
@@ -2777,9 +2821,23 @@ int package_logic_routine(FILE *fd, regex_t *preg, const char *corename,
 	fortprintf(fd, "      logical, pointer :: %sActive\n", packagename);
 	fortprintf(fd, "\n");
 
+	fprintf(stdout, "Parsing active_when string for package %s: %s\n", packagename, packagewhen);
 	next = 0;
 	while ((match = nmlopt_from_str(preg, packagewhen, &next)) != NULL) {
 		const char *nmltype;
+		ierr = add_unique_key_to_list(nmloptions_list, match, &num_nmloptions);
+		if (ierr < 0) {
+			// Error case: too many unique namelist options in active_when attribute.
+			fprintf(stderr, "Error: Too many unique namelist options specified in active_when"
+				    " attribute for %s package. Maximum allowed is %d.\n", packagename, MAX_LIST_SIZE);
+			free(match);
+			for (int i = 0; i < num_nmloptions; i++) free(nmloptions_list[i]);
+			return 1;
+		} else if (ierr == 1) {
+			// Namelist option already in list, so we can skip it.
+			free(match);
+			continue;
+		}
 
 		nmltype =  nmlopt_type(registry, match);
 
@@ -2809,20 +2867,21 @@ int package_logic_routine(FILE *fd, regex_t *preg, const char *corename,
 	}
 	fortprintf(fd, "\n");
 
-	next = 0;
-	while ((match = nmlopt_from_str(preg, packagewhen, &next)) != NULL) {
-
-		fortprintf(fd, "      nullify(%s)\n", match, match);
-		fortprintf(fd, "      call mpas_pool_get_config(configPool, '%s', %s)\n", match, match);
-
-		free(match);
+	for (int i = 0; i < num_nmloptions; i++) {
+		fortprintf(fd, "      nullify(%s)\n", nmloptions_list[i]);
+		fortprintf(fd, "      call mpas_pool_get_config(configPool, '%s', %s)\n", nmloptions_list[i], nmloptions_list[i]);
 	}
+
 	fortprintf(fd, "\n");
 	fortprintf(fd, "      nullify(%sActive)\n", packagename);
 	fortprintf(fd, "      call mpas_pool_get_package(packagePool, '%sActive', %sActive)\n", packagename, packagename);
 	fortprintf(fd, "\n");
 
-	gen_pkg_debug_info(fd, preg, registry, packagename, packagewhen);
+	gen_pkg_debug_info(fd, preg, registry, packagename, packagewhen, nmloptions_list, num_nmloptions);
+
+	for (int i = 0; i < num_nmloptions; i++) {
+		free(nmloptions_list[i]);
+	}
 
 	fortprintf(fd, "      %sActive = ( %s )\n", packagename, packagewhen);
 	fortprintf(fd, "      call mpas_log_write('  %s : $l', logicArgs=[%sActive])\n", packagename, packagename);
@@ -2929,10 +2988,12 @@ const char * nmlopt_type(ezxml_t registry, const char *nmlopt)/*{{{*/
  *   packagename - the name of the package for which code is being generated
  *   packagewhen - the string containing the logical condition under which the
  *                 package is active
+ *  nmloptions_list - a list of unique namelist options in the active_when attribute
+ *  num_nmloptions - the number of unique namelist options in the active_when attribute
  *
  ******************************************************************************/
 void gen_pkg_debug_info(FILE *fd, regex_t *preg, ezxml_t registry,
-                        const char *packagename, const char *packagewhen)/*{{{*/
+                        const char *packagename, const char *packagewhen, char **nmloptions_list, int num_nmloptions)/*{{{*/
 {
 	char *match;
 	regoff_t next = 0;
@@ -2942,9 +3003,10 @@ void gen_pkg_debug_info(FILE *fd, regex_t *preg, ezxml_t registry,
 	fortprintf(fd, "      PACKAGE_LOGIC_PRINT('    namelist settings:')\n");
 	fortprintf(fd, "      PACKAGE_LOGIC_PRINT('    ------------------')\n");
 
-	while ((match = nmlopt_from_str(preg, packagewhen, &next)) != NULL) {
+	for (int i = 0; i < num_nmloptions; i++) {
 		const char *nmltype;
 
+		match = nmloptions_list[i];
 		nmltype =  nmlopt_type(registry, match);
 
 		if (nmltype != NULL) {
@@ -2959,7 +3021,6 @@ void gen_pkg_debug_info(FILE *fd, regex_t *preg, ezxml_t registry,
 			}
 		}
 
-		free(match);
 	}
 	fortprintf(fd, "\n");
 }/*}}}*/

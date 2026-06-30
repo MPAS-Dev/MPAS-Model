@@ -842,12 +842,8 @@
        snicexy(ns,i) = mpas_noahmp%snicexy(i,n)
        snliqxy(ns,i) = mpas_noahmp%snliqxy(i,n)
     enddo
-    do ns = 1,nsnow
+    do ns = 1,nzsnow
        n = ns - nsnow
-       zsnsoxy(ns,i) = mpas_noahmp%zsnsoxy(i,n)
-    enddo
-    do ns = nsnow+1,nzsnow
-       n = ns - nsoil + 1
        zsnsoxy(ns,i) = mpas_noahmp%zsnsoxy(i,n)
     enddo
  enddo
