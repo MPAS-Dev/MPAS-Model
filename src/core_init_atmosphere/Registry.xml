@@ -703,7 +703,10 @@
                         immutable="true">
 
 			<var name="xtime"/>
-			<var_struct name="fdda_state"/>
+			<var name="u_fdda"/>
+			<var name="v_fdda"/>
+			<var name="theta_fdda"/>
+			<var name="qv_fdda"/>
 		</stream>
 
 
@@ -1247,6 +1250,10 @@
                      description="Meridional component of reconstructed horizontal velocity at cell centers"
                      packages="fdda"/>
 
+                <var name="uEdge_fdda" type="real" dimensions="nVertLevels nEdges Time" packages="fdda"
+                     units="m s^{-1}"
+                     description="Horizontal normal velocity input for FDDA nudging"/>
+
                 <var name="theta_fdda" type="real" dimensions="nVertLevels nCells Time" packages="fdda"
                      units="K"
                      description="Potential temperature input for FDDA nudging"/> 
@@ -1265,6 +1272,18 @@
                 <var name="rho_fdda" type="real" dimensions="nVertLevels nCells Time" packages="fdda"
                      units="kg m^{-3}"
                      description="Dry air density input for FDDA nudging"/>
+
+                <var name="uReconstructX_fdda" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="Cartesian x-component of reconstructed horizontal velocity at cell centers"
+                     packages="fdda"/>
+
+                <var name="uReconstructY_fdda" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="Cartesian y-component of reconstructed horizontal velocity at cell centers"
+                     packages="fdda"/>
+
+                <var name="uReconstructZ_fdda" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+                     description="Cartesian z-component of reconstructed horizontal velocity at cell centers"
+                     packages="fdda"/>
 
         </var_struct>
 
