@@ -574,10 +574,10 @@
     pblh_p,           &!PBL height                                                                             [m]
     psih_p,           &!similarity theory for heat                                                             [-]
     psim_p,           &!similarity theory for momentum                                                         [-]
-    q2_p,             &!specific humidity at 2m                                                            [kg/kg]
+    q2_p,             &!water vapor mixing ratio at 2m                                                         [kg/kg]
     qfx_p,            &!upward moisture flux at the surface                                              [kg/m2/s]
-    qgh_p,            &!
-    qsfc_p,           &!specific humidity at lower boundary                                                [kg/kg]
+    qgh_p,            &!lowest level saturation mixing ratio                                                   [kg/kg]
+    qsfc_p,           &!mixing ratio at lower boundary                                                         [kg/kg]
     regime_p,         &!flag indicating PBL regime (stable_p,unstable_p,etc...)                                [-]
     rmol_p,           &!1 / Monin Ob length                                                                    [-]
     t2m_p,            &!temperature at 2m                                                                      [K]
