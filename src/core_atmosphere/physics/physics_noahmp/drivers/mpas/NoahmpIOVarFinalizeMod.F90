@@ -131,7 +131,7 @@ contains
     if ( allocated (NoahmpIO%acsnom)   ) deallocate ( NoahmpIO%acsnom               ) ! accumulated snow melt leaving pack
     if ( allocated (NoahmpIO%acsnow)   ) deallocate ( NoahmpIO%acsnow               ) ! accumulated snow on grid
     if ( allocated (NoahmpIO%emiss)    ) deallocate ( NoahmpIO%emiss                ) ! surface bulk emissivity
-    if ( allocated (NoahmpIO%qsfc)     ) deallocate ( NoahmpIO%qsfc                 ) ! bulk surface specific humidity
+    if ( allocated (NoahmpIO%qsfc)     ) deallocate ( NoahmpIO%qsfc                 ) ! bulk surface mixing ratio
     if ( allocated (NoahmpIO%smoiseq)  ) deallocate ( NoahmpIO%smoiseq              ) ! equilibrium volumetric soil moisture [m3/m3]
     if ( allocated (NoahmpIO%smois)    ) deallocate ( NoahmpIO%smois                ) ! volumetric soil moisture [m3/m3]
     if ( allocated (NoahmpIO%sh2o)     ) deallocate ( NoahmpIO%sh2o                 ) ! volumetric liquid soil moisture [m3/m3]
