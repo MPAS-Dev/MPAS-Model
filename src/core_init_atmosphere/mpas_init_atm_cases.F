@@ -6967,6 +6967,7 @@ call mpas_log_write('Done with soil consistency check')
    end function atm_get_sounding_2
 
 !-----------
+<<<<<<< HEAD
 
    !-----------------------------------------------------------------------
    !  routine init_atm_case_fdda
@@ -7799,6 +7800,8 @@ call mpas_log_write('Done with soil consistency check')
    end subroutine init_atm_case_fdda
 
 
+=======
+>>>>>>> 91c5eac175eebeaf4206bacd5cb50c39dff3c152
 
    !-----------------------------------------------------------------------
    !  routine init_atm_case_cam_mpas

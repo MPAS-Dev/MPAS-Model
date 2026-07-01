@@ -26,7 +26,11 @@
 
  implicit none
  private
+<<<<<<< HEAD
  public:: physics_get_tend, pre_physics_get_tend, post_physics_get_tend, tend_toEdges
+=======
+ public:: physics_get_tend, pre_physics_get_tend, post_physics_get_tend
+>>>>>>> 91c5eac175eebeaf4206bacd5cb50c39dff3c152
 
 
 !Interface between the physics parameterizations and the non-hydrostatic dynamical core.
