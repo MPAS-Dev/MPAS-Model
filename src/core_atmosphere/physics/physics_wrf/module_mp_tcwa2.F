@@ -77,10 +77,8 @@
       REAL, PRIVATE, PARAMETER :: C4PI3W = 4.*PI*RHOW/3.
       REAL, PRIVATE, PARAMETER :: iAMI0 = 6./(PI*RHOI0)
       REAL, PRIVATE, PARAMETER :: AAW = PI/4.,      V2M3 = 6./PI
-      REAL, PRIVATE, PARAMETER :: BMW = 3.,         AMW = PI*RHOW/6.
-      REAL, PRIVATE, PARAMETER :: BMI = 3.,         AMI0 = PI*RHOI0/6.
-      REAL, PRIVATE, PARAMETER :: BMS = 3.,         AMS0 = PI*RHOS0/6.
-      REAL, PRIVATE, PARAMETER :: BMG = 3.,         AMG0 = PI*RHOG1/6.
+      REAL, PRIVATE, PARAMETER :: AMW = PI*RHOW/6., AMI0 = PI*RHOI0/6.
+      REAL, PRIVATE, PARAMETER :: AMS0 = PI*RHOS0/6., AMG0 = PI*RHOG1/6.
       REAL, PRIVATE, PARAMETER :: iAMW = 1./AMW
       REAL, PRIVATE, PARAMETER :: AIMM = 6.6E-1,    BIMM = 1.E2
       REAL, PRIVATE, PARAMETER :: AVSG = 8.6E-1,    BVSG = 2.8E-1
@@ -127,7 +125,7 @@
       REAL, PRIVATE, PARAMETER :: RCMIN = DCMIN/2., RCMAX = DCMAX/2.
       REAL, PRIVATE, PARAMETER :: RRMIN = DRMIN/2., RRMAX = DRMAX/2.
       REAL, PRIVATE, PARAMETER :: DI0 = 6.E-6,      DCR = 100.E-6
-      REAL, PRIVATE, PARAMETER :: MI0 = AMI0*DI0**BMI
+      REAL, PRIVATE, PARAMETER :: MI0 = AMI0*DI0**3.
       REAL, PRIVATE, PARAMETER :: SIG1 = -6.2685,   SIG2 = -2.7312E-1
       REAL, PRIVATE, PARAMETER :: SIG3 = 2.2606E-1, MNR1 = -2.2920
       REAL, PRIVATE, PARAMETER :: MNR2 = -3.5158E-1, MNR3 = 3.4708E-1
@@ -2562,8 +2560,8 @@
       IF (QC1D.GE.QSMALL) THEN
          CALL SOLVE_AFAC(TK1D,RHO,QC1D,NC1D,LAMC,MVDC,AFAC,AVC,BVC)
          IF (LIQ_VTC.EQ.0) THEN
-            FSQC = EXP(LOG_GAMMA(BVC+BMW+AFAC+1.)-LOG_GAMMA(BMW+       &
-                   AFAC+1.)-BVC*LOG(LAMC))
+            FSQC = EXP(LOG_GAMMA(BVC+AFAC+4.)-LOG_GAMMA(AFAC+4.)-BVC*  &
+                   LOG(LAMC))
             FSNC = EXP(LOG_GAMMA(BVC+AFAC+1.)-LOG_GAMMA(AFAC+1.)-      &
                    BVC*LOG(LAMC))
             VTQC = RHOAJ*FSQC*AVC
@@ -2586,8 +2584,8 @@
          CALL SOLVE_AFAR(TK1D,RHO,QC1D,QR1D,NR1D,LAMR,MVDR,AFAR,RASPR, &
               AVR,BVR)
          IF (LIQ_VTR.EQ.0) THEN
-            FSQR = EXP(LOG_GAMMA(BVR+BMW+AFAR+1.)-LOG_GAMMA(BMW+       &
-                   AFAR+1.)-BVR*LOG(LAMR))
+            FSQR = EXP(LOG_GAMMA(BVR+AFAR+4.)-LOG_GAMMA(AFAR+4.)-BVR*  &
+                   LOG(LAMR))
             FSNR = EXP(LOG_GAMMA(BVR+AFAR+1.)-LOG_GAMMA(AFAR+1.)-BVR*  &
                    LOG(LAMR))
             VTQR = RHOAJ*FSQR*AVR
@@ -2610,8 +2608,8 @@
          CALL SOLVE_AFAI(TK1D,P1D,RHO,QV1D,QC1D,QI1D,NI1D,ADAGR,ZETA,  &
               LAMI,AFAI,MVDI,RHOI,AMI,AVI,BVI)
          IF (ICE_VTI.EQ.0) THEN
-            FSQI = EXP(LOG_GAMMA(BVI+BMI+AFAI+1.)-LOG_GAMMA(BMI+       &
-                   AFAI+1.)-BVI*LOG(LAMI))
+            FSQI = EXP(LOG_GAMMA(BVI+AFAI+4.)-LOG_GAMMA(AFAI+4.)-BVI*  &
+                   LOG(LAMI))
             FSNI = EXP(LOG_GAMMA(BVI+AFAI+1.)-LOG_GAMMA(AFAI+1.)-BVI*  &
                    LOG(LAMI))
             VTQI = MIN(RHOAJ*FSQI*AVI,VTIMAX)
@@ -2654,8 +2652,8 @@
             RHOS = MIN(RHOIMAX,MAX(RHOIMIN,SMLF*RHOW+(1.-SMLF)*RHOS))
          ENDIF
          IF (ICE_VTS.EQ.0) THEN
-            FSQS = EXP(LOG_GAMMA(BVS+BMS+AFAS+1.)-LOG_GAMMA(BMS+AFAS+  &
-                   1.)-BVS*LOG(LAMS))
+            FSQS = EXP(LOG_GAMMA(BVS+AFAS+4.)-LOG_GAMMA(AFAS+4.)-BVS*  &
+                   LOG(LAMS))
             FSNS = EXP(LOG_GAMMA(BVS+AFAS+1.)-LOG_GAMMA(AFAS+1.)-BVS*  &
                    LOG(LAMS))
             VTQS = MIN(RHOAJ*FSQS*AVS,VTSMAX)
@@ -2687,8 +2685,8 @@
             RHOG = MIN(RHOIMAX,MAX(RHOIMIN,GMLF*RHOW+(1.-GMLF)*RHOG))
          ENDIF
          IF (ICE_VTG.EQ.0) THEN
-            FSQG = EXP(LOG_GAMMA(BVG+BMG+AFAG+1.)-LOG_GAMMA(BMG+AFAG+  &
-                   1.)-BVG*LOG(LAMG))
+            FSQG = EXP(LOG_GAMMA(BVG+AFAG+4.)-LOG_GAMMA(AFAG+4.)-BVG*  &
+                   LOG(LAMG))
             FSNG = EXP(LOG_GAMMA(BVG+AFAG+1.)-LOG_GAMMA(AFAG+1.)-BVG*  &
                    LOG(LAMG))
             VTQG = MIN(RHOAJ*FSQG*AVG,VTGMAX)
@@ -2846,12 +2844,9 @@
               RVLI0,RVLI3,RVLS0,RVLS3,RVLG0,RVLG3
       REAL :: LAMC,LAMR,LAMS,LAMG,LAMI,GC2,GC3,GC4,GC5,GC6,GC7,GR2,GR3,&
               GR4,GR5,GR6,GR7,GI1,GI2,GI2G1,GI2G2,GI2H1,GI3,GI3H1,GIF1,&
-              GIF2,GIG1,GIG2,GIH1,GIH2,GIM1,GIM2,GI4,GI5,GIM2H1,GI2H3, &
-              GI2HG1,GIH2G1,GIF3,GI2G3,GI3G1,GIZM2H1,GIG3,GIM2G1,      &
-              GIZM2G1,GIM3,GIMF1,GIZMF1,GIMG1,GIZMG1,GIMH1,GIZMH1,     &
-              GIZM1,GIZ1,GIZ2G1,GIZF1,GIZG1,GIZH1,GIH3,GS2,GS3,GS4,GS5,&
-              GSM1,GSM2,GSM3,GG2,GG3,GG4,GG5,GGM1,GGM2,GGM3,Z32G,Z32H, &
-              Z3BMI
+              GIF2,GIG1,GIG2,GIH1,GIH2,GI4,GI5,GI2H4,GI2H3,GIF3,GI2G3, &
+              GI3G1,GIG3,GI2G4,GI6,GIF4,GIG4,GIH4,GIZ1,GIZF1,GIZG1,    &
+              GIZH1,GIH3,GS2,GS3,GS4,GS5,GS6,GG2,GG3,GG4,GG5,GG6
       REAL, PARAMETER :: AQ1 = 6.6793E+0, BQ1 = 1.0090E+0, CQ1 = 1.4095E+0
       REAL, PARAMETER :: AQ2 = 9.9912E+0, BQ2 = -4.7678E-1, CQ2 = -3.1388E-2
       REAL, PARAMETER :: AN3 = -4.3561E0, BN3 = 1.9934E0,  CN3 = 1.6465E-2
@@ -2956,8 +2951,8 @@
          LMVRC = LOG(MVRC)
          GUC   = EXP(EXP(AFU+BFU*LMVRC**3.+CFU*SQRT(RHO)**3.))
          IF (LIQ_VTC.EQ.0) THEN
-            FSQC = EXP(LOG_GAMMA(BVC+BMW+AFAC+1.)-LOG_GAMMA(BMW+       &
-                   AFAC+1.)-BVC*LOG(LAMC))
+            FSQC = EXP(LOG_GAMMA(BVC+AFAC+4.)-LOG_GAMMA(AFAC+4.)-BVC*  &
+                   LOG(LAMC))
             FSNC = EXP(LOG_GAMMA(BVC+AFAC+1.)-LOG_GAMMA(AFAC+1.)-BVC*  &
                    LOG(LAMC))
             VTQC = RHOAJ*FSQC*AVC
@@ -2998,8 +2993,8 @@
          LMVRR = LOG(MVRR)
          GUR   = EXP(EXP(AFU+BFU*LMVRR**3.+CFU*SQRT(RHO)**3.))
          IF (LIQ_VTR.EQ.0) THEN
-            FSQR = EXP(LOG_GAMMA(BVR+BMW+AFAR+1.)-LOG_GAMMA(BMW+AFAR+  &
-                   1.)-BVR*LOG(LAMR))
+            FSQR = EXP(LOG_GAMMA(BVR+AFAR+4.)-LOG_GAMMA(AFAR+4.)-BVR*  &
+                   LOG(LAMR))
             FSNR = EXP(LOG_GAMMA(BVR+AFAR+1.)-LOG_GAMMA(AFAR+1.)-BVR*  &
                    LOG(LAMR))
             VTQR = RHOAJ*FSQR*AVR
@@ -3051,59 +3046,40 @@
          QCNI1  = PI*XISP*AMI*NI1D/6.
          NCLI1  = PI*NI1D/4.
          NCNI1  = PI*XISP*NI1D/6.
-         Z32G   = ZETA3+2.*IPG
-         Z32H   = ZETA3+2.*IPH
-         Z3BMI  = ZETA3+BMI
          LLMI   = LOG(LAMI)
          GI1    = LOG_GAMMA(AFAI+1.)
          GI2    = EXP(LOG_GAMMA(AFAI+2.)-GI1-LLMI)
          GI3    = EXP(LOG_GAMMA(AFAI+3.)-GI1-2.*LLMI)
          GI4    = EXP(LOG_GAMMA(AFAI+4.)-GI1-3.*LLMI)
          GI5    = EXP(LOG_GAMMA(AFAI+5.)-GI1-4.*LLMI)
-         GIM1   = EXP(LOG_GAMMA(AFAI+BMI+1.)-GI1-BMI*LLMI)
-         GIM2   = EXP(LOG_GAMMA(AFAI+BMI+2.)-GI1-(BMI+1.)*LLMI)
-         GIM3   = EXP(LOG_GAMMA(AFAI+BMI+3.)-GI1-(BMI+2.)*LLMI)
          GIF1   = EXP(LOG_GAMMA(AFAI+IPF+1.)-GI1-IPF*LLMI)
          GIF2   = EXP(LOG_GAMMA(AFAI+IPF+2.)-GI1-(IPF+1.)*LLMI)
          GIF3   = EXP(LOG_GAMMA(AFAI+IPF+3.)-GI1-(IPF+2.)*LLMI)
+         GIF4   = EXP(LOG_GAMMA(AFAI+IPF+4.)-GI1-(IPF+3.)*LLMI)
          GIG1   = EXP(LOG_GAMMA(AFAI+IPG+1.)-GI1-IPG*LLMI)
          GIG2   = EXP(LOG_GAMMA(AFAI+IPG+2.)-GI1-(IPG+1.)*LLMI)
          GIG3   = EXP(LOG_GAMMA(AFAI+IPG+3.)-GI1-(IPG+2.)*LLMI)
+         GIG3   = EXP(LOG_GAMMA(AFAI+IPG+4.)-GI1-(IPG+3.)*LLMI)
          GIH1   = EXP(LOG_GAMMA(AFAI+IPH+1.)-GI1-IPH*LLMI)
          GIH2   = EXP(LOG_GAMMA(AFAI+IPH+2.)-GI1-(IPH+1.)*LLMI)
          GIH3   = EXP(LOG_GAMMA(AFAI+IPH+3.)-GI1-(IPH+2.)*LLMI)
+         GIH4   = EXP(LOG_GAMMA(AFAI+IPH+4.)-GI1-(IPH+3.)*LLMI)
          GIZ1   = EXP(LOG_GAMMA(AFAI+ZETA3+1.)-GI1-ZETA3*LLMI)
          GI2G1  = EXP(LOG_GAMMA(AFAI+2.*IPG+1.)-GI1-2.*IPG*LLMI)
          GI2G2  = EXP(LOG_GAMMA(AFAI+2.*IPG+2.)-GI1-(2.*IPG+1.)*LLMI)
          GI2G3  = EXP(LOG_GAMMA(AFAI+2.*IPG+3.)-GI1-(2.*IPG+2.)*LLMI)
+         GI2G4  = EXP(LOG_GAMMA(AFAI+2.*IPG+4.)-GI1-(2.*IPG+3.)*LLMI)
          GI3G1  = EXP(LOG_GAMMA(AFAI+3.*IPG+1.)-GI1-3.*IPG*LLMI)
          GI2H1  = EXP(LOG_GAMMA(AFAI+2.*IPH+1.)-GI1-2.*IPH*LLMI)
          GI2H3  = EXP(LOG_GAMMA(AFAI+2.*IPH+3.)-GI1-(2.*IPH+2.)*LLMI)
+         GI2H4  = EXP(LOG_GAMMA(AFAI+2.*IPH+4.)-GI1-(2.*IPH+3.)*LLMI)
          GI3H1  = EXP(LOG_GAMMA(AFAI+3.*IPH+1.)-GI1-3.*IPH*LLMI)
-         GIMF1  = EXP(LOG_GAMMA(AFAI+BMI+IPF+1.)-GI1-(BMI+IPF)*LLMI)
-         GIMG1  = EXP(LOG_GAMMA(AFAI+BMI+IPG+1.)-GI1-(BMI+IPG)*LLMI)
-         GIMH1  = EXP(LOG_GAMMA(AFAI+BMI+IPH+1.)-GI1-(BMI+IPH)*LLMI)
-         GIZM1  = EXP(LOG_GAMMA(AFAI+ZETA3+BMI+1.)-GI1-(ZETA3+BMI)*LLMI)
          GIZF1  = EXP(LOG_GAMMA(AFAI+ZETA3+IPF+1.)-GI1-(ZETA3+IPF)*LLMI)
          GIZG1  = EXP(LOG_GAMMA(AFAI+ZETA3+IPG+1.)-GI1-(ZETA3+IPG)*LLMI)
          GIZH1  = EXP(LOG_GAMMA(AFAI+ZETA3+IPH+1.)-GI1-(ZETA3+IPH)*LLMI)
-         GI2HG1 = EXP(LOG_GAMMA(AFAI+2.*IPH+IPG+1.)-GI1-(2.*IPH+IPG)*  &
-                  LLMI)
-         GIH2G1 = EXP(LOG_GAMMA(AFAI+IPH+2.*IPG+1.)-GI1-(IPH+2.*IPG)*  &
-                  LLMI)
-         GIM2G1 = EXP(LOG_GAMMA(AFAI+BMI+2.*IPG+1.)-GI1-(BMI+2.*IPG)*  &
-                  LLMI)
-         GIM2H1 = EXP(LOG_GAMMA(AFAI+BMI+2.*IPH+1.)-GI1-(BMI+2.*IPH)*  &
-                  LLMI)
-         GIZ2G1 = EXP(LOG_GAMMA(AFAI+Z32G+1.)-GI1-Z32G*LLMI)
-         GIZMF1 = EXP(LOG_GAMMA(AFAI+Z3BMI+IPF+1.)-GI1-(Z3BMI+IPF)*LLMI)
-         GIZMG1 = EXP(LOG_GAMMA(AFAI+Z3BMI+IPG+1.)-GI1-(Z3BMI+IPG)*LLMI)
-         GIZMH1 = EXP(LOG_GAMMA(AFAI+Z3BMI+IPH+1.)-GI1-(Z3BMI+IPH)*LLMI)
-         GIZM2G1 = EXP(LOG_GAMMA(AFAI+Z32G+BMI+1.)-GI1-(Z32G+BMI)*LLMI)
-         GIZM2H1 = EXP(LOG_GAMMA(AFAI+Z32H+BMI+1.)-GI1-(Z32H+BMI)*LLMI)
          IF (ICE_VTI.EQ.0) THEN
-            FSQI = EXP(LOG_GAMMA(BVI+BMI+AFAI+1.)-LOG_GAMMA(BMI+AFAI+  &
-                   1.)-BVI*LLMI)
+            FSQI = EXP(LOG_GAMMA(BVI+AFAI+4.)-LOG_GAMMA(AFAI+4.)-BVI*  &
+                   LLMI)
             FSNI = EXP(LOG_GAMMA(BVI+AFAI+1.)-GI1-BVI*LLMI)
             VTQI = MIN(RHOAJ*FSQI*AVI,VTIMAX)
             VTNI = MIN(RHOAJ*FSNI*AVI,VTIMAX)
@@ -3226,20 +3202,16 @@
       IF (QS1D.GE.QSMALL) THEN
          CALL SOLVE_AFAS(TK1D,RHO,QS1D,QC1D,NS1D,AFAS,LAMS,MVDS,RHOS,  &
               SASPR,AMS,AVS,BVS)
-         LLMS  = LOG(LAMS)
-         GS2   = EXP(LOG_GAMMA(AFAS+2.)-LOG_GAMMA(AFAS+1.)-LLMS)
-         GS3   = EXP(LOG_GAMMA(AFAS+3.)-LOG_GAMMA(AFAS+1.)-2.*LLMS)
-         GS4   = EXP(LOG_GAMMA(AFAS+4.)-LOG_GAMMA(AFAS+1.)-3.*LLMS)
-         GS5   = EXP(LOG_GAMMA(AFAS+5.)-LOG_GAMMA(AFAS+1.)-4.*LLMS)
-         GSM1  = EXP(LOG_GAMMA(AFAS+BMS+1.)-LOG_GAMMA(AFAS+1.)-BMS*LLMS)
-         GSM2  = EXP(LOG_GAMMA(AFAS+BMS+2.)-LOG_GAMMA(AFAS+1.)-(BMS+   &
-                 1.)*LLMS)
-         GSM3  = EXP(LOG_GAMMA(AFAS+BMS+3.)-LOG_GAMMA(AFAS+1.)-(BMS+   &
-                 2.)*LLMS)
+         LLMS = LOG(LAMS)
+         GS2  = EXP(LOG_GAMMA(AFAS+2.)-LOG_GAMMA(AFAS+1.)-LLMS)
+         GS3  = EXP(LOG_GAMMA(AFAS+3.)-LOG_GAMMA(AFAS+1.)-2.*LLMS)
+         GS4  = EXP(LOG_GAMMA(AFAS+4.)-LOG_GAMMA(AFAS+1.)-3.*LLMS)
+         GS5  = EXP(LOG_GAMMA(AFAS+5.)-LOG_GAMMA(AFAS+1.)-4.*LLMS)
+         GS6  = EXP(LOG_GAMMA(AFAS+6.)-LOG_GAMMA(AFAS+1.)-5.*LLMS)
          iRHOS = 1./RHOS
          IF (ICE_VTS.EQ.0) THEN
-            FSQS = EXP(LOG_GAMMA(BVS+BMS+AFAS+1.)-LOG_GAMMA(BMS+AFAS+  &
-                   1.)-BVS*LLMS)
+            FSQS = EXP(LOG_GAMMA(BVS+AFAS+4.)-LOG_GAMMA(AFAS+4.)-BVS*  &
+                   LLMS)
             FSNS = EXP(LOG_GAMMA(BVS+AFAS+1.)-LOG_GAMMA(AFAS+1.)-BVS*  &
                    LLMS)
             VTQS = MIN(RHOAJ*FSQS*AVS,VTSMAX)
@@ -3286,16 +3258,12 @@
          GG3   = EXP(LOG_GAMMA(AFAG+3.)-LOG_GAMMA(AFAG+1.)-2.*LLMG)
          GG4   = EXP(LOG_GAMMA(AFAG+4.)-LOG_GAMMA(AFAG+1.)-3.*LLMG)
          GG5   = EXP(LOG_GAMMA(AFAG+5.)-LOG_GAMMA(AFAG+1.)-4.*LLMG)
-         GGM1  = EXP(LOG_GAMMA(AFAG+BMG+1.)-LOG_GAMMA(AFAG+1.)-BMG*LLMG)
-         GGM2  = EXP(LOG_GAMMA(AFAG+BMG+2.)-LOG_GAMMA(AFAG+1.)-(BMG+   &
-                 1.)*LLMG)
-         GGM3  = EXP(LOG_GAMMA(AFAG+BMG+3.)-LOG_GAMMA(AFAG+1.)-(BMG+   &
-                 2.)*LLMG)
+         GG6   = EXP(LOG_GAMMA(AFAG+6.)-LOG_GAMMA(AFAG+1.)-5.*LLMG)
          iAMG  = 1./AMG
          iRHOG = 1./RHOG
          IF (ICE_VTG.EQ.0) THEN
-            FSQG = EXP(LOG_GAMMA(BVG+BMG+AFAG+1.)-LOG_GAMMA(BMG+AFAG+  &
-                   1.)-BVG*LLMG)
+            FSQG = EXP(LOG_GAMMA(BVG+AFAG+4.)-LOG_GAMMA(AFAG+4.)-BVG*  &
+                   LLMG)
             FSNG = EXP(LOG_GAMMA(BVG+AFAG+1.)-LOG_GAMMA(AFAG+1.)-BVG*  &
                    LLMG)
             VTQG = MIN(RHOAJ*FSQG*AVG,VTGMAX)
@@ -3498,15 +3466,15 @@
                ENDIF
             ENDIF
             IF ((ADAGR-1.).GE.SLIMIT) THEN
-               QCNis = QCNI1*VTQI*EII3*NI1D*(GIM2H1/DI0Z4+2.*GIMF1/    &
-                       DI0Z1+DI0Z2*GIM2G1)
+               QCNis = QCNI1*VTQI*EII3*NI1D*(GI2H4/DI0Z4+2.*GIF4/      &
+                       DI0Z1+DI0Z2*GI2G4)
                NiCNis = NCNI1*VTNI*EII0*NI1D*(GI2H1/DI0Z4+2.*GIF1/     &
                         DI0Z1+DI0Z2*GI2G1)
             ELSEIF ((1.-ADAGR).GE.SLIMIT) THEN
-               QCNis = QCNI1*VTQI*EII3*NI1D*4.*DI0Z2*GIM2G1
+               QCNis = QCNI1*VTQI*EII3*NI1D*4.*DI0Z2*GI2G4
                NiCNis = NCNI1*VTNI*EII0*NI1D*4.*DI0Z2*GI2G1
             ELSEIF (ABS(ADAGR-1.).LT.SLIMIT) THEN
-               QCNis = QCNI1*VTQI*EII3*NI1D*4.*GIM3
+               QCNis = QCNI1*VTQI*EII3*NI1D*4.*GI6
                NiCNis = NCNI1*VTNI*EII0*NI1D*4.*GI3
             ENDIF
             QCNis  = MIN(2.*QCNis,QI1D*iDT)
@@ -3673,17 +3641,17 @@
             VTQRI = SQRT(VTQ0*VTQ0+0.04*VTQR*VTQI)
             VTNRI = SQRT(VTN0*VTN0+0.04*VTNR*VTNI)
             IF ((ADAGR-1.).GE.SLIMIT.AND.MVDR.GE.MVDI) THEN
-               QCLir = QCLI1*EIR3*VTQRI*NR1D*(GIMF1/DI0Z1+GIMG1*GR2*   &
-                       DI0Z1+GIMH1*GR2/DI0Z2+GIM1*GR3)
+               QCLir = QCLI1*EIR3*VTQRI*NR1D*(GIF4/DI0Z1+GIG4*GR2*     &
+                       DI0Z1+GIH4*GR2/DI0Z2+GI4*GR3)
                NCLir = NCLI1*EIR0*VTNRI*NR1D*(GIF1/DI0Z1+GIG1*GR2*     &
                        DI0Z1+GIH1*GR2/DI0Z2+GR3)
             ELSEIF ((1.-ADAGR).GE.SLIMIT.AND.MVDR.GE.MVDI) THEN
-               QCLir = QCLI1*EIR3*VTQRI*NR1D*(GIM2G1*DI0Z2+2.*GIMG1*   &
-                       GR2*DI0Z1+GIM1*GR3)
+               QCLir = QCLI1*EIR3*VTQRI*NR1D*(GI2G4*DI0Z2+2.*GIG4*GR2* &
+                       DI0Z1+GI4*GR3)
                NCLir = NCLI1*EIR0*VTNRI*NR1D*(GI2G1*DI0Z2+2.*GIG1*GR2* &
                        DI0Z1+GR3)
             ELSEIF (ABS(ADAGR-1.).LT.SLIMIT.AND.MVDR.GE.MVDI) THEN
-               QCLir = QCLI1*EIR3*VTQRI*NR1D*(GIM3+2.*GIM2*GR2+GIM1*GR3)
+               QCLir = QCLI1*EIR3*VTQRI*NR1D*(GI6+2.*GI5*GR2+GI4*GR3)
                NCLir = NCLI1*EIR0*VTNRI*NR1D*(GI3+2.*GI2*GR2+GR3)
             ENDIF
             QCLir = MIN(QCLir,QI1D*iDT)
@@ -3771,10 +3739,10 @@
                ESR0  = EXRM(LAR2,LLMR,RVLR0,MVDR)
                ESR3  = EXRM(LAR5,LLMR,RVLR3,MVDR)
             ENDIF
-            QCLsr = QCLS1*ESR3*VTQRS*NR1D*(SASR2*GSM3+SASR1*2.*GR2*    &
-                    GSM2+GR3*GSM1)
-            NCLsr = NCLS1*ESR0*VTNRS*NR1D*(SASR2*GS3+SASR1*2.*GR2*     &
-                    GS2+GR3)
+            QCLsr = QCLS1*ESR3*VTQRS*NR1D*(SASR2*GS6+SASR1*2.*GR2*GS5+ &
+                    GR3*GS4)
+            NCLsr = NCLS1*ESR0*VTNRS*NR1D*(SASR2*GS3+SASR1*2.*GR2*GS2+ &
+                    GR3)
             QCLsr = MIN(QCLsr,QS1D*iDT)
             NCLsr = MIN(NCLsr,NS1D*iDT)
             IF (QRMrs.GT.0.) THEN
@@ -3839,13 +3807,13 @@
                EGR3  = EXRM(LAR5,LLMR,RVLR3,MVDR)
             ENDIF
             IF (GASPR.GT.1.) THEN
-               QCLgr = QCLG1*EGR3*VTQRG*NR1D*(GASR3*GGM3+GASR4*GR2*    &
-                       GGM2+GASR1*GR2*GGM2+GR3*GGM1)
+               QCLgr = QCLG1*EGR3*VTQRG*NR1D*(GASR3*GG6+GASR4*GR2*GG5+ &
+                       GASR1*GR2*GG5+GR3*GG4)
                NCLgr = NCLG1*EGR0*VTNRG*NR1D*(GASR3*GG3+GASR4*GR2*GG2+ &
                        GASR1*GR2*GG2+GR3)
             ELSE
-               QCLgr = QCLG1*EGR3*VTQRG*NR1D*(GASR2*GGM3+GASR1*2.*GR2* &
-                       GGM2+GR3*GGM1)
+               QCLgr = QCLG1*EGR3*VTQRG*NR1D*(GASR2*GG6+GASR1*2.*GR2*  &
+                       GG5+GR3*GG4)
                NCLgr = NCLG1*EGR0*VTNRG*NR1D*(GASR2*GG3+GASR1*2.*GR2*  &
                        GG2+GR3)
             ENDIF
@@ -3887,18 +3855,18 @@
             VTQIS = SQRT(VTQ0*VTQ0+0.04*VTQI*VTQS)
             VTNIS = SQRT(VTN0*VTN0+0.04*VTNI*VTNS)
             IF ((ADAGR-1.).GE.SLIMIT) THEN
-               QCLis = QCLI1*EIS3*VTQIS*NS1D*(GIMF1/DI0Z1+SASR1*GIMG1* &
-                       GS2*DI0Z1+SASR1*GIMH1*GS2/DI0Z2+SASR2*GIM1*GS3)
+               QCLis = QCLI1*EIS3*VTQIS*NS1D*(GIF4/DI0Z1+SASR1*GIG4*   &
+                       GS2*DI0Z1+SASR1*GIH4*GS2/DI0Z2+SASR2*GI4*GS3)
                NCLis = NCLI1*EIS0*VTNIS*NS1D*(GIF1/DI0Z1+SASR1*GIG1*   &
                        GS2*DI0Z1+SASR1*GIH1*GS2/DI0Z2+SASR2*GS3)
             ELSEIF ((1.-ADAGR).GE.SLIMIT) THEN
-               QCLis = QCLI1*EIS3*VTQIS*NS1D*(GIM2G1*DI0Z2+SASR1*2.*   &
-                       GIMG1*GS2*DI0Z1+SASR2*GIM1*GS3)
+               QCLis = QCLI1*EIS3*VTQIS*NS1D*(GI2G4*DI0Z2+SASR1*2.*    &
+                       GIG4*GS2*DI0Z1+SASR2*GI4*GS3)
                NCLis = NCLI1*EIS0*VTNIS*NS1D*(GI2G1*DI0Z2+SASR1*2.*    &
                        GIG1*GS2*DI0Z1+SASR2*GS3)
             ELSEIF (ABS(ADAGR-1.).LT.SLIMIT) THEN
-               QCLis = QCLI1*EIS3*VTQIS*NS1D*(GIM3+SASR1*2.*GIM2*GS2+  &
-                       SASR2*GIM1*GS3)
+               QCLis = QCLI1*EIS3*VTQIS*NS1D*(GI6+SASR1*2.*GI5*GS2+    &
+                       SASR2*GI4*GS3)
                NCLis = NCLI1*EIS0*VTNIS*NS1D*(GI3+SASR1*2.*GI2*GS2+    &
                        SASR2*GS3)
             ENDIF
@@ -3923,18 +3891,18 @@
             VTQIG = SQRT(VTQ0*VTQ0+0.04*VTQI*VTQG)
             VTNIG = SQRT(VTN0*VTN0+0.04*VTNI*VTNG)
             IF ((ADAGR-1.).GE.SLIMIT) THEN
-               QCLig = QCLI1*EIG3*VTQIG*NG1D*(GIMF1/DI0Z1+GASR1*GIMG1* &
-                       GG2*DI0Z1+GASR1*GIMH1*GG2/DI0Z2+GASR2*GIM1*GG3)
+               QCLig = QCLI1*EIG3*VTQIG*NG1D*(GIF4/DI0Z1+GASR1*GIG4*   &
+                       GG2*DI0Z1+GASR1*GIH4*GG2/DI0Z2+GASR2*GI4*GG3)
                NCLig = NCLI1*EIG0*VTNIG*NG1D*(GIF1/DI0Z1+GASR1*GIG1*   &
                        GG2*DI0Z1+GASR1*GIH1*GG2/DI0Z2+GASR2*GG3)
             ELSEIF ((1.-ADAGR).GE.SLIMIT) THEN
-               QCLig = QCLI1*EIG3*VTQIG*NG1D*(GIM2G1*DI0Z2+GASR1*2.*   &
-                       GIMG1*GG2*DI0Z1+GASR2*GIM1*GG3)
+               QCLig = QCLI1*EIG3*VTQIG*NG1D*(GI2G4*DI0Z2+GASR1*2.*    &
+                       GIG4*GG2*DI0Z1+GASR2*GI4*GG3)
                NCLig = NCLI1*EIG0*VTNIG*NG1D*(GI2G1*DI0Z2+GASR1*2.*    &
                        GIG1*GG2*DI0Z1+GASR2*GG3)
             ELSEIF (ABS(ADAGR-1.).LT.SLIMIT) THEN
-               QCLig = QCLI1*EIG3*VTQIG*NG1D*(GIM3+GASR1*2.*GIM2*GG2+  &
-                       GASR2*GIM1*GG3)
+               QCLig = QCLI1*EIG3*VTQIG*NG1D*(GI6+GASR1*2.*GI5*GG2+    &
+                       GASR2*GI4*GG3)
                NCLig = NCLI1*EIG0*VTNIG*NG1D*(GI3+GASR1*2.*GI2*GG2+    &
                        GASR2*GG3)
             ENDIF
@@ -3958,10 +3926,10 @@
             VTN0  = VTNG-VTNS
             VTQSG = SQRT(VTQ0*VTQ0+0.04*VTQS*VTQG)
             VTNSG = SQRT(VTN0*VTN0+0.04*VTNS*VTNG)
-            QCLsg = QCLS1*ESG3*VTQSG*NG1D*(GASR2*SASR2*GSM3+GASR1*     &
-                    SASR1*2.*GG2*GSM2+GSM1*GG3)
-            NCLsg = NCLS1*ESG0*VTNSG*NG1D*(GASR2*SASR2*GS3+GASR1*      &
-                    SASR1*2.*GS2*GG2+GG3)
+            QCLsg = QCLS1*ESG3*VTQSG*NG1D*(GASR2*SASR2*GS6+GASR1*SASR1*&
+                    2.*GG2*GS5+GS4*GG3)
+            NCLsg = NCLS1*ESG0*VTNSG*NG1D*(GASR2*SASR2*GS3+GASR1*SASR1*&
+                    2.*GS2*GG2+GG3)
             QCLsg = MIN(QCLsg,QS1D*iDT)
             NCLsg = MIN(NCLsg,NS1D*iDT)
          ENDIF
@@ -3983,7 +3951,7 @@
                   ESS3  = 0.
                ENDIF
             ENDIF
-            QCLss = PI**2.*RHOS*VTQS*ESS3*SASR2*NS1D**2.*GSM3/6.
+            QCLss = PI**2.*RHOS*VTQS*ESS3*SASR2*NS1D**2.*GS6/6.
             IF (QCLss.GT.0.) THEN
                ISEPS = 0.6
                ISEPL = SASPR
