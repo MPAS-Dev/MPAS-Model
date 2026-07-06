@@ -7399,7 +7399,7 @@ module atm_time_integration
 
 
 !$OMP BARRIER
-
+         call mpas_timer_start('atm_compute_solve_diag_7418')
          !
          ! Modify PV edge with upstream bias. 
          !
@@ -7429,7 +7429,7 @@ module atm_time_integration
             end do
          end do
          !$acc end parallel
-
+         call mpas_timer_stop('atm_compute_solve_diag_7418')
 
       end if  ! apvm upwinding
 
