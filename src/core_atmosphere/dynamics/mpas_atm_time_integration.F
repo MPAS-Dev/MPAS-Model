@@ -7416,13 +7416,12 @@ module atm_time_integration
          !
          r = config_apvm_upwinding * dt
          !$acc parallel default(present)
-         !$acc loop gang
+         !$acc loop gang worker vector collapse(2)
          do iEdge = edgeStart,edgeEnd
-            r1 = 1.0_RKIND * invDvEdge(iEdge)
-            r2 = 1.0_RKIND * invDcEdge(iEdge)
 !DIR$ IVDEP
-            !$acc loop vector
             do k = 1,nVertLevels
+               r1 = 1.0_RKIND * invDvEdge(iEdge)
+               r2 = 1.0_RKIND * invDcEdge(iEdge)
                gradPVt(k,iEdge) = (pv_vertex(k,verticesOnEdge(2,iEdge)) - pv_vertex(k,verticesOnEdge(1,iEdge))) * r1
                gradPVn(k,iEdge) = (pv_cell(k,cellsOnEdge(2,iEdge)) - pv_cell(k,cellsOnEdge(1,iEdge))) * r2
                pv_edge(k,iEdge) = pv_edge(k,iEdge) - r * (v(k,iEdge) * gradPVt(k,iEdge) + u(k,iEdge) * gradPVn(k,iEdge))
