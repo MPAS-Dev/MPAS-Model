@@ -7308,8 +7308,9 @@ module atm_time_integration
       if(present(rk_step)) then
         if(rk_step /= 3) reconstruct_v = .false.
       end if
-
+      
       if (reconstruct_v) then
+        call mpas_timer_start('atm_compute_solve_diag_7313')
         !$acc parallel default(present)
         !$acc loop gang
         do iEdge = edgeStart,edgeEnd
@@ -7328,6 +7329,7 @@ module atm_time_integration
           end do
         end do
         !$acc end parallel
+        call mpas_timer_stop('atm_compute_solve_diag_7313')
       end if
 
       !
