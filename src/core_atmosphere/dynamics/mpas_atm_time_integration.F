@@ -7312,7 +7312,7 @@ module atm_time_integration
       if (reconstruct_v) then
         call mpas_timer_start('atm_compute_solve_diag_7313')
         !$acc parallel default(present)
-        !$acc loop gang
+        !$acc loop gang worker
         do iEdge = edgeStart,edgeEnd
           !$acc loop vector
           do k = 1,nVertLevels
