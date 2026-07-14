@@ -637,9 +637,6 @@ module mpas_stream_manager
                                  stream1_cursor % direction == MPAS_STREAM_INPUT_OUTPUT) .and. &
                                  output_nalarms > 0)
 
-                call mpas_log_write('Stream 1 '//trim(stream1_cursor % name)//' filename '//trim(stream1_cursor % filename_template)//' &
-                & active = $l input = $l output = $l  packages_active $l',logicArgs=(/stream1_cursor % active_stream, stream1_input, stream1_output, pkg_active/))
-
                 if (.not. stream1_cursor % active_stream &
                     .or. .not. (stream1_input .or. stream1_output) &
                     .or. .not. pkg_active) then
