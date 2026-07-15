@@ -1918,7 +1918,7 @@ module atm_time_integration
       type (mpas_pool_type), pointer :: diag_physics
       type (mpas_pool_type), pointer :: mesh
       type (mpas_pool_type), pointer :: tend
-      type (mpas_pool_type), pointer :: tend_physics => null()
+      type (mpas_pool_type), pointer :: tend_physics
       type (mpas_pool_type), pointer :: lbc  ! regional_MPAS addition
 
       real (kind=RKIND), dimension(:,:), pointer :: w
@@ -4051,25 +4051,13 @@ module atm_time_integration
             end do
 
 !DIR$ IVDEP
-
-         !$acc loop vector
-         do k=2, nVertLevels
-            rw_p(k,iCell) = rw_p(k,iCell) +  dts*tend_rw(k,iCell)                       &
-                       - cofwz(k,iCell)*( zz(k  ,iCell)*(ts(k  )+resm*rtheta_pp(k,  iCell))/rTildeCell(k  ,iCell)**2   &
-                                         -zz(k-1,iCell)*(ts(k-1)+resm*rtheta_pp(k-1,iCell))/rTildeCell(k-1,iCell)**2 ) &
-                       - cofwr(k,iCell)*((rs(k)/rTildeCell(k  ,iCell)**2+rs(k-1)/rTildeCell(k-1,iCell)**2)                                &
-                               +resm*(rho_pp(k,iCell)/rTildeCell(k  ,iCell)**2+rho_pp(k-1,iCell)/rTildeCell(k-1,iCell)**2))               &
-                       + cofwt(k  ,iCell)*(ts(k  )+resm*rtheta_pp(k  ,iCell))           &
-                       + cofwt(k-1,iCell)*(ts(k-1)+resm*rtheta_pp(k-1,iCell))
-         end do
-
             !$acc loop vector
             do k=2, nVertLevels
                rw_p(k,iCell) = rw_p(k,iCell) +  dts*(tend_rw(k,iCell)                          &
                           - cofwz(k,iCell)*(( etp(k  )*zz(k  ,iCell)*ts(k)                     &
                                              -etp(k-1)*zz(k-1,iCell)*ts(k-1))                  &
                                     + ( etm(k  )*zz(k  ,iCell)*rtheta_pp(k  ,iCell)/rTildeCell(k  ,iCell)**2            &
-                                       -etm(k-1)*zz(k-1,iCell)*rtheta_pp(k-1,iCell)/rTildeCell(k-1,iCell)**2 )))          &
+                                       -etm(k-1)*zz(k-1,iCell)*rtheta_pp(k-1,iCell)/rTildeCell(k-1,iCell)**2 ))          &
                           - cofwr(k,iCell)*((etp(k)*rs(k)/rTildeCell(k  ,iCell)**2+etp(k-1)*rs(k-1)/rTildeCell(k-1,iCell)**2)                    &
                                            +( etm(k  )*rho_pp(k  ,iCell)                       &
                                              +etm(k-1)*rho_pp(k-1,iCell)))                     &
@@ -5853,11 +5841,11 @@ module atm_time_integration
       ! Dummy arguments
       !
       type (mpas_pool_type), intent(inout) :: tend
-      type (mpas_pool_type), pointer :: tend_physics
+      type (mpas_pool_type), pointer, intent(in) :: tend_physics
       type (mpas_pool_type), intent(in) :: state
       type (mpas_pool_type), intent(in) :: diag
       type (mpas_pool_type), intent(in) :: mesh
-      type (mpas_pool_type), intent(in) :: diag_physics
+      type (mpas_pool_type), pointer, intent(in) :: diag_physics
       type (mpas_pool_type), intent(in) :: configs
       integer, intent(in) :: nVertLevels              ! for allocating stack variables
       integer, intent(in) :: rk_step, dynamics_substep
