@@ -756,7 +756,6 @@ module atm_advection
 
 !  local variables
 
-      real (kind=RKIND), dimension(:,:), pointer :: defc_a, defc_b
       real (kind=RKIND), dimension(:,:), pointer :: cell_gradient_coef_x, cell_gradient_coef_y
       integer, dimension(:,:), pointer :: cellsOnEdge, edgesOnCell, cellsOnCell, verticesOnCell
       integer, dimension(:), pointer :: nEdgesOnCell
@@ -778,11 +777,9 @@ module atm_advection
 
       integer :: iv
       logical :: do_the_cell
-      real (kind=RKIND) :: area_cell, sint2, cost2, sint_cost, dx, dy
+      real (kind=RKIND) :: area_cell, dx, dy
 
 
-      call mpas_pool_get_array(mesh, 'defc_a', defc_a)
-      call mpas_pool_get_array(mesh, 'defc_b', defc_b)
       call mpas_pool_get_array(mesh, 'cell_gradient_coef_x', cell_gradient_coef_x)
       call mpas_pool_get_array(mesh, 'cell_gradient_coef_y', cell_gradient_coef_y)
       call mpas_pool_get_array(mesh, 'nEdgesOnCell', nEdgesOnCell)
@@ -796,9 +793,6 @@ module atm_advection
       call mpas_pool_get_array(mesh, 'xVertex', xVertex)
       call mpas_pool_get_array(mesh, 'yVertex', yVertex)
       call mpas_pool_get_array(mesh, 'zVertex', zVertex)
-
-      defc_a(:,:) = 0.
-      defc_b(:,:) = 0.
 
       cell_gradient_coef_x(:,:) = 0.
       cell_gradient_coef_y(:,:) = 0.
@@ -920,18 +914,8 @@ module atm_advection
             ip1 = i+1
             if (ip1 == n) ip1 = 1
             dl = sqrt((xp(ip1)-xp(i))**2 + (yp(ip1)-yp(i))**2)
-            sint2 = (sin(thetat(i)))**2
-            cost2 = (cos(thetat(i)))**2
-            sint_cost = sin(thetat(i))*cos(thetat(i))
-            defc_a(i,iCell) = dl*(cost2 - sint2)/area_cell
-            defc_b(i,iCell) = dl*2.*sint_cost/area_cell
             cell_gradient_coef_x(i,iCell) = dl*cos(thetat(i))/area_cell
             cell_gradient_coef_y(i,iCell) = dl*sin(thetat(i))/area_cell
-            if (cellsOnEdge(1,EdgesOnCell(i,iCell)) /= iCell) then
-               defc_a(i,iCell) = - defc_a(i,iCell)
-               defc_b(i,iCell) = - defc_b(i,iCell)
-            end if
- 
          end do
 
       end do

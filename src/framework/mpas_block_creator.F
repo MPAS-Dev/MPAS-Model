@@ -985,6 +985,7 @@ module mpas_block_creator
      type (field1dInteger), pointer :: nCellsCursor, nEdgesCursor, nVerticesCursor
      type (field1dInteger), pointer :: indexToCellCursor, indexToEdgeCursor, indexToVertexCursor
 
+     integer :: nCells, nEdges, nVertices
      integer :: nCellsSolve_0Halo, nVerticesSolve_0Halo, nEdgesSolve_0Halo
      integer :: blockID, localBlockID, err_level, iErr
 

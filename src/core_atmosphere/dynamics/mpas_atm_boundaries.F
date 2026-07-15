@@ -395,18 +395,14 @@ module mpas_atm_boundaries
         nullify(tend)
         call mpas_pool_get_array(lbc, 'lbc_'//trim(field), tend, 1)
 
-        MPAS_ACC_TIMER_START('mpas_atm_get_bdy_tend [ACC_data_xfer]')
         if (associated(tend)) then
-            !$acc enter data copyin(tend)
         else
             call mpas_pool_get_array(lbc, 'lbc_scalars', tend_scalars, 1)
-            !$acc enter data copyin(tend_scalars)
 
             ! Ensure the integer pointed to by idx_ptr is copied to the gpu device
             call mpas_pool_get_dimension(lbc, 'index_'//trim(field), idx_ptr)
             idx = idx_ptr
         end if
-        MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_tend [ACC_data_xfer]')
 
         !$acc parallel default(present)
         if (associated(tend)) then
@@ -426,13 +422,6 @@ module mpas_atm_boundaries
         end if
         !$acc end parallel
 
-        MPAS_ACC_TIMER_START('mpas_atm_get_bdy_tend [ACC_data_xfer]')
-        if (associated(tend)) then
-            !$acc exit data delete(tend)
-        else
-            !$acc exit data delete(tend_scalars)
-        end if
-        MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_tend [ACC_data_xfer]')
 
     end subroutine mpas_atm_get_bdy_tend
 
@@ -533,9 +522,6 @@ module mpas_atm_boundaries
         ! query the field as a scalar constituent
         !
         if (associated(tend) .and. associated(state)) then
-            MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
-            !$acc enter data copyin(tend, state)
-            MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
 
             !$acc parallel default(present)
             !$acc loop gang vector collapse(2)
@@ -546,19 +532,12 @@ module mpas_atm_boundaries
             end do
             !$acc end parallel
 
-            MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
-            !$acc exit data delete(tend, state)
-            MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
         else
             call mpas_pool_get_array(lbc, 'lbc_scalars', tend_scalars, 1)
             call mpas_pool_get_array(lbc, 'lbc_scalars', state_scalars, 2)
             call mpas_pool_get_dimension(lbc, 'index_'//trim(field), idx_ptr)
 
             idx=idx_ptr ! Avoid non-array pointer for OpenACC
-
-            MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
-            !$acc enter data copyin(tend_scalars, state_scalars)
-            MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
 
             !$acc parallel default(present)
             !$acc loop gang vector collapse(2)
@@ -569,9 +548,6 @@ module mpas_atm_boundaries
             end do
             !$acc end parallel
 
-            MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
-            !$acc exit data delete(tend_scalars, state_scalars)
-            MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_2d [ACC_data_xfer]')
         end if
 
     end subroutine mpas_atm_get_bdy_state_2d
@@ -652,10 +628,6 @@ module mpas_atm_boundaries
         call mpas_pool_get_array(lbc, 'lbc_'//trim(field), tend, 1)
         call mpas_pool_get_array(lbc, 'lbc_'//trim(field), state, 2)
 
-        MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_3d [ACC_data_xfer]')
-        !$acc enter data copyin(tend, state)
-        MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_3d [ACC_data_xfer]')
-
         !$acc parallel default(present)
         !$acc loop gang vector collapse(3)
         do i=1, horizDim+1
@@ -666,10 +638,6 @@ module mpas_atm_boundaries
             end do
         end do
         !$acc end parallel
-
-        MPAS_ACC_TIMER_START('mpas_atm_get_bdy_state_3d [ACC_data_xfer]')
-        !$acc exit data delete(tend, state)
-        MPAS_ACC_TIMER_STOP('mpas_atm_get_bdy_state_3d [ACC_data_xfer]')
 
     end subroutine mpas_atm_get_bdy_state_3d
 

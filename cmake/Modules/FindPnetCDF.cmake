@@ -133,19 +133,20 @@ set(_new_components)
 if(PnetCDF_Fortran_FOUND AND NOT TARGET PnetCDF::PnetCDF_Fortran)
     add_library(PnetCDF::PnetCDF_Fortran INTERFACE IMPORTED)
     set_target_properties(PnetCDF::PnetCDF_Fortran PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${PnetCDF_INCLUDE_DIR}
-                                                              INTERFACE_LINK_DIRECTORIES ${PnetCDF_LIB_DIR})
+                                                              INTERFACE_LINK_DIRECTORIES ${PnetCDF_LIB_DIR}
+                                                              INTERFACE_LINK_LIBRARIES pnetcdf)
     if(PnetCDF_MODULE_DIR AND NOT PnetCDF_MODULE_DIR STREQUAL PnetCDF_INCLUDE_DIR )
         set_property(TARGET PnetCDF::PnetCDF_Fortran APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${PnetCDF_MODULE_DIR})
     endif()
     set(_new_components 1)
-    target_link_libraries(PnetCDF::PnetCDF_Fortran INTERFACE -lpnetcdf)
 endif()
 
 # PnetCDF::PnetCDF_C imported interface target
 if(PnetCDF_C_FOUND AND NOT TARGET PnetCDF::PnetCDF_C)
     add_library(PnetCDF::PnetCDF_C INTERFACE IMPORTED)
     set_target_properties(PnetCDF::PnetCDF_C PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${PnetCDF_INCLUDE_DIR}
-                                                        INTERFACE_LINK_DIRECTORIES ${PnetCDF_LIB_DIR})
+                                                        INTERFACE_LINK_DIRECTORIES ${PnetCDF_LIB_DIR}
+                                                        INTERFACE_LINK_LIBRARIES pnetcdf)
     set(_new_components 1)
 endif()
 
@@ -153,7 +154,8 @@ endif()
 if(PnetCDF_CXX_FOUND AND NOT TARGET PnetCDF::PnetCDF_CXX)
     add_library(PnetCDF::PnetCDF_CXX INTERFACE IMPORTED)
     set_target_properties(PnetCDF::PnetCDF_CXX PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${PnetCDF_INCLUDE_DIR}
-                                                          INTERFACE_LINK_DIRECTORIES ${PnetCDF_LIB_DIR})
+                                                          INTERFACE_LINK_DIRECTORIES ${PnetCDF_LIB_DIR}
+                                                          INTERFACE_LINK_LIBRARIES pnetcdf)
     set(_new_components 1)
 endif()
 
