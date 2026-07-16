@@ -684,11 +684,11 @@ intel:   # BUILDTARGET Intel oneAPI Fortran, C, and C++ compiler suite
 CPPINCLUDES =
 FCINCLUDES =
 LIBS =
-MPAS_PREFIX ?= $(CURDIR)
-MPAS_LIBDIR ?= $(MPAS_PREFIX)/lib
-MPAS_MODDIR ?= $(MPAS_PREFIX)/mod
 
 NUOPC  ?= false
+MPAS_NUOPC_PREFIX ?= $(CURDIR)
+MPAS_NUOPC_LIBDIR ?= $(MPAS_NUOPC_PREFIX)/lib
+MPAS_NUOPC_MODDIR ?= $(MPAS_NUOPC_PREFIX)/mod
 ifneq ($(filter on ON 1 TRUE,$(NUOPC)),)
   override NUOPC := true
 endif
@@ -821,6 +821,7 @@ ifneq "$(LAPACK)" ""
 endif
 
 RM = rm -f
+RMDIR = rmdir
 CPP = cpp -P -traditional
 RANLIB = ranlib
 
@@ -1552,8 +1553,10 @@ SCOTCH_MESSAGE = "MPAS was NOT linked with the Scotch graph partitioning library
 endif
 
 mpas_main: $(MAIN_DEPS)
-	if [ ! -d $(MPAS_LIBDIR) ]; then mkdir $(MPAS_LIBDIR); fi
-	if [ ! -d $(MPAS_MODDIR) ]; then mkdir $(MPAS_MODDIR); fi
+ifeq "$(NUOPC)" "true"
+	if [ ! -d $(MPAS_NUOPC_LIBDIR) ]; then mkdir -p $(MPAS_NUOPC_LIBDIR); fi
+	if [ ! -d $(MPAS_NUOPC_MODDIR) ]; then mkdir -p $(MPAS_NUOPC_MODDIR); fi
+endif
 	cd src; $(MAKE) FC="$(FC)" \
                  CC="$(CC)" \
                  CXX="$(CXX)" \
@@ -1576,9 +1579,9 @@ mpas_main: $(MAIN_DEPS)
                  GEN_F90="$(GEN_F90)" \
                  NAMELIST_SUFFIX="$(NAMELIST_SUFFIX)" \
                  EXE_NAME="$(EXE_NAME)" \
-                 MPAS_PREFIX="$(MPAS_PREFIX)" \
-                 MPAS_LIBDIR="$(MPAS_LIBDIR)" \
-                 MPAS_MODDIR="$(MPAS_MODDIR)" \
+                 MPAS_NUOPC_PREFIX="$(MPAS_NUOPC_PREFIX)" \
+                 MPAS_NUOPC_LIBDIR="$(MPAS_NUOPC_LIBDIR)" \
+                 MPAS_NUOPC_MODDIR="$(MPAS_NUOPC_MODDIR)" \
                  NUOPC="$(NUOPC)"
 
 	if [ -e src/$(EXE_NAME) ]; then mv src/$(EXE_NAME) .; fi
@@ -1606,14 +1609,21 @@ endif
 	@echo $(NUOPC_MESSAGE)
 	@echo "*******************************************************************************"
 clean:
-	cd src; $(MAKE) clean RM="$(RM)" CORE="$(CORE)" AUTOCLEAN="$(AUTOCLEAN)" NUOPC="$(NUOPC)"
+	cd src; $(MAKE) clean RM="$(RM)" CORE="$(CORE)" AUTOCLEAN="$(AUTOCLEAN)" \
+				MPAS_NUOPC_PREFIX="$(MPAS_NUOPC_PREFIX)" \
+				MPAS_NUOPC_LIBDIR="$(MPAS_NUOPC_LIBDIR)" \
+				MPAS_NUOPC_MODDIR="$(MPAS_NUOPC_MODDIR)" \
+				NUOPC="$(NUOPC)"
 	$(RM) $(EXE_NAME)
 	$(RM) namelist.$(NAMELIST_SUFFIX).defaults
 	$(RM) streams.$(NAMELIST_SUFFIX).defaults
 	if [ -f .build_opts.framework ]; then $(RM) .build_opts.framework; fi
 	if [ -f .build_opts.$(CORE) ]; then $(RM) .build_opts.$(CORE); fi
-	if [ -d $(MPAS_LIBDIR) ]; then $(RM) -r $(MPAS_LIBDIR); fi
-	if [ -d $(MPAS_MODDIR) ]; then $(RM) -r $(MPAS_MODDIR); fi
+ifeq "$(NUOPC)" "true"
+	@# uninstall the NUOPC library and module directories
+	if [ -d "$(MPAS_NUOPC_LIBDIR)" ]; then $(RMDIR) "$(MPAS_NUOPC_LIBDIR)" || true; fi
+	if [ -d "$(MPAS_NUOPC_MODDIR)" ]; then $(RMDIR) "$(MPAS_NUOPC_MODDIR)" || true; fi
+endif
 
 core_error:
 	@echo ""
