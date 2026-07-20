@@ -4156,7 +4156,7 @@ module atm_time_integration
       nCellsSolve = nCellsSolve_ptr
       nVertLevels = nVertLevels_ptr
 
-
+      call mpas_timer_start('atm_divergence_damping_3d_4160')
       !$acc parallel default(present)
       !$acc loop gang worker
       do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
@@ -4187,7 +4187,7 @@ module atm_time_integration
          end if ! edges for block-owned cells
       end do ! end loop over edges
       !$acc end parallel
-
+      call mpas_timer_stop('atm_divergence_damping_3d_4160')
       
 
    end subroutine atm_divergence_damping_3d
