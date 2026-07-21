@@ -4158,18 +4158,17 @@ module atm_time_integration
 
       call mpas_timer_start('atm_divergence_damping_3d_4160')
       !$acc parallel default(present)
-      !$acc loop gang worker
+      !$acc loop gang worker vector collapse(2)
       do iEdge=edgeStart,edgeEnd ! MGD do we really just need edges touching owned cells?
+!DIR$ IVDEP
+         do k=1,nVertLevels
 
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
 
          ! update edges for block-owned cells
          if (cell1 <= nCellsSolve .or. cell2 <= nCellsSolve ) then
-
-!DIR$ IVDEP
-            !$acc loop vector
-            do k=1,nVertLevels
+            
 
 !!  unscaled 3d divergence damping
 !!               divCell1 = -(rtheta_pp(k,cell1)-rtheta_pp_old(k,cell1))*rdts
@@ -4183,8 +4182,9 @@ module atm_time_integration
                ru_p(k,iEdge) = ru_p(k,iEdge) + coef_divdamp*(divCell2-divCell1)*(1.0_RKIND - specZoneMaskEdge(iEdge)) &
                                                       /(theta_m(k,cell1)+theta_m(k,cell2))
 
-            end do
-         end if ! edges for block-owned cells
+
+            end if ! edges for block-owned cells
+         end do
       end do ! end loop over edges
       !$acc end parallel
       call mpas_timer_stop('atm_divergence_damping_3d_4160')
