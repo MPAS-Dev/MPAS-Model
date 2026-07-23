@@ -5584,10 +5584,8 @@ module atm_time_integration
          ! added benefit that it should address ifort single prec overflow issue
          if (local_advance_density) then
             !$acc parallel
-            !$acc loop gang worker
+            !$acc loop gang worker vector collapse(2)
             do iCell=cellSolveStart,cellSolveEnd
-
-               !$acc loop vector
                do k = 1, nVertLevels
                   scale_factor = (s_max(k,iCell)*rho_zz_int(k,iCell) - scalar_new(k,iCell)) / &
                        (scale_arr(k,SCALE_IN,iCell)  + eps)
@@ -5601,10 +5599,8 @@ module atm_time_integration
             !$acc end parallel
          else
             !$acc parallel
-            !$acc loop gang worker
+            !$acc loop gang worker vector collapse(2)
             do iCell=cellSolveStart,cellSolveEnd
-
-               !$acc loop vector
                do k = 1, nVertLevels
                   scale_factor = (s_max(k,iCell)*rho_zz_new(k,iCell) - scalar_new(k,iCell)) / &
                        (scale_arr(k,SCALE_IN,iCell)  + eps)
