@@ -5165,6 +5165,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(nVertLevels) :: flux_upwind_arr
       real (kind=RKIND) :: flux3, flux4, flux_upwind
       real (kind=RKIND) :: q_im2, q_im1, q_i, q_ip1, ua, coef3
+      real (kind=RKIND) :: iac, eoc_s, f_t
 #ifdef DEBUG_TRANSPORT
       real (kind=RKIND) :: scmin,scmax
 #endif
@@ -5556,19 +5557,18 @@ module atm_time_integration
 
          !$acc loop gang worker
          do iCell=cellSolveStart,cellSolveEnd
+            iac = invAreaCell(iCell)
+            !$acc loop vector
+            do k=1, nVertLevels
+               !$acc loop seq
+               do i=1,nEdgesOnCell(iCell)
+                  iEdge = edgesOnCell(i,iCell)
+                  eoc_s = edgesOnCell_sign(i,iCell)
+                  f_t = flux_tmp(k,iEdge)
 
-            !$acc loop seq
-            do i=1,nEdgesOnCell(iCell)
-               iEdge = edgesOnCell(i,iCell)
-
-               !$acc loop vector
-               do k=1, nVertLevels
-                  scalar_new(k,iCell) = scalar_new(k,iCell) - edgesOnCell_sign(i,iCell) * flux_upwind_tmp(k,iEdge) * invAreaCell(iCell)
- 
-                  scale_arr(k,SCALE_OUT,iCell) = scale_arr(k,SCALE_OUT,iCell) &
-                                                 - max(0.0_RKIND,edgesOnCell_sign(i,iCell)*flux_tmp(k,iEdge)) * invAreaCell(iCell)
-                  scale_arr(k,SCALE_IN, iCell) = scale_arr(k,SCALE_IN, iCell) &
-                                                 - min(0.0_RKIND,edgesOnCell_sign(i,iCell)*flux_tmp(k,iEdge)) * invAreaCell(iCell)
+                  scalar_new(k,iCell) = scalar_new(k,iCell) - eoc_s * flux_upwind_tmp(k,iEdge) * iac
+                  scale_arr(k,SCALE_OUT,iCell) = scale_arr(k,SCALE_OUT,iCell) - max(0.0_RKIND,eoc_s*f_t) * iac
+                  scale_arr(k,SCALE_IN, iCell) = scale_arr(k,SCALE_IN, iCell) - min(0.0_RKIND,eoc_s*f_t) * iac
                end do
 
             end do
