@@ -5477,7 +5477,7 @@ module atm_time_integration
          !$acc end parallel
 
 !$OMP BARRIER
-
+         call mpas_timer_start('atm_advance_scalars_mono_work_5481')
          !$acc parallel
 
          !
@@ -5549,7 +5549,7 @@ module atm_time_integration
          end do
 
          !$acc end parallel
-
+         call mpas_timer_stop('atm_advance_scalars_mono_work_5481')
 !$OMP BARRIER
 
          !$acc parallel
