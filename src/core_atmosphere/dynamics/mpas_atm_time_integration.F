@@ -5536,15 +5536,12 @@ module atm_time_integration
                flux_upwind_tmp(k,iEdge) = dvEdge(iEdge) * dt *   &
                       (max(0.0_RKIND,uhAvg(k,iEdge))*scalar_old(k,cell1) + min(0.0_RKIND,uhAvg(k,iEdge))*scalar_old(k,cell2))
                flux_tmp(k,iEdge) = dt * flux_arr(k,iEdge) - flux_upwind_tmp(k,iEdge)
-            end do
-
-            if( config_apply_lbcs .and. (bdyMaskEdge(iEdge) == nRelaxZone) .or. (bdyMaskEdge(iEdge) == nRelaxZone-1) ) then
-               !$acc loop vector
-               do k=1,nVertLevels
+            
+               if( config_apply_lbcs .and. (bdyMaskEdge(iEdge) == nRelaxZone) .or. (bdyMaskEdge(iEdge) == nRelaxZone-1) ) then
                   flux_tmp(k,iEdge) = 0.0_RKIND
                   flux_arr(k,iEdge) = flux_upwind_tmp(k,iEdge)
-               end do
-            end if
+               end if
+            end do
 
          end do
 
