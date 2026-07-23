@@ -5551,7 +5551,7 @@ module atm_time_integration
          !$acc end parallel
 
 !$OMP BARRIER
-
+         call mpas_timer_start('atm_advance_scalars_mono_work_5555')
          !$acc parallel
 
          !$acc loop gang worker
@@ -5615,7 +5615,7 @@ module atm_time_integration
          end if
 
          !$acc end parallel
-
+         call mpas_timer_stop('atm_advance_scalars_mono_work_5555')
          !
          !  communicate scale factors here.
          !  communicate only first halo row in these next two exchanges
