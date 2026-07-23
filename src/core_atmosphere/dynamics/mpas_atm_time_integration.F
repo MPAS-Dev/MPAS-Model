@@ -5519,11 +5519,11 @@ module atm_time_integration
             end do
 
          end do
-
+         !$acc end parallel
          !
          !  horizontal flux divergence for upwind update
          !
-
+         !$acc parallel
          !  upwind flux computation
          !$acc loop gang worker
          do iEdge=edgeStart,edgeEnd
