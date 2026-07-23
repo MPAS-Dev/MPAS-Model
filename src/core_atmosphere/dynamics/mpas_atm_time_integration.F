@@ -5573,7 +5573,7 @@ module atm_time_integration
 
             end do
          end do
-
+         !$acc end parallel
 
          !
          !  next, the limiter
@@ -5583,6 +5583,7 @@ module atm_time_integration
          ! worked through algebra and found equivalent form
          ! added benefit that it should address ifort single prec overflow issue
          if (local_advance_density) then
+            !$acc parallel
             !$acc loop gang worker
             do iCell=cellSolveStart,cellSolveEnd
 
@@ -5597,7 +5598,9 @@ module atm_time_integration
                   scale_arr(k,SCALE_OUT,iCell) = min( 1.0_RKIND, max( 0.0_RKIND, scale_factor) )
                end do
             end do
+            !$acc end parallel
          else
+            !$acc parallel
             !$acc loop gang worker
             do iCell=cellSolveStart,cellSolveEnd
 
@@ -5612,10 +5615,12 @@ module atm_time_integration
                   scale_arr(k,SCALE_OUT,iCell) = min( 1.0_RKIND, max( 0.0_RKIND, scale_factor) )
                end do
             end do
+            !$acc end parallel
          end if
 
-         !$acc end parallel
+
          call mpas_timer_stop('atm_advance_scalars_mono_work_5555')
+
          !
          !  communicate scale factors here.
          !  communicate only first halo row in these next two exchanges
