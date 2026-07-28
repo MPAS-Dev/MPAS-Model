@@ -41,28 +41,16 @@ dycore: $(AUTOCLEAN_DEPS) build_tools externals frame ops
 	ln -sf core_$(CORE)/libdycore.a libdycore.a
 
 nuopc_lib: $(AUTOCLEAN_DEPS) externals frame ops dycore drver
-	( cd core_$(CORE); $(MAKE) CPPFLAGS="$(CPPFLAGS)" CPPINCLUDES="$(CPPINCLUDES)" FFLAGS="$(FFLAGS)" FCINCLUDES="$(FCINCLUDES)" nuopc )
-	ar rcs $(MPAS_NUOPC_LIBDIR)/libmpas_nuopc.a \
-		core_$(CORE)/nuopc/*.o \
-		core_$(CORE)/libphys/*.o \
-		core_$(CORE)/*.o \
-		core_$(CORE)/diagnostics/*.o \
-		core_$(CORE)/libchem/*.o \
-		core_$(CORE)/dynamics/*.o \
-		driver/*.o \
-		framework/*.o \
-		operators/*.o \
-		external/ezxml/*.o \
-		external/SMIOL/*.o
-	ranlib $(MPAS_NUOPC_LIBDIR)/libmpas_nuopc.a
-	cp core_$(CORE)/nuopc/mpas_nuopc_*.mod $(MPAS_NUOPC_MODDIR)/.
+	( cd core_$(CORE); $(MAKE) \
+		CPPFLAGS="$(CPPFLAGS)" \
+		FFLAGS="$(FFLAGS)" \
+		FCINCLUDES="$(FCINCLUDES)" \
+		MPAS_NUOPC_LIBDIR="$(MPAS_NUOPC_LIBDIR)" \
+		MPAS_NUOPC_MODDIR="$(MPAS_NUOPC_MODDIR)" \
+		nuopc )
 
-CLEAN_ALL = clean_shared clean_core
-ifeq "$(NUOPC)" "true"
-CLEAN_ALL += clean_nuopc
-endif
 
-clean: $(CLEAN_ALL)
+clean: clean_shared clean_core
 
 clean_core:
 ifeq "$(AUTOCLEAN)" "true"
@@ -90,12 +78,3 @@ endif
 	( cd framework; $(MAKE) clean )
 	( cd operators; $(MAKE) clean )
 	( cd driver; $(MAKE) clean )
-
-clean_nuopc:
-	$(info )
-	$(info *********************************************************************************************)
-	$(info The NUOPC library will be cleaned.)
-	$(info *********************************************************************************************)
-	$(info )
-	$(RM) $(MPAS_NUOPC_LIBDIR)/libmpas_nuopc.a
-	$(RM) $(MPAS_NUOPC_MODDIR)/mpas_nuopc_*.mod

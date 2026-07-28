@@ -71,6 +71,16 @@ atmcore: $(PHYSCORE) dycore diagcore $(OBJS)
 
 nuopc: $(PHYSCORE) dycore diagcore $(OBJS)
 	( cd nuopc; $(MAKE) all )
+	$(AR) $(ARFLAGS) $(MPAS_NUOPC_LIBDIR)/libmpas_nuopc_atm.a \
+	  *.o \
+	  nuopc/*.o \
+	  ../driver/*.o \
+	  ../framework/*.o \
+	  ../operators/*.o \
+	  ../external/ezxml/*.o \
+	  ../external/SMIOL/*.o
+	ranlib $(MPAS_NUOPC_LIBDIR)/libmpas_nuopc_atm.a
+	cp nuopc/mpas_nuopc_atm.mod $(MPAS_NUOPC_MODDIR)/.
 
 mpas_atm_core_interface.o: mpas_atm_core.o
 
@@ -94,6 +104,8 @@ clean:
 	@# This removes them during the clean process
 	$(RM) *.i
 	$(RM) -r default_inputs
+	$(RM) $(MPAS_NUOPC_LIBDIR)/libmpas_nuopc_atm.a
+	$(RM) $(MPAS_NUOPC_MODDIR)/mpas_nuopc_atm.mod
 
 .F.o:
 	$(RM) $@ $*.mod

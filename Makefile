@@ -684,6 +684,7 @@ intel:   # BUILDTARGET Intel oneAPI Fortran, C, and C++ compiler suite
 CPPINCLUDES =
 FCINCLUDES =
 LIBS =
+override MPAS_DIR := $(abspath .)
 
 NUOPC  ?= false
 MPAS_NUOPC_PREFIX ?= $(CURDIR)
@@ -834,6 +835,15 @@ include src/core_$(CORE)/build_options.mk
 else # ELSE Use Default Options
 EXE_NAME=$(CORE)_model
 NAMELIST_SUFFIX=$(CORE)
+endif
+
+ifeq ($(NUOPC), true)
+ifneq ($(SUPPORTS_NUOPC_CAP),true)
+$(info ************ ERROR ************)
+$(info NUOPC build does not exist for the $(CORE) core.)
+$(info ************ ERROR ************)
+$(error Quitting.)
+endif
 endif
 
 override CPPFLAGS += -DMPAS_NAMELIST_SUFFIX=$(NAMELIST_SUFFIX)
@@ -1620,9 +1630,26 @@ clean:
 	if [ -f .build_opts.framework ]; then $(RM) .build_opts.framework; fi
 	if [ -f .build_opts.$(CORE) ]; then $(RM) .build_opts.$(CORE); fi
 ifeq "$(NUOPC)" "true"
+	$(MAKE) clean_nuopc
+endif
+clean_nuopc:
 	@# uninstall the NUOPC library and module directories
-	if [ -d "$(MPAS_NUOPC_LIBDIR)" ]; then $(RMDIR) "$(MPAS_NUOPC_LIBDIR)" || true; fi
-	if [ -d "$(MPAS_NUOPC_MODDIR)" ]; then $(RMDIR) "$(MPAS_NUOPC_MODDIR)" || true; fi
+ifneq ($(filter $(MPAS_DIR)/%,$(abspath $(MPAS_NUOPC_LIBDIR))),)
+	if [ -d "$(MPAS_NUOPC_LIBDIR)" ]; then $(RMDIR) "$(MPAS_NUOPC_LIBDIR)"; fi
+else
+	@echo "WARNING: MPAS_NUOPC_LIBDIR must be manually removed ($(MPAS_NUOPC_LIBDIR))."
+endif
+ifneq ($(filter $(MPAS_DIR)/%,$(abspath $(MPAS_NUOPC_MODDIR))),)
+	if [ -d "$(MPAS_NUOPC_MODDIR)" ]; then $(RMDIR) "$(MPAS_NUOPC_MODDIR)"; fi
+else
+	@echo "WARNING: MPAS_NUOPC_MODDIR must be manually removed ($(MPAS_NUOPC_MODDIR))."
+endif
+ifneq ($(MPAS_DIR),$(abspath $(MPAS_NUOPC_PREFIX)))
+ifneq ($(filter $(MPAS_DIR)/%,$(abspath $(MPAS_NUOPC_PREFIX))),)
+	if [ -d "$(MPAS_NUOPC_PREFIX)" ]; then $(RMDIR) "$(MPAS_NUOPC_PREFIX)"; fi
+else
+	@echo "WARNING: MPAS_NUOPC_PREFIX must be manually removed ($(MPAS_NUOPC_PREFIX))."
+endif
 endif
 
 core_error:
