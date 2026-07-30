@@ -3309,6 +3309,7 @@ module atm_time_integration
 
       real (kind=RKIND), dimension(:,:), pointer :: zz, cqw, p, t, rb, rtb, pb, rt
       real (kind=RKIND), dimension(:,:), pointer :: cofwr, cofwz, coftz, cofwt, a_tri, alpha_tri, gamma_tri
+      real (kind=RKIND), dimension(:,:), pointer :: rTildeCell, rTildeLayer
       real (kind=RKIND), dimension(:), pointer :: cofrz, rdzw, fzm, fzp, rdzu
       real (kind=RKIND), dimension(:,:,:), pointer :: scalars
 
@@ -3327,6 +3328,9 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'fzm', fzm)
       call mpas_pool_get_array(mesh, 'fzp', fzp)
       call mpas_pool_get_array(mesh, 'zz', zz)
+
+      call mpas_pool_get_array(mesh, 'rTildeCell', rTildeCell)
+      call mpas_pool_get_array(mesh, 'rTildeLayer', rTildeLayer)
 
       call mpas_pool_get_array(diag, 'cqw', cqw)
       call mpas_pool_get_array(diag, 'exner', p)
@@ -3354,6 +3358,7 @@ module atm_time_integration
 
       call atm_compute_vert_imp_coefs_work(nCells, moist_start, moist_end, dts, &
                                    zz, cqw, p, t, rb, rtb, pb, rt, cofwr, cofwz, coftz, cofwt, &
+                                   rTildeCell, rTildeLayer, &
                                    a_tri, alpha_tri, gamma_tri, cofrz, rdzw, fzm, fzp, rdzu, scalars, &
                                    etp, etm, ewp, ewm, &
                                    cellStart, cellEnd, edgeStart, edgeEnd, &
@@ -3365,6 +3370,7 @@ module atm_time_integration
 
    subroutine atm_compute_vert_imp_coefs_work(nCells, moist_start, moist_end, dts, &
                                    zz, cqw, p, t, rb, rtb, pb, rt, cofwr, cofwz, coftz, cofwt, &
+                                   rTildeCell, rTildeLayer, &
                                    a_tri, alpha_tri, gamma_tri, cofrz, rdzw, fzm, fzp, rdzu, scalars, &
                                    etp, etm, ewp, ewm, &
                                    cellStart, cellEnd, edgeStart, edgeEnd, &
@@ -3396,6 +3402,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: a_tri
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: alpha_tri
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: gamma_tri
+      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rTildeCell
+      real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: rTildeLayer
       real (kind=RKIND), dimension(nVertLevels) :: cofrz
       real (kind=RKIND), dimension(nVertLevels) :: rdzw
       real (kind=RKIND), dimension(nVertLevels) :: fzm
@@ -3444,7 +3452,7 @@ module atm_time_integration
          !$acc loop vector
          do k=2,nVertLevels
             cofwz(k,iCell) = c2*(fzm(k)*zz(k,iCell)+fzp(k)*zz(k-1,iCell))  &
-                 *rdzu(k)*cqw(k,iCell)*(fzm(k)*p (k,iCell)+fzp(k)*p (k-1,iCell))
+                 *rdzu(k)*cqw(k,iCell)*(fzm(k)*p (k,iCell)+fzp(k)*p (k-1,iCell))*rTildeLayer(k,iCell)**2
             coftz(k,iCell) =  (fzm(k)*t (k,iCell)+fzp(k)*t (k-1,iCell))
          end do
          coftz(nVertLevels+1,iCell) = 0.0
@@ -3457,8 +3465,7 @@ module atm_time_integration
 !               qtotal = qtotal + scalars(iq, k, iCell)
 !            end do
             qtotal = qtot(k,iCell)
-
-            cofwt(k,iCell) = .5*rcv*zz(k,iCell)*gravity*rb(k,iCell)/(1.+qtotal)  &
+            cofwt(k,iCell) = .5*rcv*zz(k,iCell)*gravity/rTildeCell(k,iCell)**2*rb(k,iCell)/(1.+qtotal)  &
                                 *p(k,iCell)/((rtb(k,iCell)+rt(k,iCell))*pb(k,iCell))
             ! cofwt(k,iCell) = .5*rcv*zz(k,iCell)*gravity/t(k,iCell) ! zero base state option
             ! cofwt(k,iCell) = 0.
@@ -3684,6 +3691,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: rw
       real (kind=RKIND), dimension(:,:), pointer :: rw_save
 
+      real (kind=RKIND), dimension(:,:), pointer :: rTildeCell, rTildeEdge
+
       real (kind=RKIND), dimension(:), pointer :: fzm, fzp, rdzw, dcEdge, invDcEdge, invAreaCell, cofrz, dvEdge
 
       integer, dimension(:), pointer :: nEdgesOnCell
@@ -3759,6 +3768,9 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'cf2', cf2)
       call mpas_pool_get_array(mesh, 'cf3', cf3)
 
+      call mpas_pool_get_array(mesh, 'rTildeCell', rTildeCell)
+      call mpas_pool_get_array(mesh, 'rTildeEdge', rTildeEdge)
+
 ! redefine ru_p to be perturbation from time t, change 3b ! temporary
       call mpas_pool_get_array(diag, 'ru', ru)
       call mpas_pool_get_array(diag, 'ru_save', ru_save)
@@ -3773,6 +3785,7 @@ module atm_time_integration
                                    tend_rw, zgrid, cofwr, cofwz, w, ru, ru_save, rw, rw_save, fzm, fzp, rdzw, dcEdge, invDcEdge, &
                                    invAreaCell, cofrz, dvEdge, nEdgesOnCell, cellsOnEdge, edgesOnCell, edgesOnCell_sign, &
                                    dts, small_step, cf1, cf2, cf3, &
+                                   rTildeCell, rTildeEdge, &
                                    etp, etm, ewp, ewm,    &
                                    specZoneMaskEdge, specZoneMaskCell &
                                    )
@@ -3787,6 +3800,7 @@ module atm_time_integration
                                    tend_rw, zgrid, cofwr, cofwz, w, ru, ru_save, rw, rw_save, fzm, fzp, rdzw, dcEdge, invDcEdge, &
                                    invAreaCell, cofrz, dvEdge, nEdgesOnCell, cellsOnEdge, edgesOnCell, edgesOnCell_sign, &
                                    dts, small_step, cf1, cf2, cf3, &
+                                   rTildeCell, rTildeEdge, &
                                    etp, etm, ewp, ewm,    &
                                    specZoneMaskEdge, specZoneMaskCell &
                                    )
@@ -3837,6 +3851,9 @@ module atm_time_integration
       real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: ru_save
       real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: rw
       real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: rw_save
+
+      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rTildeCell
+      real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: rTildeEdge
 
       real (kind=RKIND), dimension(nVertLevels) :: fzm
       real (kind=RKIND), dimension(nVertLevels) :: fzp
@@ -3903,9 +3920,11 @@ module atm_time_integration
 !DIR$ IVDEP
               !$acc loop vector
               do k=1,nVertLevels
-                 pgrad = ((rtheta_pp(k,cell2)-rtheta_pp(k,cell1))*invDcEdge(iEdge) )/(.5*(zz(k,cell2)+zz(k,cell1)))
+                 pgrad = ((rtheta_pp(k,cell2)/rTildeCell(k,cell2)**2-rtheta_pp(k,cell1)/rTildeCell(k,cell1)**2)*invDcEdge(iEdge))&
+                         /(.5*(zz(k,cell2)+zz(k,cell1)))
                  pgrad = cqu(k,iEdge)*0.5*c2*(exner(k,cell1)+exner(k,cell2))*pgrad
-                 pgrad = pgrad + 0.5*zxu(k,iEdge)*gravity*(rho_pp(k,cell1)+rho_pp(k,cell2))
+                 pgrad = pgrad + 0.5*zxu(k,iEdge)*gravity/rTildeEdge(k,iEdge)**2 &
+                                 *(rho_pp(k,cell1)/rTildeCell(k,cell1)**2+rho_pp(k,cell2)/rTildeCell(k,cell2)**2)
                  ru_p(k,iEdge) = ru_p(k,iEdge) + dts*(tend_ru(k,iEdge) - (1.0_RKIND - specZoneMaskEdge(iEdge))*pgrad)
               end do
 
@@ -4037,9 +4056,9 @@ module atm_time_integration
                rw_p(k,iCell) = rw_p(k,iCell) +  dts*(tend_rw(k,iCell)                          &
                           - cofwz(k,iCell)*(( etp(k  )*zz(k  ,iCell)*ts(k)                     &
                                              -etp(k-1)*zz(k-1,iCell)*ts(k-1))                  &
-                                    + ( etm(k  )*zz(k  ,iCell)*rtheta_pp(k  ,iCell)            &
-                                       -etm(k-1)*zz(k-1,iCell)*rtheta_pp(k-1,iCell)))          &
-                          - cofwr(k,iCell)*((etp(k)*rs(k)+etp(k-1)*rs(k-1))                    &
+                                    + ( etm(k  )*zz(k  ,iCell)*rtheta_pp(k  ,iCell)/rTildeCell(k  ,iCell)**2            &
+                                       -etm(k-1)*zz(k-1,iCell)*rtheta_pp(k-1,iCell)/rTildeCell(k-1,iCell)**2 ))          &
+                          - cofwr(k,iCell)*((etp(k)*rs(k)/rTildeCell(k  ,iCell)**2+etp(k-1)*rs(k-1)/rTildeCell(k-1,iCell)**2)                    &
                                            +( etm(k  )*rho_pp(k  ,iCell)                       &
                                              +etm(k-1)*rho_pp(k-1,iCell)))                     &
                           + cofwt(k  ,iCell)*(etp(k  )*ts(k  )+etm(k  )*rtheta_pp(k  ,iCell))  &
@@ -4123,6 +4142,7 @@ module atm_time_integration
       integer, intent(in) :: edgeStart, edgeEnd
 
       real (kind=RKIND), dimension(:,:), pointer :: theta_m, ru_p, rtheta_pp, rtheta_pp_old
+      real (kind=RKIND), dimension(:,:), pointer :: rTildeCell, rTildeEdge
 !      real (kind=RKIND), dimension(:), pointer :: dcEdge
       real (kind=RKIND), pointer :: smdiv, config_len_disp
       real (kind=RKIND), dimension(:), pointer :: specZoneMaskEdge
@@ -4138,6 +4158,8 @@ module atm_time_integration
 
       call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
       call mpas_pool_get_array(mesh, 'specZoneMaskEdge', specZoneMaskEdge)
+      call mpas_pool_get_array(mesh, 'rTildeCell', rTildeCell)
+      call mpas_pool_get_array(mesh, 'rTildeEdge', rTildeEdge)
 !      call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
       call mpas_pool_get_array(state, 'theta_m', theta_m, 1)
       call mpas_pool_get_array(diag, 'rtheta_pp', rtheta_pp)
@@ -4178,10 +4200,10 @@ module atm_time_integration
 !!                                                      /(theta_m(k,cell1)+theta_m(k,cell2))
 
 !!  scaled 3d divergence damping
-               divCell1 = -(rtheta_pp(k,cell1)-rtheta_pp_old(k,cell1))
-               divCell2 = -(rtheta_pp(k,cell2)-rtheta_pp_old(k,cell2))
+               divCell1 = -(rtheta_pp(k,cell1)-rtheta_pp_old(k,cell1))/rTildeCell(k,cell1)**2
+               divCell2 = -(rtheta_pp(k,cell2)-rtheta_pp_old(k,cell2))/rTildeCell(k,cell2)**2
                ru_p(k,iEdge) = ru_p(k,iEdge) + coef_divdamp*(divCell2-divCell1)*(1.0_RKIND - specZoneMaskEdge(iEdge)) &
-                                                      /(theta_m(k,cell1)+theta_m(k,cell2))
+                                                      /(theta_m(k,cell1)+theta_m(k,cell2)) * rTildeEdge(k,iEdge)
 
             end do
          end if ! edges for block-owned cells
@@ -4220,6 +4242,9 @@ module atm_time_integration
                                                     rho_pp, rho_zz, rho_base, ruAvg, ru_save, ru_p, u, ru, &
                                                     exner, exner_base, rtheta_base, pressure_p,         &
                                                     zz, theta_m, pressure_b
+
+      real (kind=RKIND), dimension(:,:), pointer :: rTildeCell, rTildeEdge
+
       real (kind=RKIND), dimension(:,:,:), pointer :: scalars
       real (kind=RKIND), dimension(:), pointer :: fzm, fzp
       real (kind=RKIND), dimension(:,:,:), pointer :: zb, zb3, zb_cell, zb3_cell
@@ -4290,6 +4315,8 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'cf2', cf2)
       call mpas_pool_get_array(mesh, 'cf3', cf3)
 
+      call mpas_pool_get_array(mesh, 'rTildeCell', rTildeCell)
+      call mpas_pool_get_array(mesh, 'rTildeEdge', rTildeEdge)
 
       call atm_recover_large_step_variables_work(nCells, nEdges, nCellsSolve, nEdgesSolve, dt, ns, rk_step, &
                              wwAvg, rw_save, w, rw, rw_p, rtheta_p, rtheta_pp, rtheta_p_save, rt_diabatic_tend, rho_p, &
@@ -4297,6 +4324,7 @@ module atm_time_integration
                              rtheta_base, pressure_p, zz, theta_m, pressure_b, scalars, fzm, fzp, &
                              zb, zb3, zb_cell, zb3_cell, edgesOnCell_sign, cellsOnEdge, edgesOnCell, nEdgesOnCell, &
                              cf1, cf2, cf3, &
+                             rTildeCell, rTildeEdge, &
                              bdyMaskCell, &  !  addition for regional_MPAS
                              cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
                              cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
@@ -4310,6 +4338,7 @@ module atm_time_integration
                              rtheta_base, pressure_p, zz, theta_m, pressure_b, scalars, fzm, fzp, &
                              zb, zb3, zb_cell, zb3_cell, edgesOnCell_sign, cellsOnEdge, edgesOnCell, nEdgesOnCell, &
                              cf1, cf2, cf3, &
+                             rTildeCell, rTildeEdge, &
                              bdyMaskCell, &  ! addition for regional_MPAS
                              cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
                              cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
@@ -4354,6 +4383,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: zz
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: theta_m
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: pressure_b
+      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rTildeCell
+      real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: rTildeEdge
       real (kind=RKIND), dimension(num_scalars,nVertLevels,nCells+1) :: scalars
       real (kind=RKIND), dimension(nVertLevels) :: fzm
       real (kind=RKIND), dimension(nVertLevels) :: fzp
@@ -4436,9 +4467,9 @@ module atm_time_integration
                rtheta_p(k,iCell) = rtheta_p_save(k,iCell) + rtheta_pp(k,iCell) &
                                  - dt * rho_zz(k,iCell) * rt_diabatic_tend(k,iCell)
                theta_m(k,iCell) = (rtheta_p(k,iCell) + rtheta_base(k,iCell))/rho_zz(k,iCell)
-               exner(k,iCell) = (zz(k,iCell)*(rgas/p0)*(rtheta_p(k,iCell)+rtheta_base(k,iCell)))**rcv
+               exner(k,iCell) = (zz(k,iCell)/rTildeCell(k,iCell)**2*(rgas/p0)*(rtheta_p(k,iCell)+rtheta_base(k,iCell)))**rcv
                ! pressure_p is perturbation pressure
-               pressure_p(k,iCell) = zz(k,iCell) * rgas * (exner(k,iCell)*rtheta_p(k,iCell)+rtheta_base(k,iCell)  &
+               pressure_p(k,iCell) = zz(k,iCell) / rTildeCell(k,iCell)**2 * rgas * (exner(k,iCell)*rtheta_p(k,iCell)+rtheta_base(k,iCell)  &
                                                           * (exner(k,iCell)-exner_base(k,iCell)))
             end do
          end do
@@ -4474,7 +4505,8 @@ module atm_time_integration
          do k = 1, nVertLevels
             ruAvg(k,iEdge) = ru_save(k,iEdge) + (ruAvg(k,iEdge) * invNs)
             ru(k,iEdge) = ru_save(k,iEdge) + ru_p(k,iEdge)
-            u(k,iEdge) = 2.*ru(k,iEdge)/(rho_zz(k,cell1)+rho_zz(k,cell2))
+            u(k,iEdge) = 2.*ru(k,iEdge)/(rho_zz(k,cell1)/rTildeCell(k,cell1)**2+rho_zz(k,cell2)/rTildeCell(k,cell2)**2) &
+                         /rTildeEdge(k,iEdge)
          end do
       end do
       !$acc end parallel
@@ -5873,6 +5905,8 @@ module atm_time_integration
 
       real(kind=RKIND), dimension(:,:), pointer :: tend_w_pgf, tend_w_buoy
 
+      real(kind=RKIND), dimension(:,:), pointer :: rTildeCell, rTildeLayer, rTildeEdge
+
       real (kind=RKIND), pointer :: coef_3rd_order, c_s
       logical, pointer :: config_mix_full
       logical, pointer :: config_mix_scalars
@@ -5893,6 +5927,8 @@ module atm_time_integration
 
       real (kind=RKIND), pointer :: config_mpas_cam_coef
       logical, pointer :: config_rayleigh_damp_u
+      logical, pointer :: config_deep_atmosphere
+      logical, pointer :: on_a_sphere
       real (kind=RKIND), pointer :: config_rayleigh_damp_u_timescale_days
       integer, pointer :: config_number_rayleigh_damp_u_levels, config_number_cam_damping_levels
       integer, pointer :: index_qv, index_qc, index_tke
@@ -5926,6 +5962,8 @@ module atm_time_integration
       call mpas_pool_get_config(configs, 'config_rayleigh_damp_u_timescale_days', config_rayleigh_damp_u_timescale_days)
       call mpas_pool_get_config(configs, 'config_number_rayleigh_damp_u_levels', config_number_rayleigh_damp_u_levels)
       call mpas_pool_get_config(configs, 'config_number_cam_damping_levels', config_number_cam_damping_levels)
+      call mpas_pool_get_config(configs, 'config_deep_atmosphere', config_deep_atmosphere)
+      call mpas_pool_get_config(mesh, 'on_a_sphere', on_a_sphere)
 
       call mpas_pool_get_array(state, 'rho_zz', rho_zz, 2)
       call mpas_pool_get_array(state, 'u', u, 2)
@@ -6065,6 +6103,10 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'cf2', cf2)
       call mpas_pool_get_array(mesh, 'cf3', cf3)
 
+      call mpas_pool_get_array(mesh, 'rTildeCell', rTildeCell)
+      call mpas_pool_get_array(mesh, 'rTildeLayer', rTildeLayer)
+      call mpas_pool_get_array(mesh, 'rTildeEdge', rTildeEdge)
+
       les_model_opt = les_model_from_string(config_les_model)
       les_surface_opt = les_surface_from_string(config_les_surface)
 
@@ -6081,6 +6123,7 @@ module atm_time_integration
          cellsOnEdge, verticesOnEdge, edgesOnCell, edgesOnEdge, cellsOnCell, edgesOnVertex, nEdgesOnCell, nEdgesOnEdge, &
          latCell, latEdge, angleEdge, u_init, v_init, advCellsForEdge, nAdvCellsForEdge, adv_coefs, adv_coefs_3rd, &
          rdzu, rdzw, fzm, fzp, qv_init, t_init, cf1, cf2, cf3, r_earth, ur_cell, vr_cell, &
+         rTildeCell, rTildeLayer, rTildeEdge, &
          deformation_coef_c2,deformation_coef_s2,deformation_coef_cs,deformation_coef_c,deformation_coef_s, &
          tend_w_pgf, tend_w_buoy, coef_3rd_order, c_s, config_mix_full, config_mix_scalars, config_horiz_mixing, les_model_opt, &
          les_surface_opt, prandtl_3d_inv, config_del4u_div_factor, &
@@ -6090,6 +6133,7 @@ module atm_time_integration
          config_rayleigh_damp_u, config_rayleigh_damp_u_timescale_days, & 
          config_number_rayleigh_damp_u_levels, config_number_cam_damping_levels, &
          config_surface_heat_flux, config_surface_moisture_flux, config_surface_drag_coefficient, &
+         config_deep_atmosphere, on_a_sphere, &
          rthdynten, ustm, hfx, qfx, &
          cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
          cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
@@ -6116,6 +6160,7 @@ module atm_time_integration
       cellsOnEdge, verticesOnEdge, edgesOnCell, edgesOnEdge, cellsOnCell, edgesOnVertex, nEdgesOnCell, nEdgesOnEdge, &
       latCell, latEdge, angleEdge, u_init, v_init, advCellsForEdge, nAdvCellsForEdge, adv_coefs, adv_coefs_3rd, &
       rdzu, rdzw, fzm, fzp, qv_init, t_init, cf1, cf2, cf3, r_earth, ur_cell, vr_cell, &
+      rTildeCell, rTildeLayer, rTildeEdge, &
       deformation_coef_c2,deformation_coef_s2,deformation_coef_cs,deformation_coef_c,deformation_coef_s, &
       tend_w_pgf, tend_w_buoy, coef_3rd_order, c_s, config_mix_full, config_mix_scalars, config_horiz_mixing, les_model_opt, &
       les_surface_opt, prandtl_3d_inv, config_del4u_div_factor, &
@@ -6125,6 +6170,7 @@ module atm_time_integration
       config_rayleigh_damp_u, config_rayleigh_damp_u_timescale_days, &
       config_number_rayleigh_damp_u_levels, config_number_cam_damping_levels, &
       config_surface_heat_flux, config_surface_moisture_flux, config_surface_drag_coefficient, &
+      config_deep_atmosphere, on_a_sphere, &
       rthdynten, ustm, hfx, qfx, &
       cellStart, cellEnd, vertexStart, vertexEnd, edgeStart, edgeEnd, &
       cellSolveStart, cellSolveEnd, vertexSolveStart, vertexSolveEnd, edgeSolveStart, edgeSolveEnd)
@@ -6225,7 +6271,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: t_init 
 
       real (kind=RKIND) :: cf1, cf2, cf3
-      real (kind=RKIND) :: prandtl_inv, r_areaCell, rgas_cprcv
+      real (kind=RKIND) :: prandtl_inv, r_areaCell!, rgas_cprcv ! not used
 
       real (kind=RKIND) :: r_earth
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: ur_cell
@@ -6236,6 +6282,10 @@ module atm_time_integration
 
       real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: tend_w_pgf
       real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: tend_w_buoy
+
+      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rTildeCell
+      real (kind=RKIND), dimension(nVertLevels+1,nCells+1) :: rTildeLayer
+      real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: rTildeEdge
 
       real (kind=RKIND) :: coef_3rd_order, c_s
       logical :: config_mix_full, config_mix_scalars
@@ -6258,6 +6308,8 @@ module atm_time_integration
       real (kind=RKIND) :: config_mpas_cam_coef
 
       logical, intent(in) :: config_rayleigh_damp_u
+      logical, intent(in) :: config_deep_atmosphere
+      logical, intent(in) :: on_a_sphere
       real (kind=RKIND), intent(in) :: config_rayleigh_damp_u_timescale_days
       integer, intent(in) :: config_number_rayleigh_damp_u_levels, config_number_cam_damping_levels
 
@@ -6282,7 +6334,7 @@ module atm_time_integration
 
       real (kind=RKIND) :: theta_turb_flux, w_turb_flux, r
       real (kind=RKIND) :: scalar_weight
-      real (kind=RKIND) :: inv_r_earth
+      real (kind=RKIND) :: inv_r_earth, r_c
 
       real (kind=RKIND) :: invDt, flux, workpv
       real (kind=RKIND) :: edge_sign, pr_scale, r_dc, r_dv, u_mix_scale
@@ -6321,7 +6373,11 @@ module atm_time_integration
 
       prandtl_inv = 1.0_RKIND / prandtl
       invDt = 1.0_RKIND / dt
-      inv_r_earth = 1.0_RKIND / r_earth
+      if (on_a_sphere) then
+         inv_r_earth = 1.0_RKIND / r_earth
+      else ! on a plane, r_earth -> infinity
+         inv_r_earth = 0.0_RKIND
+      endif
 
       v_mom_eddy_visc2   = config_v_mom_eddy_visc2
       v_theta_eddy_visc2 = config_v_theta_eddy_visc2
@@ -6454,17 +6510,18 @@ module atm_time_integration
       !
       if(rk_step == 1) then
 
-        rgas_cprcv = rgas*cp/cv
+        !rgas_cprcv = rgas*cp/cv ! not used
 
         !$acc parallel default(present)
         !$acc loop gang worker
+
         do iCell = cellStart,cellEnd
 
 !DIR$ IVDEP
           !$acc loop vector
           do k = 1,nVertLevels
             tend_rho(k,iCell) = -h_divergence(k,iCell)-rdzw(k)*(rw(k+1,iCell)-rw(k,iCell)) + tend_rho_physics(k,iCell)
-            dpdz(k,iCell) = -gravity*(rb(k,iCell)*(qtot(k,iCell)) + rr_save(k,iCell)*(1.+qtot(k,iCell)))
+            dpdz(k,iCell) = -gravity/rTildeCell(k,iCell)**2*(rb(k,iCell)*(qtot(k,iCell)) + rr_save(k,iCell)*(1.+qtot(k,iCell)))
           end do
         end do
         !$acc end parallel
@@ -6491,7 +6548,7 @@ module atm_time_integration
             !$acc loop vector
             do k=1,nVertLevels
                tend_u_euler(k,iEdge) =  - cqu(k,iEdge)*( (pp(k,cell2)-pp(k,cell1))*invDcEdge(iEdge)/(.5*(zz(k,cell2)+zz(k,cell1))) &
-                                              -0.5*zxu(k,iEdge)*(dpdz(k,cell1)+dpdz(k,cell2)) )
+                                              -0.5*zxu(k,iEdge)*(dpdz(k,cell1)+dpdz(k,cell2))/rTildeEdge(k,iEdge)**2 )
             end do
 
          end if
@@ -6514,7 +6571,7 @@ module atm_time_integration
 !DIR$ IVDEP
          !$acc loop vector
          do k=1,nVertLevels
-            tend_u(k,iEdge) = - rdzw(k)*(wduz(k+1)-wduz(k)) !  first use of tend_u
+            tend_u(k,iEdge) = - rdzw(k)*(wduz(k+1)-wduz(k))/rTildeEdge(k,iEdge) !  first use of tend_u
          end do
 
          ! Next, nonlinear Coriolis term (q) following Ringler et al JCP 2009
@@ -6557,18 +6614,22 @@ module atm_time_integration
 
             ! horizontal ke gradient and vorticity terms in the vector invariant formulation
             ! of the horizontal momentum equation
-            tend_u(k,iEdge) = tend_u(k,iEdge) + rho_edge(k,iEdge)* (q(k) - (ke(k,cell2) - ke(k,cell1))       &
-                                                                 * invDcEdge(iEdge))                            &
-                                             - u(k,iEdge)*0.5*(h_divergence(k,cell1)+h_divergence(k,cell2)) 
-#ifdef CURVATURE
-            ! curvature terms for the sphere
-            tend_u(k,iEdge) = tend_u(k,iEdge) &
-                             - 2.*omega*cos(angleEdge(iEdge))*cos(latEdge(iEdge))  &
-                               *rho_edge(k,iEdge)*.25*(w(k,cell1)+w(k+1,cell1)+w(k,cell2)+w(k+1,cell2))          & 
-                             - u(k,iEdge)*.25*(w(k+1,cell1)+w(k,cell1)+w(k,cell2)+w(k+1,cell2))                  &
-                               *rho_edge(k,iEdge) * inv_r_earth
-#endif
+            tend_u(k,iEdge) = tend_u(k,iEdge) + 0.5 * (rho_zz(k,cell1)/rTildeCell(k,cell1)**2 &
+                                                      +rho_zz(k,cell2)/rTildeCell(k,cell2)**2) &
+                                                    * (q(k) - (ke(k,cell2)-ke(k,cell1))*invDcEdge(iEdge)) &
+                                             - u(k,iEdge)*0.5*(h_divergence(k,cell1)+h_divergence(k,cell2))/rTildeEdge(k,iEdge)
          end do
+
+         if (config_deep_atmosphere) then
+            do k=1,nVertLevels
+               tend_u(k,iEdge) = tend_u(k,iEdge) + (                                               &
+                                - 2.*omega*cos(angleEdge(iEdge))*cos(latEdge(iEdge))               &
+                                  *.25*(w(k,cell1)+w(k+1,cell1)+w(k,cell2)+w(k+1,cell2))           & 
+                                - u(k,iEdge)*.25*(w(k+1,cell1)+w(k,cell1)+w(k,cell2)+w(k+1,cell2)) &
+                                  * inv_r_earth / rTildeEdge(k,iEdge) )                            &
+                                   * rho_edge(k,iEdge) / rTildeEdge(k,iEdge)
+            end do
+         endif
 
       end do
       !$acc end parallel
@@ -6637,7 +6698,7 @@ module atm_time_integration
          !$acc loop vector
          do k=1,nVertLevels
 !            tend_u(k,iEdge) = tend_u(k,iEdge) + tend_u_euler(k,iEdge)
-            tend_u(k,iEdge) = tend_u(k,iEdge) + tend_u_euler(k,iEdge) + tend_ru_physics(k,iEdge)
+            tend_u(k,iEdge) = tend_u(k,iEdge) + tend_u_euler(k,iEdge) + tend_ru_physics(k,iEdge)*rTildeEdge(k,iEdge)
          end do
       end do
       !$acc end parallel
@@ -6696,26 +6757,6 @@ module atm_time_integration
          end do
       end do
       !$acc end parallel
-
-#ifdef CURVATURE
-      !$acc parallel default(present)
-      !$acc loop gang worker
-      do iCell = cellSolveStart, cellSolveEnd
-!DIR$ IVDEP
-         !$acc loop vector
-         do k=2,nVertLevels
-            tend_w(k,iCell) = tend_w(k,iCell) + (rho_zz(k,iCell)*fzm(k)+rho_zz(k-1,iCell)*fzp(k))*          &
-                                      ( (fzm(k)*ur_cell(k,iCell)+fzp(k)*ur_cell(k-1,iCell))**2.             &
-                                       +(fzm(k)*vr_cell(k,iCell)+fzp(k)*vr_cell(k-1,iCell))**2. )/r_earth   &
-                                + 2.*omega*cos(latCell(iCell))                                              &
-                                       *(fzm(k)*ur_cell(k,iCell)+fzp(k)*ur_cell(k-1,iCell))                 &
-                                       *(rho_zz(k,iCell)*fzm(k)+rho_zz(k-1,iCell)*fzp(k))
-
-         end do
-      end do
-      !$acc end parallel
-
-#endif
 
       !
       !  horizontal mixing for w - we could combine this with advection directly (i.e. as a turbulent flux),
@@ -6782,13 +6823,50 @@ module atm_time_integration
             !$acc loop vector
             do k=2,nVertLevels
               tend_w_euler(k,iCell) = tend_w_euler(k,iCell) - cqw(k,iCell)*(   &
-                                           rdzu(k)*(pp(k,iCell)-pp(k-1,iCell)) &
+                                           rdzu(k)*(pp(k,iCell)-pp(k-1,iCell))*rTildeLayer(k,iCell)**2 &
                                          - (fzm(k)*dpdz(k,iCell) + fzp(k)*dpdz(k-1,iCell)) )  ! dpdz is the buoyancy term here.
             end do
           end if
 
       end do
       !$acc end parallel
+
+      if (config_deep_atmosphere) then
+         do iCell = cellSolveStart, cellSolveEnd
+!DIR$ IVDEP
+            do k=2,nVertLevels
+               r_c = rTildeLayer(k,iCell)
+               tend_w(k,iCell) = tend_w(k,iCell) + (r_c**2)*(                                                 &
+                                    fzm(k)*( (ur_cell(k  ,iCell)**2 + vr_cell(k  ,iCell)**2)*inv_r_earth/r_c  &
+                                              + 2.*omega*cos(latCell(iCell))*ur_cell(k  ,iCell))              &
+                                                       *rho_zz(k  ,iCell)/rTildeCell(k  ,iCell)**2            &
+                                   +fzp(k)*( (ur_cell(k-1,iCell)**2 + vr_cell(k-1,iCell)**2)*inv_r_earth/r_c  &
+                                              + 2.*omega*cos(latCell(iCell))*ur_cell(k-1,iCell))              &
+                                                       *rho_zz(k-1,iCell)/rTildeCell(k-1,iCell)**2 )
+            end do
+         end do
+      endif
+
+      if (rk_step == 1) then
+
+         if ( v_mom_eddy_visc2 > 0.0 ) then
+
+            !$acc parallel default(present)
+            !$acc loop gang worker
+            do iCell=cellSolveStart,cellSolveEnd
+!DIR$ IVDEP
+               !$acc loop vector
+               do k=2,nVertLevels
+                  tend_w_euler(k,iCell) = tend_w_euler(k,iCell) + v_mom_eddy_visc2*0.5*(rho_zz(k,iCell)+rho_zz(k-1,iCell))*(  &
+                                           (w(k+1,iCell)-w(k  ,iCell))*rdzw(k)                              &
+                                          -(w(k  ,iCell)-w(k-1,iCell))*rdzw(k-1) )*rdzu(k)
+               end do
+            end do
+            !$acc end parallel
+
+         end if
+
+      end if ! mixing term computed first rk_step
 
       ! add in mixing terms for w
 
@@ -6993,6 +7071,7 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: weightsOnEdge, kiteAreasOnVertex, h_edge, h, u, v, &
                                                     vorticity, ke, pv_edge, pv_vertex, pv_cell, gradPVn, gradPVt, &
                                                     divergence
+      real (kind=RKIND), dimension(:,:), pointer :: rTildeCell, rTildeEdge, rTildeVertex
       integer, dimension(:,:), pointer :: cellsOnEdge, cellsOnVertex, verticesOnEdge, edgesOnCell, edgesOnEdge, edgesOnVertex, &
                                           kiteForCell, verticesOnCell
       real (kind=RKIND), dimension(:,:), pointer :: edgesOnVertex_sign, edgesOnCell_sign
@@ -7040,6 +7119,10 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'fVertex', fVertex)
       call mpas_pool_get_array(mesh, 'fEdge', fEdge)
 
+      call mpas_pool_get_array(mesh, 'rTildeCell', rTildeCell)
+      call mpas_pool_get_array(mesh, 'rTildeEdge', rTildeEdge)
+      call mpas_pool_get_array(mesh, 'rTildeVertex', rTildeVertex)
+
       call mpas_pool_get_dimension(mesh, 'nCells', nCells)
       call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
       call mpas_pool_get_dimension(mesh, 'nVertices', nVertices)
@@ -7049,6 +7132,7 @@ module atm_time_integration
       call atm_compute_solve_diagnostics_work(nCells, nEdges, nVertices, &
                vertexDegree, dt, config_apvm_upwinding, &
                fVertex, fEdge, invAreaTriangle, invAreaCell, dvEdge, dcEdge, invDvEdge, invDcEdge, &
+               rTildeCell, rTildeEdge, rTildeVertex, &
                weightsOnEdge, kiteAreasOnVertex, h_edge, h, u, v, vorticity, ke, pv_edge, pv_vertex, pv_cell, &
                gradPVn, gradPVt, divergence, cellsOnEdge, cellsOnVertex, verticesOnEdge, edgesOnCell, edgesOnEdge, &
                edgesOnVertex, kiteForCell, verticesOnCell, edgesOnVertex_sign, edgesOnCell_sign, nEdgesOnCell, nEdgesOnEdge, &
@@ -7061,6 +7145,7 @@ module atm_time_integration
    subroutine atm_compute_solve_diagnostics_work(nCells, nEdges, nVertices, &
             vertexDegree, dt, config_apvm_upwinding, &
             fVertex, fEdge, invAreaTriangle, invAreaCell, dvEdge, dcEdge, invDvEdge, invDcEdge, &
+            rTildeCell, rTildeEdge, rTildeVertex, &
             weightsOnEdge, kiteAreasOnVertex, h_edge, h, u, v, vorticity, ke, pv_edge, pv_vertex, pv_cell, &
             gradPVn, gradPVt, divergence, cellsOnEdge, cellsOnVertex, verticesOnEdge, edgesOnCell, edgesOnEdge, &
             edgesOnVertex, kiteForCell, verticesOnCell, edgesOnVertex_sign, edgesOnCell_sign, nEdgesOnCell, nEdgesOnEdge, &
@@ -7098,6 +7183,9 @@ module atm_time_integration
       real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: gradPVn
       real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: gradPVt
       real (kind=RKIND), dimension(nVertLevels,nCells+1) :: divergence
+      real (kind=RKIND), dimension(nVertLevels,nCells+1) :: rTildeCell
+      real (kind=RKIND), dimension(nVertLevels,nEdges+1) :: rTildeEdge
+      real (kind=RKIND), dimension(nVertLevels,nVertices+1) :: rTildeVertex
       integer, dimension(2,nEdges+1) :: cellsOnEdge
       integer, dimension(3,nVertices+1) :: cellsOnVertex
       integer, dimension(2,nEdges+1) :: verticesOnEdge
@@ -7169,13 +7257,13 @@ module atm_time_integration
 !DIR$ IVDEP
             !$acc loop vector
             do k=1,nVertLevels
-               vorticity(k,iVertex) = vorticity(k,iVertex) + s * u(k,iEdge)
+               vorticity(k,iVertex) = vorticity(k,iVertex) + s * u(k,iEdge) * rTildeEdge(k,iEdge)
             end do
          end do
 !DIR$ IVDEP
          !$acc loop vector
          do k=1,nVertLevels
-            vorticity(k,iVertex) = vorticity(k,iVertex) * invAreaTriangle(iVertex)
+            vorticity(k,iVertex) = vorticity(k,iVertex) * invAreaTriangle(iVertex) / rTildeVertex(k,iVertex)**2
          end do
       end do
 
@@ -7196,13 +7284,13 @@ module atm_time_integration
 !DIR$ IVDEP
             !$acc loop vector
             do k=1,nVertLevels
-              divergence(k,iCell) = divergence(k,iCell) + s * u(k,iEdge)
+              divergence(k,iCell) = divergence(k,iCell) + s * u(k,iEdge) * rTildeEdge(k,iEdge)
             end do
          end do
          r = invAreaCell(iCell)
          !$acc loop vector
          do k = 1,nVertLevels
-            divergence(k,iCell) = divergence(k,iCell) * r
+            divergence(k,iCell) = divergence(k,iCell) * r / rTildeCell(k,iCell)**2
          end do
       end do
       !$acc end parallel
@@ -7479,6 +7567,8 @@ module atm_time_integration
       real (kind=RKIND), dimension(:,:), pointer :: pressure_base
       real (kind=RKIND), dimension(:,:), pointer :: exner
       real (kind=RKIND), dimension(:,:), pointer :: exner_base
+      real (kind=RKIND), dimension(:,:), pointer :: rTildeCell
+      real (kind=RKIND), dimension(:,:), pointer :: rTildeEdge
       real (kind=RKIND), dimension(:), pointer :: fzm, fzp
       real (kind=RKIND), dimension(:,:,:), pointer :: zb, zb3, zb_cell, zb3_cell
 
@@ -7520,6 +7610,8 @@ module atm_time_integration
       call mpas_pool_get_array(mesh, 'zb3', zb3)
       call mpas_pool_get_array(mesh, 'zb_cell', zb_cell)
       call mpas_pool_get_array(mesh, 'zb3_cell', zb3_cell)
+      call mpas_pool_get_array(mesh, 'rTildeCell', rTildeCell)
+      call mpas_pool_get_array(mesh, 'rTildeEdge', rTildeEdge)
 
       MPAS_ACC_TIMER_START('atm_init_coupled_diagnostics [ACC_data_xfer]')
 
@@ -7533,8 +7625,6 @@ module atm_time_integration
       !$acc                   pressure_base)
       MPAS_ACC_TIMER_STOP('atm_init_coupled_diagnostics [ACC_data_xfer]')
 
-
-
       rcv = rgas / (cp-rgas)
       p0 = 1.e5  ! this should come from somewhere else...
 
@@ -7544,7 +7634,7 @@ module atm_time_integration
          !$acc loop vector
          do k=1,nVertLevels
             theta_m(k,iCell) = theta(k,iCell) * (1._RKIND + rvord * scalars(index_qv,k,iCell))
-            rho_zz(k,iCell) = rho(k,iCell) / zz(k,iCell)
+            rho_zz(k,iCell) = rho(k,iCell) / zz(k,iCell) * rTildeCell(k,iCell)**2
          end do
       end do
       !$acc end parallel
@@ -7558,7 +7648,8 @@ module atm_time_integration
          cell2 = cellsOnEdge(2,iEdge)
          !$acc loop vector
          do k=1,nVertLevels
-            ru(k,iEdge) = 0.5 * u(k,iEdge) * (rho_zz(k,cell1) + rho_zz(k,cell2))
+            ru(k,iEdge) = 0.5 * u(k,iEdge) * rTildeEdge(k,iEdge) * (rho_zz(k,cell1) / rTildeCell(k,cell1)**2 &
+                                                                  + rho_zz(k,cell2) / rTildeCell(k,cell2)**2)
          end do
       end do
       !$acc end parallel
@@ -7632,8 +7723,8 @@ module atm_time_integration
       !$acc loop collapse(2)
       do iCell=cellStart,cellEnd
          do k=1,nVertLevels
-            exner(k,iCell) = (zz(k,iCell) * (rgas/p0) * (rtheta_p(k,iCell) + rtheta_base(k,iCell)))**rcv
-            exner_base(k,iCell) = (zz(k,iCell) * (rgas/p0) * (rtheta_base(k,iCell)))**rcv  ! WCS addition 20180403
+            exner(k,iCell) = (zz(k,iCell) / rTildeCell(k,iCell)**2 * (rgas/p0) * (rtheta_p(k,iCell) + rtheta_base(k,iCell)))**rcv
+            exner_base(k,iCell) = (zz(k,iCell) / rTildeCell(k,iCell)**2 * (rgas/p0) * (rtheta_base(k,iCell)))**rcv  ! WCS addition 20180403
          end do
       end do
       !$acc end parallel
@@ -7642,11 +7733,11 @@ module atm_time_integration
       !$acc loop collapse(2)
       do iCell=cellStart,cellEnd
          do k=1,nVertLevels
-            pressure_p(k,iCell) = zz(k,iCell) * rgas &
+            pressure_p(k,iCell) = zz(k,iCell) / rTildeCell(k,iCell)**2 * rgas &
                                                * (  exner(k,iCell) * rtheta_p(k,iCell) &
                                                   + rtheta_base(k,iCell) * (exner(k,iCell) - exner_base(k,iCell)) &
                                                  )
-            pressure_base(k,iCell) = zz(k,iCell) * rgas * exner_base(k,iCell) * rtheta_base(k,iCell)      ! WCS addition 20180403
+            pressure_base(k,iCell) = zz(k,iCell) / rTildeCell(k,iCell)**2 * rgas * exner_base(k,iCell) * rtheta_base(k,iCell)      ! WCS addition 20180403
          end do
       end do
       !$acc end parallel

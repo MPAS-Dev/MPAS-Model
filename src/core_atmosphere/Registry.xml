@@ -276,6 +276,11 @@
                      description="Scale eddy viscosities with mesh-density function for horizontal diffusion"
                      possible_values=".true. or .false."/>
 
+                <nml_option name="config_deep_atmosphere" type="logical" default_value="false" in_defaults="true"
+                     units="-"
+                     description="Deep atmosphere configuration"
+                     possible_values=".true. or .false."/>
+
                 <nml_option name="config_num_halos" type="integer" default_value="2" in_defaults="false"
                      units="-"
                      description="Number of halo layers for fields"
@@ -562,6 +567,10 @@
 			<var name="zb"/>
 			<var name="zb3"/>
 			<var name="dss"/>
+			<var name="rTildeCell"/>
+			<var name="rTildeLayer"/>
+			<var name="rTildeEdge"/>
+			<var name="rTildeVertex"/>
 			<var name="deriv_two"/>
 			<var name="coeffs_reconstruct"/>
 #ifdef MPAS_CAM_DYCORE
@@ -970,6 +979,10 @@
 			<var name="fzm"/>
 			<var name="fzp"/>
 			<var name="zz"/>
+			<var name="rTildeCell"/>
+			<var name="rTildeLayer"/>
+			<var name="rTildeEdge"/>
+			<var name="rTildeVertex"/>
 			<var name="initial_time"/>
 			<var name="xtime"/>
 			<var name="Time"/>
@@ -1577,6 +1590,19 @@
                 <!-- W-Rayleigh damping coefficients -->
                 <var name="dss" type="real" dimensions="nVertLevels nCells" units="unitless"
                      description="w-damping coefficient"/>
+
+                <!-- Nondimensional radii -->
+                <var name="rTildeCell" type="real" dimensions="nVertLevels nCells" units="unitless"
+                     description="Nondimensional radius of cells"/>
+
+                <var name="rTildeLayer" type="real" dimensions="nVertLevelsP1 nCells" units="unitless"
+                     description="Nondimensional radius of layer interfaces"/>
+
+                <var name="rTildeEdge" type="real" dimensions="nVertLevels nEdges" units="unitless"
+                     description="Nondimensional radius of edges"/>
+
+                <var name="rTildeVertex" type="real" dimensions="nVertLevels nVertices" units="unitless"
+                     description="Nondimensional radius of vertices"/>
 
                 <!-- Reference profiles -->
                 <var name="u_init" type="real" dimensions="nVertLevels" units="m s^{-1}"
