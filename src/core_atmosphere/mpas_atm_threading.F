@@ -36,6 +36,7 @@ module mpas_atm_threading
     subroutine mpas_atm_threading_init(blocklist, ierr) 
 
         use mpas_derived_types, only : block_type
+        use mpas_log, only : mpas_log_write
         use mpas_pool_routines, only : mpas_pool_get_dimension, mpas_pool_add_dimension
 #ifdef MPAS_OPENMP
         use omp_lib
@@ -58,6 +59,14 @@ module mpas_atm_threading
         integer, dimension(:), pointer :: vertexThreadStart, vertexThreadEnd
         integer, dimension(:), pointer :: vertexSolveThreadStart, vertexSolveThreadEnd
 
+        integer :: nThreads_acc
+        integer, dimension(:), pointer :: cellThreadStart_acc, cellThreadEnd_acc
+        integer, dimension(:), pointer :: cellSolveThreadStart_acc, cellSolveThreadEnd_acc
+        integer, dimension(:), pointer :: edgeThreadStart_acc, edgeThreadEnd_acc
+        integer, dimension(:), pointer :: edgeSolveThreadStart_acc, edgeSolveThreadEnd_acc
+        integer, dimension(:), pointer :: vertexThreadStart_acc, vertexThreadEnd_acc
+        integer, dimension(:), pointer :: vertexSolveThreadStart_acc, vertexSolveThreadEnd_acc
+
         
         if (present(ierr)) ierr = 0
 
@@ -69,8 +78,15 @@ module mpas_atm_threading
             nThreads = OMP_get_num_threads()
 !$OMP END MASTER
 !$OMP END PARALLEL
+
+#ifdef MPAS_OPENACC
+            nThreads_acc = 1
+#else
+            nThreads_acc = nThreads
+#endif
 #else 
             nThreads = 1
+            nThreads_acc = 1
 #endif 
 
             allocate(cellThreadStart(nThreads))
@@ -85,6 +101,19 @@ module mpas_atm_threading
             allocate(vertexThreadEnd(nThreads))
             allocate(vertexSolveThreadStart(nThreads))
             allocate(vertexSolveThreadEnd(nThreads))
+
+            allocate(cellThreadStart_acc(nThreads_acc))
+            allocate(cellThreadEnd_acc(nThreads_acc))
+            allocate(cellSolveThreadStart_acc(nThreads_acc))
+            allocate(cellSolveThreadEnd_acc(nThreads_acc))
+            allocate(edgeThreadStart_acc(nThreads_acc))
+            allocate(edgeThreadEnd_acc(nThreads_acc))
+            allocate(edgeSolveThreadStart_acc(nThreads_acc))
+            allocate(edgeSolveThreadEnd_acc(nThreads_acc))
+            allocate(vertexThreadStart_acc(nThreads_acc))
+            allocate(vertexThreadEnd_acc(nThreads_acc))
+            allocate(vertexSolveThreadStart_acc(nThreads_acc))
+            allocate(vertexSolveThreadEnd_acc(nThreads_acc))
 
             call mpas_pool_get_dimension(block % dimensions, 'nCells', nCells)
             call mpas_pool_get_dimension(block % dimensions, 'nCellsSolve', nCellsSolve)
@@ -110,6 +139,42 @@ module mpas_atm_threading
             vertexSolveThreadStart(threadid+1) = (threadid * nVerticesSolve / nThreads) + 1
             vertexSolveThreadEnd(threadid+1)   = ((threadid+1) * nVerticesSolve / nThreads)
 !$OMP END PARALLEL
+
+#ifdef MPAS_OPENACC
+!$OMP PARALLEL PRIVATE(threadid)
+            threadid = OMP_get_thread_num()
+
+            cellThreadStart_acc(1) = 1
+            cellThreadEnd_acc(1)   = nCells
+            cellSolveThreadStart_acc(1) = 1
+            cellSolveThreadEnd_acc(1)   = nCellsSolve
+            edgeThreadStart_acc(1) = 1
+            edgeThreadEnd_acc(1)   = nEdges
+            edgeSolveThreadStart_acc(1) = 1
+            edgeSolveThreadEnd_acc(1)   = nEdgesSolve
+            vertexThreadStart_acc(1) = 1
+            vertexThreadEnd_acc(1)   = nVertices
+            vertexSolveThreadStart_acc(1) = 1
+            vertexSolveThreadEnd_acc(1)   = nVerticesSolve
+!$OMP END PARALLEL
+#else
+!$OMP PARALLEL PRIVATE(threadid)
+            threadid = OMP_get_thread_num()
+
+            cellThreadStart_acc(threadid+1) = cellThreadStart(threadid+1)
+            cellThreadEnd_acc(threadid+1)   = cellThreadEnd(threadid+1)
+            cellSolveThreadStart_acc(threadid+1) = cellSolveThreadStart(threadid+1)
+            cellSolveThreadEnd_acc(threadid+1)   = cellSolveThreadEnd(threadid+1)
+            edgeThreadStart_acc(threadid+1) = edgeThreadStart(threadid+1)
+            edgeThreadEnd_acc(threadid+1)   = edgeThreadEnd(threadid+1)
+            edgeSolveThreadStart_acc(threadid+1) = edgeSolveThreadStart(threadid+1)
+            edgeSolveThreadEnd_acc(threadid+1)   = edgeSolveThreadEnd(threadid+1)
+            vertexThreadStart_acc(threadid+1) = vertexThreadStart(threadid+1)
+            vertexThreadEnd_acc(threadid+1)   = vertexThreadEnd(threadid+1)
+            vertexSolveThreadStart_acc(threadid+1) = vertexSolveThreadStart(threadid+1)
+            vertexSolveThreadEnd_acc(threadid+1)   = vertexSolveThreadEnd(threadid+1)
+!$OMP END PARALLEL
+#endif
 #else 
             cellThreadStart(1) = 1
             cellThreadEnd(1)   = nCells
@@ -123,6 +188,19 @@ module mpas_atm_threading
             vertexThreadEnd(1)   = nVertices
             vertexSolveThreadStart(1) = 1
             vertexSolveThreadEnd(1)   = nVerticesSolve
+
+            cellThreadStart_acc(1) = 1
+            cellThreadEnd_acc(1)   = nCells
+            cellSolveThreadStart_acc(1) = 1
+            cellSolveThreadEnd_acc(1)   = nCellsSolve
+            edgeThreadStart_acc(1) = 1
+            edgeThreadEnd_acc(1)   = nEdges
+            edgeSolveThreadStart_acc(1) = 1
+            edgeSolveThreadEnd_acc(1)   = nEdgesSolve
+            vertexThreadStart_acc(1) = 1
+            vertexThreadEnd_acc(1)   = nVertices
+            vertexSolveThreadStart_acc(1) = 1
+            vertexSolveThreadEnd_acc(1)   = nVerticesSolve
 #endif 
 
             call mpas_pool_add_dimension(block % dimensions, 'nThreads', nThreads)
@@ -142,6 +220,35 @@ module mpas_atm_threading
             call mpas_pool_add_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
             call mpas_pool_add_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
 
+            call mpas_pool_add_dimension(block % dimensions, 'nThreads_acc', nThreads_acc)
+
+            call mpas_pool_add_dimension(block % dimensions, 'cellThreadStart_acc', cellThreadStart_acc)
+            call mpas_pool_add_dimension(block % dimensions, 'cellThreadEnd_acc', cellThreadEnd_acc)
+            call mpas_pool_add_dimension(block % dimensions, 'cellSolveThreadStart_acc', cellSolveThreadStart_acc)
+            call mpas_pool_add_dimension(block % dimensions, 'cellSolveThreadEnd_acc', cellSolveThreadEnd_acc)
+
+            call mpas_pool_add_dimension(block % dimensions, 'edgeThreadStart_acc', edgeThreadStart_acc)
+            call mpas_pool_add_dimension(block % dimensions, 'edgeThreadEnd_acc', edgeThreadEnd_acc)
+            call mpas_pool_add_dimension(block % dimensions, 'edgeSolveThreadStart_acc', edgeSolveThreadStart_acc)
+            call mpas_pool_add_dimension(block % dimensions, 'edgeSolveThreadEnd_acc', edgeSolveThreadEnd_acc)
+
+            call mpas_pool_add_dimension(block % dimensions, 'vertexThreadStart_acc', vertexThreadStart_acc)
+            call mpas_pool_add_dimension(block % dimensions, 'vertexThreadEnd_acc', vertexThreadEnd_acc)
+            call mpas_pool_add_dimension(block % dimensions, 'vertexSolveThreadStart_acc', vertexSolveThreadStart_acc)
+            call mpas_pool_add_dimension(block % dimensions, 'vertexSolveThreadEnd_acc', vertexSolveThreadEnd_acc)
+
+
+!$OMP PARALLEL DO
+            do threadid=1,nThreads_acc
+                call mpas_log_write('Thread $i cellThreadStart = $i cellThreadEnd = $i', intArgs=(/threadid, cellThreadStart_acc(threadid), cellThreadEnd_acc(threadid)/))
+                call mpas_log_write('Thread $i cellSolveThreadStart = $i cellSolveThreadEnd = $i', intArgs=(/threadid, cellSolveThreadStart_acc(threadid), cellSolveThreadEnd_acc(threadid)/))
+                call mpas_log_write('Thread $i edgeThreadStart = $i edgeThreadEnd = $i', intArgs=(/threadid, edgeThreadStart_acc(threadid), edgeThreadEnd_acc(threadid)/))
+                call mpas_log_write('Thread $i edgeSolveThreadStart = $i edgeSolveThreadEnd = $i', intArgs=(/threadid, edgeSolveThreadStart_acc(threadid), edgeSolveThreadEnd_acc(threadid)/))
+                call mpas_log_write('Thread $i vertexThreadStart = $i vertexThreadEnd = $i', intArgs=(/threadid, vertexThreadStart_acc(threadid), vertexThreadEnd_acc(threadid)/))
+                call mpas_log_write('Thread $i vertexSolveThreadStart = $i vertexSolveThreadEnd = $i', intArgs=(/threadid, vertexSolveThreadStart_acc(threadid), vertexSolveThreadEnd_acc(threadid)/))
+            end do
+!$OMP END PARALLEL DO                                      
+
             !
             ! Because pools make an internal copy of dimensions, we can now
             ! delete our copies of the thread bounds arrays
@@ -158,6 +265,19 @@ module mpas_atm_threading
             deallocate(vertexThreadEnd)
             deallocate(vertexSolveThreadStart)
             deallocate(vertexSolveThreadEnd)
+
+            deallocate(cellThreadStart_acc)
+            deallocate(cellThreadEnd_acc)
+            deallocate(cellSolveThreadStart_acc)
+            deallocate(cellSolveThreadEnd_acc)
+            deallocate(edgeThreadStart_acc)
+            deallocate(edgeThreadEnd_acc)
+            deallocate(edgeSolveThreadStart_acc)
+            deallocate(edgeSolveThreadEnd_acc)
+            deallocate(vertexThreadStart_acc)
+            deallocate(vertexThreadEnd_acc)
+            deallocate(vertexSolveThreadStart_acc)
+            deallocate(vertexSolveThreadEnd_acc)
 
             block => block % next
         end do
@@ -213,6 +333,23 @@ module mpas_atm_threading
             call mpas_pool_remove_dimension(block % dimensions, 'vertexThreadEnd')
             call mpas_pool_remove_dimension(block % dimensions, 'vertexSolveThreadStart')
             call mpas_pool_remove_dimension(block % dimensions, 'vertexSolveThreadEnd')
+
+            call mpas_pool_remove_dimension(block % dimensions, 'nThreads_acc')
+
+            call mpas_pool_remove_dimension(block % dimensions, 'cellThreadStart_acc')
+            call mpas_pool_remove_dimension(block % dimensions, 'cellThreadEnd_acc')
+            call mpas_pool_remove_dimension(block % dimensions, 'cellSolveThreadStart_acc')
+            call mpas_pool_remove_dimension(block % dimensions, 'cellSolveThreadEnd_acc')
+
+            call mpas_pool_remove_dimension(block % dimensions, 'edgeThreadStart_acc')
+            call mpas_pool_remove_dimension(block % dimensions, 'edgeThreadEnd_acc')
+            call mpas_pool_remove_dimension(block % dimensions, 'edgeSolveThreadStart_acc')
+            call mpas_pool_remove_dimension(block % dimensions, 'edgeSolveThreadEnd_acc')
+
+            call mpas_pool_remove_dimension(block % dimensions, 'vertexThreadStart_acc')
+            call mpas_pool_remove_dimension(block % dimensions, 'vertexThreadEnd_acc')
+            call mpas_pool_remove_dimension(block % dimensions, 'vertexSolveThreadStart_acc')
+            call mpas_pool_remove_dimension(block % dimensions, 'vertexSolveThreadEnd_acc')
 
             block => block % next
         end do
