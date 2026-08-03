@@ -15,6 +15,7 @@
  use mpas_atmphys_vars
 
  use bl_mynn,only: bl_mynn_init
+ use bl_shinhong,only: bl_shinhong_init
  use module_bl_mynn,only: mynn_bl_driver
  use module_bl_shinhong
  use module_bl_ysu
@@ -837,11 +838,13 @@
  end subroutine pbl_to_MPAS
  
 !=================================================================================================================
- subroutine init_pbl(configs)
+ subroutine init_pbl(configs,diag_physics)
 !=================================================================================================================
 
 !input arguments:
  type(mpas_pool_type),intent(in):: configs
+ type(mpas_pool_type),intent(in):: diag_physics
+ real(kind=RKIND),dimension(:,:),pointer:: tke_pbl
 
 !local variables and pointers:
  character(len=StrKIND),pointer:: pbl_scheme
@@ -859,6 +862,9 @@
        call bl_mynn_init(cp,cpv,cice,cliq,ep_1,ep_2,gravity,karman,P0,R_d,R_v,svp1,svp2,svp3,svpt0, &
                          xlf,xls,xlv,errmsg,errflg)
 !      call mpas_log_write('--- end subroutine bl_mynn_init:')
+    case("bl_shinhong")
+       call mpas_pool_get_array(diag_physics,'tke_pbl'   ,tke_pbl   )
+       call bl_shinhong_init(errmsg,errflg,tke_pbl,kms,kme,ims,ime)
 
     case default
 
@@ -944,6 +950,7 @@
        call mpas_pool_get_config(configs,'config_shinhong_nonlocal_flux',config_shinhong_nonlocal_flux)
        call mpas_pool_get_config(configs,'config_shinhong_scu_mixing',config_shinhong_scu_mixing)
        call mpas_pool_get_config(configs,'config_shinhong_ke_dissipation',config_shinhong_ke_dissipation)
+
 
        call shinhong ( &
                  p3d      = pres_hyd_p , p3di     = pres2_hyd_p , psfc     = psfc_p     , &

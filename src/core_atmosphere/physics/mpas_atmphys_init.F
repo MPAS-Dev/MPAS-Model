@@ -391,7 +391,7 @@ use mpas_stream_manager
     call init_microphysics(dminfo,configs,mesh,state,time_lev,sfc_input,diag_physics)
 
 !initialization of PBL processes:
- if(config_pbl_scheme .ne. 'off') call init_pbl(configs)
+ if(config_pbl_scheme .ne. 'off') call init_pbl(configs,diag_physics)
 
 !initialization of surface layer processes:
  if(config_sfclayer_scheme .ne. 'off') call init_sfclayer(configs)
