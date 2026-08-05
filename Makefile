@@ -695,7 +695,6 @@ ifneq ($(filter on ON 1 TRUE,$(NUOPC)),)
 endif
 ifeq ($(NUOPC), true)
   MPAS_ESMF = external
-  override CPPFLAGS += -DMPAS_NO_ESMF_INIT
   NUOPC_MESSAGE="MPAS was built with NUOPC cap libraries."
 else
   NUOPC_MESSAGE="MPAS was built without NUOPC cap libraries."

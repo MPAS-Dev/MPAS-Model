@@ -8,7 +8,7 @@ else
 
 BUILD_ALL = mpas
 ifeq "$(NUOPC)" "true"
-BUILD_ALL = nuopc_lib
+BUILD_ALL += nuopc_lib
 endif
 
 all: $(BUILD_ALL)
