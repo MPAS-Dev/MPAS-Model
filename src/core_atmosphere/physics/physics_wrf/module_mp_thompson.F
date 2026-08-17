@@ -863,7 +863,7 @@
            iostat = istat)
       if(istat /= open_OK) &
          call physics_error_fatal('subroutine thompson_init: ' // &
-                                  'failure opening MP_THOMPSON_QRacrQG.DBL')
+                                  'failure opening MP_THOMPSON_QRacrQG_DATA.DBL')
       read(mp_unit) tcg_racg
       read(mp_unit) tmr_racg
       read(mp_unit) tcr_gacr
