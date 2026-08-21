@@ -3972,7 +3972,7 @@ module atm_time_integration
       end if
 
 !$OMP BARRIER
-
+      call mpas_timer_start('atm_advance_acoustic_step_3976')
       !$acc parallel default(present)
       !$acc loop gang worker private(ts,rs)
       do iCell=cellSolveStart,cellSolveEnd  ! loop over all owned cells to solve
@@ -4104,7 +4104,7 @@ module atm_time_integration
 
       end do !  end of loop over cells
       !$acc end parallel
-
+      call mpas_timer_stop('atm_advance_acoustic_step_3976')
 
    end subroutine atm_advance_acoustic_step_work
 
