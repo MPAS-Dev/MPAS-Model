@@ -4046,8 +4046,22 @@ module atm_time_integration
                           + cofwt(k-1,iCell)*(etp(k-1)*ts(k-1)+etm(k-1)*rtheta_pp(k-1,iCell)))
             end do
 
-            ! tridiagonal solve sweeping up and then down the column
+             !$acc loop vector
+            do k=1,nVertLevels
+               rho_pp(k,iCell) = rs(k)
+               rtheta_pp(k,iCell) = ts(k)
+            end do
 
+         end if
+      enddo
+      !$acc end parallel
+
+            ! tridiagonal solve sweeping up and then down the column
+      !$acc parallel default(present)
+      !$acc loop gang worker
+      do iCell=cellSolveStart,cellSolveEnd  ! loop over all owned cells to solve
+
+         if(specZoneMaskCell(iCell) == 0.0) then  ! not specified zone, compute...
 !MGD VECTOR DEPENDENCE
             !$acc loop seq
             do k=2,nVertLevels
@@ -4084,9 +4098,9 @@ module atm_time_integration
 !DIR$ IVDEP
             !$acc loop vector
             do k=1,nVertLevels
-               rho_pp(k,iCell) = rs(k) - dts*cofrz(k) *( ewp(k+1)*rw_p(k+1,iCell)  &
+               rho_pp(k,iCell) = rho_pp(k,iCell) - dts*cofrz(k) *( ewp(k+1)*rw_p(k+1,iCell)  &
                                                         -ewp(k  )*rw_p(k  ,iCell))
-               rtheta_pp(k,iCell) = ts(k) - dts*rdzw(k)*( ewp(k+1)*coftz(k+1,iCell)*rw_p(k+1,iCell)  &
+               rtheta_pp(k,iCell) = rtheta_pp(k,iCell) - dts*rdzw(k)*( ewp(k+1)*coftz(k+1,iCell)*rw_p(k+1,iCell)  &
                                                          -ewp(k  )*coftz(k  ,iCell)*rw_p(k  ,iCell))
             end do
 
