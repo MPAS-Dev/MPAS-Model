@@ -4052,16 +4052,19 @@ module atm_time_integration
                rtheta_pp(k,iCell) = ts(k)
             end do
 
+#ifdef MPAS_OPENACC
          end if
       enddo
       !$acc end parallel
 
-            ! tridiagonal solve sweeping up and then down the column
+            
       !$acc parallel default(present)
       !$acc loop gang worker
       do iCell=cellSolveStart,cellSolveEnd  ! loop over all owned cells to solve
 
          if(specZoneMaskCell(iCell) == 0.0) then  ! not specified zone, compute...
+#endif
+         ! tridiagonal solve sweeping up and then down the column
 !MGD VECTOR DEPENDENCE
             !$acc loop seq
             do k=2,nVertLevels
