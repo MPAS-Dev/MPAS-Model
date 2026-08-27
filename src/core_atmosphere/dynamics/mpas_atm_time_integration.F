@@ -9,9 +9,13 @@
 #ifdef MPAS_OPENACC
 #define MPAS_ACC_TIMER_START(X) call mpas_timer_start(X)
 #define MPAS_ACC_TIMER_STOP(X) call mpas_timer_stop(X)
+#define RHO_PP(i,j) rho_pp(i, j)
+#define RTHETA_PP(i,j) rtheta_pp(i, j)
 #else
 #define MPAS_ACC_TIMER_START(X)
 #define MPAS_ACC_TIMER_STOP(X)
+#define RHO_PP(i,j) rs(i)
+#define RTHETA_PP(i,j) ts(i)
 #endif
 
 module atm_time_integration
@@ -4046,6 +4050,7 @@ module atm_time_integration
                           + cofwt(k-1,iCell)*(etp(k-1)*ts(k-1)+etm(k-1)*rtheta_pp(k-1,iCell)))
             end do
 
+#ifdef MPAS_OPENACC
              !$acc loop vector
             do k=1,nVertLevels
                rho_pp(k,iCell) = rs(k)
@@ -4056,12 +4061,14 @@ module atm_time_integration
       enddo
       !$acc end parallel
 
-            ! tridiagonal solve sweeping up and then down the column
+            
       !$acc parallel default(present)
       !$acc loop gang worker
       do iCell=cellSolveStart,cellSolveEnd  ! loop over all owned cells to solve
 
          if(specZoneMaskCell(iCell) == 0.0) then  ! not specified zone, compute...
+#endif
+         ! tridiagonal solve sweeping up and then down the column
 !MGD VECTOR DEPENDENCE
             !$acc loop seq
             do k=2,nVertLevels
@@ -4098,9 +4105,9 @@ module atm_time_integration
 !DIR$ IVDEP
             !$acc loop vector
             do k=1,nVertLevels
-               rho_pp(k,iCell) = rho_pp(k,iCell) - dts*cofrz(k) *( ewp(k+1)*rw_p(k+1,iCell)  &
+               rho_pp(k,iCell) = RHO_PP(k,iCell) - dts*cofrz(k) *( ewp(k+1)*rw_p(k+1,iCell)  &
                                                         -ewp(k  )*rw_p(k  ,iCell))
-               rtheta_pp(k,iCell) = rtheta_pp(k,iCell) - dts*rdzw(k)*( ewp(k+1)*coftz(k+1,iCell)*rw_p(k+1,iCell)  &
+               rtheta_pp(k,iCell) = RTHETA_PP(k,iCell) - dts*rdzw(k)*( ewp(k+1)*coftz(k+1,iCell)*rw_p(k+1,iCell)  &
                                                          -ewp(k  )*coftz(k  ,iCell)*rw_p(k  ,iCell))
             end do
 
