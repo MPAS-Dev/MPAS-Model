@@ -9,9 +9,13 @@
 #ifdef MPAS_OPENACC
 #define MPAS_ACC_TIMER_START(X) call mpas_timer_start(X)
 #define MPAS_ACC_TIMER_STOP(X) call mpas_timer_stop(X)
+#define NEDGESONCELL_INNER_LOOP()  do i=1,nEdgesOnCell(iCell)
+#define NEDGESONCELL_OUTER_LOOP()
 #else
 #define MPAS_ACC_TIMER_START(X)
 #define MPAS_ACC_TIMER_STOP(X)
+#define NEDGESONCELL_OUTER_LOOP()  do i=1,nEdgesOnCell(iCell)
+#define NEDGESONCELL_INNER_LOOP()
 #endif
 
 module atm_time_integration
@@ -3997,14 +4001,22 @@ module atm_time_integration
                rs(k) = 0.0
             end do
 
-            !$acc loop seq
-            do i=1,nEdgesOnCell(iCell)
-               iEdge = edgesOnCell(i,iCell)
-               cell1 = cellsOnEdge(1,iEdge)
-               cell2 = cellsOnEdge(2,iEdge)
+               ! When building this code for CPUs, the below macro will expand to "do i=1,nEdgesOnCell(iCell)",
+               ! preserving the nested loop order as originally written, and optimized for CPU execution.
+               ! However, when building for GPUs (presently with OpenACC), the order of the nested loops are
+               ! effectively interchanged to yield better GPU performance, without affecting correctness. In
+               ! the latter case, NEDGESONCELL_OUTER_LOOP expands to an empty string and NEDGESONCELL_INNER_LOOP
+               ! now expands to "do i=1,nEdgesOnCell(iCell)".
+               NEDGESONCELL_OUTER_LOOP()
 !DIR$ IVDEP
                !$acc loop vector
                do k=1,nVertLevels
+                  !$acc loop seq
+                  NEDGESONCELL_INNER_LOOP()
+
+                  iEdge = edgesOnCell(i,iCell)
+                  cell1 = cellsOnEdge(1,iEdge)
+                  cell2 = cellsOnEdge(2,iEdge)
                   flux = edgesOnCell_sign(i,iCell)*dts*dvEdge(iEdge)*ru_p(k,iEdge) * invAreaCell(iCell)
                   rs(k) = rs(k)-flux
                   ts(k) = ts(k)-flux*0.5*(theta_m(k,cell2)+theta_m(k,cell1))
