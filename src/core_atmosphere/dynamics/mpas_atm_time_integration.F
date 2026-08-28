@@ -11,11 +11,15 @@
 #define MPAS_ACC_TIMER_STOP(X) call mpas_timer_stop(X)
 #define RHO_PP(i,j) rho_pp(i, j)
 #define RTHETA_PP(i,j) rtheta_pp(i, j)
+#define GPU_LOOP()  do i=1,nEdgesOnCell(iCell)
+#define CPU_LOOP()
 #else
 #define MPAS_ACC_TIMER_START(X)
 #define MPAS_ACC_TIMER_STOP(X)
 #define RHO_PP(i,j) rs(i)
 #define RTHETA_PP(i,j) ts(i)
+#define CPU_LOOP()  do i=1,nEdgesOnCell(iCell)
+#define GPU_LOOP()
 #endif
 
 module atm_time_integration
@@ -4001,14 +4005,17 @@ module atm_time_integration
                rs(k) = 0.0
             end do
 
-            !$acc loop seq
-            do i=1,nEdgesOnCell(iCell)
-               iEdge = edgesOnCell(i,iCell)
-               cell1 = cellsOnEdge(1,iEdge)
-               cell2 = cellsOnEdge(2,iEdge)
+ 
+               CPU_LOOP()
 !DIR$ IVDEP
                !$acc loop vector
                do k=1,nVertLevels
+                  !$acc loop seq
+                  GPU_LOOP()
+
+                  iEdge = edgesOnCell(i,iCell)
+                  cell1 = cellsOnEdge(1,iEdge)
+                  cell2 = cellsOnEdge(2,iEdge)
                   flux = edgesOnCell_sign(i,iCell)*dts*dvEdge(iEdge)*ru_p(k,iEdge) * invAreaCell(iCell)
                   rs(k) = rs(k)-flux
                   ts(k) = ts(k)-flux*0.5*(theta_m(k,cell2)+theta_m(k,cell1))
