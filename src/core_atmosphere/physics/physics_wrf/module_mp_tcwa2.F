@@ -824,8 +824,6 @@
             LQG  = -1.*LOG(QG1D)
             RHOG = MIN(900.,MAX(400.,EXP(ROG1*LQG**3.+ROG2*LQG**2.+    &
                    ROG3*LQG+ROG4)))
-!            IF (QC1D.GE.QSMALL.OR.QR1D.GE.QSMALL) RHOG = ((QC1D+QR1D)* &
-!            RHOW+QG1D*RHOG)/(QC1D+QR1D+QG1D)
          ENDIF
       ENDIF
       IF (NG1D.LT.NSMALL) THEN
@@ -1601,9 +1599,6 @@
                   LQG(K)  = -1.*LOG(QG3D(K))
                   RHOG(K) = MIN(900.,MAX(400.,EXP(ROG1*LQG(K)**3.+ROG2*&
                             LQG(K)**2.+ROG3*LQG(K)+ROG4)))
-!                  IF (QC3D(K).GE.QSMALL.OR.QR3D(K).GE.QSMALL)          &
-!                  RHOG(K) = ((QC3D(K)+QR3D(K))*RHOW+QG3D(K)*RHOG(K))/( &
-!                  QC3D(K)+QR3D(K)+QG3D(K))
                ENDIF
             ENDIF
             LTK(K)  = LOG(TK3D(K))
@@ -3828,7 +3823,7 @@
                QIMrgi = MIN(NIMrgi*MI0,QRMrg)
             ENDIF
             QCLgrg = QRMrg+QCLgr
-            NCLgrg = (NRMrg+NCLgr)*RHOG/RHOW
+            NCLgrg = NRMrg+NCLgr
          ENDIF
 !----------------- ICE-PHASE COLLECTION&CONVERSION*INITILIZATION -------
          IF (QS1D.GE.QSMALL.AND.QI1D.GE.QSMALL) THEN
