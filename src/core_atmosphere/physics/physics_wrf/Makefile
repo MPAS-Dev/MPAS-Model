@@ -26,6 +26,7 @@ OBJS = \
 	module_mp_thompson_aerosols.o  \
 	module_mp_thompson_cldfra3.o   \
 	module_mp_wsm6.o               \
+	module_mp_tcwa2.o              \
 	module_ra_cam.o                \
 	module_ra_cam_support.o        \
 	module_ra_rrtmg_lw.o           \
