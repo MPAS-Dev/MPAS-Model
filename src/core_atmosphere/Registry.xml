@@ -473,6 +473,9 @@
                 <package name="cu_ntiedtke_in" description="parameterization of Tiedtke convection."/>
                 <package name="bl_ysu_in" description="parameterization of YSU Planetary Boundary Layer."/>
                 <package name="bl_mynn_in" description="parameterization of MYNN Planetary Boundary Layer."/>
+                <package name="bl_mynnedmf_in" description="parameterization of MYNN-EDMF Planetary Boundary Layer."/>
+                <package name="bl_mynnedmf_tkebudget_in" description="TKE budget variables for output in MYNN-EDMF."/>
+                <package name="bl_mynnedmf_output_in" description="additional diagnostic variables output in MYNN-EDMF."/>
                 <package name="sf_noahmp_in" description="parameterization of NOAH-MP land surface scheme."/>
 
                 <package name="iau" description="Incremental Analysis Update"/>
@@ -487,7 +490,7 @@
                          active_when="trim(config_les_model) /= 'none'"/>
                 <package name="sfclayer"
                          description="Variables and options associated with surface layer physics"
-                         active_when="(trim(config_physics_suite) /= 'none' .and. trim(config_sfclayer_scheme) == 'suite') .or.  any(trim(config_sfclayer_scheme) == [ character(len=StrKind) :: 'sf_monin_obukhov', 'sf_monin_obukhov_rev', 'sf_mynn' ])"/>
+                         active_when="(trim(config_physics_suite) /= 'none' .and. trim(config_sfclayer_scheme) == 'suite') .or.  any(trim(config_sfclayer_scheme) == [ character(len=StrKind) :: 'sf_monin_obukhov', 'sf_monin_obukhov_rev', 'sf_mynn', 'sf_mynnsfclay' ])"/>
         </packages>
 
 
@@ -1124,6 +1127,20 @@
 			<var name="q2"/>
 			<var name="t2m"/>
 			<var name="th2m"/>
+			<var name="cldfrac_bl"/>
+                        <var name="qc_bl"/>
+                        <var name="qi_bl"/>
+			<var name="maxmf"/>
+                        <var name="maxwidth"/>
+                        <var name="ztop_plume"/>
+			<var name="excess_h"/>
+                        <var name="excess_q"/>
+                        <var name="maxmf_dd"/>
+                        <var name="maxwidth_dd"/>
+                        <var name="maxtkeprod_dd"/>
+			<var name="cldtop_cooling"/>
+                        <var name="ent_eff"/>
+                        <var name="hpbl"/>
 #endif
 
                         <!-- Begin convective diagnostics defined in diagnostics/Registry_convective.xml -->
@@ -1274,6 +1291,20 @@
 			<var name="refl10cm_max"/>
 			<var name="rainc"/>
 			<var name="rainnc"/>
+			<var name="sh3d"/>
+                        <var name="sm3d"/>
+                        <var name="qke"/>
+                        <var name="qke_adv"/>
+                        <var name="cov"/>
+                        <var name="qsq"/>
+                        <var name="tsq"/>
+                        <var name="el_pbl"/>
+			<var name="cldfrac_bl"/>
+                        <var name="qc_bl"/>
+                        <var name="qi_bl"/>
+                        <var name="ch"/>
+                        <var name="kpbl"/>
+                        <var name="hpbl"/>
 			<var name="lai"/>
 			<var name="isice_lu"/>
 			<var name="iswater_lu"/>
@@ -1704,7 +1735,7 @@
 
                         <var name="qc" array_group="moist" units="kg kg^{-1}"
                              description="Cloud water mixing ratio"
-                             packages="bl_mynn_in;bl_ysu_in;cu_ntiedtke_in;mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
+                             packages="bl_mynn_in;bl_mynnedmf_in;bl_ysu_in;cu_ntiedtke_in;mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
                         <var name="qr" array_group="moist" units="kg kg^{-1}"
                              description="Rain water mixing ratio"
@@ -1712,11 +1743,11 @@
 
                         <var name="qi" array_group="moist" units="kg kg^{-1}"
                              description="Ice mixing ratio"
-                             packages="bl_mynn_in;bl_ysu_in;cu_ntiedtke_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
+                             packages="bl_mynn_in;bl_mynnedmf_in;bl_ysu_in;cu_ntiedtke_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
                         <var name="qs" array_group="moist" units="kg kg^{-1}"
                              description="Snow mixing ratio"
-                             packages="bl_mynn_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
+                             packages="bl_mynn_in;bl_mynnedmf_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
                         <var name="qg" array_group="moist" units="kg kg^{-1}"
                              description="Graupel mixing ratio"
@@ -1724,7 +1755,7 @@
 
                         <var name="ni" array_group="number" units="nb kg^{-1}"
                              description="Cloud ice number concentration"
-                             packages="bl_mynn_in;mp_thompson_in;mp_thompson_aers_in"/>
+                             packages="bl_mynn_in;bl_mynnedmf_in;mp_thompson_in;mp_thompson_aers_in"/>
 
                         <var name="nr" array_group="number" units="nb kg^{-1}"
                              description="Rain number concentration"
@@ -2071,7 +2102,7 @@
 
                         <var name="tend_qc" name_in_code="qc" array_group="moist" units="kg m^{-3} s^{-1}"
                              description="Tendency of cloud water mass per unit volume divided by d(zeta)/dz"
-                             packages="bl_mynn_in;bl_ysu_in;cu_ntiedtke_in;mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
+                             packages="bl_mynn_in;bl_mynnedmf_in;bl_ysu_in;cu_ntiedtke_in;mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
                         <var name="tend_qr" name_in_code="qr" array_group="moist" units="kg m^{-3} s^{-1}"
                              description="Tendency of rain water mass per unit volume divided by d(zeta)/dz"
@@ -2079,11 +2110,11 @@
 
                         <var name="tend_qi" name_in_code="qi" array_group="moist" units="kg m^{-3} s^{-1}"
                              description="Tendency of ice mass per unit volume divided by d(zeta)/dz"
-                             packages="bl_mynn_in;bl_ysu_in;cu_ntiedtke_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
+                             packages="bl_mynn_in;bl_mynnedmf_in;bl_ysu_in;cu_ntiedtke_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
                         <var name="tend_qs" name_in_code="qs" array_group="moist" units="kg m^{-3} s^{-1}"
                              description="Tendency of snow mass per unit volume divided by d(zeta)/dz"
-                             packages="bl_mynn_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
+                             packages="bl_mynn_in;bl_mynnedmf_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"/>
 
                         <var name="tend_qg" name_in_code="qg" array_group="moist" units="kg m^{-3} s^{-1}"
                              description="Tendency of graupel mass per unit volume divided by d(zeta)/dz"
@@ -2091,7 +2122,7 @@
 
                         <var name="tend_ni" name_in_code="ni" array_group="number" units="nb m^{-3} s^{-1}"
                              description="Tendency of cloud ice number concentration multiplied by dry air density divided by d(zeta)/dz"
-                             packages="bl_mynn_in;mp_thompson_in;mp_thompson_aers_in"/>
+                             packages="bl_mynn_in;bl_mynnedmf_in;mp_thompson_in;mp_thompson_aers_in"/>
 
                         <var name="tend_nr" name_in_code="nr" array_group="number" units="nb m^{-3} s^{-1}" 
                              description="Tendency of rain number concentration multiplied by dry air density divided by d(zeta)/dz"
@@ -2151,7 +2182,7 @@
                              units="kg kg^{-1} s^{-1}"
                              description="Lateral boundary tendency of water vapor mixing ratio"/>
 
-                        <var name="lbc_qc" name_in_code="qc" array_group="moist"  packages="bl_mynn_in;cu_ntiedtke_in;mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"
+                        <var name="lbc_qc" name_in_code="qc" array_group="moist"  packages="bl_mynn_in;bl_mynnedmf_in;cu_ntiedtke_in;mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"
                              units="kg kg^{-1} s^{-1}"
                              description="Lateral boundary tendency of cloud water mixing ratio"/>
 
@@ -2159,7 +2190,7 @@
                              units="kg kg^{-1} s^{-1}"
                              description="Lateral boundary tendency of rain water mixing ratio"/>
 
-                        <var name="lbc_qi" name_in_code="qi" array_group="moist"  packages="bl_mynn_in;cu_ntiedtke_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"
+                        <var name="lbc_qi" name_in_code="qi" array_group="moist"  packages="bl_mynn_in;bl_mynnedmf_in;cu_ntiedtke_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"
                              units="kg kg^{-1} s^{-1}"
                              description="Lateral boundary tendency of ice mixing ratio"/>
 
@@ -2175,7 +2206,7 @@
                              units="m^{-3} s^{-1}"
                              description="Lateral boundary tendency of rain number concentration"/>
 
-                        <var name="lbc_ni" name_in_code="ni" array_group="number" packages="bl_mynn_in;mp_thompson_in;mp_thompson_aers_in"
+                        <var name="lbc_ni" name_in_code="ni" array_group="number" packages="bl_mynn_in;bl_mynnedmf_in;mp_thompson_in;mp_thompson_aers_in"
                              units="m^{-3} s^{-1}"
                              description="Lateral boundary tendency of ice number concentration"/>
 
@@ -2371,7 +2402,7 @@
                 <nml_option name="config_pbl_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration for planetary boundary layer schemes"
-                     possible_values="`suite',`bl_ysu',`bl_mynn',`off'"/>
+                     possible_values="`suite',`bl_ysu',`bl_mynn',`bl_mynnedmf',`off'"/>
 
                 <nml_option name="config_gwdo_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
@@ -2396,7 +2427,7 @@
                 <nml_option name="config_radt_cld_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration for calculation of horizontal cloud fraction"
-                     possible_values="`suite',`cld_fraction',`cld_incidence'"/>
+                     possible_values="`suite',`cld_fraction',`cld_incidence',`cld_fraction_mynn'"/>
 
                 <nml_option name="config_radt_lw_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
@@ -2411,7 +2442,17 @@
                 <nml_option name="config_sfclayer_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration for surface layer-scheme"
-                     possible_values="`suite',`sf_monin_obukhov',`sf_mynn',`off'"/>
+                     possible_values="`suite',`sf_monin_obukhov',`sf_mynn',`sf_mynnsfclay',`off'"/>
+
+		<nml_option name="config_mynn_sfcflux_land" type="integer" default_value="1" in_defaults="false"
+                     units="-"
+                     description="=configuration option for the calculation of zt and zq over land"
+                     possible_values="0:constant Czil, 1:variable Czil, 2:Yang"/>
+
+                <nml_option name="config_mynn_sfcflux_water" type="integer" default_value="0" in_defaults="false"
+                     units="-"
+                     description="=configuration option for the calculation of z0, zt and zq over water"
+                     possible_values="0:COARE3.0, 1:COARE3.5, 2:Davis/COARE3.5 ,3:Davis/Garratt, 4:Taylor-Yelland"/>
 
                 <nml_option name="config_radt_cld_overlap" type="character" default_value="maximum_random" in_defaults="false"
                      description="cloud overlapping option in the RRTMG lw and sw radiation schemes"
@@ -2441,20 +2482,20 @@
                      description="=1:option to add the MYNN TKE budget terms to output"
                      possible_values="0,1"/>
 
-                <nml_option name="config_mynn_closure" type="real" default_value="2.5" in_defaults="false"
+                <nml_option name="config_mynn_closure" type="real" default_value="2.6" in_defaults="false"
                      units="-"
-                     description="2.5 level or 3.0 level for the MYNN TKE turbulence closure"
-                     possible_values="2.0,2.5,3.0"/>
+                     description="closure level for the MYNN-EDMF scheme"
+                     possible_values="2.5,2.6,2.7,3.0"/>
 
                 <nml_option name="config_mynn_cloudpdf" type="integer" default_value="2" in_defaults="false"
                      units="-"
                      description="switch to different cloud PDFs to represent subgrid clouds in the MYNN PBL scheme"
-                     possible_values="0,1,2"/>
+                     possible_values="`0: Someria-Deardorff',`1: Someria-Deardorf 1st order',`2: Modified Chab-Bechtold'"/>
 
-                <nml_option name="config_mynn_mixlength" type="integer" default_value="2" in_defaults="false"
+                <nml_option name="config_mynn_mixlength" type="integer" default_value="1" in_defaults="false"
                      units="-"
-                     description="mixing length in the MYNN PBL scheme:=0(Nakanishi and Niino 2009);=1(RAP/HRRR);=2(Ito et al. 2015)"
-                     possible_values="0,1,2"/>
+                     description="mixing length option in the MYNN-EDMF scheme"
+                     possible_values="`0: orig',`1: operational',`2: research'"/>
 
                 <nml_option name="config_mynn_stfunc" type="integer" default_value="1" in_defaults="false"
                      units="-"
@@ -2485,7 +2526,7 @@
                      description="=1:activate the EDMF downdraft option in the MYNN PBL scheme (=0 otherwise)"
                      possible_values="0,1"/>
 
-                <nml_option name="config_mynn_edmf_mom" type="integer" default_value="0" in_defaults="false"
+                <nml_option name="config_mynn_edmf_mom" type="integer" default_value="1" in_defaults="false"
                      units="-"
                      description="=1:activate momentum transport with the EDMF option of the MYNN PBL scheme(=0 otherwise)"
                      possible_values="0,1"/>
@@ -2497,12 +2538,22 @@
 
                 <nml_option name="config_mynn_edmf_output" type="integer" default_value="0" in_defaults="false"
                      units="-"
-                     description="=0:suppress the allocation of variables needed in the EDMF option of the MYNN PBL scheme"
-                     possible_values="0,1"/>
+                     description="=control the allocation/output of variables used in the MF component of the MYNN-EDMF scheme"
+                     possible_values="0:do not allocate/output,1:updrafts,2:downdrafts"/>
 
-                <nml_option name="config_mynn_mixscalars" type="integer" default_value="1" in_defaults="false"
+                <nml_option name="config_mynn_mixscalars" type="integer" default_value="0" in_defaults="false"
                      units="-"
                      description="=1:activate mixing of scalars in the MYNN PBL scheme (=0 otherwise)"
+                     possible_values="0,1"/>
+
+		<nml_option name="config_mynn_mixaerosols" type="integer" default_value="1" in_defaults="false"
+                     units="-"
+                     description="=1:activate mixing of aerosols in the MYNN PBL scheme (=0 otherwise)"
+                     possible_values="0,1"/>
+
+                <nml_option name="config_mynn_mixnumcon" type="integer" default_value="1" in_defaults="false"
+                     units="-"
+                     description="=1:activate mixing of number concentrations in the MYNN PBL scheme (=0 otherwise)"
                      possible_values="0,1"/>
 
                 <nml_option name="config_mynn_mixclouds" type="integer" default_value="1" in_defaults="false"
@@ -2513,7 +2564,17 @@
                 <nml_option name="config_mynn_mixqt" type="integer" default_value="0" in_defaults="false"
                      units="-"
                      description="=0:activatevmixing of moisture species separately;= 1:activate mixing of total water in the mynn PBL scheme"
+                     possible_values="0(keep=0),1"/>
+
+		<nml_option name="config_mynn_ess" type="integer" default_value="0" in_defaults="false"
+                     units="-"
+                     description="=0:use buoyancy-flux functions;= 1:use O-Gorman (2011)"
                      possible_values="0,1"/>
+
+                <nml_option name="config_spp_pbl" type="integer" default_value="0" in_defaults="false"
+                     units="-"
+                     description="configuration for spp boundary layer"
+                     possible_values="`0: off',`1: activated'"/>
 
                 <nml_option name="config_bucket_radt" type="real" default_value="1.0e9" in_defaults="false"
                      units="-"
@@ -2749,23 +2810,23 @@
 
                 <var name="kpbl" type="integer" dimensions="nCells Time" units="unitless"
                      description="index level of PBL top"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in;bl_ysu_in"/>
 
                 <var name="hpbl" type="real" dimensions="nCells Time" units="m"
                      description="Planetary Boundary Layer (PBL) height"
-                     packages="bl_mynn_in;bl_ysu_in;sfclayer"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in;bl_ysu_in;sfclayer"/>
 
 		<var name="kzh" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-1}"
                      description="vertical diffusion coefficient of potential temperature"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in;bl_ysu_in"/>
 
 		<var name="kzm" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-1}"
                      description="vertical diffusion coefficient of mommentum"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in;bl_ysu_in"/>
 
 		<var name="kzq" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-1}"
                      description="vertical diffusion coefficient of water vapor and cloud condensates"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in;bl_ysu_in"/>
 
 
                 <!-- YSU PBL SCHEME: -->
@@ -2785,39 +2846,39 @@
                 <!-- MYNN PBL SCHEME: -->
                 <var name="cldfrac_bl" type="real" dimensions="nVertLevels nCells Time" units="unitless"
                      description="cloud fraction in the MYNN PBL scheme"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in"/>
 
                 <var name="qc_bl" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
                      descrition="cloud liquid water mixing ratio in the MYNN PBL scheme"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in"/>
 
                 <var name="qi_bl" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
                      descrition="cloud ice mixing ratio in the MYNN PBL scheme"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in"/>
 
                 <var name="cov" type="real" dimensions="nVertLevels nCells Time" units="K kg kg^{-1}"
                      description="liquid water - liquid water potential temperature covariance"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in"/>
 
                 <var name="el_pbl" type="real" dimensions="nVertLevels nCells Time" units="m"
                      description="mixing length from PBL scheme"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in"/>
 
                 <var name="qke" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
                      description="twice turbulent kinetic energy"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in"/>
 
                 <var name="qke_adv" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
                      description="twice turbulent kinetic energy"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in"/>
 
                 <var name="qsq" type="real" dimensions="nVertLevels nCells Time" units="{kg kg^{-1}}^2"
                      description="liquid water variance"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in"/>
 
                 <var name="tsq" type="real" dimensions="nVertLevels nCells Time" units="K^{2}"
                      description="liquid water potential temperature variance"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in"/>
 
                 <var name="tke_pbl" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
                      description="turbulent kinetic energy from PBL"
@@ -2825,63 +2886,103 @@
 
                 <var name="dqke" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
                      description="TKE change"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_tkebudget_in"/>
 
                 <var name="qbuoy" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
                      description="TKE production - buoyancy"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_tkebudget_in"/>
 
                 <var name="qdiss" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
                      description="TKE dissipation"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_tkebudget_in"/>
 
                 <var name="qshear" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
                      description="TKE production - shear"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_tkebudget_in"/>
 
                 <var name="qwt" type="real" dimensions="nVertLevels nCells Time" units="m^{2} s^{-2}"
                      description="TKE vertical distribution"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_tkebudget_in"/>
 
                 <var name="edmf_a" type="real" dimensions="nVertLevels nCells Time" units="unitless"
                      description="EDMF relative updraft area of moist updrafts in the MYNN PBL scheme"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
 
                 <var name="edmf_w" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
                      description="EDMF vertical velocity of  moist updrafts in the MYNN PBL scheme"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
 
                 <var name="edmf_qt" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
                      description="EDMF total water mixing ratio in moist updrafts in the MYNN PBL scheme"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
 
                 <var name="edmf_qc" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
                      description="EDMF liquid water mixing ratio in moist updrafts in the MYNN PBL scheme"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
 
                 <var name="edmf_thl" type="real" dimensions="nVertLevels nCells Time" units="K"
                      description="EDMF liquid-ice water potential temperature in moist updrafts in the MYNN PBL scheme"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
 
                 <var name="edmf_ent" type="real" dimensions="nVertLevels nCells Time" units="m^{-1}"
                      description="EDMF entrainment rate in moist updrafts in the MYNN PBL scheme"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
 
                 <var name="sub_thl" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
                      description="EDMF subsidence of liquid-ice potential temperature in the MYNN PBL scheme"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
 
                 <var name="sub_qv" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="EDMF subsidence of water vapor mixing ratio in the MYNN PBL scheme"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
 
                 <var name="det_thl" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
                      description="EDMF detrainment of liquid-ice potential temperature in the MYNN PBL scheme"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
 
                 <var name="det_qv" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="EDMF detrainment of water vapor mixing ratio in the MYNN PBL scheme"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
+
+		<var name="maxmf" type="real" dimensions="nCells Time" units="m s^{-1}"
+                     description="Maximum mass flux in the each column"
+                     packages="bl_mynnedmf_in"/>
+
+                <var name="maxwidth" type="real" dimensions="nCells Time" units="m"
+                     description="Maximum width of updrafts"
+                     packages="bl_mynnedmf_in"/>
+
+                <var name="ztop_plume" type="real" dimensions="nCells Time" units="m"
+                     description="Height of highest penetrating plume"
+                     packages="bl_mynnedmf_in"/>
+
+                <var name="excess_h" type="real" dimensions="nCells Time" units="K"
+                     description="Maximum excess heat added to plumes"
+                     packages="bl_mynnedmf_in"/>
+
+                <var name="excess_q" type="real" dimensions="nCells Time" units="kg kg^{-1}"
+                     description="Maximum excess moisture added to plumes"
+                     packages="bl_mynnedmf_in"/>
+
+                <var name="maxmf_dd" type="real" dimensions="nCells Time" units="m s^{-1}"
+                     description="Maximum mass flux in the each column from downdrafts"
+                     packages="bl_mynnedmf_in"/>
+
+                <var name="maxwidth_dd" type="real" dimensions="nCells Time" units="m"
+                     description="Maximum width of downdrafts"
+                     packages="bl_mynnedmf_in"/>
+
+                <var name="maxtkeprod_dd" type="real" dimensions="nCells Time" units="m^2 s^{-2} hr^{-1}"
+                     description="Maximum tke production in column from downdrafts"
+                     packages="bl_mynnedmf_in"/>
+
+                <var name="cldtop_cooling" type="real" dimensions="nCells Time" units="K hr^{-1}"
+                     description="Maximum cooling at boundary layer cloud top"
+                     packages="bl_mynnedmf_in"/>
+
+                <var name="ent_eff" type="real" dimensions="nCells Time" units=""
+                     description="Entrainment efficiency"
+                     packages="bl_mynnedmf_in"/>
 
 
                 <!-- ================================================================================================== -->
@@ -2934,6 +3035,10 @@
 
                 <var name="chs" type="real" dimensions="nCells Time" units="m s^{-1}"
                      description="surface exchange coefficient for heat and moisture"
+                     packages="sfclayer"/>
+
+		<var name="cqs" type="real" dimensions="nCells Time" units="m s^{-1}"
+                     description="surface exchange coefficient for moisture (mynn/ruc)"
                      packages="sfclayer"/>
 
                 <var name="chs2" type="real" dimensions="nCells Time" units="m s^{-1}"
@@ -3018,11 +3123,11 @@
 
                 <var name="sh3d" type="real" dimensions="nVertLevels nCells Time" units="unitless"
                      description="stability function for heat"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in"/>
 
                 <var name="sm3d" type="real" dimensions="nVertLevels nCells Time" units="unitless"
                      description="stability function for moisture"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in"/>
 
 
                 <!-- SURFACE DIAGNOSTICS: -->
@@ -3650,47 +3755,47 @@
 
                 <var name="rublten" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1} s^{-1}"
                      description="tendency of zonal wind due to pbl processes"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in;bl_ysu_in"/>
 
                 <var name="rvblten" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1} s^{-1}"
                      description="tendency of meridional wind due to pbl processes"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in;bl_ysu_in"/>
 
                 <var name="rthblten" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
                      description="tendency of potential temperature due to pbl processes"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in;bl_ysu_in"/>
 
                 <var name="rqvblten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of water vapor mixing ratio due to pbl processes"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in;bl_ysu_in"/>
 
                 <var name="rqcblten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of cloud water mixing ratio due to pbl processes"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in;bl_ysu_in"/>
 
                 <var name="rqiblten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of cloud ice mixing ratio due to pbl processes"
-                     packages="bl_mynn_in;bl_ysu_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in;bl_ysu_in"/>
 
                 <var name="rqsblten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of snow mixing ratio due to pbl processes"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in"/>
 
                 <var name="rncblten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of cloud liquid water number concentration due to pbl processes"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in"/>
 
                 <var name="rniblten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of cloud ice number concentration due to pbl processes"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in"/>
 
                 <var name="rnifablten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of ice-friendly aerosol number concentration due to pbl processes"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in"/>
 
                 <var name="rnwfablten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of water-friendly aerosol number concentration due to pbl processes"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_mynnedmf_in"/>
 
 	        <!-- MGD should we add packages to the field below? -->
 	        <var name="rublten_Edge" type="real"     dimensions="nVertLevels nEdges Time"/>
@@ -3986,7 +4091,7 @@
                           units="kg kg^{-1}"
                           description="Water vapor mixing ratio increment"/>
 
-                     <var name="qc_amb"  name_in_code="qc" array_group="moist" packages="bl_mynn_in;bl_ysu_in;cu_ntiedtke_in;mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"
+                     <var name="qc_amb"  name_in_code="qc" array_group="moist" packages="bl_mynn_in;bl_mynnedmf_in;bl_ysu_in;cu_ntiedtke_in;mp_kessler_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"
                           units="kg kg^{-1}"
                           description="Cloud water mixing ratio increment"/>
 
@@ -3994,7 +4099,7 @@
                           units="kg kg^{-1}"
                           description="Rain water mixing ratio increment"/>
 
-                     <var name="qi_amb"  name_in_code="qi" array_group="moist" packages="bl_mynn_in;bl_ysu_in;cu_ntiedtke_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"
+                     <var name="qi_amb"  name_in_code="qi" array_group="moist" packages="bl_mynn_in;bl_mynnedmf_in;bl_ysu_in;cu_ntiedtke_in;mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in"
                           units="kg kg^{-1}"
                           description="Ice mixing ratio increment"/>
 

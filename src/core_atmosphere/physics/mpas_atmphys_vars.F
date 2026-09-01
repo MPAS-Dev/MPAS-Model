@@ -10,7 +10,7 @@
  use mpas_kind_types
 
  use NoahmpIOVarType
- 
+
  implicit none
  public
  save
@@ -162,7 +162,7 @@
  real(kind=RKIND),public:: dt_microp  !time-step for cloud microphysics parameterization.
  real(kind=RKIND),public:: dt_radtlw  !time-step for longwave radiation parameterization      [mns]
  real(kind=RKIND),public:: dt_radtsw  !time-step for shortwave radiation parameterization     [mns]
- 
+
  real(kind=RKIND),public:: xice_threshold
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
@@ -182,7 +182,7 @@
 !... arrays related to u- and v-velocities interpolated to theta points:
     u_p,              &!u-velocity interpolated to theta points                               [m/s]
     v_p                !v-velocity interpolated to theta points                               [m/s]
-    
+
 !... arrays related to vertical sounding:
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     zz_p,             &!
@@ -274,7 +274,7 @@
     graupelncv_p,     &!
     sr_p
 
- integer:: & 
+ integer:: &
     has_reqc,         &!
     has_reqi,         &!
     has_reqs
@@ -422,9 +422,16 @@
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
     maxwidthbl_p,     &!max plume width                                                                        [m]
-    maxmfbl_p,        &!maximum mass flux for PBL shallow convection.
-    zbl_plume_p        !height of highest penetrating plume                                                    [m]
-
+    maxmfbl_p,        &!maximum mass flux for PBL shallow convection.                                        [m/s]
+    zbl_plume_p,      &!height of highest penetrating plume                                                    [m]
+    excessh_p,        &!maximum heat excess applied to plumes                                                  [K]
+    excessq_p,        &!maximum moisture excess applied to plumes                                          [kg/kg]
+    maxwidth_dd_p,    &!maximum downdraft plume width                                                          [m]
+    maxmf_dd_p,       &!maximum mass flux for downdrafts                                                     [m/s]
+    maxtkeprod_dd_p,  &!maximum tke prduction in column from downdrafts                                 [m2/s2/hr]
+    cldtop_cooling_p, &!maximum net cooling at boundary layer cloud top                                     [K/hr]
+    ent_eff_p          !entrainment efficiency
+      
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     dqke_p,           &!
     qbuoy_p,          &!
@@ -564,6 +571,7 @@
     ck_p,             &!enthalpy exchange coeff at 10 meters                                                   [?]
     cka_p,            &!enthalpy exchange coeff at the lowest model level                                      [?]
     cqs2_p,           &!
+    cqs_p,            &!  
     gz1oz0_p,         &!log of z1 over z0                                                                      [-]
     flhc_p,           &!exchange coefficient for heat                                                          [-]
     flqc_p,           &!exchange coefficient for moisture                                                      [-]
@@ -839,7 +847,7 @@
 
  integer,public:: &
     num_soils          !number of soil layers                                                                  [-]
-    
+
  integer,dimension(:,:),allocatable:: &
     isltyp_p,         &!dominant soil type category                                                            [-]
     ivgtyp_p           !dominant vegetation category                                                           [-]
@@ -931,9 +939,9 @@
 !   is set to true. the arrays below have the same definition as the corresponding "_p" arrays:
 !=================================================================================================================
 
- real(kind=RKIND),dimension(:,:),allocatable:: br_sea,ch_sea,chs_sea,chs2_sea,cpm_sea,cqs2_sea,      &
-                                flhc_sea,flqc_sea,gz1oz0_sea,hfx_sea,lh_sea,mavail_sea,mol_sea,      &
-                                psih_sea,psim_sea,fh_sea,fm_sea,qfx_sea,qgh_sea,qsfc_sea,regime_sea, &
+ real(kind=RKIND),dimension(:,:),allocatable:: br_sea,ch_sea,chs_sea,chs2_sea,cpm_sea,cqs_sea,cqs2_sea,&
+                                flhc_sea,flqc_sea,gz1oz0_sea,hfx_sea,lh_sea,mavail_sea,mol_sea,        &
+                                psih_sea,psim_sea,fh_sea,fm_sea,qfx_sea,qgh_sea,qsfc_sea,regime_sea,   &
                                 rmol_sea,ust_sea,wspd_sea,znt_sea,zol_sea,tsk_sea,xland_sea
  real(kind=RKIND),dimension(:,:),allocatable:: t2m_sea,th2m_sea,q2_sea,u10_sea,v10_sea
  real(kind=RKIND),dimension(:,:),allocatable:: cd_sea,cda_sea,ck_sea,cka_sea,ustm_sea

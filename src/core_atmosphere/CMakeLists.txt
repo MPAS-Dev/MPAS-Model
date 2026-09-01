@@ -138,6 +138,54 @@ set(ATMOSPHERE_CORE_PHYSICS_NOAA_SOURCES
 
 list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_NOAA_SOURCES PREPEND physics/physics_noaa/UGWP/)
 
+set(ATMOSPHERE_CORE_PHYSICS_MYNN-EDMF_DIR ${CMAKE_CURRENT_SOURCE_DIR}/physics/physics_noaa/MYNN-EDMF)
+
+if(NOT EXISTS ${ATMOSPHERE_CORE_PHYSICS_MYNN-EDMF_DIR})
+    set(PHYSICS_MYNN-EDMF_REPO_URL "https://github.com/NCAR/MYNN-EDMF.git")
+    execute_process(COMMAND git clone ${PHYSICS_MYNN-EDMF_REPO_URL} ${ATMOSPHERE_CORE_PHYSICS_MYNN-EDMF_DIR}
+                    RESULT_VARIABLE GIT_CLONE_RESULT
+                    OUTPUT_VARIABLE GIT_CLONE_OUTPUT
+                    ERROR_VARIABLE GIT_CLONE_ERROR)
+    if(NOT GIT_CLONE_RESULT EQUAL 0)
+        message(FATAL_ERROR "Git clone failed with error: ${GIT_CLONE_ERROR}")
+    endif()
+
+else()
+    message(STATUS "Directory ${DIR_TO_CHECK} already exists, skipping clone")
+endif()
+
+set(ATMOSPHERE_CORE_PHYSICS_MYNN-EDMF_SOURCES
+    src/module_bl_mynnedmf.F90
+    src/MPAS/module_bl_mynnedmf_common.F90
+    src/module_bl_mynnedmf_driver.F90
+)
+list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_MYNN-EDMF_SOURCES PREPEND physics/physics_noaa/MYNN-EDMF/)
+
+set(ATMOSPHERE_CORE_PHYSICS_MYNN-SFC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/physics/physics_noaa/MYNN-SFC)
+
+if(NOT EXISTS ${ATMOSPHERE_CORE_PHYSICS_MYNN-SFC_DIR})
+    set(PHYSICS_MYNN-SFC_REPO_URL "https://github.com/NCAR/MYNN-SFC.git")
+    execute_process(COMMAND git clone ${PHYSICS_MYNN-SFC_REPO_URL} ${ATMOSPHERE_CORE_PHYSICS_MYNN-SFC_DIR}
+                    RESULT_VARIABLE GIT_CLONE_RESULT
+                    OUTPUT_VARIABLE GIT_CLONE_OUTPUT
+                    ERROR_VARIABLE GIT_CLONE_ERROR)
+    if(NOT GIT_CLONE_RESULT EQUAL 0)
+        message(FATAL_ERROR "Git clone failed with error: ${GIT_CLONE_ERROR}")
+    endif()
+
+else()
+    message(STATUS "Directory ${DIR_TO_CHECK} already exists, skipping clone")
+endif()
+
+set(ATMOSPHERE_CORE_PHYSICS_MYNN-SFC_SOURCES
+    module_sf_mynnsfc_land.F90
+    module_sf_mynnsfc_water.F90
+    module_sf_mynnsfc_ice.F90
+    MPAS/module_sf_mynnsfc_common.F90
+    MPAS/module_sf_mynnsfc_driver.F90
+)
+list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_MYNN-SFC_SOURCES PREPEND physics/physics_noaa/MYNN-SFC/)
+
 set(ATMOSPHERE_CORE_PHYSICS_NOAMP_UTILITY_SOURCES
     CheckNanMod.F90
     Machine.F90
