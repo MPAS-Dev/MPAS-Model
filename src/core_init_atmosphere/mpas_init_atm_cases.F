@@ -5623,7 +5623,7 @@ call mpas_log_write('Done with soil consistency check')
       call mpas_pool_get_dimension(dims, 'nCellsSolve', nCellsSolve)
       nVertLevelsP1 = nVertLevels + 1
 
-      call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+      call mpas_pool_get_dimension(lbc_state, 'index_lbc_qv', index_qv)
 
       etavs = (1.0_RKIND - 0.252_RKIND) * pii / 2.0_RKIND
       rcv = rgas / (cp - rgas)
