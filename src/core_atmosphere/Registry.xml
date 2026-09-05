@@ -474,6 +474,7 @@
                 <package name="bl_ysu_in" description="parameterization of YSU Planetary Boundary Layer."/>
                 <package name="bl_mynn_in" description="parameterization of MYNN Planetary Boundary Layer."/>
                 <package name="sf_noahmp_in" description="parameterization of NOAH-MP land surface scheme."/>
+                <package name="sf_colm2024_in" description="parameterization of CoLM2024 land surface scheme."/>
 
                 <package name="iau" description="Incremental Analysis Update"/>
                 <package name="limited_area" description="Limited-area simulations, which have lateral boundaries"/>
@@ -496,9 +497,9 @@
 <!-- **************************************************************************************** -->
 
 	<streams>
-		<stream name="invariant" 
-                        type="input" 
-                        filename_template="invariant.nc" 
+		<stream name="invariant"
+                        type="input"
+                        filename_template="invariant.nc"
                         input_interval="none"
                         immutable="true"
                         in_defaults="false">
@@ -599,9 +600,9 @@
 
                 </stream>
 
-		<stream name="input" 
-                        type="input" 
-                        filename_template="x1.40962.init.nc" 
+		<stream name="input"
+                        type="input"
+                        filename_template="x1.40962.init.nc"
                         input_interval="initial_only"
                         immutable="true">
 
@@ -647,11 +648,11 @@
 #endif
 		</stream>
 
-		<stream name="restart" 
-                        type="input;output" 
-                        filename_template="restart.$Y-$M-$D_$h.$m.$s.nc" 
-                        input_interval="initial_only" 
-                        output_interval="1_00:00:00" 
+		<stream name="restart"
+                        type="input;output"
+                        filename_template="restart.$Y-$M-$D_$h.$m.$s.nc"
+                        input_interval="initial_only"
+                        output_interval="1_00:00:00"
                         immutable="true">
 
 			<stream name="invariant" packages="no_invariant_stream"/>
@@ -924,9 +925,9 @@
 #endif
 		</stream>
 
-		<stream name="output" 
-                        type="output" 
-                        filename_template="history.$Y-$M-$D_$h.$m.$s.nc" 
+		<stream name="output"
+                        type="output"
+                        filename_template="history.$Y-$M-$D_$h.$m.$s.nc"
                         output_interval="6:00:00"
                         runtime_format="separate_file">
 
@@ -997,6 +998,14 @@
 			<var name="hpbl"/>
 			<var name="hfx"/>
 			<var name="qfx"/>
+			<var name="qsfc"/>
+			<var name="grdflx"/>
+			<var name="sfc_albedo"/>
+			<var name="sfc_emiss"/>
+			<var name="sfcrunoff"/>
+			<var name="udrunoff"/>
+			<var name="z0"/>
+			<var name="znt"/>
 			<var name="cd"/>
 			<var name="cda"/>
 			<var name="ck"/>
@@ -1018,19 +1027,25 @@
 			<var name="xland"/>
 			<var name="skintemp"/>
 			<var name="snow"/>
+			<var name="snowc"/>
 			<var name="snowh"/>
 			<var name="sst"/>
 			<var name="vegfra"/>
+			<var name="lai"/>
+			<var name="canwat"/>
+			<var name="smstav"/>
+			<var name="smstot"/>
 			<var name="xice"/>
 			<var name="sh2o"/>
 			<var name="smois"/>
 			<var name="tslb"/>
+			<var_struct name="diag_physics_colm2024"/>
 #endif
 		</stream>
 
-		<stream name="diagnostics" 
-                        type="output" 
-                        filename_template="diag.$Y-$M-$D_$h.$m.$s.nc" 
+		<stream name="diagnostics"
+                        type="output"
+                        filename_template="diag.$Y-$M-$D_$h.$m.$s.nc"
                         output_interval="3:00:00"
                         runtime_format="separate_file">
 
@@ -1157,9 +1172,9 @@
 #endif
 		</stream>
 
-		<stream name="surface" 
-                        type="input" 
-                        filename_template="x1.40962.sfc_update.nc" 
+		<stream name="surface"
+                        type="input"
+                        filename_template="x1.40962.sfc_update.nc"
                         input_interval="none"
                         filename_interval="none"
                         runtime_format="separate_file">
@@ -1170,9 +1185,9 @@
 #endif
 		</stream>
 
-	        <stream name="iau" 
-                        type="input" 
-                        filename_template="x1.40962.AmB.$Y-$M-$D_$h.$m.$s.nc" 
+	        <stream name="iau"
+                        type="input"
+                        filename_template="x1.40962.AmB.$Y-$M-$D_$h.$m.$s.nc"
                         input_interval="initial_only"
                         filename_interval="none"
                         immutable="true"
@@ -1186,7 +1201,7 @@
                         type="input"
                         filename_template="lbc.$Y-$M-$D_$h.$m.$s.nc"
                         filename_interval="input_interval"
-                        input_interval="3:00:00" 
+                        input_interval="3:00:00"
                         runtime_format="single_file"
                         immutable="true"
                         packages="limited_area">
@@ -1694,7 +1709,7 @@
                      description="Moist potential temperature: theta*(1+q_v*R_v/R_d)"/>
 
                 <!-- When MPAS-A is used as a dycore in CAM, scalars are allocated at runtime via -->
-                <!-- a call to the atm_allocate_scalars routine from setup_block. The specific    --> 
+                <!-- a call to the atm_allocate_scalars routine from setup_block. The specific    -->
                 <!-- constituent at each position in the scalars array is later set by code in    -->
                 <!-- the CAM-MPAS interface layer.                                                -->
 #ifndef MPAS_CAM_DYCORE
@@ -2024,7 +2039,7 @@
 
         <var_struct name="tend" time_levs="1">
 
-                
+
                 <!-- tendencies for prognostic variables -->
                 <var name="tend_u" name_in_code="u" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-2}"
                      description="Tendency of u from dynamics"/>
@@ -2060,7 +2075,7 @@
                      description="Tendency of surface pressure"/>
 
                 <!-- When MPAS-A is used as a dycore in CAM, scalars are allocated at runtime via -->
-                <!-- a call to the atm_allocate_scalars routine from setup_block. The specific    --> 
+                <!-- a call to the atm_allocate_scalars routine from setup_block. The specific    -->
                 <!-- constituent at each position in the scalars array is later set by code in    -->
                 <!-- the CAM-MPAS interface layer.                                                -->
 #ifndef MPAS_CAM_DYCORE
@@ -2093,7 +2108,7 @@
                              description="Tendency of cloud ice number concentration multiplied by dry air density divided by d(zeta)/dz"
                              packages="bl_mynn_in;mp_thompson_in;mp_thompson_aers_in"/>
 
-                        <var name="tend_nr" name_in_code="nr" array_group="number" units="nb m^{-3} s^{-1}" 
+                        <var name="tend_nr" name_in_code="nr" array_group="number" units="nb m^{-3} s^{-1}"
                              description="Tendency of rain number concentration multiplied by dry air density divided by d(zeta)/dz"
                              packages="mp_thompson_in;mp_thompson_aers_in"/>
 
@@ -2109,7 +2124,7 @@
                              description="Tendency of water-friendly aerosol number concentration multiplied by dry air density divided by d(zeta)/dz"
                              packages="mp_thompson_aers_in"/>
 
-                        <var name="tend_tke" name_in_code="tke" array_group="turbulence" units="kg m^{-3} m^2 s^{-2} s^{-1}" 
+                        <var name="tend_tke" name_in_code="tke" array_group="turbulence" units="kg m^{-3} m^2 s^{-2} s^{-1}"
                              description="Tendency of tke multiplied by dry air density divided by d(zeta)/dz"
                              packages="les"/>
                 </var_array>
@@ -2226,8 +2241,8 @@
 
                 <nml_option name="num_soil_layers" type="integer" default_value="4" in_defaults="false"
                      units="-"
-                     description="number of soil layers in Noah land surface scheme"
-                     possible_values="Positive integers. For Noah LSM, must be set to 4."/>
+                     description="number of soil layers in the selected land surface scheme"
+                     possible_values="For Noah and Noah-MP use 4; for CoLM2024 use its 10 native soil layers."/>
 
                 <nml_option name="months" type="integer" default_value="12" in_defaults="false"
                      units="-"
@@ -2252,7 +2267,7 @@
                      possible_values="Positive integers"/>
 
                 <!-- NAMELIST VARIABLES ADDED FOR PHYSICS CONFIGURATION: -->
-                
+
                 <nml_option name="config_frac_seaice" type="logical" default_value="true" in_defaults="false"
                      units="-"
                      description="logical for configuration of fractional sea-ice"
@@ -2366,7 +2381,7 @@
                 <nml_option name="config_lsm_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
                      description="configuration for land-surface schemes"
-                     possible_values="`suite',`sf_noah',`sf_noahmp`, `off'"/>
+                     possible_values="`suite',`sf_noah',`sf_noahmp`, `sf_colm2024`, `off'"/>
 
                 <nml_option name="config_pbl_scheme" type="character" default_value="suite" in_defaults="false"
                      units="-"
@@ -2537,7 +2552,7 @@
 
                 <nml_option name="config_oml_hml0" type="real" default_value="30.0" in_defaults="false"
                      units="m"
-                     description="If greater than zero, provides the constant, initial mixed-layer depth; if zero, initial mixed-layer depth will be taken from the `oml_initial` field." 
+                     description="If greater than zero, provides the constant, initial mixed-layer depth; if zero, initial mixed-layer depth will be taken from the `oml_initial` field."
                      possible_values="Non-negative real values"/>
 
                 <nml_option name="config_oml_gamma" type="real" default_value="0.14" in_defaults="false"
@@ -2549,6 +2564,13 @@
                      units="s"
                      description="Relaxation time to initial values in 1-d OML"
                      possible_values="Non-negative real values"/>
+        </nml_record>
+
+        <nml_record name="physics_lsm_colm2024" in_defaults="true">
+                <nml_option name="config_colm2024_namelist" type="character" default_value="none"
+                     units="-"
+                     description="CoLM2024 namelist used when config_lsm_scheme is sf_colm2024"
+                     possible_values="Path to a CoLM2024 namelist, or `none'"/>
         </nml_record>
 
         <var_struct name="diag_physics" time_levs="1">
@@ -2988,8 +3010,8 @@
                      description="flag indicating the PBL regime (stable,unstable,...)"
                      packages="sfclayer"/>
 
-                <var name="rmol" type="real" dimensions="nCells Time" units="unitless"
-                     description="1./L Monin Obukhov length"
+                <var name="rmol" type="real" dimensions="nCells Time" units="m^{-1}"
+                     description="inverse Monin-Obukhov length"
                      packages="sfclayer"/>
 
                 <var name="wspd" type="real" dimensions="nCells Time" units="m s^{-1}"
@@ -3003,7 +3025,7 @@
                      packages="sfclayer"/>
 
                 <var name="fm" type="real" dimensions="nCells Time" units="unitless"
-                     description="integrated stability function for moisture"
+                     description="integrated stability function for momentum"
                      packages="sfclayer"/>
 
 
@@ -3237,6 +3259,18 @@
                 <var name="swddif" type="real" dimensions="nCells Time" units="W m^{-2}"
                      description="shortwave surface downward diffuse irradiance"/>
 
+                <var name="swvisdir" type="real" dimensions="nCells Time" units="W m^{-2}"
+                     description="visible shortwave surface downward direct irradiance"/>
+
+                <var name="swvisdif" type="real" dimensions="nCells Time" units="W m^{-2}"
+                     description="visible shortwave surface downward diffuse irradiance"/>
+
+                <var name="swnirdir" type="real" dimensions="nCells Time" units="W m^{-2}"
+                     description="near-infrared shortwave surface downward direct irradiance"/>
+
+                <var name="swnirdif" type="real" dimensions="nCells Time" units="W m^{-2}"
+                     description="near-infrared shortwave surface downward diffuse irradiance"/>
+
                 <var name="gsw" type="real" dimensions="nCells Time" units="W m^{-2}"
                      description="net surface shortwave radiation flux"/>
 
@@ -3439,6 +3473,22 @@
                 <var name="sfc_albedo" type="real" dimensions="nCells Time" units="unitless"
                      description="surface albedo"/>
 
+                <var name="sfc_albedo_vis_dir" type="real" dimensions="nCells Time" units="unitless"
+                     description="direct-beam surface albedo in the visible spectrum"
+                     packages="sf_colm2024_in"/>
+
+                <var name="sfc_albedo_vis_dif" type="real" dimensions="nCells Time" units="unitless"
+                     description="diffuse-beam surface albedo in the visible spectrum"
+                     packages="sf_colm2024_in"/>
+
+                <var name="sfc_albedo_nir_dir" type="real" dimensions="nCells Time" units="unitless"
+                     description="direct-beam surface albedo in the near-infrared spectrum"
+                     packages="sf_colm2024_in"/>
+
+                <var name="sfc_albedo_nir_dif" type="real" dimensions="nCells Time" units="unitless"
+                     description="diffuse-beam surface albedo in the near-infrared spectrum"
+                     packages="sf_colm2024_in"/>
+
                 <var name="sfc_emiss" type="real" dimensions="nCells Time" units="unitless"
                      description="surface emissivity"/>
 
@@ -3451,8 +3501,8 @@
                 <var name="smstav" type="real" dimensions="nCells Time" units="unitless"
                      description="surface moisture availability"/>
 
-                <var name="smstot" type="real" dimensions="nCells Time" units="m^{3} m^{-3}"
-                     description="total soil mositure"/>
+		<var name="smstot" type="real" dimensions="nCells Time" units="mm"
+		     description="total frozen and unfrozen water in the soil column"/>
 
                 <var name="snopcx" type="real" dimensions="nCells Time" units="W m^{-2}"
                      description="snow phase change heat flux"/>
@@ -3543,7 +3593,7 @@
                 <var name="tend_umerid" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1} s^{-1}"
                      description="Total cell-centered meridional wind tendency from physics"
                      persistence="scratch" />
- 
+
 #ifdef DO_PHYSICS
                 <!-- ================================================================================================== -->
                 <!-- TENDENCIES FROM PARAMETERIZATION OF CLOUD MICROPHYSICS:                                            -->
@@ -3814,7 +3864,7 @@
                      description="snow water equivalent"/>
 
                 <var name="snowc" type="real" dimensions="nCells Time" units="unitless"
-                     description="flag for snow on ground (=0 no snow; =1,otherwise"/>
+                     description="fractional snow cover of the ground (0 to 1)"/>
 
                 <var name="snowh" type="real" dimensions="nCells Time" units="m"
                      description="physical snow depth"/>
@@ -3970,7 +4020,7 @@
 #endif
 
         <var_struct name="tend_iau" time_levs="1" packages="iau">
-			
+
                 <!-- analysis increments; read from iau input -->
                 <var name="u_amb"     name_in_code="u" type="real" dimensions="nVertLevels nEdges Time" units="m s^{-1}"
                      description="Horizontal normal velocity increment"/>
@@ -4017,5 +4067,6 @@
 
 #ifdef DO_PHYSICS
 #include "physics/Registry_noahmp.xml"
+#include "physics/Registry_colm2024.xml"
 #endif
 </registry>

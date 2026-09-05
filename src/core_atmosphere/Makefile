@@ -48,6 +48,7 @@ post_build:
 
 physcore: mpas_atm_dimensions.o
 	( cd physics; $(MAKE) all )
+	$(RM) -r libphys
 	( mkdir libphys; cd libphys; ar -x ../physics/libphys.a )
 	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_wrf/files/*TBL .)
 	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_wrf/files/*DATA* .)
@@ -55,6 +56,7 @@ physcore: mpas_atm_dimensions.o
 
 chemcore:
 	( cd chemistry; $(MAKE) all CHEMISTRY="$(CHEMISTRY)" )
+	$(RM) -r libchem
 	( mkdir libchem; cd libchem; ar -x ../chemistry/libchem.a )
 
 dycore: mpas_atm_dimensions.o $(PHYSCORE) $(CHEMCORE)
@@ -67,6 +69,7 @@ utilities: $(PHYSCORE)
 	( cd utils; $(MAKE) all PHYSICS="$(PHYSICS)" )
 
 atmcore: $(PHYSCORE) dycore diagcore $(OBJS)
+	$(RM) libdycore.a
 	ar -ru libdycore.a $(OBJS) dynamics/*.o $(PHYS_OBJS) $(CHEM_OBJS) diagnostics/*.o
 
 mpas_atm_core_interface.o: mpas_atm_core.o

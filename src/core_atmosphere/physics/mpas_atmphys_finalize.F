@@ -10,12 +10,13 @@
  use mpas_pool_routines
 
  use mpas_atmphys_lsm_noahmpfinalize,only: sf_noahmp_deallocate
+ use mpas_atmphys_driver_lsm_colm2024,only: checkpoint_lsm_colm2024, finalize_lsm_colm2024
  use module_mp_thompson
  use cires_ugwpv1_module
 
  implicit none
  private
- public:: atmphys_finalize
+ public:: atmphys_write_restart, atmphys_finalize
 
 !mpas_atmphys_finalize contains subroutines that deallocate arrays used in physics parameterizations, i.e. arrays
 !that need to remain allocated as long as MPAS runs and are not properly deallocated in the sourcecode itself.
@@ -32,6 +33,18 @@
 
  contains
 
+!=================================================================================================================
+ subroutine atmphys_write_restart(configs)
+!=================================================================================================================
+
+ type(mpas_pool_type),intent(in):: configs
+ character(len=StrKIND),pointer:: config_lsm_scheme
+
+ call mpas_pool_get_config(configs,'config_lsm_scheme',config_lsm_scheme)
+ if(trim(config_lsm_scheme) == 'sf_colm2024') call checkpoint_lsm_colm2024
+
+ end subroutine atmphys_write_restart
+
 
 !=================================================================================================================
  subroutine atmphys_finalize(configs)
@@ -46,7 +59,7 @@
  character(len=StrKIND),pointer:: config_gwdo_scheme
  logical,pointer:: config_ngw_scheme
 
-!----------------------------------------------------------------------------------------------------------------- 
+!-----------------------------------------------------------------------------------------------------------------
 
  call mpas_pool_get_config(configs,'config_lsm_scheme'   ,config_lsm_scheme   )
  call mpas_pool_get_config(configs,'config_microp_scheme',config_microp_scheme)
@@ -55,6 +68,8 @@
 
  if(trim(config_lsm_scheme) == 'sf_noahmp') &
     call sf_noahmp_deallocate
+ if(trim(config_lsm_scheme) == 'sf_colm2024') &
+    call finalize_lsm_colm2024
 
  if(trim(config_microp_scheme) == 'mp_thompson'         .or. &
     trim(config_microp_scheme) == 'mp_thompson_aerosols') then
@@ -72,7 +87,7 @@
 !call mpas_log_write('')
 !call mpas_log_write('--- enter subroutine mp_thompson_deallocate:')
 
- if(allocated(tcg_racg) ) deallocate(tcg_racg ) 
+ if(allocated(tcg_racg) ) deallocate(tcg_racg )
  if(allocated(tmr_racg) ) deallocate(tmr_racg )
  if(allocated(tcr_gacr) ) deallocate(tcr_gacr )
  if(allocated(tmg_gacr) ) deallocate(tmg_gacr )

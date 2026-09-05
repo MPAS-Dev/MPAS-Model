@@ -162,6 +162,8 @@
  real(kind=RKIND),public:: dt_microp  !time-step for cloud microphysics parameterization.
  real(kind=RKIND),public:: dt_radtlw  !time-step for longwave radiation parameterization      [mns]
  real(kind=RKIND),public:: dt_radtsw  !time-step for shortwave radiation parameterization     [mns]
+
+ real(kind=RKIND),public:: rrtmg_co2vmr = 379.e-6_RKIND !atmospheric CO2 volume mixing ratio  [-]
  
  real(kind=RKIND),public:: xice_threshold
 
@@ -579,7 +581,7 @@
     qgh_p,            &!
     qsfc_p,           &!specific humidity at lower boundary                                                [kg/kg]
     regime_p,         &!flag indicating PBL regime (stable_p,unstable_p,etc...)                                [-]
-    rmol_p,           &!1 / Monin Ob length                                                                    [-]
+    rmol_p,           &!1 / Monin Ob length                                                                 [m-1]
     t2m_p,            &!temperature at 2m                                                                      [K]
     th2m_p,           &!potential temperature at 2m                                                            [K]
     u10_p,            &!u at 10 m                                                                            [m/s]
@@ -867,7 +869,7 @@
     shdmin_p,         &!minimum areal fractional coverage of annual green vegetation                           [-]
     shdmax_p,         &!maximum areal fractional coverage of annual green vegetation                           [-]
     smstav_p,         &!moisture availability                                                                  [-]
-    smstot_p,         &!total moisture                                                                    [m3 m-3]
+    smstot_p,         &!total frozen and unfrozen soil-column water                                          [mm]
     snopcx_p,         &!snow phase change heat flux                                                        [W m-2]
     snotime_p,        &!
     snowc_p,          &!snow water equivalent                                                             [kg m-2]
@@ -878,6 +880,8 @@
     vegfra_p,         &!vegetation fraction                                                                    [-]
     z0_p               !background roughness length                                                            [m]
 
+!.. spectral surface albedos passed to RRTMG-SW; the radiation driver initializes all four from the scalar
+!.. surface albedo and replaces them with CoLM2024 values when that land-surface scheme is active.
  real(kind=RKIND),dimension(:,:),allocatable:: &
     alswvisdir_p,     &!direct-beam surface albedo in visible spectrum                                         [-]
     alswvisdif_p,     &!diffuse-beam surface albedo in visible spectrum                                        [-]

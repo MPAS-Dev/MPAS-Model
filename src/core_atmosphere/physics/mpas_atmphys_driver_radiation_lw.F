@@ -878,7 +878,7 @@
             rre_ice  = rreice_p    , rre_snow   = rresnow_p     , lwupt     = lwupt_p    , &
             lwuptc   = lwuptc_p    , lwdnt      = lwdnt_p       , lwdntc    = lwdntc_p   , &
             lwupb    = lwupb_p     , lwupbc     = lwupbc_p      , lwdnb     = lwdnb_p    , &
-            lwdnbc   = lwdnbc_p    ,                                                       &
+            lwdnbc   = lwdnbc_p    , co2vmr_input = rrtmg_co2vmr,                          &
             ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,        &
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,        &
             its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte          &

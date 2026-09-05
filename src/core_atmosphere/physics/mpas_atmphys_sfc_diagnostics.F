@@ -115,6 +115,26 @@
           th2m(i) = t2m(i)*(P0/psfc(i))**rcp
        enddo
 
+    case("sf_colm2024")
+       do i = 1,nCellsSolve
+          ! CoLM supplies native diagnostics on land. Ocean and sea-ice cells are
+          ! skipped by the CoLM LSM driver and must retain the MPAS reconstruction.
+          if(xland(i) >= 1.5_RKIND .or. xice(i) >= xice_threshold) then
+             rho = psfc(i)/(R_d*tsk(i))
+             if(cqs2(i) .lt. 1.e-5) then
+                q2(i) = qsfc(i)
+             else
+                q2(i) = qsfc(i) - qfx(i)/(rho*cqs2(i))
+             endif
+             if(chs2(i) .lt. 1.e-5) then
+                t2m(i) = tsk(i)
+             else
+                t2m(i) = tsk(i) - hfx(i)/(rho*cp*chs2(i))
+             endif
+          endif
+          th2m(i) = t2m(i)*(P0/psfc(i))**rcp
+       enddo
+
     case default
  end select sf_select
 
@@ -125,4 +145,3 @@
 !=================================================================================================================
  end module mpas_atmphys_sfc_diagnostics
 !=================================================================================================================
-

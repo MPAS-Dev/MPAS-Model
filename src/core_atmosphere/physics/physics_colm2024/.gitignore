@@ -1,0 +1,13 @@
+
+.DS_Store
+*.pyc
+__pycache__
+*.o
+*.mod
+.vscode
+.bld
+.mpas
+lib
+*.a
+*.x
+*.log

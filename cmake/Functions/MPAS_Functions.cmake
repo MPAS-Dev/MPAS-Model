@@ -148,7 +148,8 @@ function(mpas_fortran_target target)
 endfunction()
 
 
-# mpas_core_target(CORE <core-name> TARGET <cmake-target-name> INCLUDE <file1.inc, ...> )
+# mpas_core_target(CORE <core-name> TARGET <cmake-target-name>
+#                  INCLUDES <file1.inc, ...> REGISTRY_DEPENDS <file1.xml, ...> )
 #
 # Common configuration and properties for `MPAS::core::<core_name>` targets.
 # * Calls mpas_fortran_target() for common Fortran target configuration.
@@ -164,9 +165,10 @@ endfunction()
 #   CORE - Name of core
 #   TARGET - Name of core_target (without namespace)
 #   INCLUDES - List of generated include files
+#   REGISTRY_DEPENDS - Files included by the core Registry.xml preprocessor input
 #
 function(mpas_core_target)
-    cmake_parse_arguments(ARG "" "CORE;TARGET" "INCLUDES" ${ARGN})
+    cmake_parse_arguments(ARG "" "CORE;TARGET" "INCLUDES;REGISTRY_DEPENDS" ${ARGN})
 
     mpas_fortran_target(${ARG_TARGET})
 
@@ -214,25 +216,26 @@ function(mpas_core_target)
     if (${DO_PHYSICS})
         set(CPP_EXTRA_FLAGS ${CPP_EXTRA_FLAGS} -DDO_PHYSICS)
     endif()
+    set(REGISTRY_PROCESSED_XML ${CMAKE_CURRENT_BINARY_DIR}/Registry_processed.xml)
 
-add_custom_command(OUTPUT Registry_processed.xml
-            COMMAND ${CPP_EXECUTABLE} -E -P ${CPP_EXTRA_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/Registry.xml > Registry_processed.xml
+add_custom_command(OUTPUT ${REGISTRY_PROCESSED_XML}
+            COMMAND ${CPP_EXECUTABLE} -E -P ${CPP_EXTRA_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/Registry.xml > ${REGISTRY_PROCESSED_XML}
             COMMENT "CORE ${ARG_CORE}: Pre-Process Registry"
-            DEPENDS Registry.xml)
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/Registry.xml ${ARG_REGISTRY_DEPENDS})
     add_custom_command(OUTPUT ${ARG_INCLUDES}
-            COMMAND mpas_parse_${ARG_CORE} Registry_processed.xml ${CPP_EXTRA_FLAGS}
+            COMMAND mpas_parse_${ARG_CORE} ${REGISTRY_PROCESSED_XML} ${CPP_EXTRA_FLAGS}
             COMMENT "CORE ${ARG_CORE}: Parse Registry"
-            DEPENDS mpas_parse_${ARG_CORE} Registry_processed.xml)
+            DEPENDS mpas_parse_${ARG_CORE} ${REGISTRY_PROCESSED_XML})
     add_custom_command(OUTPUT namelist.${ARG_CORE}
             WORKING_DIRECTORY ${CORE_DATADIR}
-            COMMAND mpas_namelist_gen ${CMAKE_CURRENT_BINARY_DIR}/Registry_processed.xml namelist.${ARG_CORE} in_defaults=true
+            COMMAND mpas_namelist_gen ${REGISTRY_PROCESSED_XML} namelist.${ARG_CORE} in_defaults=true
             COMMENT "CORE ${ARG_CORE}: Generate Namelist"
-            DEPENDS mpas_namelist_gen Registry_processed.xml)
+            DEPENDS mpas_namelist_gen ${REGISTRY_PROCESSED_XML})
     add_custom_command(OUTPUT streams.${ARG_CORE}
             WORKING_DIRECTORY ${CORE_DATADIR}
-            COMMAND mpas_streams_gen ${CMAKE_CURRENT_BINARY_DIR}/Registry_processed.xml streams.${ARG_CORE} stream_list.${ARG_CORE}. listed
+            COMMAND mpas_streams_gen ${REGISTRY_PROCESSED_XML} streams.${ARG_CORE} stream_list.${ARG_CORE}. listed
             COMMENT "CORE ${ARG_CORE}: Generate Streams"
-            DEPENDS mpas_streams_gen Registry_processed.xml)
+            DEPENDS mpas_streams_gen ${REGISTRY_PROCESSED_XML})
     add_custom_target(gen_${ARG_CORE} DEPENDS ${ARG_INCLUDES} namelist.${ARG_CORE} streams.${ARG_CORE})
     add_dependencies(${ARG_TARGET} gen_${ARG_CORE})
 

@@ -52,7 +52,7 @@
 ! * renamed "kain_fritsch" to "cu_kain_fritsch" and "tiedtke" to "cu_tiedtke".
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-22.
 ! * renamed "ysu" to "bl_ysu", "ysu_gwdo" to "bl_gwdo_ysu", and "monin_obukhov" to "sf_monin_obukhov".
-!   Laura D. Fowler (laura@ucar.edu) / 2016-03-25. 
+!   Laura D. Fowler (laura@ucar.edu) / 2016-03-25.
 ! * added the option mp_thompson.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-03-25.
 ! * added the option cu_grell_freitas.
@@ -224,7 +224,7 @@
  if(.not. (config_radt_lw_scheme .eq. 'off'    .or. &
            config_radt_lw_scheme .eq. 'cam_lw' .or. &
            config_radt_lw_scheme .eq. 'rrtmg_lw')) then
- 
+
     write(mpas_err_message,'(A,A20)') 'illegal value for longwave radiation scheme: ', &
           trim(config_radt_lw_scheme)
     call physics_error_fatal(mpas_err_message)
@@ -235,7 +235,7 @@
  if(.not. (config_radt_sw_scheme .eq. 'off'    .or. &
            config_radt_sw_scheme .eq. 'cam_sw' .or. &
            config_radt_sw_scheme .eq. 'rrtmg_sw')) then
- 
+
     write(mpas_err_message,'(A,A20)') 'illegal value for shortwave radiation _scheme: ', &
           trim(config_radt_sw_scheme)
     call physics_error_fatal(mpas_err_message)
@@ -272,7 +272,7 @@
            config_sfclayer_scheme .eq. 'sf_mynn'          .or. &
            config_sfclayer_scheme .eq. 'sf_monin_obukhov' .or. &
            config_sfclayer_scheme .eq. 'sf_monin_obukhov_rev')) then
- 
+
     write(mpas_err_message,'(A,A20)') 'illegal value for surface layer scheme: ', &
           trim(config_sfclayer_scheme)
     call physics_error_fatal(mpas_err_message)
@@ -292,14 +292,15 @@
 !land-surface scheme: note that config_sfclayer_scheme must be defined for the land-surface
 !scheme to be called:
  if(config_lsm_scheme .ne. 'off' .and. config_sfclayer_scheme .eq. 'off') then
- 
+
     call physics_error_fatal('land surface scheme: ' // &
                              'set config_sfclayer_scheme different than off')
-    
+
  elseif(.not. (config_lsm_scheme .eq. 'off '    .or. &
                config_lsm_scheme .eq. 'sf_noah' .or. &
-               config_lsm_scheme .eq. 'sf_noahmp')) then
- 
+               config_lsm_scheme .eq. 'sf_noahmp' .or. &
+               config_lsm_scheme .eq. 'sf_colm2024')) then
+
     write(mpas_err_message,'(A,A20)') 'illegal value for land surface scheme: ', &
           trim(config_lsm_scheme)
     call physics_error_fatal(mpas_err_message)
@@ -308,7 +309,7 @@
 
 !checks if any physics process is called. if not, return:
  moist_physics = .true.
- 
+
  if(config_microp_scheme     .eq. 'off' .and. &
     config_convection_scheme .eq. 'off' .and. &
     config_lsm_scheme        .eq. 'off' .and. &
@@ -351,7 +352,9 @@
  real(kind=RKIND),dimension(:,:),pointer:: dzs
 
 !local variables:
- integer:: iCell
+ integer,parameter:: colm_soil_levels = 10
+ integer:: iCell,iSoil
+ real(kind=RKIND):: colm_z(colm_soil_levels),colm_dz(colm_soil_levels)
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -363,25 +366,44 @@
  call mpas_pool_get_array(sfc_input,'landmask',landmask)
  call mpas_pool_get_array(sfc_input,'dzs'     , dzs    )
 
+ if(trim(config_lsm_scheme) == "sf_colm2024" .and. size(dzs,1) /= colm_soil_levels) then
+    call physics_error_fatal("CoLM2024 requires num_soil_layers=10 so MPAS retains the complete native soil column.")
+ endif
+
 !initialization of input variables, if needed:
 
  if(.not. config_do_restart) then
 
     lsm_select: select case(trim(config_lsm_scheme))
 
-       case("sf_noah","sf_noahmp")
-       !initialize the thickness of the soil layers for the Noah scheme:
-          do iCell = 1, nCells
-             dzs(1,iCell) = 0.10_RKIND
-             dzs(2,iCell) = 0.30_RKIND
-             dzs(3,iCell) = 0.60_RKIND
-             dzs(4,iCell) = 1.00_RKIND
-          enddo
+	       case("sf_noah","sf_noahmp")
+	          if(size(dzs,1) < 4) then
+	             call physics_error_fatal("Noah/Noah-MP requires at least four MPAS soil layers.")
+	          endif
+	          do iCell = 1, nCells
+	             dzs(1,iCell) = 0.10_RKIND
+	             dzs(2,iCell) = 0.30_RKIND
+	             dzs(3,iCell) = 0.60_RKIND
+	             dzs(4,iCell) = 1.00_RKIND
+	          enddo
+
+	       case("sf_colm2024")
+	          do iSoil = 1, colm_soil_levels
+	             colm_z(iSoil) = 0.025_RKIND * (exp(0.5_RKIND * (real(iSoil,RKIND)-0.5_RKIND)) - 1._RKIND)
+	          enddo
+	          colm_dz(1) = 0.5_RKIND * (colm_z(1) + colm_z(2))
+	          do iSoil = 2, colm_soil_levels-1
+	             colm_dz(iSoil) = 0.5_RKIND * (colm_z(iSoil+1) - colm_z(iSoil-1))
+	          enddo
+	          colm_dz(colm_soil_levels) = colm_z(colm_soil_levels) - colm_z(colm_soil_levels-1)
+	          do iCell = 1, nCells
+	             dzs(:,iCell) = colm_dz
+	          enddo
 
        case default
-    
+
     end select lsm_select
-    
+
  endif
 
 !call mpas_log_write('--- enter subroutine physics_namelist_check.')
@@ -535,4 +557,3 @@
 !=================================================================================================================
  end module mpas_atmphys_control
 !=================================================================================================================
-

@@ -755,10 +755,10 @@ else # Not using PIO, using SMIOL
 endif
 
 ifneq "$(NETCDF)" ""
-ifneq ($(wildcard $(NETCDF)/lib/libnetcdf.*), )
+ifneq ($(filter-out %.settings,$(wildcard $(NETCDF)/lib/libnetcdf.*)), )
 	NETCDFLIBLOC = lib
 endif
-ifneq ($(wildcard $(NETCDF)/lib64/libnetcdf.*), )
+ifneq ($(filter-out %.settings,$(wildcard $(NETCDF)/lib64/libnetcdf.*)), )
 	NETCDFLIBLOC = lib64
 endif
 	CPPINCLUDES += -I$(NETCDF)/include
@@ -766,15 +766,72 @@ endif
 	LIBS += -L$(NETCDF)/$(NETCDFLIBLOC)
 	NCLIB = -lnetcdf
 	NCLIBF = -lnetcdff
-	ifneq ($(wildcard $(NETCDF)/$(NETCDFLIBLOC)/libnetcdff.*), ) # CHECK FOR NETCDF4
+	ifneq ($(filter-out %.settings,$(wildcard $(NETCDF)/$(NETCDFLIBLOC)/libnetcdff.*)), ) # CHECK FOR NETCDF4
 		LIBS += $(NCLIBF)
 	endif # CHECK FOR NETCDF4
 	ifneq "$(NETCDFF)" ""
+		ifneq ($(filter-out %.settings,$(wildcard $(NETCDFF)/lib/libnetcdff.*)), )
+			NETCDFFLIBLOC = lib
+		endif
+		ifneq ($(filter-out %.settings,$(wildcard $(NETCDFF)/lib64/libnetcdff.*)), )
+			NETCDFFLIBLOC = lib64
+		endif
 		FCINCLUDES += -I$(NETCDFF)/include
-		LIBS += -L$(NETCDFF)/$(NETCDFLIBLOC)
+		LIBS += -L$(NETCDFF)/$(NETCDFFLIBLOC)
 		LIBS += $(NCLIBF)
 	endif
 	LIBS += $(NCLIB)
+endif
+
+ifeq "$(COLM2024)" "true"
+NF_CONFIG ?= nf-config
+COLM2024_NETCDF_C_LIB := $(if $(strip $(NETCDFLIBLOC)),$(firstword $(filter-out %.settings,$(wildcard $(NETCDF)/$(NETCDFLIBLOC)/libnetcdf.*))))
+COLM2024_NETCDF_F_ROOT := $(if $(strip $(NETCDFF)),$(NETCDFF),$(NETCDF))
+COLM2024_NETCDF_F_LIBLOC := $(if $(strip $(NETCDFF)),$(NETCDFFLIBLOC),$(NETCDFLIBLOC))
+COLM2024_NETCDF_F_LIB := $(if $(strip $(COLM2024_NETCDF_F_LIBLOC)),$(firstword $(filter-out %.settings,$(wildcard $(COLM2024_NETCDF_F_ROOT)/$(COLM2024_NETCDF_F_LIBLOC)/libnetcdff.*))))
+COLM2024_NETCDF_F_MOD := $(if $(strip $(COLM2024_NETCDF_F_ROOT)),$(firstword $(wildcard $(COLM2024_NETCDF_F_ROOT)/include/netcdf.mod $(COLM2024_NETCDF_F_ROOT)/include/NETCDF.mod)))
+COLM2024_NETCDF_ROOTS_READY := $(and $(COLM2024_NETCDF_C_LIB),$(COLM2024_NETCDF_F_LIB),$(COLM2024_NETCDF_F_MOD))
+
+ifneq ($(strip $(NETCDF)),)
+ifeq ($(strip $(COLM2024_NETCDF_C_LIB)),)
+$(error COLM2024=true but NETCDF=$(NETCDF) does not contain libnetcdf under lib or lib64)
+endif
+endif
+ifneq ($(strip $(NETCDFF)),)
+ifeq ($(strip $(COLM2024_NETCDF_F_LIB)),)
+$(error COLM2024=true but NETCDFF=$(NETCDFF) does not contain libnetcdff under lib or lib64)
+endif
+ifeq ($(strip $(COLM2024_NETCDF_F_MOD)),)
+$(error COLM2024=true but NETCDFF=$(NETCDFF) does not contain include/netcdf.mod)
+endif
+endif
+
+ifeq ($(strip $(COLM2024_NETCDF_ROOTS_READY)),)
+ifneq ($(strip $(NETCDF)$(NETCDFF)),)
+COLM2024_NF_CONFIG := $(firstword \
+	$(if $(strip $(NETCDFF)),$(wildcard $(NETCDFF)/bin/nf-config)) \
+	$(if $(strip $(NETCDF)),$(wildcard $(NETCDF)/bin/nf-config)))
+else
+COLM2024_NF_CONFIG := $(shell command -v $(NF_CONFIG) 2>/dev/null)
+endif
+ifeq ($(strip $(COLM2024_NF_CONFIG)),)
+ifneq ($(strip $(NETCDF)$(NETCDFF)),)
+$(error COLM2024=true received incomplete NETCDF/NETCDFF roots; provide matching NetCDF-C and NetCDF-Fortran libraries plus netcdf.mod, or a root-local bin/nf-config)
+else
+$(error COLM2024=true requires NetCDF-C and NetCDF-Fortran; set NETCDF/NETCDFF or provide nf-config in PATH)
+endif
+endif
+COLM2024_NETCDF_FFLAGS := $(strip $(shell "$(COLM2024_NF_CONFIG)" --fflags 2>/dev/null))
+COLM2024_NETCDF_FLIBS := $(strip $(shell "$(COLM2024_NF_CONFIG)" --flibs 2>/dev/null))
+ifeq ($(strip $(COLM2024_NETCDF_FFLAGS)),)
+$(error $(COLM2024_NF_CONFIG) did not return NetCDF-Fortran compile flags from --fflags)
+endif
+ifeq ($(strip $(COLM2024_NETCDF_FLIBS)),)
+$(error $(COLM2024_NF_CONFIG) did not return NetCDF-C/Fortran link flags from --flibs)
+endif
+override FCINCLUDES += $(COLM2024_NETCDF_FFLAGS)
+override LIBS += $(COLM2024_NETCDF_FLIBS)
+endif
 endif
 
 ifneq "$(SCOTCH)" ""
@@ -1029,6 +1086,12 @@ endif # END OF GIT DESCRIBE VERSION
 ####################################################
 # Section for adding external libraries and includes
 ####################################################
+ifeq "$(COLM2024)" "true"
+override CPPFLAGS += -DMPAS_COLM2024
+COLM2024_MESSAGE = "MPAS was built with the bundled CoLM2024 physics package."
+else
+COLM2024_MESSAGE = "MPAS was not built with CoLM2024."
+endif
 ifdef MPAS_EXTERNAL_LIBS
 	override LIBS += $(MPAS_EXTERNAL_LIBS)
 endif
@@ -1573,6 +1636,7 @@ mpas_main: $(MAIN_DEPS)
 	@echo $(OPENMP_OFFLOAD_MESSAGE)
 	@echo $(OPENACC_MESSAGE)
 	@echo $(MUSICA_MESSAGE)
+	@echo $(COLM2024_MESSAGE)
 	@echo $(SCOTCH_MESSAGE)
 	@echo $(SHAREDLIB_MESSAGE)
 ifeq "$(AUTOCLEAN)" "true"
@@ -1648,4 +1712,3 @@ errmsg:
 ifdef CORE
 	exit 1
 endif
-

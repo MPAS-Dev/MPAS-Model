@@ -591,7 +591,7 @@ module atm_core
          call physics_run_init(block % configs, mesh, state, clock, stream_manager)
 
          !initialization of all physics:
-         call physics_init(dminfo, stream_manager, clock, block % configs, mesh, diag, tend, tend_physics, state, 1, &
+         call physics_init(dminfo, stream_manager, clock, block, block % configs, mesh, diag, tend, tend_physics, state, 1, &
                            diag_physics, diag_physics_noahmp, ngw_input, atm_input, sfc_input, output_noahmp)
       endif
 #endif
@@ -626,6 +626,9 @@ module atm_core
       use mpas_timer, only : mpas_timer_start, mpas_timer_stop
       use mpas_atm_boundaries, only : mpas_atm_update_bdy_tend
       use mpas_atm_diagnostics_manager, only : mpas_atm_diag_update, mpas_atm_diag_compute, mpas_atm_diag_reset
+#ifdef DO_PHYSICS
+      use mpas_atmphys_finalize, only : atmphys_write_restart
+#endif
    
       implicit none
    
@@ -859,6 +862,12 @@ module atm_core
 
          call mpas_timer_start('stream_output')
          call mpas_dmpar_get_time(output_start_time)
+#ifdef DO_PHYSICS
+         if (MPAS_stream_mgr_ringing_alarms(domain % streamManager, streamID='restart', &
+                                            direction=MPAS_STREAM_OUTPUT, ierr=ierr)) then
+            call atmphys_write_restart(domain % blocklist % configs)
+         end if
+#endif
          call mpas_stream_mgr_write(domain % streamManager, ierr=ierr)
          call mpas_dmpar_get_time(output_stop_time)
          call mpas_timer_stop('stream_output')
@@ -1850,4 +1859,3 @@ module atm_core
    end subroutine atm_initialize_deformation_weights
 
 end module atm_core
-

@@ -11584,7 +11584,7 @@ CONTAINS
                        lwupflx, lwupflxc, lwdnflx, lwdnflxc,      &
                        ids,ide, jds,jde, kds,kde,                 & 
                        ims,ime, jms,jme, kms,kme,                 &
-                       its,ite, jts,jte, kts,kte                  &
+                       its,ite, jts,jte, kts,kte, co2vmr_input    &
                        )
 
  implicit none
@@ -11599,6 +11599,7 @@ CONTAINS
  integer,intent(in):: icloud,cldovrlp,idcor
  integer,intent(in):: has_reqc,has_reqi,has_reqs
  integer,intent(in),optional:: o3input
+ real,intent(in),optional:: co2vmr_input
 
  real,intent(in),dimension(ims:ime,jms:jme):: emiss,tsk,snow,xice,xland,xlat
 
@@ -11668,10 +11669,9 @@ CONTAINS
  integer:: nlayers
 #endif
 
-!--- set trace gas volume mixing ratios, 2005 values, IPCC (2007):
-!carbon dioxide (379 ppmv)
+!--- set trace gas volume mixing ratios:
+!carbon dioxide (379 ppmv fallback; CoLM supplies its monthly value)
  real :: co2
- data co2 / 379.e-6 / 
 !methane (1774 ppbv)
  real :: ch4
  data ch4 / 1774.e-9 / 
@@ -11747,6 +11747,8 @@ CONTAINS
 !-----------------------------------------------------------------------------------------------------------------
 
 !--- all fields are ordered vertically from bottom to top (pressures are in mb):
+ co2 = 379.e-6
+ if(present(co2vmr_input)) co2 = co2vmr_input
  ncol = 1
 
 !--- select cloud overlap asumption (1=random, 2=maximum-random, 3=maximum, 4=exponential, 5=exponential-random).

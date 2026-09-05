@@ -1,0 +1,47 @@
+<!-- ========================================================================================================= -->
+<!-- ARRAYS SPECIFIC TO THE COLM2024 LAND-SURFACE SCHEME                                                      -->
+<!-- ========================================================================================================= -->
+
+ <dims>
+
+      <dim name="nCoLMSoilLevels" definition="10"
+                description="The number of native CoLM2024 soil layers"/>
+
+ </dims>
+
+
+ <var_struct name="diag_physics_colm2024" time_levs="1" packages="sf_colm2024_in">
+
+      <var name="colm_soil_liquid" type="real" dimensions="nCoLMSoilLevels nCells Time" units="m3 m^{-3}"
+                description="CoLM2024 native-layer volumetric liquid soil water" missing_value="-9999.0"/>
+
+      <var name="colm_soil_ice" type="real" dimensions="nCoLMSoilLevels nCells Time" units="m3 m^{-3}"
+                description="CoLM2024 native-layer volumetric soil ice" missing_value="-9999.0"/>
+
+      <var name="colm_soil_moisture" type="real" dimensions="nCoLMSoilLevels nCells Time" units="m3 m^{-3}"
+                description="CoLM2024 native-layer total liquid-plus-ice volume fraction" missing_value="-9999.0"/>
+
+      <var name="colm_soil_temperature" type="real" dimensions="nCoLMSoilLevels nCells Time" units="K"
+                description="CoLM2024 native-layer soil temperature" missing_value="-9999.0"/>
+
+      <var name="colm_soil_layer_thickness" type="real" dimensions="nCoLMSoilLevels nCells Time" units="m"
+                description="CoLM2024 native soil-layer thickness" missing_value="-9999.0"/>
+
+      <var name="colm_soil_layer_depth" type="real" dimensions="nCoLMSoilLevels nCells Time" units="m"
+                description="CoLM2024 native soil-layer midpoint depth below the surface" missing_value="-9999.0"/>
+
+      <var name="colm_river_water_depth" type="real" dimensions="nCells Time" units="m"
+                description="Area-weighted CoLM2024 unit-catchment river or lake water depth on the MPAS cell mesh"
+                missing_value="-9999.0"/>
+
+      <var name="colm_river_velocity" type="real" dimensions="nCells Time" units="m s^{-1}"
+                description="Area-weighted CoLM2024 unit-catchment river velocity on the MPAS cell mesh"
+                missing_value="-9999.0"/>
+
+      <var name="colm_river_discharge" type="real" dimensions="nCells Time" units="m^3 s^{-1}"
+                description="Area-weighted CoLM2024 routing-period mean unit-catchment discharge on the MPAS cell mesh"
+                missing_value="-9999.0"/>
+
+ </var_struct>
+
+<!-- ========================================================================================================= -->

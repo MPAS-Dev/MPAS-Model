@@ -41,6 +41,7 @@
  logical,pointer:: cu_grell_freitas_in,cu_kain_fritsch_in,cu_ntiedtke_in
  logical,pointer:: bl_mynn_in,bl_ysu_in
  logical,pointer:: sf_noahmp_in
+ logical,pointer:: sf_colm2024_in
 
  integer :: ierr
 
@@ -178,8 +179,11 @@
 
  nullify(sf_noahmp_in)
  call mpas_pool_get_package(packages,'sf_noahmp_inActive',sf_noahmp_in)
+ nullify(sf_colm2024_in)
+ call mpas_pool_get_package(packages,'sf_colm2024_inActive',sf_colm2024_in)
 
- if(.not.associated(sf_noahmp_in)) then
+ if(.not.associated(sf_noahmp_in) .or. &
+    .not.associated(sf_colm2024_in)) then
     call mpas_log_write('====================================================================================',messageType=MPAS_LOG_ERR)
     call mpas_log_write('* Error while setting up packages for land surface options in atmosphere core.'    ,  messageType=MPAS_LOG_ERR)
     call mpas_log_write('====================================================================================',messageType=MPAS_LOG_ERR)
@@ -187,11 +191,18 @@
     return
  endif
 
+ sf_noahmp_in   = .false.
+ sf_colm2024_in = .false.
+
  if(config_lsm_scheme=='sf_noahmp') then
     sf_noahmp_in = .true.
  endif
+ if(config_lsm_scheme=='sf_colm2024') then
+    sf_colm2024_in = .true.
+ endif
 
  call mpas_log_write('    sf_noahmp_in            = $l', logicArgs=(/sf_noahmp_in/))
+ call mpas_log_write('    sf_colm2024_in          = $l', logicArgs=(/sf_colm2024_in/))
  call mpas_log_write('')
 
 
@@ -200,6 +211,3 @@
 !=================================================================================================================
  end module mpas_atmphys_packages
 !=================================================================================================================
-
-
-

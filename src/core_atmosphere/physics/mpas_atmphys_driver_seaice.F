@@ -516,7 +516,7 @@
                        )
 
 
-    case("sf_noahmp")
+    case("sf_noahmp", "sf_colm2024")
        call seaice_noah( &
                 dz8w   = dz_p         , p8w3d     = pres2_hyd_p , t3d      = t_p         , &
                 qv3d   = qv_p         , xice      = xice_p      , snoalb2d = snoalb_p    , &
