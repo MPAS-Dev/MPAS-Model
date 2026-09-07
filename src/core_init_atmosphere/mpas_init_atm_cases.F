@@ -3585,6 +3585,7 @@ module init_atm_cases
              trim(field % field) == 'PRESSURE' .or. &
              trim(field % field) == 'SNOW' .or. &
              trim(field % field) == 'SEAICE' .or. &
+             trim(field % field) == 'SST' .or. &
              trim(field % field) == 'SKINTEMP') then
 
             if (trim(field % field) == 'SM000010' .or. &
@@ -4560,6 +4561,13 @@ module init_atm_cases
                latPoints => latCell
                lonPoints => lonCell
                call mpas_pool_get_array(fg, 'xice', destField1d)
+               ndims = 1
+            else if (trim(field % field) == 'SST') then
+               call mpas_log_write('Interpolating SST')
+               nInterpPoints = nCells
+               latPoints => latCell
+               lonPoints => lonCell
+               call mpas_pool_get_array(fg, 'sst', destField1d)
                ndims = 1
             else if (trim(field % field) == 'SKINTEMP') then
                call mpas_log_write('Interpolating SKINTEMP')

@@ -213,7 +213,7 @@
  do while (istatus == 0)
 
     !sea-surface data:
-    if((trim(field % field) == 'SKINTEMP') .or. (trim(field % field) ==  'SST')) then
+    if(trim(field % field) ==  'SST') then
 !      call mpas_log_write('... Processing SST:')
        sst(1:nCells) = 0.0_RKIND
        destField1d => sst
