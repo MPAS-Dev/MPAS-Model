@@ -594,7 +594,7 @@ module atm_time_integration
       MPAS_ACC_TIMER_START('first_compute_solve_diagnostics [ACC_data_xfer]')
 
       call mpas_pool_get_array(state, 'rho_zz', h, 1)
-      !$acc enter data create(h)
+      !$acc enter data copyin(h)
 
       call mpas_pool_get_array(state, 'u', u, 1)
       !$acc enter data copyin(u)

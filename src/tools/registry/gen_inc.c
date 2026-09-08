@@ -3005,7 +3005,11 @@ void gen_pkg_debug_info(FILE *fd, regex_t *preg, ezxml_t registry,
 	regoff_t next = 0;
 
 	fortprintf(fd, "      PACKAGE_LOGIC_PRINT('')\n");
+#ifdef CPRPGI
+	fprintf(fd, "      PACKAGE_LOGIC_PRINT(\"  %s is active when (%s)\")\n", packagename, packagewhen);
+#else
 	fortprintf(fd, "      PACKAGE_LOGIC_PRINT(\"  %s is active when (%s)\")\n", packagename, packagewhen);
+#endif
 	fortprintf(fd, "      PACKAGE_LOGIC_PRINT('    namelist settings:')\n");
 	fortprintf(fd, "      PACKAGE_LOGIC_PRINT('    ------------------')\n");
 
