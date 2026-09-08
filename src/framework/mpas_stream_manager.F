@@ -563,8 +563,129 @@ module mpas_stream_manager
 #endif
 
         end do
+        
+        ! Only check filename_template uniqueness when validating all streams 
+        if (.not. present(streamID)) then
+            call MPAS_stream_mgr_check_filename_template(manager, ierr=err_local)
+            if (present(ierr)) ierr = err_local
+        end if
 
     end subroutine MPAS_stream_mgr_validate_streams!}}}
+
+
+    !-----------------------------------------------------------------------
+    !  routine MPAS_stream_mgr_check_filename_template
+    !
+    !> \brief Check for filename_template conflicts between active output and I/O streams.
+    !> \author Abishek Gopal
+    !> \date   June 3 2026
+    !> \details
+    !>  Checks that there are no active output streams that share an identical
+    !>  filename_template attribute with any other active input or output streams
+    !>  in the stream manager, which may lead to file conflicts. An active stream
+    !>  in this context is a stream with active_stream = .true. and is not
+    !>  deactivated by an inactive package and is either an input or output
+    !>  stream with at least one active alarm.
+    !>
+    !>  If this routine detects any filename_template conflicts, an error message
+    !>  is logged for each pair of conflicting streams, and an MPAS_STREAM_MGR_ERROR
+    !>  error code is returned. In the case of a successful check, an
+    !>  MPAS_STREAM_MGR_NOERR error code is returned. This routine can be called
+    !>  from within MPAS_stream_mgr_validate_streams or separately as needed.
+    !
+    !-----------------------------------------------------------------------
+    subroutine MPAS_stream_mgr_check_filename_template(manager, ierr)!{{{
+
+        implicit none
+
+        type (MPAS_streamManager_type), intent(inout) :: manager
+        integer, intent(out), optional :: ierr
+
+        integer :: threadNum, err_local
+        character (len=StrKIND) :: message, streamID
+        type (MPAS_stream_list_type), pointer :: stream1_cursor, stream2_cursor
+        type (MPAS_TimeInterval_type)  :: clock_interval
+        logical :: pkg_active
+        logical :: stream1_input, stream2_input
+        logical :: stream1_output, stream2_output
+        integer :: input_nalarms, output_nalarms
+
+        STREAM_DEBUG_WRITE('-- Called MPAS_stream_mgr_check_filename_template() for all streams')
+
+        if (present(ierr)) ierr = MPAS_STREAM_MGR_NOERR
+
+        threadNum = mpas_threading_get_thread_num()
+
+        if (threadNum == 0) then
+
+            streamID = '.*' !  query all streams
+
+            nullify(stream1_cursor)
+            do while (MPAS_stream_list_query(manager % streams, streamID, stream1_cursor))
+
+                pkg_active = stream_active_pkg_check(stream1_cursor)
+
+                input_nalarms = MPAS_stream_mgr_get_num_alarms(manager, trim(stream1_cursor % name), &
+                                                                       MPAS_STREAM_INPUT)
+                output_nalarms = MPAS_stream_mgr_get_num_alarms(manager, trim(stream1_cursor % name), &
+                                                                        MPAS_STREAM_OUTPUT)
+
+                stream1_input = ((stream1_cursor % direction == MPAS_STREAM_INPUT .or. &
+                                stream1_cursor % direction == MPAS_STREAM_INPUT_OUTPUT) .and. &
+                                input_nalarms > 0)
+                stream1_output = ((stream1_cursor % direction == MPAS_STREAM_OUTPUT .or. &
+                                 stream1_cursor % direction == MPAS_STREAM_INPUT_OUTPUT) .and. &
+                                 output_nalarms > 0)
+
+                if (.not. stream1_cursor % active_stream &
+                    .or. .not. (stream1_input .or. stream1_output) &
+                    .or. .not. pkg_active) then
+                    cycle
+                end if
+
+                nullify(stream2_cursor)
+                stream2_cursor => stream1_cursor
+                do while (MPAS_stream_list_query(manager % streams, streamID, stream2_cursor))
+
+                    input_nalarms = MPAS_stream_mgr_get_num_alarms(manager, trim(stream2_cursor % name), &
+                                                                           MPAS_STREAM_INPUT)
+                    output_nalarms = MPAS_stream_mgr_get_num_alarms(manager, trim(stream2_cursor % name), &
+                                                                            MPAS_STREAM_OUTPUT)
+
+                    pkg_active = stream_active_pkg_check(stream2_cursor)
+                    stream2_input = ((stream2_cursor % direction == MPAS_STREAM_INPUT .or. &
+                                    stream2_cursor % direction == MPAS_STREAM_INPUT_OUTPUT) .and. &
+                                    input_nalarms > 0)
+                    stream2_output = ((stream2_cursor % direction == MPAS_STREAM_OUTPUT .or. &
+                                     stream2_cursor % direction == MPAS_STREAM_INPUT_OUTPUT) .and. &
+                                     output_nalarms > 0)
+
+                     call mpas_log_write('Stream 2 '//trim(stream2_cursor % name)//' filename '//trim(stream2_cursor % filename_template)//' &
+                        & active = $l input = $l output = $l pkg_active: $l',logicArgs=(/stream2_cursor % active_stream, stream2_input, stream2_output, pkg_active/))
+
+                    if (.not. stream2_cursor % active_stream & ! Skip if Stream 2 is not active
+                        .or. .not. (stream2_input .or. stream2_output) &
+                        .or. (stream1_input .and. stream2_input) & ! Skip if Streams 1 and 2 are both input streams
+                        .or. .not. pkg_active) then ! Skip if Stream 2 is inactive due to inactive package
+                        cycle
+                    end if
+
+                    if (trim(stream1_cursor % filename_template) == trim(stream2_cursor % filename_template)) then
+                        message = 'Detected identical values of filename_template between an active output stream and an I/O stream'
+                        call mpas_log_write(message)
+                        message = 'Streams '// trim(stream1_cursor % name) // ' and ' // trim(stream2_cursor % name) // &
+                                  ' have identical filename_template attribute in streams.<CORE>. This may result in file conflicts.'
+                        call mpas_log_write(message, messageType=MPAS_LOG_ERR)
+                        if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
+                    end if
+
+                end do
+
+            end do
+
+        end if
+
+    end subroutine MPAS_stream_mgr_check_filename_template!}}}
 
 
     !-----------------------------------------------------------------------
@@ -1769,6 +1890,54 @@ module mpas_stream_manager
        end if
 
     end function MPAS_stream_mgr_get_stream_interval
+
+
+    !-----------------------------------------------------------------------
+    !  routine MPAS_stream_mgr_get_num_alarms
+    !
+    !> \brief Returns the number of I/O alarms associated with a stream in a given direction
+    !> \author Abishek Gopal
+    !> \date   10 June 2026
+    !> \details
+    !>  Returns the number of I/O alarms associated with a stream in a given direction.
+    !
+    !-----------------------------------------------------------------------
+    function MPAS_stream_mgr_get_num_alarms(manager, streamID, direction, ierr) result(numAlarms)
+
+       implicit none
+
+       integer :: numAlarms
+
+       type (MPAS_streamManager_type), intent(in) :: manager
+       character(len=*), intent(in) :: streamID
+       integer, intent(in) :: direction
+       integer, intent(out), optional :: ierr
+
+       type (mpas_stream_list_type), pointer :: streamCursor
+       integer :: err_local
+
+       numAlarms = 0
+       err_local = MPAS_STREAM_MGR_NOERR
+       nullify(streamCursor)
+
+       if (mpas_stream_list_query(manager % streams, streamID, streamCursor)) then
+          if (direction == MPAS_STREAM_INPUT) then
+            numAlarms = MPAS_stream_list_length(streamCursor % alarmList_in, err_local)
+          else if (direction == MPAS_STREAM_OUTPUT) then
+            numAlarms = MPAS_stream_list_length(streamCursor % alarmList_out, err_local)
+          else
+            err_local = MPAS_STREAM_MGR_ERROR
+            call MPAS_stream_mesg(manager % errorLevel, 'Invalid direction encountered in MPAS_stream_mgr_get_num_alarms')
+          end if
+       else
+          err_local = MPAS_STREAM_MGR_ERROR
+          call MPAS_stream_mesg(manager % errorLevel, 'Stream ' // trim(streamID) // &
+                                ' does not exist. Cannot retrieve number of alarms in stream.')
+       end if
+
+       if (present(ierr)) ierr = err_local
+
+    end function MPAS_stream_mgr_get_num_alarms
 
 
     !-----------------------------------------------------------------------
