@@ -4098,12 +4098,8 @@ module atm_time_integration
                            *(fzm(k)*rho_zz(k,iCell)+fzp(k)*rho_zz(k-1,iCell))                           &
                                     *w(k,iCell)    )/(1.0+dts*dss(k,iCell))                             &
                             - (rw_save(k  ,iCell) - rw(k  ,iCell))
-            end do
-
+            
             ! accumulate (rho*omega)' for use later in scalar transport
-!DIR$ IVDEP
-            !$acc loop vector
-            do k=2,nVertLevels
                wwAvg(k,iCell) = wwAvg(k,iCell) + ewp(k)*rw_p(k,iCell)
             end do
 
