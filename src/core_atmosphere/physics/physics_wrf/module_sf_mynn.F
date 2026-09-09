@@ -226,6 +226,8 @@
  real(kind=RKIND),dimension(its:ite):: u10_hv,v10_hv,th2_hv,t2_hv,q2_hv,wstar_hv,qstar_hv
  real(kind=RKIND),dimension(its:ite):: cd_hv,cda_hv,ck_hv,cka_hv,ustm_hv
 
+ real(kind=RKIND),dimension(its:ite,1:kte):: dz8w_hv,u3d_hv,v3d_hv,p3d_hv,t3d_hv,rho3d_hv,qv3d_hv,qc3d_hv,pattern_spp_pbl_hv
+
 !-----------------------------------------------------------------------------------------------------------------
 
  f_spp = .false.
@@ -244,9 +246,60 @@
        qstar_hv(i) = qstar(i,j)
     enddo
 
-    call sf_mynn_pre_run(its,ite,kte,itimestep,dz8w,u3d,v3d,p3d,t3d,rho3d,qv3d,qc3d,f_spp, &
-              pattern_spp_pbl,ust_hv,mol_hv,qsfc_hv,qstar_hv,dz8w1d,u1d,v1d,p1d,t1d,rho1d, &
-              qv1d,qc1d,rstoch1d,dz2w1d,u1d2,v1d2,errmsg,errflg)
+#if 1
+    dz8w_hv = dz8w(its:ite,1:kte,j)
+    u3d_hv = u3d(its:ite,1:kte,j)
+    v3d_hv = v3d(its:ite,1:kte,j)
+    p3d_hv = p3d(its:ite,1:kte,j)
+    t3d_hv = t3d(its:ite,1:kte,j)
+    rho3d_hv = rho3d(its:ite,1:kte,j)
+    qv3d_hv = qv3d(its:ite,1:kte,j)
+    qc3d_hv = qc3d(its:ite,1:kte,j)
+    if(f_spp) then
+    pattern_spp_pbl_hv = pattern_spp_pbl(its:ite,1:kte,j)
+    end if
+
+	 call sf_mynn_pre_run(its,ite,kte,itimestep, &
+              dz8w_hv,u3d_hv,v3d_hv,p3d_hv,t3d_hv,rho3d_hv,qv3d_hv,qc3d_hv, &
+              f_spp,pattern_spp_pbl_hv, &
+              ust_hv,mol_hv,qsfc_hv,qstar_hv, &
+              dz8w1d,u1d,v1d,p1d,t1d,rho1d,qv1d,qc1d,rstoch1d, &
+              dz2w1d,u1d2,v1d2,errmsg,errflg)
+#else
+    do i = its,ite
+       dz8w1d(i) = dz8w(i,1,j)
+       u1d(i)    = u3d(i,1,j)
+       v1d(i)    = v3d(i,1,j)
+       qv1d(i)   = qv3d(i,1,j)
+       qc1d(i)   = qc3d(i,1,j)
+       p1d(i)    = p3d(i,1,j)
+       t1d(i)    = t3d(i,1,j)
+       rho1d(i)  = rho3d(i,1,j)
+       !--- 2nd model level winds - for diags with high-resolution grids:
+		 dz2w1d(i) = dz8w(i,2,j)
+       u1d2(i)   = u3d(i,2,j)
+       v1d2(i)   = v3d(i,2,j)
+    enddo
+
+    if(f_spp) then
+       do i = its,ite
+          rstoch1d(i) = pattern_spp_pbl(i,1,j)
+       enddo
+    else
+       do i = its,ite
+          rstoch1d(i)=0._RKIND
+       enddo
+    endif
+
+    if(itimestep == 1) then
+       do i = its,ite
+          ust_hv(i)   = max(0.04*sqrt(u1d(i)*u1d(i) + v1d(i)*v1d(i)),0.001)
+          mol_hv(i)   = 0._RKIND
+          qsfc_hv(i)  = qv1d(i)/(1.+qv1d(i))
+          qstar_hv(i) = 0._RKIND
+       enddo
+    endif
+#endif
 
     !input arguments:
     do i = its,ite
