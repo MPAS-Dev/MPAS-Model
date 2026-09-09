@@ -5477,7 +5477,7 @@ module atm_time_integration
          !$acc end parallel
 
 !$OMP BARRIER
-
+         call mpas_timer_start('atm_advance_scalars_mono_work_5481')
          !$acc parallel
 
          !
@@ -5519,11 +5519,11 @@ module atm_time_integration
             end do
 
          end do
-
+         !$acc end parallel
          !
          !  horizontal flux divergence for upwind update
          !
-
+         !$acc parallel
          !  upwind flux computation
          !$acc loop gang worker
          do iEdge=edgeStart,edgeEnd
@@ -5536,20 +5536,17 @@ module atm_time_integration
                flux_upwind_tmp(k,iEdge) = dvEdge(iEdge) * dt *   &
                       (max(0.0_RKIND,uhAvg(k,iEdge))*scalar_old(k,cell1) + min(0.0_RKIND,uhAvg(k,iEdge))*scalar_old(k,cell2))
                flux_tmp(k,iEdge) = dt * flux_arr(k,iEdge) - flux_upwind_tmp(k,iEdge)
-            end do
-
-            if( config_apply_lbcs .and. (bdyMaskEdge(iEdge) == nRelaxZone) .or. (bdyMaskEdge(iEdge) == nRelaxZone-1) ) then
-               !$acc loop vector
-               do k=1,nVertLevels
+            
+               if( config_apply_lbcs .and. (bdyMaskEdge(iEdge) == nRelaxZone) .or. (bdyMaskEdge(iEdge) == nRelaxZone-1) ) then
                   flux_tmp(k,iEdge) = 0.0_RKIND
                   flux_arr(k,iEdge) = flux_upwind_tmp(k,iEdge)
-               end do
-            end if
+               end if
+            end do
 
          end do
 
          !$acc end parallel
-
+         call mpas_timer_stop('atm_advance_scalars_mono_work_5481')
 !$OMP BARRIER
 
          !$acc parallel
