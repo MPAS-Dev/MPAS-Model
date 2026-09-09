@@ -9,9 +9,17 @@
 #ifdef MPAS_OPENACC
 #define MPAS_ACC_TIMER_START(X) call mpas_timer_start(X)
 #define MPAS_ACC_TIMER_STOP(X) call mpas_timer_stop(X)
+#define RHO_PP(i,j) rho_pp(i, j)
+#define RTHETA_PP(i,j) rtheta_pp(i, j)
+#define GPU_LOOP()  do i=1,nEdgesOnCell(iCell)
+#define CPU_LOOP()
 #else
 #define MPAS_ACC_TIMER_START(X)
 #define MPAS_ACC_TIMER_STOP(X)
+#define RHO_PP(i,j) rs(i)
+#define RTHETA_PP(i,j) ts(i)
+#define CPU_LOOP()  do i=1,nEdgesOnCell(iCell)
+#define GPU_LOOP()
 #endif
 
 module atm_time_integration
@@ -3972,7 +3980,7 @@ module atm_time_integration
       end if
 
 !$OMP BARRIER
-
+      call mpas_timer_start('atm_advance_acoustic_step_3976')
       !$acc parallel default(present)
       !$acc loop gang worker private(ts,rs)
       do iCell=cellSolveStart,cellSolveEnd  ! loop over all owned cells to solve
@@ -3997,14 +4005,17 @@ module atm_time_integration
                rs(k) = 0.0
             end do
 
-            !$acc loop seq
-            do i=1,nEdgesOnCell(iCell)
-               iEdge = edgesOnCell(i,iCell)
-               cell1 = cellsOnEdge(1,iEdge)
-               cell2 = cellsOnEdge(2,iEdge)
+ 
+               CPU_LOOP()
 !DIR$ IVDEP
                !$acc loop vector
                do k=1,nVertLevels
+                  !$acc loop seq
+                  GPU_LOOP()
+
+                  iEdge = edgesOnCell(i,iCell)
+                  cell1 = cellsOnEdge(1,iEdge)
+                  cell2 = cellsOnEdge(2,iEdge)
                   flux = edgesOnCell_sign(i,iCell)*dts*dvEdge(iEdge)*ru_p(k,iEdge) * invAreaCell(iCell)
                   rs(k) = rs(k)-flux
                   ts(k) = ts(k)-flux*0.5*(theta_m(k,cell2)+theta_m(k,cell1))
@@ -4046,8 +4057,25 @@ module atm_time_integration
                           + cofwt(k-1,iCell)*(etp(k-1)*ts(k-1)+etm(k-1)*rtheta_pp(k-1,iCell)))
             end do
 
-            ! tridiagonal solve sweeping up and then down the column
+#ifdef MPAS_OPENACC
+             !$acc loop vector
+            do k=1,nVertLevels
+               rho_pp(k,iCell) = rs(k)
+               rtheta_pp(k,iCell) = ts(k)
+            end do
 
+         end if
+      enddo
+      !$acc end parallel
+
+            
+      !$acc parallel default(present)
+      !$acc loop gang worker
+      do iCell=cellSolveStart,cellSolveEnd  ! loop over all owned cells to solve
+
+         if(specZoneMaskCell(iCell) == 0.0) then  ! not specified zone, compute...
+#endif
+         ! tridiagonal solve sweeping up and then down the column
 !MGD VECTOR DEPENDENCE
             !$acc loop seq
             do k=2,nVertLevels
@@ -4070,12 +4098,8 @@ module atm_time_integration
                            *(fzm(k)*rho_zz(k,iCell)+fzp(k)*rho_zz(k-1,iCell))                           &
                                     *w(k,iCell)    )/(1.0+dts*dss(k,iCell))                             &
                             - (rw_save(k  ,iCell) - rw(k  ,iCell))
-            end do
-
+            
             ! accumulate (rho*omega)' for use later in scalar transport
-!DIR$ IVDEP
-            !$acc loop vector
-            do k=2,nVertLevels
                wwAvg(k,iCell) = wwAvg(k,iCell) + ewp(k)*rw_p(k,iCell)
             end do
 
@@ -4084,9 +4108,9 @@ module atm_time_integration
 !DIR$ IVDEP
             !$acc loop vector
             do k=1,nVertLevels
-               rho_pp(k,iCell) = rs(k) - dts*cofrz(k) *( ewp(k+1)*rw_p(k+1,iCell)  &
+               rho_pp(k,iCell) = RHO_PP(k,iCell) - dts*cofrz(k) *( ewp(k+1)*rw_p(k+1,iCell)  &
                                                         -ewp(k  )*rw_p(k  ,iCell))
-               rtheta_pp(k,iCell) = ts(k) - dts*rdzw(k)*( ewp(k+1)*coftz(k+1,iCell)*rw_p(k+1,iCell)  &
+               rtheta_pp(k,iCell) = RTHETA_PP(k,iCell) - dts*rdzw(k)*( ewp(k+1)*coftz(k+1,iCell)*rw_p(k+1,iCell)  &
                                                          -ewp(k  )*coftz(k  ,iCell)*rw_p(k  ,iCell))
             end do
 
@@ -4104,7 +4128,7 @@ module atm_time_integration
 
       end do !  end of loop over cells
       !$acc end parallel
-
+      call mpas_timer_stop('atm_advance_acoustic_step_3976')
 
    end subroutine atm_advance_acoustic_step_work
 
