@@ -70,5 +70,5 @@ clean:
 	$(RM) *.i
 
 .F90.o:
-	$(FC) $(CPPFLAGS) $(COREDEF) $(FFLAGS) -c $*.F90 $(CPPINCLUDES) $(FCINCLUDES) -I. -I../../utility -I../../src -I../../../../../framework $(MPAS_ESMF_INC)
+	$(FC) $(CPPFLAGS) $(COREDEF) $(FFLAGS) -c $*.F90 $(CPPINCLUDES) $(FCINCLUDES) -I. -I../../utility -I../../src -I../../../../../framework
 

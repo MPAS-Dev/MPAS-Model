@@ -128,9 +128,9 @@ clean:
 	$(RM) $@ $*.mod
 ifeq "$(GEN_F90)" "true"
 	$(CPP) $(CPPFLAGS) $(CPPINCLUDES) -I../external/SMIOL $< > $*.f90
-	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES) $(MPAS_ESMF_INC)
+	$(FC) $(FFLAGS) -c $*.f90 $(FCINCLUDES)
 else
-	$(FC) $(CPPFLAGS) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES) $(MPAS_ESMF_INC)
+	$(FC) $(CPPFLAGS) $(FFLAGS) -c $*.F $(CPPINCLUDES) $(FCINCLUDES)
 endif
 
 .c.o:

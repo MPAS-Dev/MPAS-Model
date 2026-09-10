@@ -9,7 +9,7 @@ else
 all: mpas
 
 mpas: $(AUTOCLEAN_DEPS) externals frame ops dycore drver
-	$(LINKER) $(LDFLAGS) -o $(EXE_NAME) driver/*.o -L. -ldycore -lops -lframework $(LIBS) $(MPAS_ESMF_INC) $(MPAS_ESMF_LIB)
+	$(LINKER) $(LDFLAGS) -o $(EXE_NAME) driver/*.o -L. -ldycore -lops -lframework $(LIBS)
 
 externals: $(AUTOCLEAN_DEPS)
 	( cd external; $(MAKE) FC="$(FC)" SFC="$(SFC)" CC="$(CC)" SCC="$(SCC)" FFLAGS="$(FFLAGS)" CFLAGS="$(CFLAGS)" CPP="$(CPP)" NETCDF="$(NETCDF)" CORE="$(CORE)" all )
