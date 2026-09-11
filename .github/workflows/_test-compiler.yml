@@ -47,6 +47,16 @@ jobs:
             src/core_atmosphere/Registry.xml
           sparse-checkout-cone-mode: false
           persist-credentials: false
+      - name: Checkout requested MPAS source for version
+        if: ${{ inputs.mpas-repository != '' || inputs.mpas-ref != '' }}
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          repository: ${{ inputs.mpas-repository || github.repository }}
+          ref: ${{ inputs.mpas-ref || '' }}
+          path: _version-source
+          sparse-checkout: src/core_atmosphere/Registry.xml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
       - uses: ./.github/actions/resolve-container
         id: container
         with:
@@ -54,6 +64,8 @@ jobs:
           mpi: ${{ inputs.mpi }}
       - uses: ./.github/actions/mpas-version
         id: version
+        with:
+          registry-path: ${{ (inputs.mpas-repository != '' || inputs.mpas-ref != '') && '_version-source/src/core_atmosphere/Registry.xml' || 'src/core_atmosphere/Registry.xml' }}
 
   build:
     needs: config
@@ -117,21 +129,17 @@ jobs:
           persist-credentials: false
 
       - name: Download executable
-        id: download
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
-        continue-on-error: true
         with:
           name: exe-${{ inputs.compiler }}-${{ inputs.mpi }}-smiol
 
       - name: Download test case
-        if: steps.download.outcome == 'success'
         uses: ./.github/actions/download-testdata
         with:
           resolution: 120km
           dest-dir: base-case
 
       - name: Restore cached restart
-        if: steps.download.outcome == 'success'
         id: cache-restart
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
@@ -139,7 +147,6 @@ jobs:
           key: ect-spinup-restart-${{ needs.config.outputs.ect-tag }}-${{ hashFiles('.github/ci-config.env') }}
 
       - name: Download spin-up restart
-        if: steps.download.outcome == 'success'
         id: restart
         shell: bash
         run: |
@@ -166,12 +173,12 @@ jobs:
             echo "available=true" >> $GITHUB_OUTPUT
             echo "file=${RESTART}" >> $GITHUB_OUTPUT
           else
-            echo "::warning::Spin-up restart not available (HTTP ${HTTP_CODE}), running from cold-start init.nc"
-            echo "available=false" >> $GITHUB_OUTPUT
+            rm -f "${RESTART}.gz"
+            echo "::error::Spin-up restart not available at ${DATA_REPO} release ${RELEASE_TAG} (HTTP ${HTTP_CODE})"
+            exit 1
           fi
 
       - name: Run perturbed MPAS-A (member ${{ matrix.member }})
-        if: steps.download.outcome == 'success'
         uses: ./.github/actions/run-perturb-mpas
         with:
           base-dir: base-case
@@ -182,11 +189,11 @@ jobs:
           mpi-impl: ${{ inputs.mpi }}
           run-duration: '0_02:36:00'
           run-timeout: '45'
-          restart-file: ${{ steps.restart.outputs.available == 'true' && steps.restart.outputs.file || '' }}
+          restart-file: ${{ steps.restart.outputs.file }}
 
       - name: Upload history file
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        if: always() && steps.download.outcome == 'success'
+        if: always()
         with:
           name: ect-history-${{ inputs.compiler }}-${{ inputs.mpi }}-member${{ matrix.member }}
           path: history-output/history.*.nc
@@ -209,8 +216,6 @@ jobs:
           python-version: '3.11'
 
       - name: Download history files
-        id: download
-        continue-on-error: true
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           pattern: ect-history-${{ inputs.compiler }}-${{ inputs.mpi }}-*
@@ -218,7 +223,6 @@ jobs:
           merge-multiple: true
 
       - name: Run ECT validation
-        if: steps.download.outcome == 'success'
         uses: ./.github/actions/validate-ect
         with:
           history-dir: ect-test-files

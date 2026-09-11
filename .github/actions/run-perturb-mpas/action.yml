@@ -65,7 +65,9 @@ runs:
       id: run-members
       shell: bash
       run: |
-        source /container/config_env.sh
+        if [ -f /container/config_env.sh ]; then
+          source /container/config_env.sh
+        fi
 
         if command -v conda &>/dev/null; then
           eval "$(conda shell.bash hook)" 2>/dev/null

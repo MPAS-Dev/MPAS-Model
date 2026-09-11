@@ -138,7 +138,7 @@ runs:
         fi
 
     - name: ECT Results
-      if: steps.pycect.outputs.result != ''
+      if: always() && steps.pycect.outputs.result != ''
       shell: bash
       run: |
         LABEL="${{ inputs.label }}"
@@ -181,9 +181,9 @@ runs:
         {
           echo "## ECT Result: :warning: SKIPPED"
           echo ""
-          echo "Ensemble summary file not found. Run \`ect-ensemble-gen.yml\` first."
+          echo "Ensemble summary file not found. Generate and publish it with the [NCAR/MPAS-Model-CI ECT workflow](https://github.com/NCAR/MPAS-Model-CI/actions/workflows/ect-ensemble-gen.yml)."
         } >> "$GITHUB_STEP_SUMMARY"
-        echo "::error::ECT validation cannot run — ensemble summary file not found. Run ect-ensemble-gen.yml first."
+        echo "::error::ECT validation cannot run — generate and publish the ensemble data from NCAR/MPAS-Model-CI"
         exit 1
 
     - name: Write result file

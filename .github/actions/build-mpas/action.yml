@@ -106,10 +106,13 @@ runs:
         EXTRA_MAKE_FLAGS=""
         if [ "${COMPILER_FAMILY}" = "nvhpc" ]; then
           ARCH="${NVHPC_TARGET_ARCH:--tp=px}"
-          sed -i "/^nvhpc:/,/^[a-z]/ s/\"FFLAGS_OPT = /\"FFLAGS_OPT = ${ARCH} /" Makefile
-          sed -i "/^nvhpc:/,/^[a-z]/ s/\"CFLAGS_OPT = /\"CFLAGS_OPT = ${ARCH} /" Makefile
-          sed -i "/^nvhpc:/,/^[a-z]/ s/\"CXXFLAGS_OPT = /\"CXXFLAGS_OPT = ${ARCH} /" Makefile
-          sed -i "/^nvhpc:/,/^[a-z]/ s/\"LDFLAGS_OPT = /\"LDFLAGS_OPT = ${ARCH} /" Makefile
+          for FLAG in FFLAGS_OPT CFLAGS_OPT CXXFLAGS_OPT LDFLAGS_OPT; do
+            if ! sed -n '/^nvhpc:/,/^[a-z]/p' Makefile | grep -qF "\"${FLAG} = "; then
+              echo "::error::Could not locate ${FLAG} in the NVHPC Makefile target"
+              exit 1
+            fi
+            sed -i "/^nvhpc:/,/^[a-z]/ s/\"${FLAG} = /\"${FLAG} = ${ARCH} /" Makefile
+          done
           EXTRA_MAKE_FLAGS="${NVHPC_EXTRA_MAKE_FLAGS}"
         elif [ "${COMPILER_FAMILY}" = "oneapi" ]; then
           EXTRA_MAKE_FLAGS="${ONEAPI_EXTRA_MAKE_FLAGS}"
@@ -127,7 +130,6 @@ runs:
         timeout ${{ inputs.build-timeout }}m \
           make ${MAKE_TARGET} CORE=atmosphere ${EXTRA_MAKE_FLAGS} ${PRECISION_FLAG} --jobs ${MAKE_J_PROCS:-$(nproc)}
         
-        # Set output
         echo "executable=$(pwd)/atmosphere_model" >> $GITHUB_OUTPUT
 
     - name: Verify executable
