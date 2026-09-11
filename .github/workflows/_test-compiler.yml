@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.container.outputs.image }}
-      mpas-version: ${{ steps.version.outputs.version }}
+      ect-tag: ${{ steps.version.outputs.ect-tag }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
@@ -136,7 +136,7 @@ jobs:
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: spinup-restart.nc
-          key: ect-spinup-restart-${{ hashFiles('.github/ci-config.env') }}
+          key: ect-spinup-restart-${{ needs.config.outputs.ect-tag }}-${{ hashFiles('.github/ci-config.env') }}
 
       - name: Download spin-up restart
         if: steps.download.outcome == 'success'
@@ -145,7 +145,7 @@ jobs:
         run: |
           source .github/ci-config.env
           RESTART="${ECT_RESTART_FILE}"
-          RELEASE_TAG="ect-v${{ needs.config.outputs.mpas-version }}"
+          RELEASE_TAG="${{ needs.config.outputs.ect-tag }}"
 
           if [ -f "spinup-restart.nc" ]; then
             echo "Using cached restart file"
@@ -223,7 +223,7 @@ jobs:
         with:
           history-dir: ect-test-files
           label: ${{ inputs.compiler }}/${{ inputs.mpi }}/smiol
-          mpas-version: ${{ needs.config.outputs.mpas-version }}
+          ect-tag: ${{ needs.config.outputs.ect-tag }}
           dimensions: |
             compiler=${{ inputs.compiler }}
             mpi=${{ inputs.mpi }}

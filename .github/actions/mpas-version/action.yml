@@ -1,6 +1,7 @@
 name: 'Get MPAS Version'
 description: >
-  Read the MPAS version string from src/core_atmosphere/Registry.xml.
+  Read the MPAS version string from src/core_atmosphere/Registry.xml and
+  derive the major.minor series and ECT data release tag from it.
   Strict — fails the workflow if the file is missing or the version
   attribute cannot be parsed (no silent "unknown" fallback).
 
@@ -14,6 +15,12 @@ outputs:
   version:
     description: 'MPAS version string (e.g., 8.4.0)'
     value: ${{ steps.extract.outputs.version }}
+  version-series:
+    description: 'Major.minor series (e.g., 8.4)'
+    value: ${{ steps.extract.outputs.version-series }}
+  ect-tag:
+    description: 'ECT data release tag for this series (e.g., ect-v8.4)'
+    value: ${{ steps.extract.outputs.ect-tag }}
 
 runs:
   using: 'composite'
@@ -23,6 +30,7 @@ runs:
       run: |
         python3 - "${{ inputs.registry-path }}" <<'PYEOF'
         import os
+        import re
         import sys
         import xml.etree.ElementTree as ET
 
@@ -41,7 +49,19 @@ runs:
             print(f"::error::No version attribute on <registry> in {path}")
             sys.exit(1)
 
+        # ECT data is shared across a major.minor series: ect-v8.4 serves
+        # 8.4.0, 8.4.1, ... so patch releases don't need a new 200-member
+        # ensemble. Regenerate only when the series changes.
+        match = re.match(r'^(\d+)\.(\d+)', version)
+        if not match:
+            print(f"::error::Cannot derive major.minor series from version '{version}'")
+            sys.exit(1)
+        series = f"{match.group(1)}.{match.group(2)}"
+        ect_tag = f"ect-v{series}"
+
         with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
             f.write(f"version={version}\n")
-        print(f"MPAS version: {version}")
+            f.write(f"version-series={series}\n")
+            f.write(f"ect-tag={ect_tag}\n")
+        print(f"MPAS version: {version} (series {series}, ECT tag {ect_tag})")
         PYEOF

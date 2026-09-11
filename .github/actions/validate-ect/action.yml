@@ -12,8 +12,8 @@ inputs:
   label:
     description: 'Human-readable label for log annotations (e.g. gcc/mpich3/smiol/4proc)'
     required: true
-  mpas-version:
-    description: 'MPAS version string (used to build the ect-v{version} release tag)'
+  ect-tag:
+    description: 'ECT data release tag (from the mpas-version action, e.g. ect-v8.4)'
     required: true
   dimensions:
     description: 'Multi-line key=value pairs describing this test combination (written into result file)'
@@ -42,12 +42,12 @@ runs:
         fi
         source "${CI_CONFIG}"
 
-        # ECT release tag is derived from the MPAS version (passed in),
-        # not stored in ci-config.env. See .github/actions/mpas-version.
+        # ECT release tag is passed in, not stored in ci-config.env.
+        # See .github/actions/mpas-version.
         echo "summary-file=${ECT_SUMMARY_FILE}" >> $GITHUB_OUTPUT
         echo "pycect-tag=${PYCECT_TAG}" >> $GITHUB_OUTPUT
         echo "pycect-commit=${PYCECT_COMMIT}" >> $GITHUB_OUTPUT
-        echo "release-tag=ect-v${{ inputs.mpas-version }}" >> $GITHUB_OUTPUT
+        echo "release-tag=${{ inputs.ect-tag }}" >> $GITHUB_OUTPUT
 
     - name: Install PyCECT dependencies
       shell: bash
