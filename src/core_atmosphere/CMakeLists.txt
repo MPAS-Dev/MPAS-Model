@@ -98,15 +98,50 @@ list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_WRF_SOURCES PREPEND physics/physics_wrf/)
 
 
 set(CHECKOUT ${CMAKE_CURRENT_SOURCE_DIR}/tools/manage_externals/checkout_externals )
+
+# Only run the externals update when there is something to update. Use `--status`
+# to check whether any externals are missing or out-of-date, and in that case fall
+# through to the full update.
 execute_process( COMMAND
-                 ${CHECKOUT} --externals ${CMAKE_CURRENT_SOURCE_DIR}/Externals.cfg
+                 ${CHECKOUT} --status --externals ${CMAKE_CURRENT_SOURCE_DIR}/Externals.cfg
                  WORKING_DIRECTORY       ${CMAKE_CURRENT_SOURCE_DIR}/physics/
-                 RESULT_VARIABLE         MANAGE_EXTERNALS_STATUS
+                 OUTPUT_VARIABLE         MANAGE_EXTERNALS_STATUS_OUTPUT
+                 RESULT_VARIABLE         MANAGE_EXTERNALS_STATUS_RESULT
                 )
-if ( ${MANAGE_EXTERNALS_STATUS} AND NOT ${MANAGE_EXTERNALS_STATUS} EQUAL 0 )
-    message( FATAL_ERROR "Failed to checkout external repos via manage_externals" )
+
+set( MANAGE_EXTERNALS_NEEDED FALSE )
+if ( NOT MANAGE_EXTERNALS_STATUS_RESULT EQUAL 0 )
+    # --status itself failed; be conservative and run the full update.
+    set( MANAGE_EXTERNALS_NEEDED TRUE )
 else()
-    message( STATUS "Finished checking out external repos via manage_externals" )
+    # --status exits 0 whether or not work is needed, so its output must be parsed:
+    # component lines are three status columns followed by the local path ("./path").
+    # The first two status columns carry the information whether the external is
+    # up-to-date and clean; we can accept any valid value of the 3rd column.
+    set(PATTERN "^(..)[ o][ \t]+\\./")
+    string( REPLACE "\n" ";" MANAGE_EXTERNALS_STATUS_LINES "${MANAGE_EXTERNALS_STATUS_OUTPUT}" )
+    foreach( _line IN LISTS MANAGE_EXTERNALS_STATUS_LINES )
+        if ( _line MATCHES ${PATTERN} )
+            if ( NOT "${CMAKE_MATCH_1}" STREQUAL "  " )
+                set( MANAGE_EXTERNALS_NEEDED TRUE )
+            endif()
+        endif()
+    endforeach()
+endif()
+
+if ( MANAGE_EXTERNALS_NEEDED )
+    execute_process( COMMAND
+                     ${CHECKOUT} --externals ${CMAKE_CURRENT_SOURCE_DIR}/Externals.cfg
+                     WORKING_DIRECTORY       ${CMAKE_CURRENT_SOURCE_DIR}/physics/
+                     RESULT_VARIABLE         MANAGE_EXTERNALS_STATUS
+                    )
+    if ( ${MANAGE_EXTERNALS_STATUS} AND NOT ${MANAGE_EXTERNALS_STATUS} EQUAL 0 )
+        message( FATAL_ERROR "Failed to checkout external repos via manage_externals" )
+    else()
+        message( STATUS "Finished checking out external repos via manage_externals" )
+    endif()
+else()
+    message( STATUS "External repos already at requested versions; skipped manage_externals update" )
 endif()
 
 set(ATMOSPHERE_CORE_PHYSICS_MMM_SOURCES
