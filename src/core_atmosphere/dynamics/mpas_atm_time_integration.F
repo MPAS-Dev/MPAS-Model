@@ -1877,12 +1877,15 @@ module atm_time_integration
       integer :: iCell, k, iEdge
 
       integer, pointer :: nThreads
-      integer, dimension(:), pointer :: cellThreadStart, cellThreadEnd
       integer, dimension(:), pointer :: cellSolveThreadStart, cellSolveThreadEnd
-      integer, dimension(:), pointer :: edgeThreadStart, edgeThreadEnd
-      integer, dimension(:), pointer :: edgeSolveThreadStart, edgeSolveThreadEnd
-      integer, dimension(:), pointer :: vertexThreadStart, vertexThreadEnd
-      integer, dimension(:), pointer :: vertexSolveThreadStart, vertexSolveThreadEnd
+
+      integer, pointer :: nThreads_acc
+      integer, dimension(:), pointer :: cellThreadStart_acc, cellThreadEnd_acc
+      integer, dimension(:), pointer :: cellSolveThreadStart_acc, cellSolveThreadEnd_acc
+      integer, dimension(:), pointer :: edgeThreadStart_acc, edgeThreadEnd_acc
+      integer, dimension(:), pointer :: edgeSolveThreadStart_acc, edgeSolveThreadEnd_acc
+      integer, dimension(:), pointer :: vertexThreadStart_acc, vertexThreadEnd_acc
+      integer, dimension(:), pointer :: vertexSolveThreadStart_acc, vertexSolveThreadEnd_acc
 
       integer :: rk_step, number_of_sub_steps
       integer :: iScalar
@@ -1995,20 +1998,25 @@ module atm_time_integration
 
       call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
 
-      call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-      call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
       call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
       call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
 
-      call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
-      call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
-      call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
-      call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
+      call mpas_pool_get_dimension(block % dimensions, 'nThreads_acc', nThreads_acc)
 
-      call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-      call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-      call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
-      call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
+      call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart_acc', cellThreadStart_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd_acc', cellThreadEnd_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart_acc', cellSolveThreadStart_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd_acc', cellSolveThreadEnd_acc)
+
+      call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart_acc', vertexThreadStart_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd_acc', vertexThreadEnd_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart_acc', vertexSolveThreadStart_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd_acc', vertexSolveThreadEnd_acc)
+
+      call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart_acc', edgeThreadStart_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd_acc', edgeThreadEnd_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart_acc', edgeSolveThreadStart_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd_acc', edgeSolveThreadEnd_acc)
 
 
 #ifdef DO_PHYSICS
@@ -2109,14 +2117,14 @@ module atm_time_integration
       call mpas_timer_start('atm_rk_integration_setup')
 
 !$OMP PARALLEL DO
-      do thread=1,nThreads
+      do thread=1,nThreads_acc
          call atm_rk_integration_setup(state, diag, nVertLevels, num_scalars, &
-                                       cellThreadStart(thread), cellThreadEnd(thread), &
-                                       vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                       edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                       cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                       vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                       edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+                                       cellThreadStart_acc(thread), cellThreadEnd_acc(thread), &
+                                       vertexThreadStart_acc(thread), vertexThreadEnd_acc(thread), &
+                                       edgeThreadStart_acc(thread), edgeThreadEnd_acc(thread), &
+                                       cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread), &
+                                       vertexSolveThreadStart_acc(thread), vertexSolveThreadEnd_acc(thread), &
+                                       edgeSolveThreadStart_acc(thread), edgeSolveThreadEnd_acc(thread))
       end do
 !$OMP END PARALLEL DO
 
@@ -2125,14 +2133,14 @@ module atm_time_integration
       call mpas_timer_start('atm_compute_moist_coefficients')
 
 !$OMP PARALLEL DO
-      do thread=1,nThreads
+      do thread=1,nThreads_acc
          call atm_compute_moist_coefficients( block % dimensions, state, diag, mesh, &     !MGD could do away with dimensions arg
-                                              cellThreadStart(thread), cellThreadEnd(thread), &
-                                              vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                              edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                              cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                              vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                              edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+                                              cellThreadStart_acc(thread), cellThreadEnd_acc(thread), &
+                                              vertexThreadStart_acc(thread), vertexThreadEnd_acc(thread), &
+                                              edgeThreadStart_acc(thread), edgeThreadEnd_acc(thread), &
+                                              cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread), &
+                                              vertexSolveThreadStart_acc(thread), vertexSolveThreadEnd_acc(thread), &
+                                              edgeSolveThreadStart_acc(thread), edgeSolveThreadEnd_acc(thread))
       end do
 !$OMP END PARALLEL DO
 
@@ -2183,12 +2191,12 @@ module atm_time_integration
 
          rk_step = 1
 !$OMP PARALLEL DO
-         do thread=1,nThreads
+         do thread=1,nThreads_acc
             call atm_compute_vert_imp_coefs( state, mesh, diag, block % configs, nVertLevels, rk_sub_timestep(rk_step), &
-                                       cellThreadStart(thread), cellThreadEnd(thread), &
-                                       edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                       cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                       edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+                                       cellThreadStart_acc(thread), cellThreadEnd_acc(thread), &
+                                       edgeThreadStart_acc(thread), edgeThreadEnd_acc(thread), &
+                                       cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread), &
+                                       edgeSolveThreadStart_acc(thread), edgeSolveThreadEnd_acc(thread))
          end do
 !$OMP END PARALLEL DO
          call mpas_timer_stop('atm_compute_vert_imp_coefs')
@@ -2212,12 +2220,12 @@ module atm_time_integration
               !  Compute the coefficients for the vertically implicit solve in the acoustic step.
               !  These coefficients will work for the 2nd and 3rd acoustic steps (dt is the same for both).
 !$OMP PARALLEL DO
-              do thread=1,nThreads
+              do thread=1,nThreads_acc
                  call atm_compute_vert_imp_coefs( state, mesh, diag, block % configs, nVertLevels, rk_sub_timestep(rk_step), &
-                                                  cellThreadStart(thread), cellThreadEnd(thread), &
-                                                  edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                                  cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                                  edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+                                                  cellThreadStart_acc(thread), cellThreadEnd_acc(thread), &
+                                                  edgeThreadStart_acc(thread), edgeThreadEnd_acc(thread), &
+                                                  cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread), &
+                                                  edgeSolveThreadStart_acc(thread), edgeSolveThreadEnd_acc(thread))
               end do
 !$OMP END PARALLEL DO
             end if  
@@ -2246,15 +2254,15 @@ module atm_time_integration
             !$acc end parallel
 
 !$OMP PARALLEL DO
-            do thread=1,nThreads
+            do thread=1,nThreads_acc
                call atm_compute_dyn_tend( tend, tend_physics, state, diag, mesh, diag_physics, &
                                           block % configs, nVertLevels, rk_step, dynamics_substep, dt, & 
-                                          cellThreadStart(thread), cellThreadEnd(thread), &
-                                          vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                          edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                          vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                          edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+                                          cellThreadStart_acc(thread), cellThreadEnd_acc(thread), &
+                                          vertexThreadStart_acc(thread), vertexThreadEnd_acc(thread), &
+                                          edgeThreadStart_acc(thread), edgeThreadEnd_acc(thread), &
+                                          cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread), &
+                                          vertexSolveThreadStart_acc(thread), vertexSolveThreadEnd_acc(thread), &
+                                          edgeSolveThreadStart_acc(thread), edgeSolveThreadEnd_acc(thread))
             end do
 !$OMP END PARALLEL DO
 
@@ -2287,9 +2295,9 @@ module atm_time_integration
             call mpas_timer_start('small_step_prep')
    
 !$OMP PARALLEL DO
-            do thread=1,nThreads
+            do thread=1,nThreads_acc
                call atm_set_smlstep_pert_variables( tend, mesh, &
-                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
+                                          cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread))
             end do
 !$OMP END PARALLEL DO
             call mpas_timer_stop('small_step_prep')
@@ -2306,13 +2314,13 @@ module atm_time_integration
                call mpas_atm_get_bdy_tend( clock, block, nVertLevels, nCells, 'rtheta_m', 0.0_RKIND, rt_driving_tend)
                call mpas_atm_get_bdy_tend( clock, block, nVertLevels, nCells, 'rho_zz', 0.0_RKIND, rho_driving_tend)
 !$OMP PARALLEL DO
-               do thread=1,nThreads
+               do thread=1,nThreads_acc
                   call atm_bdy_adjust_dynamics_speczone_tend( tend, mesh, block % configs, nVertLevels,                 &
                                                               ru_driving_tend, rt_driving_tend, rho_driving_tend,       &
-                                                              cellThreadStart(thread), cellThreadEnd(thread),           &
-                                                              edgeThreadStart(thread), edgeThreadEnd(thread),           &
-                                                              cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                                              edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread) )
+                                                              cellThreadStart_acc(thread), cellThreadEnd_acc(thread),           &
+                                                              edgeThreadStart_acc(thread), edgeThreadEnd_acc(thread),           &
+                                                              cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread), &
+                                                              edgeSolveThreadStart_acc(thread), edgeSolveThreadEnd_acc(thread) )
                end do
 !$OMP END PARALLEL DO
 
@@ -2333,13 +2341,13 @@ module atm_time_integration
 
                call mpas_timer_start('atm_bdy_adjust_dynamics_relaxzone_tend')
 !$OMP PARALLEL DO
-               do thread=1,nThreads
+               do thread=1,nThreads_acc
                   call atm_bdy_adjust_dynamics_relaxzone_tend( block % configs, tend, state, diag, mesh, nVertLevels, dt,  &
                                                                ru_driving_values, rt_driving_values, rho_driving_values,   &
-                                                               cellThreadStart(thread), cellThreadEnd(thread),             &
-                                                               edgeThreadStart(thread), edgeThreadEnd(thread),             &
-                                                               cellSolveThreadStart(thread), cellSolveThreadEnd(thread),   &
-                                                               edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread) )
+                                                               cellThreadStart_acc(thread), cellThreadEnd_acc(thread),             &
+                                                               edgeThreadStart_acc(thread), edgeThreadEnd_acc(thread),             &
+                                                               cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread),   &
+                                                               edgeSolveThreadStart_acc(thread), edgeSolveThreadEnd_acc(thread) )
                end do
 !$OMP END PARALLEL DO
                call mpas_timer_stop('atm_bdy_adjust_dynamics_relaxzone_tend')
@@ -2368,15 +2376,15 @@ module atm_time_integration
                call mpas_timer_start('atm_advance_acoustic_step')
 
 !$OMP PARALLEL DO
-               do thread=1,nThreads
+               do thread=1,nThreads_acc
                   call atm_advance_acoustic_step( state, diag, tend,  mesh, block % configs, nCells, nVertLevels, &
                                           rk_sub_timestep(rk_step), small_step, &
-                                          cellThreadStart(thread), cellThreadEnd(thread), &
-                                          vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                          edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                          vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                          edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+                                          cellThreadStart_acc(thread), cellThreadEnd_acc(thread), &
+                                          vertexThreadStart_acc(thread), vertexThreadEnd_acc(thread), &
+                                          edgeThreadStart_acc(thread), edgeThreadEnd_acc(thread), &
+                                          cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread), &
+                                          vertexSolveThreadStart_acc(thread), vertexSolveThreadEnd_acc(thread), &
+                                          edgeSolveThreadStart_acc(thread), edgeSolveThreadEnd_acc(thread))
                end do
 !$OMP END PARALLEL DO
 
@@ -2397,9 +2405,9 @@ module atm_time_integration
                call mpas_timer_start('atm_divergence_damping_3d')
 
 !$OMP PARALLEL DO
-               do thread=1,nThreads
+               do thread=1,nThreads_acc
                   call atm_divergence_damping_3d( state, diag, mesh, block % configs, rk_sub_timestep(rk_step), &
-                                                  edgeThreadStart(thread), edgeThreadEnd(thread) )
+                                                  edgeThreadStart_acc(thread), edgeThreadEnd_acc(thread) )
                end do
 !$OMP END PARALLEL DO
 
@@ -2423,15 +2431,15 @@ module atm_time_integration
             call mpas_timer_start('atm_recover_large_step_variables')
 
 !$OMP PARALLEL DO
-            do thread=1,nThreads
+            do thread=1,nThreads_acc
                call atm_recover_large_step_variables( state, diag, tend, mesh, block % configs, rk_timestep(rk_step), &
                                           number_sub_steps(rk_step), rk_step, &
-                                          cellThreadStart(thread), cellThreadEnd(thread), &
-                                          vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                          edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                          vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                          edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+                                          cellThreadStart_acc(thread), cellThreadEnd_acc(thread), &
+                                          vertexThreadStart_acc(thread), vertexThreadEnd_acc(thread), &
+                                          edgeThreadStart_acc(thread), edgeThreadEnd_acc(thread), &
+                                          cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread), &
+                                          vertexSolveThreadStart_acc(thread), vertexSolveThreadEnd_acc(thread), &
+                                          edgeSolveThreadStart_acc(thread), edgeSolveThreadEnd_acc(thread))
             end do
 !$OMP END PARALLEL DO
 
@@ -2524,10 +2532,10 @@ module atm_time_integration
                                               'scalars', rk_timestep(rk_step), scalars_driving)
 
                   !$OMP PARALLEL DO
-                  do thread=1,nThreads
+                  do thread=1,nThreads_acc
                      call atm_bdy_adjust_scalars( state, diag, mesh, block % configs, scalars_driving, nVertLevels, dt, rk_timestep(rk_step), &
-                                                  cellThreadStart(thread), cellThreadEnd(thread), &
-                                                  cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
+                                                  cellThreadStart_acc(thread), cellThreadEnd_acc(thread), &
+                                                  cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread) )
                   end do
                   !$OMP END PARALLEL DO
 
@@ -2552,11 +2560,11 @@ module atm_time_integration
             !$acc end parallel
    
 !$OMP PARALLEL DO
-            do thread=1,nThreads
+            do thread=1,nThreads_acc
                call atm_compute_solve_diagnostics(dt, state, 2, diag, mesh, block % configs, &
-                                                  cellThreadStart(thread), cellThreadEnd(thread), &
-                                                  vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                                  edgeThreadStart(thread), edgeThreadEnd(thread), rk_step)
+                                                  cellThreadStart_acc(thread), cellThreadEnd_acc(thread), &
+                                                  vertexThreadStart_acc(thread), vertexThreadEnd_acc(thread), &
+                                                  edgeThreadStart_acc(thread), edgeThreadEnd_acc(thread), rk_step)
             end do
 !$OMP END PARALLEL DO
 
@@ -2592,9 +2600,9 @@ module atm_time_integration
             if ( config_apply_lbcs ) then  ! regional_MPAS addition
 
 !$OMP PARALLEL DO
-              do thread=1,nThreads
+              do thread=1,nThreads_acc
                  call atm_zero_gradient_w_bdy( state, mesh, &
-                                               cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
+                                               cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread) )
               end do
 !$OMP END PARALLEL DO
 
@@ -2641,14 +2649,14 @@ module atm_time_integration
          call mpas_timer_start('atm_rk_dynamics_substep_finish')
 
 !$OMP PARALLEL DO
-         do thread=1,nThreads
+         do thread=1,nThreads_acc
             call atm_rk_dynamics_substep_finish(state, diag, nVertLevels, dynamics_substep, dynamics_split, &
-                                             cellThreadStart(thread), cellThreadEnd(thread), &
-                                             vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                             edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                             cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                             vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                             edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+                                             cellThreadStart_acc(thread), cellThreadEnd_acc(thread), &
+                                             vertexThreadStart_acc(thread), vertexThreadEnd_acc(thread), &
+                                             edgeThreadStart_acc(thread), edgeThreadEnd_acc(thread), &
+                                             cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread), &
+                                             vertexSolveThreadStart_acc(thread), vertexSolveThreadEnd_acc(thread), &
+                                             edgeSolveThreadStart_acc(thread), edgeSolveThreadEnd_acc(thread))
          end do
 !$OMP END PARALLEL DO
 
@@ -2704,10 +2712,10 @@ module atm_time_integration
                                            'scalars', rk_timestep(rk_step), scalars_driving)
 
 !$OMP PARALLEL DO
-               do thread=1,nThreads
+               do thread=1,nThreads_acc
                   call atm_bdy_adjust_scalars( state, diag, mesh, block % configs, scalars_driving, nVertLevels, dt, rk_timestep(rk_step), &
-                                               cellThreadStart(thread), cellThreadEnd(thread), &
-                                               cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
+                                               cellThreadStart_acc(thread), cellThreadEnd_acc(thread), &
+                                               cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread) )
                end do
 !$OMP END PARALLEL DO
 
@@ -2835,11 +2843,11 @@ module atm_time_integration
         call mpas_atm_get_bdy_state(clock, block, nVertLevels, nCells, 'rho_zz', time_dyn_step, rho_driving_values)
 
 !$OMP PARALLEL DO
-        do thread=1,nThreads
+        do thread=1,nThreads_acc
            call atm_bdy_reset_speczone_values( state, diag, mesh, nVertLevels, &
                                                rt_driving_values, rho_driving_values,                        &
-                                               cellThreadStart(thread), cellThreadEnd(thread),               &
-                                               cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
+                                               cellThreadStart_acc(thread), cellThreadEnd_acc(thread),               &
+                                               cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread) )
         end do
 !$OMP END PARALLEL DO
 
@@ -2866,10 +2874,10 @@ module atm_time_integration
          call mpas_atm_get_bdy_state(clock, block, num_scalars, nVertLevels, nCells, 'scalars', dt, scalars_driving)
 
 !$OMP PARALLEL DO
-         do thread=1,nThreads
+         do thread=1,nThreads_acc
             call atm_bdy_set_scalars( state, mesh, scalars_driving, nVertLevels, &
-                                      cellThreadStart(thread), cellThreadEnd(thread), &
-                                      cellSolveThreadStart(thread), cellSolveThreadEnd(thread) )
+                                      cellThreadStart_acc(thread), cellThreadEnd_acc(thread), &
+                                      cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread) )
          end do
 !$OMP END PARALLEL DO
 
@@ -2941,13 +2949,13 @@ module atm_time_integration
       integer :: nCells, nEdges, nVertLevels, num_scalars
       integer :: iScalar, k
 
-      integer, pointer :: nThreads
-      integer, dimension(:), pointer :: cellThreadStart
-      integer, dimension(:), pointer :: cellThreadEnd
-      integer, dimension(:), pointer :: cellSolveThreadStart
-      integer, dimension(:), pointer :: cellSolveThreadEnd
-      integer, dimension(:), pointer :: edgeThreadStart
-      integer, dimension(:), pointer :: edgeThreadEnd
+      integer, pointer :: nThreads_acc
+      integer, dimension(:), pointer :: cellThreadStart_acc
+      integer, dimension(:), pointer :: cellThreadEnd_acc
+      integer, dimension(:), pointer :: cellSolveThreadStart_acc
+      integer, dimension(:), pointer :: cellSolveThreadEnd_acc
+      integer, dimension(:), pointer :: edgeThreadStart_acc
+      integer, dimension(:), pointer :: edgeThreadEnd_acc
 
 
       if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
@@ -2967,15 +2975,15 @@ module atm_time_integration
       call mpas_pool_get_dimension(mesh, 'nVertLevels', nVertLevels_ptr)
       call mpas_pool_get_dimension(state, 'num_'//trim(field_name), num_scalars_ptr)
 
-      call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
+      call mpas_pool_get_dimension(block % dimensions, 'nThreads_acc', nThreads_acc)
 
-      call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-      call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-      call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-      call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
+      call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart_acc', cellThreadStart_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd_acc', cellThreadEnd_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart_acc', cellSolveThreadStart_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd_acc', cellSolveThreadEnd_acc)
 
-      call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-      call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
+      call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart_acc', edgeThreadStart_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd_acc', edgeThreadEnd_acc)
 
       nCells = nCells_ptr
       nEdges = nEdges_ptr
@@ -3040,19 +3048,19 @@ module atm_time_integration
       !       so we use the advance_scalars routine for the first two RK substeps.
       !
       !$OMP PARALLEL DO
-      do thread=1,nThreads
+      do thread=1,nThreads_acc
          if (rk_step < 3 .or. (.not. config_monotonic .and. .not. config_positive_definite)) then
             call atm_advance_scalars(field_name, tend, state, diag, mesh, block % configs, rk_timestep(rk_step), &
-                                     edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                     cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
+                                     edgeThreadStart_acc(thread), edgeThreadEnd_acc(thread), &
+                                     cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread), &
                                      horiz_flux_array, rk_step, config_time_integration_order, &
                                      advance_density=config_split_dynamics_transport)
          else
             call atm_advance_scalars_mono(field_name, block, tend, state, diag, mesh, halo_scratch, &
                                           block % configs, rk_timestep(rk_step), &
-                                          cellThreadStart(thread), cellThreadEnd(thread), &
-                                          edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                          cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
+                                          cellThreadStart_acc(thread), cellThreadEnd_acc(thread), &
+                                          edgeThreadStart_acc(thread), edgeThreadEnd_acc(thread), &
+                                          cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread), &
                                           scalar_old_arr, scalar_new_arr, s_max_arr, s_min_arr, wdtn_arr, &
                                           flux_array, flux_upwind_tmp_arr, flux_tmp_arr, config_gpu_aware_mpi, &
                                           exchange_halo_group, &
