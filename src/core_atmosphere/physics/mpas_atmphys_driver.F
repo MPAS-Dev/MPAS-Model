@@ -143,6 +143,7 @@
                                   config_sfclayer_scheme
 
  logical, pointer:: config_oml1d
+ logical, pointer:: config_gwdo_nonhyd
  real(kind=RKIND),pointer:: config_bucket_radt
 
 !local variables:
