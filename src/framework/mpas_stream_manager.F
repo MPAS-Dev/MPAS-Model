@@ -630,9 +630,7 @@ module mpas_stream_manager
                 output_nalarms = MPAS_stream_mgr_get_num_alarms(manager, trim(stream1_cursor % name), &
                                                                         MPAS_STREAM_OUTPUT)
 
-                stream1_input = ((stream1_cursor % direction == MPAS_STREAM_INPUT .or. &
-                                stream1_cursor % direction == MPAS_STREAM_INPUT_OUTPUT) .and. &
-                                input_nalarms > 0)
+                stream1_input = (stream1_cursor % direction == MPAS_STREAM_INPUT .and. input_nalarms > 0)
                 stream1_output = ((stream1_cursor % direction == MPAS_STREAM_OUTPUT .or. &
                                  stream1_cursor % direction == MPAS_STREAM_INPUT_OUTPUT) .and. &
                                  output_nalarms > 0)
@@ -653,9 +651,7 @@ module mpas_stream_manager
                                                                             MPAS_STREAM_OUTPUT)
 
                     pkg_active = stream_active_pkg_check(stream2_cursor)
-                    stream2_input = ((stream2_cursor % direction == MPAS_STREAM_INPUT .or. &
-                                    stream2_cursor % direction == MPAS_STREAM_INPUT_OUTPUT) .and. &
-                                    input_nalarms > 0)
+                    stream2_input = (stream2_cursor % direction == MPAS_STREAM_INPUT .and. input_nalarms > 0)
                     stream2_output = ((stream2_cursor % direction == MPAS_STREAM_OUTPUT .or. &
                                      stream2_cursor % direction == MPAS_STREAM_INPUT_OUTPUT) .and. &
                                      output_nalarms > 0)
