@@ -178,11 +178,11 @@ else()
 endif()
 
 set(ATMOSPHERE_CORE_PHYSICS_MYNN-SFC_SOURCES
-    module_sf_mynnsfc_land.F90
-    module_sf_mynnsfc_water.F90
-    module_sf_mynnsfc_ice.F90
-    MPAS/module_sf_mynnsfc_common.F90
-    MPAS/module_sf_mynnsfc_driver.F90
+    src/module_sf_mynnsfc_land.F90
+    src/module_sf_mynnsfc_water.F90
+    src/module_sf_mynnsfc_ice.F90
+    src/MPAS/module_sf_mynnsfc_common.F90
+    src/module_sf_mynnsfc_driver.F90
 )
 list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_MYNN-SFC_SOURCES PREPEND physics/physics_noaa/MYNN-SFC/)
 
