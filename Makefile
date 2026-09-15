@@ -785,7 +785,7 @@ ifeq "$(SCOTCH)" "true"
 		export SCOTCH_LIB_DIR=lib
 	else
 		ifneq ($(wildcard $(SCOTCH_ROOT)/lib/libptscotch.a), )
-			SCOTCH_LIB_DIR=lib64
+			SCOTCH_LIB_DIR=lib
 		else ifneq ($(wildcard $(SCOTCH_ROOT)/lib64/libptscotch.a), )
 			SCOTCH_LIB_DIR=lib64
 		else
