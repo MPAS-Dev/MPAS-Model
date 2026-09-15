@@ -805,16 +805,6 @@ else
 	$(error Invalid SCOTCH option: $(SCOTCH) - valid options "true", "false")
 endif
 
-ifneq "$(SCOTCH)" ""
-	SCOTCH_INCLUDES += -I$(SCOTCH)/include
-	SCOTCH_LIBS += -L$(SCOTCH)/lib64 -lptscotch -lscotch  -lptscotcherr -lm
-	SCOTCH_FLAGS = -DMPAS_SCOTCH
-
-	CPPINCLUDES += $(SCOTCH_INCLUDES)
-	LIBS += $(SCOTCH_LIBS)
-	override CPPFLAGS += $(SCOTCH_FLAGS)
-endif
-
 ifneq "$(PNETCDF)" ""
 ifneq ($(wildcard $(PNETCDF)/lib/libpnetcdf.*), )
 	PNETCDFLIBLOC = lib
