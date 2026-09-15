@@ -15,6 +15,7 @@
  use mpas_atmphys_vars
 
  use module_sf_mynn,only: sfclay_mynn
+ use module_sf_mynnsfc_driver,only: mynnsfc_driver,mynnsfc_init
  use module_sf_sfclay
  use module_sf_sfclayrev,only: sfclayrev
  use sf_mynn,only: sf_mynn_init
@@ -146,6 +147,7 @@
  if(.not.allocated(xland_p) ) allocate(xland_p(ims:ime,jms:jme) )
  if(.not.allocated(zol_p)   ) allocate(zol_p(ims:ime,jms:jme)   )
  if(.not.allocated(znt_p)   ) allocate(znt_p(ims:ime,jms:jme)   )
+ if(.not.allocated(xice_p)  ) allocate(xice_p(ims:ime,jms:jme)  )
 
  if(config_frac_seaice) then
     if(.not.allocated(sst_p)      ) allocate(sst_p(ims:ime,jms:jme)      )
@@ -220,6 +222,16 @@
           if(.not.allocated(ch_sea)) allocate(ch_sea(ims:ime,jms:jme))
        endif
 
+   case("sf_mynnsfclay")
+       if(.not.allocated(snowh_p)) allocate(snowh_p(ims:ime,jms:jme))
+       if(.not.allocated(ch_p)   ) allocate(ch_p(ims:ime,jms:jme)   )
+       if(.not.allocated(cqs_p)  ) allocate(cqs_p(ims:ime,jms:jme)  )
+       if(.not.allocated(qcg_p)  ) allocate(qcg_p(ims:ime,jms:jme)  )
+       if(config_frac_seaice) then
+          if(.not.allocated(ch_sea) ) allocate(ch_sea(ims:ime,jms:jme) )
+          if(.not.allocated(cqs_sea)) allocate(cqs_sea(ims:ime,jms:jme))
+       endif
+
     case default
 
  end select sfclayer_select
@@ -279,10 +291,10 @@
  if(allocated(xland_p) ) deallocate(xland_p )
  if(allocated(zol_p)   ) deallocate(zol_p   )
  if(allocated(znt_p)   ) deallocate(znt_p   )
-
+ if(allocated(xice_p)  ) deallocate(xice_p  )
+      
  if(config_frac_seaice) then
     if(allocated(sst_p)      ) deallocate(sst_p      )
-    if(allocated(xice_p)     ) deallocate(xice_p     )
 
     if(allocated(br_sea)     ) deallocate(br_sea     )
     if(allocated(flhc_p)     ) deallocate(flhc_sea   )
@@ -342,6 +354,15 @@
           if(allocated(ch_sea)) deallocate(ch_sea)
        endif
 
+    case("sf_mynnsfclay")
+       if(allocated(snowh_p)) deallocate(snowh_p)
+       if(allocated(ch_p)   ) deallocate(ch_p   )
+       if(allocated(cqs_p)  ) deallocate(cqs_p  )
+       if(allocated(qcg_p)  ) deallocate(qcg_p  )
+       if(config_frac_seaice) then
+          if(allocated(ch_sea)) deallocate(ch_sea)
+       endif
+       
     case default
 
  end select sfclayer_select
@@ -374,6 +395,7 @@
  real(kind=RKIND),dimension(:),pointer:: br,cpm,chs,chs2,cqs2,flhc,flqc,gz1oz0,hfx,qfx,  &
                                          qgh,qsfc,lh,mol,psim,psih,regime,rmol,ust,ustm, &
                                          wspd,znt,zol
+ real(kind=RKIND),dimension(:),pointer:: cqs
 
 !local pointers specific to monin_obukhov:
  real(kind=RKIND),dimension(:),pointer:: fh,fm
@@ -393,7 +415,8 @@
  call mpas_pool_get_array(diag_physics,'mavail'  ,mavail  )
  call mpas_pool_get_array(sfc_input   ,'skintemp',skintemp)
  call mpas_pool_get_array(sfc_input   ,'xland'   ,xland   )
-
+ call mpas_pool_get_array(sfc_input   ,'xice'    ,xice    )
+      
 !inout variables:
  call mpas_pool_get_array(diag_physics,'br'      ,br      )
  call mpas_pool_get_array(diag_physics,'cpm'     ,cpm     )
@@ -427,7 +450,8 @@
     mavail_p(i,j) = mavail(i)
     tsk_p(i,j)    = skintemp(i)
     xland_p(i,j)  = xland(i)
-
+    xice_p(i,j)   = xice(i)
+      
     !inout variables:
     br_p(i,j)     = br(i)
     cpm_p(i,j)    = cpm(i)
@@ -470,11 +494,9 @@
 
  if(config_frac_seaice) then
     call mpas_pool_get_array(sfc_input,'sst' ,sst)
-    call mpas_pool_get_array(sfc_input,'xice',xice)
     do j = jts,jte
     do i = its,ite
        sst_p(i,j)      = sst(i)
-       xice_p(i,j)     = xice(i)
 
        !input variables:
        mavail_sea(i,j) = mavail(i)
@@ -519,6 +541,7 @@
        !overwrite some local variables for sea-ice cells:
        if(xice_p(i,j).ge.xice_threshold .and. xice_p(i,j).le.1._RKIND) then
           xland_sea(i,j)  = 2._RKIND
+          xland_p(i,j)    = 1._RKIND
           mavail_sea(i,j) = 1._RKIND
           znt_sea(i,j)    = 0.0001_RKIND
           tsk_sea(i,j)    = max(sst_p(i,j),271.4_RKIND)
@@ -585,6 +608,27 @@
        enddo
        enddo
 
+    case("sf_mynnsfclay")
+       !input variables:
+       call mpas_pool_get_array(sfc_input   ,'snowh',snowh)
+       !inout variables:
+       call mpas_pool_get_array(diag_physics,'ch' ,ch )
+       call mpas_pool_get_array(diag_physics,'cqs',cqs)
+
+       do j = jts,jte
+       do i = its,ite
+          !input variables:
+          snowh_p(i,j) = snowh(i)
+          !inout variables:
+          ch_p(i,j)    = ch(i)
+          cqs_p(i,j)   = cqs(i)
+          if(config_frac_seaice) then
+             ch_sea(i,j)  = ch(i)
+             cqs_sea(i,j) = cqs(i)
+          endif
+       enddo
+       enddo
+
     case default
 
  end select sfclayer_select
@@ -613,6 +657,7 @@
  real(kind=RKIND),dimension(:),pointer:: br,cpm,chs,chs2,cqs2,flhc,flqc,gz1oz0,hfx,qfx,  &
                                          qgh,qsfc,lh,mol,psim,psih,regime,rmol,ust,wspd, &
                                          znt,zol
+ real(kind=RKIND),dimension(:),pointer:: cqs
  real(kind=RKIND),dimension(:),pointer:: q2,t2m,th2m,u10,v10
  real(kind=RKIND),dimension(:),pointer:: cd,cda,ck,cka,ustm
  real(kind=RKIND),dimension(:),pointer:: xice
@@ -789,6 +834,27 @@
           enddo
        endif
 
+    case("sf_mynnsfclay")
+       call mpas_pool_get_array(diag_physics,'ch' ,ch )
+       call mpas_pool_get_array(diag_physics,'cqs',cqs)
+
+       do j = jts,jte
+       do i = its,ite
+          ch(i) = ch_p(i,j)
+          cqs(i)= cqs_p(i,j)
+       enddo
+       enddo
+       if(config_frac_seaice) then
+          call mpas_pool_get_array(sfc_input,'xice',xice)
+          do j = jts,jte
+          do i = its,ite
+             if(xice(i).ge.xice_threshold .and. xice(i).lt.1._RKIND) then
+                ch(i)  =  ch_p(i,j)*xice(i) + (1._RKIND-xice(i))*ch_sea(i,j)
+             endif
+          enddo
+          enddo
+       endif
+
     case default
 
  end select sfclayer_select
@@ -829,6 +895,9 @@
     case("sf_mynn")
        call sf_mynn_init(errmsg,errflg)
 
+    case("sf_mynnsfclay")
+       call mynnsfc_init(allowed_to_read,errmsg,errflg)
+       
     case default
 
  end select sfclayer_select
@@ -852,7 +921,10 @@
 
 !local pointers:
  logical,pointer:: config_do_restart,config_frac_seaice
+ logical,pointer:: config_do_DAcycling     
  character(len=StrKIND),pointer:: sfclayer_scheme
+ character(len=StrKIND),pointer:: lsm_scheme
+ integer,pointer:: sf_mynn_sfcflux_land,sf_mynn_sfcflux_water
  real(kind=RKIND),dimension(:),pointer:: areaCell
 
 !local variables:
@@ -874,7 +946,8 @@
  call mpas_pool_get_config(configs,'config_do_restart'     ,config_do_restart )
  call mpas_pool_get_config(configs,'config_frac_seaice'    ,config_frac_seaice)
  call mpas_pool_get_config(configs,'config_sfclayer_scheme',sfclayer_scheme   )
-
+ call mpas_pool_get_config(configs,'config_do_DAcycling'   ,config_do_DAcycling) 
+      
  call mpas_pool_get_array(mesh,'areaCell',areaCell)
 
 !copy all MPAS arrays to rectanguler grid:
@@ -883,7 +956,7 @@
  dx = sqrt(maxval(areaCell))
 
  initflag = 1
- if(config_do_restart .or. itimestep > 1) initflag = 0
+ if(config_do_restart .or. config_do_DAcycling .or. itimestep > 1) initflag = 0
 
  sfclayer_select: select case (trim(sfclayer_scheme))
 
@@ -1075,6 +1148,81 @@
                           )
        endif
        call mpas_timer_stop('sf_mynn')
+
+    case("sf_mynnsfclay")
+       call mpas_timer_start('sf_mynnsfclay')
+       call mpas_log_write('--- enter subroutine mynnsfc_driver:')
+       call mpas_pool_get_config(configs,'config_mynn_sfcflux_land' ,sf_mynn_sfcflux_land )
+       call mpas_pool_get_config(configs,'config_mynn_sfcflux_water',sf_mynn_sfcflux_water)
+       call mpas_pool_get_config(configs,'config_lsm_scheme'        ,lsm_scheme           )
+       call mynnsfc_driver( &
+                   p3d      = pres_hyd_p , th3d      = th_p     , t3d      = t_p         , &
+                   u3d      = u_p        , v3d       = v_p      , qv3d     = qv_p        , &
+                   rho3d    = rho_p      , dz8w      = dz_p     ,                          &
+                   chs      = chs_p      , chs2      = chs2_p   , psfcpa   = psfc_p      , &
+                   cqs      = cqs_p      , cqs2      = cqs2_p   , cpm      = cpm_p       , &
+                   znt      = znt_p      , qgh       = qgh_p                             , &
+                   ust      = ust_p      , pblh      = hpbl_p   , mavail   = mavail_p    , &
+                   zol      = zol_p      , mol       = mol_p    ,                          &
+                   psim     = psim_p     , psih      = psih_p   , xland    = xland_p     , &
+                   hfx      = hfx_p      , qfx       = qfx_p    , lh       = lh_p        , &
+                   tsk      = tsk_p      , flhc      = flhc_p   , flqc     = flqc_p      , &
+                   qsfc     = qsfc_p     , rmol      = rmol_p   ,                          &
+                   u10      = u10_p      , v10       = v10_p    , th2      = th2m_p      , &
+                   t2       = t2m_p      , q2        = q2_p     , snowh    = snowh_p     , &
+                   gz1oz0   = gz1oz0_p   , wspd      = wspd_p   , br       = br_p        , &
+                   isfflx   = isfflx     , dx        = dx_p     ,                          &
+                   ustm     = ustm_p     , ck        = ck_p     , cka      = cka_p       , &
+                   cd       = cd_p       , cda       = cda_p    , ch       = ch_p        , &
+                   xice     =xice_P      , xice_threshold       = xice_threshold         , &
+                   spp_pbl               = spp_pbl                                       , &
+                   sf_mynn_sfcflux_land  = sf_mynn_sfcflux_land                          , &
+                   sf_mynn_sfcflux_water = sf_mynn_sfcflux_water                         , &
+                   flagc_lsm             = lsm_scheme                                    , &
+                   itimestep= itimestep  , initflag  = initflag                          , &
+                   restart  = config_do_restart                                          , &
+                   cycling  = config_do_DAcycling                                        , &
+                   errmsg   = errmsg     , errflg    = errflg                            , &
+                   ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
+                   ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme , &
+                   its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
+                       )
+
+       if(config_frac_seaice) then
+          call mynnsfc_driver( &
+                      p3d      = pres_hyd_p , th3d      = th_p     , t3d      = t_p         , &
+                      u3d      = u_p        , v3d       = v_p      , qv3d     = qv_p        , &
+                      rho3d    = rho_p      , dz8w      = dz_p     ,                          &
+                      chs      = chs_sea    , chs2      = chs2_sea , psfcpa   = psfc_p      , &
+                      cqs      = cqs_sea    , cqs2      = cqs2_sea , cpm      = cpm_sea     , &
+                      znt      = znt_sea    , qgh       = qgh_sea                           , &
+                      ust      = ust_sea    , pblh      = hpbl_p   , mavail   = mavail_sea  , &
+                      zol      = zol_sea    , mol       = mol_sea  ,                          &
+                      psim     = psim_sea   , psih      = psih_sea , xland    = xland_sea   , &
+                      hfx      = hfx_sea    , qfx       = qfx_sea  , lh       = lh_sea      , &
+                      tsk      = tsk_sea    , flhc      = flhc_sea , flqc     = flqc_sea    , &
+                      qsfc     = qsfc_sea   , rmol      = rmol_sea ,                          &
+                      u10      = u10_sea    , v10       = v10_sea  , th2      = th2m_sea    , &
+                      t2       = t2m_sea    , q2        = q2_sea   , snowh    = snowh_p     , &
+                      gz1oz0   = gz1oz0_sea , wspd      = wspd_sea , br       = br_sea      , &
+                      isfflx   = isfflx     , dx        = dx_p     ,                          &
+                      ustm     = ustm_sea   , ck        = ck_sea   , cka      = cka_sea     , &
+                      cd       = cd_sea     , cda       = cda_sea  , ch       = ch_sea      , &
+                      xice     =xice_P      , xice_threshold       = xice_threshold         , & 
+                      spp_pbl               = spp_pbl                                       , &
+                      sf_mynn_sfcflux_land  = sf_mynn_sfcflux_land                          , &
+                      sf_mynn_sfcflux_water = sf_mynn_sfcflux_water     	            , &
+                      flagc_lsm    	    = lsm_scheme 	      	      	            , &
+                      itimestep= itimestep  , initflag  = initflag                          , &
+                      restart  = config_do_restart                                          , &
+                      cycling  = config_do_DAcycling                                        , &
+                      errmsg   = errmsg     , errflg    = errflg                            , &
+                      ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &
+                      ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme , &
+                      its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte   &
+                          )
+       endif
+       call mpas_timer_stop('sf_mynnsfclay')
 
     case default
 
