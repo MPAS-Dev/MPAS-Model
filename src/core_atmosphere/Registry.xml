@@ -2202,7 +2202,7 @@
                              units="kg kg^{-1} s^{-1}"
                              description="Lateral boundary tendency of graupel mixing ratio"/>
 
-                        <var name="lbc_ni" name_in_code="ni" array_group="number" packages="bl_mynn_in;mp_thompson_in;mp_thompson_aers_in"
+                        <var name="lbc_ni" name_in_code="ni" array_group="number" packages="bl_mynn_in;bl_mynnedmf_in;mp_thompson_in;mp_thompson_aers_in"
                              units="m^{-3} s^{-1}"
                              description="Lateral boundary tendency of ice number concentration"/>
 
