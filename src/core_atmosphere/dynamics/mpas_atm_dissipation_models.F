@@ -407,8 +407,10 @@ contains
                ! eddy viscocities set here if we are running the 1.5 order prognostic tke scheme
                eddy_visc_h = c_k*l_horizontal*sqrt(scalars(index_tke,k,iCell))
                eddy_visc_h = min(eddy_visc_h,(0.01*config_len_disp**2) * invDt)
+               eddy_visc_h = max(0.01, eddy_visc_h)
                eddy_visc_v = c_k*l_vertical*sqrt(scalars(index_tke,k,iCell))
                eddy_visc_v = min(eddy_visc_v,(0.01*delta_z**2) * invDt)
+               eddy_visc_v = max(0.01, eddy_visc_v)
 
                eddy_visc_horz(k,iCell) = eddy_visc_h
                eddy_visc_vert(k,iCell) = eddy_visc_v

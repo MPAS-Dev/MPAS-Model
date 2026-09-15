@@ -1,5 +1,5 @@
 ## MPAS-Model
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.14)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Functions/MPAS_Functions.cmake)
 get_mpas_version(MPAS_VERSION)
