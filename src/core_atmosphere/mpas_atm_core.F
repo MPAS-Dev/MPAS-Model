@@ -482,6 +482,8 @@ module atm_core
       call atm_adv_coef_compression(mesh)
 
       call atm_couple_coef_3rd_order(mesh, block % configs)
+
+      call atm_compute_nondimensional_radii(mesh, block % configs)
       
       call mpas_pool_get_dimension(state, 'nVertices', nVertices_ptr)
       call mpas_pool_get_dimension(state, 'nVertLevels', nVertLevels_ptr)
@@ -934,7 +936,7 @@ module atm_core
    
       integer :: iCell, k
       integer, pointer :: nCells, nVertLevels, index_qv
-      real (kind=RKIND), dimension(:,:), pointer :: theta, rho, theta_m, rho_zz, zz
+      real (kind=RKIND), dimension(:,:), pointer :: theta, rho, theta_m, rho_zz, zz, rTildeCell
       real (kind=RKIND), dimension(:,:), pointer :: pressure_base, pressure_p, pressure
       real (kind=RKIND), dimension(:,:,:), pointer :: scalars
 
@@ -953,11 +955,12 @@ module atm_core
       call mpas_pool_get_array(diag, 'pressure', pressure)
 
       call mpas_pool_get_array(mesh, 'zz', zz)
+      call mpas_pool_get_array(mesh, 'rTildeCell', rTildeCell)
 
       do iCell=1,nCells
          do k=1,nVertLevels
             theta(k,iCell) = theta_m(k,iCell) / (1._RKIND + rvord * scalars(index_qv,k,iCell))
-            rho(k,iCell) = rho_zz(k,iCell) * zz(k,iCell)
+            rho(k,iCell) = rho_zz(k,iCell) * zz(k,iCell) / rTildeCell(k,iCell)**2 ! deep
             pressure(k,iCell) = pressure_base(k,iCell) + pressure_p(k,iCell)
          end do
       end do
@@ -1269,6 +1272,92 @@ module atm_core
       end do
 
    end subroutine atm_compute_signs
+
+
+   subroutine atm_compute_nondimensional_radii(mesh, configs)
+
+      implicit none
+
+      type (mpas_pool_type), intent(inout) :: mesh
+      type (mpas_pool_type), intent(in) :: configs
+
+      logical, pointer :: config_deep_atmosphere, on_a_sphere
+      integer :: iCell, iCell1, iCell2, iCell3, i, k, nz
+      integer, pointer :: nCells, nEdges, nVertices, nz1
+      integer, dimension(:,:), pointer :: cellsOnEdge, cellsOnVertex
+      real (kind=RKIND) :: r_k, r_kp1
+      real (kind=RKIND), pointer :: sphere_radius
+      real (kind=RKIND), dimension(:), pointer :: areaTriangle, dcEdge
+      real (kind=RKIND), dimension(:,:), pointer :: rTildeCell, rTildeLayer, rTildeEdge, rTildeVertex
+      real (kind=RKIND), dimension(:,:), pointer :: zxu, zgrid, kiteAreasOnVertex
+
+      call mpas_pool_get_config(configs, 'config_deep_atmosphere', config_deep_atmosphere)
+      call mpas_pool_get_config(mesh, 'on_a_sphere', on_a_sphere)
+      call mpas_pool_get_config(mesh, 'sphere_radius', sphere_radius)
+
+      call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+      call mpas_pool_get_dimension(mesh, 'nEdges', nEdges)
+      call mpas_pool_get_dimension(mesh, 'nVertices', nVertices)
+      call mpas_pool_get_dimension(mesh, 'nVertLevels', nz1)
+      nz = nz1 + 1
+
+      call mpas_pool_get_array(mesh, 'rTildeCell', rTildeCell)
+      call mpas_pool_get_array(mesh, 'rTildeLayer', rTildeLayer)
+      call mpas_pool_get_array(mesh, 'rTildeEdge', rTildeEdge)
+      call mpas_pool_get_array(mesh, 'rTildeVertex', rTildeVertex)
+      call mpas_pool_get_array(mesh, 'zxu', zxu)
+      call mpas_pool_get_array(mesh, 'zgrid', zgrid)
+      call mpas_pool_get_array(mesh, 'kiteAreasOnVertex', kiteAreasOnVertex)
+      call mpas_pool_get_array(mesh, 'areaTriangle', areaTriangle)
+      call mpas_pool_get_array(mesh, 'dcEdge', dcEdge)
+      call mpas_pool_get_array(mesh, 'cellsOnEdge', cellsOnEdge)
+      call mpas_pool_get_array(mesh, 'cellsOnVertex', cellsOnVertex)
+
+      if (config_deep_atmosphere.and.on_a_sphere) then
+         do iCell=1,nCells
+            do k=1,nz1
+               r_k   = sphere_radius + zgrid(k,iCell)
+               r_kp1 = sphere_radius + zgrid(k+1,iCell)
+               rTildeCell(k,iCell) = sqrt( (r_k**2 + r_k*r_kp1 + r_kp1**2) / (3.*sphere_radius**2) )
+            end do
+            do k=1,nz
+               rTildeLayer(k,iCell) = 1.0 + (zgrid(k,iCell)/sphere_radius)
+            end do
+         end do
+         do i=1, nEdges
+            iCell1 = cellsOnEdge(1,i)
+            iCell2 = cellsOnEdge(2,i)
+            do k=1,nz1
+               rTildeEdge(k,i) = 1.0 + 0.25*(zgrid(k,iCell1)+zgrid(k,iCell2)+zgrid(k+1,iCell1)+zgrid(k+1,iCell2))/sphere_radius
+            end do
+         end do
+         do i=1, nVertices
+            iCell1 = cellsOnVertex(1,i)
+            iCell2 = cellsOnVertex(2,i)
+            iCell3 = cellsOnVertex(3,i)
+            do k=1,nz1
+               rTildeVertex(k,i) = 0.5 * ( (kiteAreasOnVertex(1,i)+kiteAreasOnVertex(2,i)) * rTildeCell(k,iCell3) &
+                                         + (kiteAreasOnVertex(2,i)+kiteAreasOnVertex(3,i)) * rTildeCell(k,iCell1) &
+                                         + (kiteAreasOnVertex(3,i)+kiteAreasOnVertex(1,i)) * rTildeCell(k,iCell2) ) &
+                                       / areaTriangle(i)
+            end do
+         end do
+      else ! shallow or on a plane
+        rTildeCell(:,:) = 1.0_RKIND
+        rTildeEdge(:,:) = 1.0_RKIND
+        rTildeVertex(:,:) = 1.0_RKIND
+        rTildeLayer(:,:) = 1.0_RKIND
+      end if
+
+      do i=1, nEdges
+         iCell1 = cellsOnEdge(1,i)
+         iCell2 = cellsOnEdge(2,i)
+         do k=1,nz1
+            zxu (k,i) = 0.5 * (zgrid(k,iCell2)-zgrid(k,iCell1) + zgrid(k+1,iCell2)-zgrid(k+1,iCell1)) / (dcEdge(i)*rTildeEdge(k,i))
+         end do
+      end do
+
+   end subroutine atm_compute_nondimensional_radii
 
 
    subroutine atm_compute_damping_coefs(mesh, configs)
