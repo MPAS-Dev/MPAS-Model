@@ -1,0 +1,65 @@
+name: 'Resolve Container Image'
+description: 'Assemble a container image name from ci-config.env templates'
+
+inputs:
+  compiler:
+    description: 'Compiler family (gcc, nvhpc, oneapi)'
+    required: true
+  mpi:
+    description: 'MPI implementation (openmpi, mpich)'
+    required: true
+  gpu:
+    description: 'GPU variant (empty string, or "cuda")'
+    required: false
+    default: ''
+
+outputs:
+  image:
+    description: 'Fully qualified container image name'
+    value: ${{ steps.resolve.outputs.image }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Resolve container image
+      id: resolve
+      shell: bash
+      run: |
+        CI_CONFIG="${GITHUB_WORKSPACE}/.github/ci-config.env"
+        if [ ! -f "${CI_CONFIG}" ]; then
+          echo "::error::ci-config.env not found at ${CI_CONFIG}"
+          exit 1
+        fi
+        source "${CI_CONFIG}"
+
+        COMPILER="${{ inputs.compiler }}"
+        MPI="${{ inputs.mpi }}"
+        GPU="${{ inputs.gpu }}"
+
+        # Resolve compiler name (fallback to raw value if no mapping)
+        comp_var="CONTAINER_COMPILER_${COMPILER}"
+        COMPILER_NAME="${!comp_var:-$COMPILER}"
+
+        # Resolve MPI name (fallback to raw value if no mapping)
+        mpi_var="CONTAINER_MPI_${MPI}"
+        MPI_NAME="${!mpi_var:-$MPI}"
+
+        # Pick template: GPU vs CPU, then check for per-compiler override
+        if [ -n "${GPU}" ]; then
+          gpu_override="CONTAINER_IMAGE_GPU_${COMPILER}"
+          TEMPLATE="${!gpu_override:-$CONTAINER_IMAGE_GPU}"
+        else
+          cpu_override="CONTAINER_IMAGE_${COMPILER}"
+          TEMPLATE="${!cpu_override:-$CONTAINER_IMAGE}"
+        fi
+
+        # Substitute placeholders
+        IMAGE="${TEMPLATE//\{compiler\}/$COMPILER_NAME}"
+        IMAGE="${IMAGE//\{mpi\}/$MPI_NAME}"
+
+        echo "Resolved container image: ${IMAGE}"
+        echo "  Compiler:  ${COMPILER} → ${COMPILER_NAME}"
+        echo "  MPI:       ${MPI} → ${MPI_NAME}"
+        echo "  GPU:       ${GPU:-none}"
+
+        echo "image=${IMAGE}" >> $GITHUB_OUTPUT

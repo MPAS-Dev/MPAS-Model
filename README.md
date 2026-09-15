@@ -1,6 +1,25 @@
 MPAS-v8.4.2
 ====
 
+## CI Status
+
+Each test builds MPAS-Atmosphere in double precision, runs 3 perturbed ensemble
+members (4 MPI ranks), and validates with
+[PyCECT](https://github.com/NCAR/PyCECT)
+([Price-Broncucia et al. 2025](https://doi.org/10.5194/gmd-18-2349-2025)).
+All testing subsets run automatically on every push and PR to the
+master and develop branches. Reminder: Feature PRs should be opened
+against `develop`.
+
+| Compiler | MPI | Status |
+|----------|-----|--------|
+| GNU | MPICH | [![GNU+MPICH (CPU)](https://github.com/MPAS-Dev/MPAS-Model/actions/workflows/test-gcc-mpich.yml/badge.svg)](https://github.com/MPAS-Dev/MPAS-Model/actions/workflows/test-gcc-mpich.yml) |
+| GNU | OpenMPI | [![GNU+OpenMPI (CPU)](https://github.com/MPAS-Dev/MPAS-Model/actions/workflows/test-gcc-openmpi.yml/badge.svg)](https://github.com/MPAS-Dev/MPAS-Model/actions/workflows/test-gcc-openmpi.yml) |
+| Intel | MPICH | [![Intel+MPICH (CPU)](https://github.com/MPAS-Dev/MPAS-Model/actions/workflows/test-intel-mpich.yml/badge.svg)](https://github.com/MPAS-Dev/MPAS-Model/actions/workflows/test-intel-mpich.yml) |
+| Intel | OpenMPI | [![Intel+OpenMPI (CPU)](https://github.com/MPAS-Dev/MPAS-Model/actions/workflows/test-intel-openmpi.yml/badge.svg)](https://github.com/MPAS-Dev/MPAS-Model/actions/workflows/test-intel-openmpi.yml) |
+| NVHPC | MPICH | [![NVHPC+MPICH (CPU)](https://github.com/MPAS-Dev/MPAS-Model/actions/workflows/test-nvhpc-mpich.yml/badge.svg)](https://github.com/MPAS-Dev/MPAS-Model/actions/workflows/test-nvhpc-mpich.yml) |
+| NVHPC | OpenMPI | [![NVHPC+OpenMPI (CPU)](https://github.com/MPAS-Dev/MPAS-Model/actions/workflows/test-nvhpc-openmpi.yml/badge.svg)](https://github.com/MPAS-Dev/MPAS-Model/actions/workflows/test-nvhpc-openmpi.yml) |
+
 The Model for Prediction Across Scales (MPAS) is a collaborative project for
 developing atmosphere, ocean, and other earth-system simulation components for
 use in climate, regional climate, and weather studies. The primary development

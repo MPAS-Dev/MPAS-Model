@@ -1,0 +1,21 @@
+# Subset CI: NVHPC + OpenMPI (CPU)
+# Quick ECT validation with 4 MPI ranks.
+# Known issue: model exits 134 (SIGABRT) on GA runners with 4 ranks.
+# MPICH works.
+
+name: "NVHPC+OpenMPI (CPU)"
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, develop, 'feature/ci-cpu-testing']
+  pull_request:
+    branches: [master, develop, 'feature/ci-cpu-testing']
+
+jobs:
+  test:
+    uses: ./.github/workflows/_test-compiler.yml
+    with:
+      compiler: nvhpc
+      mpi: openmpi
+
