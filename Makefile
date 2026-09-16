@@ -790,6 +790,7 @@ ifeq "$(SCOTCH)" "true"
 			SCOTCH_LIB_DIR=lib64
 		else
 			$(error Could not find SCOTCH library in $(SCOTCH_ROOT)/lib or $(SCOTCH_ROOT)/lib64)
+			export SCOTCH = false
 		endif
 	endif
 	SCOTCH_INCLUDES += -I$(SCOTCH_ROOT)/include
@@ -1465,6 +1466,10 @@ $(SCOTCH_ROOT)/$(SCOTCH_LIB_DIR)/libptscotch.a:
 	@#
 	@# Build the Scotch library if it is not already built
 	@#
+	ifeq "$(SCOTCH)" "false"
+		$(error Could not find SCOTCH library in $(SCOTCH_ROOT)/lib or $(SCOTCH_ROOT)/lib64)
+	endif
+
 	$(info Building Scotch library...)
 	src/core_atmosphere/tools/manage_externals/checkout_externals --externals src/Externals.cfg;
 	cd ${SCOTCH_RELPATH} && mkdir -p build;
