@@ -4466,128 +4466,14 @@
       end function activ_ncloud
 
 #if !defined(mpas)
-!+---+-----------------------------------------------------------------+
-!+---+-----------------------------------------------------------------+
-      SUBROUTINE GCF(GAMMCF,A,X,GLN)
-!     --- RETURNS THE INCOMPLETE GAMMA FUNCTION Q(A,X) EVALUATED BY ITS
-!     --- CONTINUED FRACTION REPRESENTATION AS GAMMCF.  ALSO RETURNS
-!     --- LN(GAMMA(A)) AS GLN.  THE CONTINUED FRACTION IS EVALUATED BY
-!     --- A MODIFIED LENTZ METHOD.
-!     --- USES GAMMLN
-      IMPLICIT NONE
-      INTEGER, PARAMETER:: ITMAX=100
-      REAL, PARAMETER:: gEPS=3.E-7
-      REAL, PARAMETER:: FPMIN=1.E-30
-      REAL, INTENT(IN):: A, X
-      REAL:: GAMMCF,GLN
-      INTEGER:: I
-      REAL:: AN,B,C,D,DEL,H
-      GLN=GAMMLN(A)
-      B=X+1.-A
-      C=1./FPMIN
-      D=1./B
-      H=D
-      DO 11 I=1,ITMAX
-        AN=-I*(I-A)
-        B=B+2.
-        D=AN*D+B
-        IF(ABS(D).LT.FPMIN)D=FPMIN
-        C=B+AN/C
-        IF(ABS(C).LT.FPMIN)C=FPMIN
-        D=1./D
-        DEL=D*C
-        H=H*DEL
-        IF(ABS(DEL-1.).LT.gEPS)GOTO 1
- 11   CONTINUE
-      PRINT *, 'A TOO LARGE, ITMAX TOO SMALL IN GCF'
- 1    GAMMCF=EXP(-X+A*LOG(X)-GLN)*H
-      END SUBROUTINE GCF
-!  (C) Copr. 1986-92 Numerical Recipes Software 2.02
-!+---+-----------------------------------------------------------------+
-      SUBROUTINE GSER(GAMSER,A,X,GLN)
-!     --- RETURNS THE INCOMPLETE GAMMA FUNCTION P(A,X) EVALUATED BY ITS
-!     --- ITS SERIES REPRESENTATION AS GAMSER.  ALSO RETURNS LN(GAMMA(A)) 
-!     --- AS GLN.
-!     --- USES GAMMLN
-      IMPLICIT NONE
-      INTEGER, PARAMETER:: ITMAX=100
-      REAL, PARAMETER:: gEPS=3.E-7
-      REAL, INTENT(IN):: A, X
-      REAL:: GAMSER,GLN
-      INTEGER:: N
-      REAL:: AP,DEL,SUM
-      GLN=GAMMLN(A)
-      IF(X.LE.0.)THEN
-        IF(X.LT.0.) PRINT *, 'X < 0 IN GSER'
-        GAMSER=0.
-        RETURN
-      ENDIF
-      AP=A
-      SUM=1./A
-      DEL=SUM
-      DO 11 N=1,ITMAX
-        AP=AP+1.
-        DEL=DEL*X/AP
-        SUM=SUM+DEL
-        IF(ABS(DEL).LT.ABS(SUM)*gEPS)GOTO 1
- 11   CONTINUE
-      PRINT *,'A TOO LARGE, ITMAX TOO SMALL IN GSER'
- 1    GAMSER=SUM*EXP(-X+A*LOG(X)-GLN)
-      END SUBROUTINE GSER
-!  (C) Copr. 1986-92 Numerical Recipes Software 2.02
-!+---+-----------------------------------------------------------------+
-      REAL FUNCTION GAMMLN(XX)
-!     --- RETURNS THE VALUE LN(GAMMA(XX)) FOR XX > 0.
-      IMPLICIT NONE
-      REAL, INTENT(IN):: XX
-      DOUBLE PRECISION, PARAMETER:: STP = 2.5066282746310005D0
-      DOUBLE PRECISION, DIMENSION(6), PARAMETER:: &
-               COF = (/76.18009172947146D0, -86.50532032941677D0, &
-                       24.01409824083091D0, -1.231739572450155D0, &
-                      .1208650973866179D-2, -.5395239384953D-5/)
-      DOUBLE PRECISION:: SER,TMP,X,Y
-      INTEGER:: J
 
-      X=XX
-      Y=X
-      TMP=X+5.5D0
-      TMP=(X+0.5D0)*LOG(TMP)-TMP
-      SER=1.000000000190015D0
-      DO 11 J=1,6
-        Y=Y+1.D0
-        SER=SER+COF(J)/Y
-11    CONTINUE
-      GAMMLN=TMP+LOG(STP*SER/X)
-      END FUNCTION GAMMLN
-!  (C) Copr. 1986-92 Numerical Recipes Software 2.02
-!+---+-----------------------------------------------------------------+
-      REAL FUNCTION GAMMP(A,X)
-!     --- COMPUTES THE INCOMPLETE GAMMA FUNCTION P(A,X)
-!     --- SEE ABRAMOWITZ AND STEGUN 6.5.1
-!     --- USES GCF,GSER
-      IMPLICIT NONE
-      REAL, INTENT(IN):: A,X
-      REAL:: GAMMCF,GAMSER,GLN
-      GAMMP = 0.
-      IF((X.LT.0.) .OR. (A.LE.0.)) THEN
-        PRINT *, 'BAD ARGUMENTS IN GAMMP'
-        RETURN
-      ELSEIF(X.LT.A+1.)THEN
-        CALL GSER(GAMSER,A,X,GLN)
-        GAMMP=GAMSER
-      ELSE
-        CALL GCF(GAMMCF,A,X,GLN)
-        GAMMP=1.-GAMMCF
-      ENDIF
-      END FUNCTION GAMMP
-!  (C) Copr. 1986-92 Numerical Recipes Software 2.02
 !+---+-----------------------------------------------------------------+
       REAL FUNCTION WGAMMA(y)
 
       IMPLICIT NONE
       REAL, INTENT(IN):: y
 
-      WGAMMA = EXP(GAMMLN(y))
+      WGAMMA = EXP(LOG_GAMMA(y))
 
       END FUNCTION WGAMMA
 !+---+-----------------------------------------------------------------+
