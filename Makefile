@@ -779,31 +779,32 @@ endif
 
 export SCOTCH ?= false
 ifeq "$(SCOTCH)" "true"
-	ifeq ($(wildcard $(SCOTCH_ROOT)), )
-		export SCOTCH_RELPATH=src/external/scotch
-		export SCOTCH_ROOT=${CURDIR}/${SCOTCH_RELPATH}/install
-		export SCOTCH_LIB_DIR=lib
-	else
-		ifneq ($(wildcard $(SCOTCH_ROOT)/lib/libptscotch.a), )
-			SCOTCH_LIB_DIR=lib
-		else ifneq ($(wildcard $(SCOTCH_ROOT)/lib64/libptscotch.a), )
-			SCOTCH_LIB_DIR=lib64
-		else
-			$(error Could not find SCOTCH library in $(SCOTCH_ROOT)/lib or $(SCOTCH_ROOT)/lib64)
-			export SCOTCH = false
-		endif
-	endif
-	SCOTCH_INCLUDES += -I$(SCOTCH_ROOT)/include
-	SCOTCH_LIBS += -L$(SCOTCH_ROOT)/$(SCOTCH_LIB_DIR) -lptscotch -lscotch  -lptscotcherr -lm
-	SCOTCH_FLAGS = -DMPAS_SCOTCH
-	CPPINCLUDES += $(SCOTCH_INCLUDES)
-	LIBS += $(SCOTCH_LIBS)
-	override CPPFLAGS += $(SCOTCH_FLAGS)
-	SCOTCH_MESSAGE="MPAS was built with an external SCOTCH library using SCOTCH path"
+  ifneq ($(SCOTCH_ROOT),)
+    ifneq ($(wildcard $(SCOTCH_ROOT)/lib/libptscotch.a), )
+      SCOTCH_LIB_DIR = lib
+    else ifneq ($(wildcard $(SCOTCH_ROOT)/lib64/libptscotch.a), )
+      SCOTCH_LIB_DIR = lib64
+    else
+      $(error SCOTCH_ROOT=$(SCOTCH_ROOT) does not point to a valid PT-SCOTCH installation.)
+    endif
+	SCOTCH_MESSAGE="MPAS was built with an external PT-SCOTCH library provided by SCOTCH_ROOT"
+  else
+    SCOTCH_RELPATH = src/external/scotch
+    SCOTCH_ROOT = ${CURDIR}/${SCOTCH_RELPATH}/install
+    SCOTCH_LIB_DIR = lib
+    SCOTCH_MESSAGE="MPAS was built with the embedded PT-SCOTCH library."
+  endif
+
+  SCOTCH_INCLUDES += -I$(SCOTCH_ROOT)/include
+  SCOTCH_LIBS += -L$(SCOTCH_ROOT)/$(SCOTCH_LIB_DIR) -lptscotch -lscotch  -lptscotcherr -lm
+  SCOTCH_FLAGS = -DMPAS_SCOTCH
+  CPPINCLUDES += $(SCOTCH_INCLUDES)
+  LIBS += $(SCOTCH_LIBS)
+  override CPPFLAGS += $(SCOTCH_FLAGS)
 else ifeq "$(SCOTCH)" "false"
-	SCOTCH_MESSAGE="MPAS was built with the embedded SCOTCH library."
+  SCOTCH_MESSAGE="MPAS was not linked with the PT-SCOTCH library."
 else
-	$(error Invalid SCOTCH option: $(SCOTCH) - valid options "true", "false")
+  $(error Invalid SCOTCH option: $(SCOTCH) - valid options "true", "false")
 endif
 
 ifneq "$(PNETCDF)" ""
@@ -1466,9 +1467,6 @@ $(SCOTCH_ROOT)/$(SCOTCH_LIB_DIR)/libptscotch.a:
 	@#
 	@# Build the Scotch library if it is not already built
 	@#
-	ifeq "$(SCOTCH)" "false"
-		$(error Could not find SCOTCH library in $(SCOTCH_ROOT)/lib or $(SCOTCH_ROOT)/lib64)
-	endif
 
 	$(info Building Scotch library...)
 	src/core_atmosphere/tools/manage_externals/checkout_externals --externals src/Externals.cfg;
@@ -1477,7 +1475,9 @@ $(SCOTCH_ROOT)/$(SCOTCH_LIB_DIR)/libptscotch.a:
 	cd ${SCOTCH_RELPATH}/build && make -j$(nproc);
 	cd ${SCOTCH_RELPATH}/build && make install;
 
-scotch_c_test: $(SCOTCH_ROOT)/$(SCOTCH_LIB_DIR)/libptscotch.a
+scotch_build: $(SCOTCH_ROOT)/$(SCOTCH_LIB_DIR)/libptscotch.a
+
+scotch_c_test:
 	@#
 	@# Create a C test program and try to build against the PT-SCOTCH library
 	@#
@@ -1565,10 +1565,7 @@ MUSICA_MESSAGE = "MPAS was not linked with the MUSICA-Fortran library."
 endif
 
 ifeq "$(SCOTCH)" "true"
-MAIN_DEPS += scotch_c_test
-SCOTCH_MESSAGE = "MPAS has been linked with the Scotch graph partitioning library."
-else
-SCOTCH_MESSAGE = "MPAS was NOT linked with the Scotch graph partitioning library."
+MAIN_DEPS += scotch_build scotch_c_test
 endif
 
 mpas_main: $(MAIN_DEPS)
