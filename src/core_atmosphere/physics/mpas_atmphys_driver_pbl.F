@@ -825,7 +825,7 @@
     case("bl_ysu")
        call mpas_timer_start('bl_ysu')
        call ysu ( &
-                 p3d      = pres_hyd_p , p3di     = pres2_hyd_p , psfc     = psfc_p     , &
+                 p3d      = pres_hyd_p , p3di     = pres2_hyd_p , psfc     = psfc_hyd_p , &
                  t3d      = t_p        , dz8w     = dz_p        , pi3d     = pi_p       , &
                  u3d      = u_p        , v3d      = v_p         , qv3d     = qv_p       , &
                  qc3d     = qc_p       , qi3d     = qi_p        , rublten  = rublten_p  , &
@@ -906,7 +906,7 @@
                   f_qoz      = f_qoz        , f_nc       = f_nc         , f_ni        = f_ni            , &
                   f_nifa     = f_nifa       , f_nwfa     = f_nwfa       , f_nbca      = f_nbca          , &
                   icloud_bl  = icloud_bl    , delt       = dt_pbl       , dx          = dx_p            , &
-                  xland      = xland_p      , ps         = psfc_p       , ts          = tsk_p           , &
+                  xland      = xland_p      , ps         = psfc_hyd_p   , ts          = tsk_p           , &
                   qsfc       = qsfc_p       , ust        = ust_p        , ch          = ch_p            , &
                   hfx        = hfx_p        , qfx        = qfx_p        , rmol        = rmol_p          , &
                   wspd       = wspd_p       , znt        = znt_p        , uoce        = uoce_p          , &
