@@ -409,13 +409,13 @@ module atm_core
       integer :: thread
       character(len=StrKIND), pointer :: mminlu
 
-      integer, pointer :: nThreads
-      integer, dimension(:), pointer :: cellThreadStart, cellThreadEnd
-      integer, dimension(:), pointer :: cellSolveThreadStart, cellSolveThreadEnd
-      integer, dimension(:), pointer :: edgeThreadStart, edgeThreadEnd
-      integer, dimension(:), pointer :: edgeSolveThreadStart, edgeSolveThreadEnd
-      integer, dimension(:), pointer :: vertexThreadStart, vertexThreadEnd
-      integer, dimension(:), pointer :: vertexSolveThreadStart, vertexSolveThreadEnd
+      integer, pointer :: nThreads_acc
+      integer, dimension(:), pointer :: cellThreadStart_acc, cellThreadEnd_acc
+      integer, dimension(:), pointer :: cellSolveThreadStart_acc, cellSolveThreadEnd_acc
+      integer, dimension(:), pointer :: edgeThreadStart_acc, edgeThreadEnd_acc
+      integer, dimension(:), pointer :: edgeSolveThreadStart_acc, edgeSolveThreadEnd_acc
+      integer, dimension(:), pointer :: vertexThreadStart_acc, vertexThreadEnd_acc
+      integer, dimension(:), pointer :: vertexSolveThreadStart_acc, vertexSolveThreadEnd_acc
 
 
       logical, pointer :: config_do_restart, config_do_DAcycling
@@ -499,40 +499,40 @@ module atm_core
       end do
       !$acc end parallel
 
-      call mpas_pool_get_dimension(block % dimensions, 'nThreads', nThreads)
+      call mpas_pool_get_dimension(block % dimensions, 'nThreads_acc', nThreads_acc)
 
-      call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart', cellThreadStart)
-      call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd', cellThreadEnd)
-      call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart', cellSolveThreadStart)
-      call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd', cellSolveThreadEnd)
+      call mpas_pool_get_dimension(block % dimensions, 'cellThreadStart_acc', cellThreadStart_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'cellThreadEnd_acc', cellThreadEnd_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadStart_acc', cellSolveThreadStart_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'cellSolveThreadEnd_acc', cellSolveThreadEnd_acc)
 
-      call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart', vertexThreadStart)
-      call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd', vertexThreadEnd)
-      call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart', vertexSolveThreadStart)
-      call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd', vertexSolveThreadEnd)
+      call mpas_pool_get_dimension(block % dimensions, 'vertexThreadStart_acc', vertexThreadStart_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'vertexThreadEnd_acc', vertexThreadEnd_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadStart_acc', vertexSolveThreadStart_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'vertexSolveThreadEnd_acc', vertexSolveThreadEnd_acc)
 
-      call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart', edgeThreadStart)
-      call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd', edgeThreadEnd)
-      call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart', edgeSolveThreadStart)
-      call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd', edgeSolveThreadEnd)
+      call mpas_pool_get_dimension(block % dimensions, 'edgeThreadStart_acc', edgeThreadStart_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'edgeThreadEnd_acc', edgeThreadEnd_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadStart_acc', edgeSolveThreadStart_acc)
+      call mpas_pool_get_dimension(block % dimensions, 'edgeSolveThreadEnd_acc', edgeSolveThreadEnd_acc)
 
       call mpas_atm_pre_compute_solve_diagnostics(block)
 !$OMP PARALLEL DO
-      do thread=1,nThreads
+      do thread=1,nThreads_acc
          if (.not. config_do_restart .or. (config_do_restart .and. config_do_DAcycling)) then
             call atm_init_coupled_diagnostics(state, 1, diag, mesh, block % configs, &
-                                              cellThreadStart(thread), cellThreadEnd(thread), &
-                                              vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                              edgeThreadStart(thread), edgeThreadEnd(thread), &
-                                              cellSolveThreadStart(thread), cellSolveThreadEnd(thread), &
-                                              vertexSolveThreadStart(thread), vertexSolveThreadEnd(thread), &
-                                              edgeSolveThreadStart(thread), edgeSolveThreadEnd(thread))
+                                              cellThreadStart_acc(thread), cellThreadEnd_acc(thread), &
+                                              vertexThreadStart_acc(thread), vertexThreadEnd_acc(thread), &
+                                              edgeThreadStart_acc(thread), edgeThreadEnd_acc(thread), &
+                                              cellSolveThreadStart_acc(thread), cellSolveThreadEnd_acc(thread), &
+                                              vertexSolveThreadStart_acc(thread), vertexSolveThreadEnd_acc(thread), &
+                                              edgeSolveThreadStart_acc(thread), edgeSolveThreadEnd_acc(thread))
          end if
 
          call atm_compute_solve_diagnostics(dt, state, 1, diag, mesh, block % configs, &
-                                            cellThreadStart(thread), cellThreadEnd(thread), &
-                                            vertexThreadStart(thread), vertexThreadEnd(thread), &
-                                            edgeThreadStart(thread), edgeThreadEnd(thread))
+                                            cellThreadStart_acc(thread), cellThreadEnd_acc(thread), &
+                                            vertexThreadStart_acc(thread), vertexThreadEnd_acc(thread), &
+                                            edgeThreadStart_acc(thread), edgeThreadEnd_acc(thread))
       end do
 !$OMP END PARALLEL DO
       call mpas_atm_post_compute_solve_diagnostics(block)

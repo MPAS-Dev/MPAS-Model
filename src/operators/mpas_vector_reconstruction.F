@@ -268,9 +268,14 @@ module mpas_vector_reconstruction
     call mpas_pool_get_config(meshPool, 'on_a_sphere', on_a_sphere)
 
     ! loop over cell centers
+#if defined(MPAS_OPENMP) && !defined(MPAS_OPENACC)
+    call mpas_log_write("using Openmp loop")
     !$omp do schedule(runtime)
+#else
+    call mpas_log_write("using openacc loop")
     !$acc parallel default(present) if(lACCLocal)
     !$acc loop gang
+#endif
     do iCell = 1, nCells
       ! initialize the reconstructed vectors
       !$acc loop vector
@@ -297,15 +302,21 @@ module mpas_vector_reconstruction
 
       enddo
     enddo   ! iCell
-    !$acc end parallel
+#if defined(MPAS_OPENMP) && !defined(MPAS_OPENACC)
     !$omp end do
+#else
+    !$acc end parallel
+#endif
 
     call mpas_threading_barrier()
 
     if (on_a_sphere) then
+#if defined(MPAS_OPENMP) && !defined(MPAS_OPENACC)
       !$omp do schedule(runtime)
+#else
       !$acc parallel default(present) if(lACCLocal)
       !$acc loop gang
+#endif
       do iCell = 1, nCells
         clat = cos(latCell(iCell))
         slat = sin(latCell(iCell))
@@ -320,20 +331,31 @@ module mpas_vector_reconstruction
                                             + uReconstructZ(k,iCell)*clat
         end do
       end do
-      !$acc end parallel
+#if defined(MPAS_OPENMP) && !defined(MPAS_OPENACC)
       !$omp end do
+#else
+      !$acc end parallel
+#endif
+      
     else
+#if defined(MPAS_OPENMP) && !defined(MPAS_OPENACC)
       !$omp do schedule(runtime)
+#else
       !$acc parallel default(present) if(lACCLocal)
       !$acc loop gang vector collapse(2)
+#endif
       do iCell = 1, nCells
         do k = 1, nVertLevels
           uReconstructZonal     (k,iCell) = uReconstructX(k,iCell)
           uReconstructMeridional(k,iCell) = uReconstructY(k,iCell)
         end do
       end do
-      !$acc end parallel
+#if defined(MPAS_OPENMP) && !defined(MPAS_OPENACC)
       !$omp end do
+#else
+      !$acc end parallel
+#endif
+      
     end if
 
   end subroutine mpas_reconstruct_2d!}}}
