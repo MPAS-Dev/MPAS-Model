@@ -177,7 +177,7 @@
     config_pbl_scheme        .ne. 'off' .or. & 
     config_radt_lw_scheme    .ne. 'off' .or. &
     config_radt_sw_scheme    .ne. 'off' .or. &
-    config_sfclayer_scheme   .ne. 'off') then 
+    config_sfclayer_scheme   .ne. 'off') then
 
  block => domain % blocklist
  do while(associated(block))
