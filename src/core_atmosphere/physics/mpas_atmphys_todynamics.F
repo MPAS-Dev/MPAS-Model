@@ -26,7 +26,11 @@
 
  implicit none
  private
+<<<<<<< HEAD
+ public:: physics_get_tend, pre_physics_get_tend, post_physics_get_tend, tend_toEdges
+=======
  public:: physics_get_tend, pre_physics_get_tend, post_physics_get_tend
+>>>>>>> 91c5eac175eebeaf4206bacd5cb50c39dff3c152
 
 
 !Interface between the physics parameterizations and the non-hydrostatic dynamical core.
@@ -215,7 +219,6 @@
  tend_rtheta_physics(:,:) = 0._RKIND
  tend_rho_physics(:,:)    = 0._RKIND
 
-
 !in case some variables are not allocated due to their associated packages. We need to make their pointers
 !associated here to avoid triggering run-time. checks when calling physics_get_tend_work:
  if(.not. associated(rucuten) ) allocate(rucuten(0,0) )
@@ -273,6 +276,7 @@
  if(size(rniblten) == 0) deallocate(rniblten)
  if(size(rnifablten) == 0) deallocate(rnifablten)
  if(size(rnwfablten) == 0) deallocate(rnwfablten)
+
 
  deallocate(tend_th)
 
