@@ -1,0 +1,48 @@
+// MPAS Compilation tests
+{
+  "submit_options" :
+  {
+    // Default values
+    "timelimit" : "00:15:00",
+    "working_directory" : "..",
+    "arguments" :
+    {
+      "base_env_numprocs"      : [ "-e", "NUM_PROCS=4" ],
+
+      ".*make.*::args_build_core"     : [ "-c", "atmosphere" ],
+      ".*debug.*::args_build_debug"     : [ "-d" ],
+      ".*make.*::args_build_options"     : [ "-b", "-j $NUM_PROCS" ],
+      ".*make.*gnu.*::args_target"     : [ "-t", "gnu" ]
+    },
+    // Derecho-specifics
+    "hsn.de.hpc"  :
+    {
+      "submission" : "PBS",
+      "queue"      : "main",
+      "hpc_arguments"  : 
+      {
+        "node_select" : { "-l " : { "select"       : 1, "ncpus" : 16 } },
+        "priority"    : { "-l " : { "job_priority" : "economy"       } }
+      },
+      "arguments"  : 
+      {
+        // We want NUM_PROCS to match ncpus
+        "base_env_numprocs"      : [ "-e", "NUM_PROCS=16" ],
+        "very_last_modules"       : [  "cray-mpich", "parallel-netcdf" ],
+        ".*gnu.*::test_modules"   : [ "gcc/12.2.0" ]
+      }
+    }
+  },
+  // Specific GNU compilation test
+  "make-gnu" :
+  {
+    "steps" :
+    {
+      // Eventually include debug and other compile modes
+      "optimized" :
+      {
+        "command"      : ".ci/tests/build.sh"
+      }
+    }
+  }
+}
