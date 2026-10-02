@@ -55,5 +55,11 @@
         <var name="wind_speed_level1_max"  type="real"     dimensions="nCells Time" units="m s^{-1}"
              description="Maximum wind speed in lowest model level since last output"/>
 
+        <var name="ctt"                    type="real"     dimensions="nCells Time" units="deg C" missing_value="-9999."
+             description="Cloud top temperature derived from NCL routines"/>
+
+        <var name="ctpres"                 type="real"     dimensions="nCells Time" units="hPa"
+             description="Cloud top pressure derived from NCL routines"/>
+
 </var_struct>
 
