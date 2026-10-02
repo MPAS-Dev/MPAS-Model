@@ -74,6 +74,8 @@ module mpas_derived_types
 
 #include "mpas_block_types.inc"
 
+#include "mpas_compute_dim_types.inc"
+
 #include "mpas_decomp_types.inc"
 
 #include "mpas_stream_inquiry_types.inc"
