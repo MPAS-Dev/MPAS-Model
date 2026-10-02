@@ -267,7 +267,7 @@
  integer:: i,k,j
 
  real(kind=RKIND):: z0,z1,z2,w1,w2
- real(kind=RKIND):: rho_a,rho1,rho2,tem1,tem2
+ real(kind=RKIND):: rho_a,rho1,rho2,dz1,dz2,rdz
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('')
@@ -313,6 +313,7 @@
  call mpas_pool_get_dimension(state,'index_qg',index_qg)
 
  call mpas_pool_get_array(state,'scalars',scalars,time_lev)
+
  qv => scalars(index_qv,:,:)
  qc => scalars(index_qc,:,:)
  qr => scalars(index_qr,:,:)
@@ -322,10 +323,13 @@
 
  call mpas_pool_get_array(diag_physics,'plrad',plrad)
 
+ if( trim(microp_scheme) .ne. "mp_kessler") then
+
  do j = jts, jte
  do k = kts, kte
  do i = its, ite
 
+ call mpas_log_write(" mp_wsm6 or thompson in physics interface ")
     !water vapor and moist arrays:
     qv_p(i,k,j) = max(0.,qv(k,i))
     qc_p(i,k,j) = max(0.,qc(k,i))
@@ -334,13 +338,46 @@
     qs_p(i,k,j) = max(0.,qs(k,i))
     qg_p(i,k,j) = max(0.,qg(k,i))
 
+ enddo
+ enddo
+ enddo
+
+ else
+
+ call mpas_log_write(" mp_kessler in physics interface ")
+    
+ do j = jts, jte
+ do k = kts, kte
+ do i = its, ite
+
+    !water vapor and moist arrays:
+    qv_p(i,k,j) = max(0.,qv(k,i))
+    qc_p(i,k,j) = max(0.,qc(k,i))
+    qr_p(i,k,j) = max(0.,qr(k,i))
+    qi_p(i,k,j) = 0.0
+    qs_p(i,k,j) = 0.0
+    qg_p(i,k,j) = 0.0
+
+ enddo
+ enddo
+ enddo
+
+ end if
+
+ do j = jts, jte
+ do k = kts, kte
+ do i = its, ite
+
     !arrays located at theta points:
     u_p(i,k,j) = u(k,i)
     v_p(i,k,j) = v(k,i)
 
     zz_p(i,k,j)  = zz(k,i)
     rho_p(i,k,j) = zz(k,i) * rho_zz(k,i)
-    rho_p(i,k,j) = rho_p(i,k,j)*(1._RKIND + qv_p(i,k,j))
+    ! rho_p(i,k,j) = rho_p(i,k,j)*(1._RKIND + qv_p(i,k,j))
+    ! Added full water loading, WCS 20260427 
+    rho_p(i,k,j) = rho_p(i,k,j)*  &
+        (1._RKIND + qv_p(i,k,j)+qc_p(i,k,j)+qr_p(i,k,j)+qi_p(i,k,j)+qs_p(i,k,j)+qg_p(i,k,j))
     th_p(i,k,j)  = theta_m(k,i) / (1._RKIND + R_v/R_d * qv_p(i,k,j))
     t_p(i,k,j)   = th_p(i,k,j)*exner(k,i)
 
@@ -424,18 +461,15 @@
     case default
  end select pbl_select
 
-!calculation of the surface pressure using hydrostatic assumption down to the surface::
+!calculation of the surface pressure using hydrostatic integration down to the surface::
+! rho_p includes full water loading 
  do j = jts,jte
  do i = its,ite
-    tem1 = zgrid(2,i)-zgrid(1,i)
-    tem2 = zgrid(3,i)-zgrid(2,i)
-    rho1 = rho_zz(1,i) * zz(1,i) * (1. + qv_p(i,1,j))
-    rho2 = rho_zz(2,i) * zz(2,i) * (1. + qv_p(i,2,j))
-!   surface_pressure(i) = 0.5*gravity*(zgrid(2,i)-zgrid(1,i)) &
-!                   * (rho1 + 0.5*(rho2-rho1)*tem1/(tem1+tem2))
-    surface_pressure(i) = 0.5*gravity*(zgrid(2,i)-zgrid(1,i)) &
-                    * (rho1 - 0.5*(rho2-rho1)*tem1/(tem1+tem2))
-    surface_pressure(i) = surface_pressure(i) + pressure_p(1,i) + pressure_b(1,i)
+    dz1 = zgrid(2,i)-zgrid(1,i)
+    dz2 = zgrid(3,i)-zgrid(2,i)
+    surface_pressure(i) = pressure_p(1,i) + pressure_b(1,i)     &
+                          + 0.5*gravity*(zgrid(2,i)-zgrid(1,i)) &
+                           * (rho_p(i,1,j) + 0.5*(rho_p(i,1,j)-rho_p(i,2,j))*dz1/(dz1+dz2))
  enddo
  
  do k = kts,kte
@@ -461,7 +495,7 @@
  do i = its,ite
     if(pres_p(i,1,j) .le. pres_p(i,2,j)) then
        call mpas_log_write('')
-       call mpas_log_write('--- subroutine MPAS_to_phys - pressure(1) < pressure(2):')
+       call mpas_log_write('--- subroutine MPAS_to_phys - nhyd pressure(1) < nhyd pressure(2):')
        call mpas_log_write('i      =$i', intArgs=(/i/))
        call mpas_log_write('latCell=$r', realArgs=(/latCell(i)/degrad/))
        call mpas_log_write('lonCell=$r', realArgs=(/lonCell(i)/degrad/))
@@ -479,9 +513,9 @@
  do j = jts,jte
  do k = kts+1,kte
  do i = its,ite
-    tem1 = 1./(zgrid(k+1,i)-zgrid(k-1,i))
-    fzm_p(i,k,j) = (zgrid(k,i)-zgrid(k-1,i)) * tem1
-    fzp_p(i,k,j) = (zgrid(k+1,i)-zgrid(k,i)) * tem1
+    rdz = 1./(zgrid(k+1,i)-zgrid(k-1,i))
+    fzm_p(i,k,j) = (zgrid(k,i)-zgrid(k-1,i)) * rdz
+    fzp_p(i,k,j) = (zgrid(k+1,i)-zgrid(k,i)) * rdz
     t2_p(i,k,j)    = fzm_p(i,k,j)*t_p(i,k,j) + fzp_p(i,k,j)*t_p(i,k-1,j)
     pres2_p(i,k,j) = fzm_p(i,k,j)*pres_p(i,k,j) + fzp_p(i,k,j)*pres_p(i,k-1,j)
  enddo
@@ -523,6 +557,7 @@
  enddo
 
 !calculation of the hydrostatic pressure:
+! Added full water loading, WCS 20260427 
  do j = jts,jte
  do i = its,ite
     !pressure at w-points:
@@ -530,7 +565,7 @@
     pres2_hyd_p(i,k,j)  = pres2_p(i,k,j)
     pres2_hydd_p(i,k,j) = pres2_p(i,k,j)
     do k = kte,1,-1
-       rho_a = rho_p(i,k,j) / (1.+qv_p(i,k,j))
+       rho_a = rho_p(i,k,j) / (1.+qv_p(i,k,j)+qc_p(i,k,j)+qr_p(i,k,j)+qi_p(i,k,j)+qs_p(i,k,j)+qg_p(i,k,j))
        pres2_hyd_p(i,k,j)  = pres2_hyd_p(i,k+1,j)  + gravity*rho_p(i,k,j)*dz_p(i,k,j)
        pres2_hydd_p(i,k,j) = pres2_hydd_p(i,k+1,j) + gravity*rho_a*dz_p(i,k,j)
     enddo
@@ -864,7 +899,7 @@ end subroutine pre_microphysics
 !local variables:
  integer:: icount
  integer:: i,k,j
- real(kind=RKIND):: rho1,rho2,tem1,tem2
+ real(kind=RKIND):: rho1,rho2,dz1,dz2
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -946,23 +981,47 @@ end subroutine pre_microphysics
  endif
  
 !update surface pressure and calculates the surface pressure tendency:
+
+ if( trim(mp_scheme) .eq. "mp_kessler") then
+
  do j = jts,jte
  do i = its,ite
-    tem1 = zgrid(2,i)-zgrid(1,i)
-    tem2 = zgrid(3,i)-zgrid(2,i)
-    rho1 = rho_zz(1,i) * zz(1,i) * (1. + qv_p(i,1,j))
-    rho2 = rho_zz(2,i) * zz(2,i) * (1. + qv_p(i,2,j))
-
+    dz1 = zgrid(2,i)-zgrid(1,i)
+    dz2 = zgrid(3,i)-zgrid(2,i)
+    ! rho1 = rho_zz(1,i) * zz(1,i) * (1. + qv_p(i,1,j))
+    ! rho2 = rho_zz(2,i) * zz(2,i) * (1. + qv_p(i,2,j))
+    ! Added full wtare loading term, WCS 20260427
+    rho1 = rho_zz(1,i) * zz(1,i) * (1. + qv_p(i,1,j)+qc_p(i,1,j)+qr_p(i,1,j))
+    rho2 = rho_zz(2,i) * zz(2,i) * (1. + qv_p(i,2,j)+qc_p(i,2,j)+qr_p(i,2,j))
     tend_sfc_pressure(i) = surface_pressure(i)
-!   surface_pressure(i)  = 0.5*gravity*(zgrid(2,i)-zgrid(1,i)) &
-!                        * (rho1 + 0.5*(rho2-rho1)*tem1/(tem1+tem2))
-    surface_pressure(i)  = 0.5*gravity*(zgrid(2,i)-zgrid(1,i)) &
-                         * (rho1 - 0.5*(rho2-rho1)*tem1/(tem1+tem2))
-    surface_pressure(i)  = surface_pressure(i) + pressure_p(1,i) + pressure_b(1,i)
+    surface_pressure(i)  = pressure_p(1,i) + pressure_b(1,i)  &
+                         + 0.5*gravity*(zgrid(2,i)-zgrid(1,i)) &
+                         * (rho1 - 0.5*(rho2-rho1)*dz1/(dz1+dz2))
     tend_sfc_pressure(i)   = (surface_pressure(i)-tend_sfc_pressure(i)) / dt_dyn
  enddo
  enddo
 
+ else
+
+ do j = jts,jte
+ do i = its,ite
+    dz1 = zgrid(2,i)-zgrid(1,i)
+    dz2 = zgrid(3,i)-zgrid(2,i)
+    ! rho1 = rho_zz(1,i) * zz(1,i) * (1. + qv_p(i,1,j))
+    ! rho2 = rho_zz(2,i) * zz(2,i) * (1. + qv_p(i,2,j))
+    ! Added full wtare loading term, WCS 20260427
+    rho1 = rho_zz(1,i) * zz(1,i) * (1. + qv_p(i,1,j)+qc_p(i,1,j)+qr_p(i,1,j)+qi_p(i,1,j)+qs_p(i,1,j)+qg_p(i,1,j))
+    rho2 = rho_zz(2,i) * zz(2,i) * (1. + qv_p(i,2,j)+qc_p(i,2,j)+qr_p(i,2,j)+qi_p(i,2,j)+qs_p(i,2,j)+qg_p(i,2,j))
+    tend_sfc_pressure(i) = surface_pressure(i)
+    surface_pressure(i)  = pressure_p(1,i) + pressure_b(1,i)  &
+                         + 0.5*gravity*(zgrid(2,i)-zgrid(1,i)) &
+                         * (rho1 - 0.5*(rho2-rho1)*dz1/(dz1+dz2))
+    tend_sfc_pressure(i)   = (surface_pressure(i)-tend_sfc_pressure(i)) / dt_dyn
+ enddo
+ enddo
+
+ end if
+ 
 !update cloud water species and aerosols as functions of cloud microphysics schemes:
  mp_select: select case(trim(mp_scheme))
     case("mp_thompson","mp_thompson_aerosols","mp_wsm6")
