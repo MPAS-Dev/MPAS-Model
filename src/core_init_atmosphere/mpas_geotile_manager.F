@@ -387,7 +387,7 @@ module mpas_geotile_manager
     !> contains the coordinate lat, lon.
     !
     !-----------------------------------------------------------------------
-    function mpas_geotile_mgr_get_tile(mgr, lat, lon, tile) result(ierr)
+    function mpas_geotile_mgr_get_tile(mgr, lat, lon, tile, allow_missing) result(ierr)
         implicit none
 
         ! Input variables
@@ -395,18 +395,23 @@ module mpas_geotile_manager
         real (kind=RKIND), value :: lat
         real (kind=RKIND), value :: lon
         type (mpas_geotile_type), pointer :: tile
+        logical, intent(in), optional :: allow_missing
 
         ! Return variable
         integer :: ierr
+        logical :: allow_missing_lcl
 
         ierr = 0
         tile => null()
+
+        allow_missing_lcl = .false.
+        if (present(allow_missing)) allow_missing_lcl = allow_missing
 
         ! Normalize longitude to be between -pi and pi
         call normalize_lon(lon)
 
         if (.not. mgr % search_tile(lat, lon, tile)) then
-            ierr = mgr % add_tile(lat, lon, tile)
+            ierr = mgr % add_tile(lat, lon, tile, allow_missing_lcl)
         endif
 
     end function mpas_geotile_mgr_get_tile
@@ -502,7 +507,7 @@ module mpas_geotile_manager
     !> will be unassociated.
     !
     !-----------------------------------------------------------------------
-    function mpas_geotile_mgr_add_tile(mgr, lat, lon, tile) result(ierr)
+    function mpas_geotile_mgr_add_tile(mgr, lat, lon, tile, allow_missing) result(ierr)
 
         use iso_c_binding, only : c_loc, c_ptr, c_int, c_float
         use mpas_c_interfacing, only : mpas_f_to_c_string
@@ -531,6 +536,7 @@ module mpas_geotile_manager
         real (kind=RKIND), intent(in) :: lon
         type (mpas_geotile_type), intent(inout), pointer :: tile
         integer :: ierr
+        logical, intent(in) :: allow_missing
 
         ! Local variables
         integer, pointer :: tile_nx, tile_ny, tile_nz
@@ -610,7 +616,9 @@ module mpas_geotile_manager
         fname = trim(mgr % directory)//trim(fname)
         inquire(file=trim(fname), exist=res)
         if (.not. res) then
-            call mpas_log_write("This geotile file does not exist: "//trim(fname), messageType=MPAS_LOG_ERR)
+            if (.not. allow_missing) then
+               call mpas_log_write("This geotile file does not exist: "//trim(fname), messageType=MPAS_LOG_ERR)
+            endif
             ierr = 1
             return
         endif
@@ -897,12 +905,14 @@ module mpas_geotile_manager
     !> 0 will be returned.
     !
     !-----------------------------------------------------------------------
-    function mpas_geotile_mgr_push_neighbors(mgr, tile) result(ierr)
+    function mpas_geotile_mgr_push_neighbors(mgr, tile, allow_missing) result(ierr)
 
         implicit none
 
         class(mpas_geotile_mgr_type) :: mgr
         type (mpas_geotile_type), pointer, intent(in) :: tile
+        logical, intent(in), optional :: allow_missing
+        logical :: allow_missing_lcl
 
         integer :: ierr
         type (mpas_geotile_type), pointer :: neighbor
@@ -912,6 +922,8 @@ module mpas_geotile_manager
         integer :: yHash
 
         ierr = 0
+        allow_missing_lcl = .false.
+        if (present(allow_missing)) allow_missing_lcl = allow_missing
 
         ! Up
         ! Calculate the tile's hash coordinates
@@ -925,13 +937,18 @@ module mpas_geotile_manager
         endif
         call mgr % hash_to_ll(xHash, yHash, lat, lon)
 
-        ierr = mgr % get_tile(lat, lon, neighbor)
-        if (ierr /= 0) then
-            call mpas_log_write("There was a problem getting the up tile", messageType=MPAS_LOG_ERR)
-            ierr = 1
-            return
+        ierr = mgr % get_tile(lat, lon, neighbor, allow_missing=allow_missing_lcl)
+        if (ierr /= 0 .or. .not. associated(neighbor)) then
+            if (allow_missing_lcl) then
+               ierr = 0
+            else
+               call mpas_log_write("There was a problem getting the up tile", messageType=MPAS_LOG_ERR)
+               ierr = 1
+               return
+            endif
+        else
+           ierr = mgr % push_tile(neighbor)
         endif
-        ierr = mgr % push_tile(neighbor)
 
         ! Down
         neighbor => null()
@@ -944,13 +961,18 @@ module mpas_geotile_manager
         endif
         call mgr % hash_to_ll(xHash, yHash, lat, lon)
 
-        ierr = mgr % get_tile(lat, lon, neighbor)
-        if (ierr /= 0) then
-            call mpas_log_write("There was a problem getting the down tile", messageType=MPAS_LOG_ERR)
-            ierr = 1
-            return
+        ierr = mgr % get_tile(lat, lon, neighbor, allow_missing=allow_missing_lcl)
+        if (ierr /= 0 .or. .not. associated(neighbor)) then
+            if (allow_missing_lcl) then
+               ierr = 0
+            else
+                    call mpas_log_write("There was a problem getting the down tile", messageType=MPAS_LOG_ERR)
+               ierr = 1
+               return
+            endif
+        else
+           ierr = mgr % push_tile(neighbor)
         endif
-        ierr = mgr % push_tile(neighbor)
 
         ! Right
         neighbor => null()
@@ -963,13 +985,18 @@ module mpas_geotile_manager
         endif
         call mgr % hash_to_ll(xHash, yHash, lat, lon)
 
-        ierr = mgr % get_tile(lat, lon, neighbor)
-        if (ierr /= 0) then
-            call mpas_log_write("There was a problem getting the right tile", messageType=MPAS_LOG_ERR)
-            ierr = 1
-            return
+        ierr = mgr % get_tile(lat, lon, neighbor, allow_missing=allow_missing_lcl)
+        if (ierr /= 0 .or. .not. associated(neighbor)) then
+            if (allow_missing_lcl) then
+               ierr = 0
+            else
+               call mpas_log_write("There was a problem getting the right tile", messageType=MPAS_LOG_ERR)
+               ierr = 1
+               return
+            endif
+        else
+           ierr = mgr % push_tile(neighbor)
         endif
-        ierr = mgr % push_tile(neighbor)
 
         ! Left
         neighbor => null()
@@ -982,13 +1009,18 @@ module mpas_geotile_manager
         endif
         call mgr % hash_to_ll(xHash, yHash, lat, lon)
 
-        ierr = mgr % get_tile(lat, lon, neighbor)
-        if (ierr /= 0) then
-            call mpas_log_write("There was a problem getting the left tile", messageType=MPAS_LOG_ERR)
-            ierr = 1
-            return
+        ierr = mgr % get_tile(lat, lon, neighbor, allow_missing=allow_missing_lcl)
+        if (ierr /= 0 .or. .not. associated(neighbor)) then
+            if (allow_missing_lcl) then
+               ierr = 0
+            else
+               call mpas_log_write("There was a problem getting the up tile", messageType=MPAS_LOG_ERR)
+               ierr = 1
+               return
+            endif
+        else
+           ierr = mgr % push_tile(neighbor)
         endif
-        ierr = mgr % push_tile(neighbor)
 
     end function mpas_geotile_mgr_push_neighbors
 

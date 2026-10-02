@@ -58,8 +58,8 @@
 
  integer:: i,its,ite
  integer:: n,ns,nsoil,nsnow,nzsnow
- integer,dimension(:),pointer:: isltyp,ivgtyp
 
+ real(kind=RKIND),pointer:: soiltstep
  real(kind=RKIND),dimension(:),pointer:: latCell,lonCell
  real(kind=RKIND),dimension(:),pointer:: shdmax,shdmin,vegfra,tmn,xice,xland
 
@@ -71,16 +71,29 @@
  real(kind=RKIND),dimension(:),pointer:: acsnom,acsnow,canwat,hfx,qfx,qsfc,lh,grdflx,sfc_albedo,sfc_emiss,  &
                                          sfcrunoff,skintemp,smstav,smstot,udrunoff,snow,snowc,snowh,lai,z0, &
                                          znt
- real(kind=RKIND),dimension(:,:),pointer:: sh2o,smois,tslb
+ real(kind=RKIND),dimension(:,:),pointer:: sh2o,smois,tslb,smoiseq
 
 
 !--- local INOUT pointers (with no Noah LSM equivalent as defined in WRF):
  integer,dimension(:),pointer:: isnowxy
+ integer,dimension(:),pointer:: irnumsi,irnummi,irnumfi, cropcat, pgsxy
  real(kind=RKIND),dimension(:),pointer:: tvxy,tgxy,canicexy,canliqxy,eahxy,tahxy,cmxy,chxy,fwetxy,sneqvoxy, &
-                                         alboldxy,qsnowxy,qrainxy,wslakexy,zwtxy,waxy,wtxy,deeprechxy,      &
-                                         rechxy,lfmassxy,rtmassxy,stmassxy,woodxy,grainxy,gddxy,stblcpxy,   &
-                                         fastcpxy,xsaixy,taussxy
+                                         alboldxy,wslakexy,zwtxy,waxy,wtxy,                                 &
+                                         lfmassxy,rtmassxy,stmassxy,woodxy,grainxy,gddxy,stblcpxy,          &
+                                         fastcpxy,xsaixy,taussxy,qtdrain
  real(kind=RKIND),dimension(:,:),pointer:: tsnoxy,zsnsoxy,snicexy,snliqxy
+ real(kind=RKIND),dimension(:),pointer:: irwatsi,irsivol,ireloss,irrsplh,irwatmi,irmivol,irwatfi,irfivol
+ real(kind=RKIND),dimension(:),pointer:: smcwtdxy,deeprechxy,rechxy,qrfsxy,qspringsxy,qslatxy, &
+                                         rivercondxy,pexpxy
+ real(kind=RKIND),dimension(:),pointer:: fsatxy,wsurfxy
+ real(kind=RKIND),dimension(:),pointer:: acc_ssoilxy,acc_qinsurxy,acc_qsevaxy,acc_dwaterxy,acc_prcpxy,      &
+                                         acc_ecanxy,acc_etranxy,acc_edirxy,acc_glaflwxy
+ real(kind=RKIND),dimension(:,:),pointer:: acc_etranixy
+ real(kind=RKIND),dimension(:,:),pointer:: albsoildirxy,albsoildifxy
+ real(kind=RKIND),dimension(:,:),pointer:: snrdsxy,snfrxy,bcphixy,bcphoxy,ocphixy,ocphoxy,  &
+                                           dust1xy,dust2xy,dust3xy,dust4xy,dust5xy,         &
+                                           concbcphixy,concbcphoxy,concocphixy,concocphoxy, &
+                                           concdust1xy,concdust2xy,concdust3xy,concdust4xy,concdust5xy
 
 
 !--- local OUT pointers (with no Noah LSM equivalent as defined in WRF):
@@ -88,7 +101,7 @@
                                          etranxy,fsaxy,firaxy,aparxy,psnxy,savxy,sagxy,rssunxy,rsshaxy,  &
                                          bgapxy,wgapxy,tgvxy,tgbxy,chvxy,chbxy,shgxy,shcxy,shbxy,evgxy,  &
                                          evbxy,ghvxy,ghbxy,irgxy,ircxy,irbxy,trxy,evcxy,chleafxy,chucxy, &
-                                         chv2xy,chb2xy,rs,qtdrain
+                                         chv2xy,chb2xy,rs,qsnowxy,qrainxy
 
 
 !--- local OUT additional variables:
@@ -96,15 +109,13 @@
                                          qthrosxy,qthrorxy,qsnsubxy,qmeltxy,qsnfroxy,qsubcxy,qfrocxy,          &
                                          qevacxy,qdewcxy,qfrzcxy,qmeltcxy,qsnbotxy,pondingxy,fpicexy,          &
                                          rainlsm,snowlsm,forctlsm,forcqlsm,forcplsm,forczlsm,forcwlsm,         &
-                                         acc_ssoilxy,acc_qinsurxy,acc_qsevaxy,eflxbxy,soilenergy,snowenergy,   &
-                                         canhsxy,acc_dwaterxy,acc_prcpxy,acc_ecanxy,acc_etranxy,acc_edirxy
- real(kind=RKIND),dimension(:,:),pointer:: acc_etranixy
+                                         eflxbxy,soilenergy,snowenergy,canhsxy
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('--- enter subroutine lsm_noahmp_fromMPAS: itimestep = $i',intArgs=(/itimestep/))
 
- call mpas_pool_get_config(configs,'config_do_restart',do_restart)
-
+ call mpas_pool_get_config(configs,'config_do_restart'       ,do_restart       )
+ call mpas_pool_get_config(configs,'config_noahmp_soil_dt'   ,soiltstep        )
  call mpas_pool_get_config(configs,'config_convection_scheme',convection_scheme)
  call mpas_pool_get_config(configs,'config_microp_scheme'    ,microp_scheme    )
 
@@ -119,14 +130,13 @@
 
 !--- initialization of time-varying variables:
  mpas_noahmp%restart_flag = do_restart
-
- mpas_noahmp%soiltstep = 0
- mpas_noahmp%itimestep = itimestep
- mpas_noahmp%yr        = year
- mpas_noahmp%month     = month
- mpas_noahmp%day       = day
- mpas_noahmp%julian    = curr_julday 
-
+ mpas_noahmp%soiltstep    = soiltstep
+ mpas_noahmp%itimestep    = itimestep
+ mpas_noahmp%yr           = year
+ mpas_noahmp%month        = month
+ mpas_noahmp%day          = day
+ mpas_noahmp%julian       = curr_julday 
+ mpas_noahmp%iri_urban    = 0  ! need to connect to iri_scheme in URBPARM.TBL when coupling urban
 
 !--- initialization of xice_threshold:
  mpas_noahmp%xice_threshold = xice_threshold
@@ -140,7 +150,7 @@
  call mpas_pool_get_array(sfc_input,'xice'  ,xice  )
  call mpas_pool_get_array(sfc_input,'xland' ,xland )
 
- call mpas_pool_get_array(diag_physics,'coszr' ,coszr )
+ call mpas_pool_get_array(diag_physics,'coszr'     ,coszr     )
  call mpas_pool_get_array(diag_physics,'glw'       ,glw       )
  call mpas_pool_get_array(diag_physics,'gsw'       ,gsw       )
  call mpas_pool_get_array(diag_physics,'sfc_albedo',sfc_albedo)
@@ -160,7 +170,7 @@
     mpas_noahmp%tmn(i)        = tmn(i)
     mpas_noahmp%xland(i)      = xland(i)
     mpas_noahmp%xice(i)       = xice(i)
-    mpas_noahmp%swdown(i)     = gsw(i) / (1.-sfc_albedo(i))
+    mpas_noahmp%swdown(i)     = gsw(i) / (1.-sfc_albedo(i)) ! CH: use swdnb? are they equivalent?
     mpas_noahmp%swddir(i)     = swddir(i)
     mpas_noahmp%swddif(i)     = swddif(i)
     mpas_noahmp%glw(i)        = glw(i)
@@ -174,7 +184,7 @@
  enddo
 
 !--- calculation of the instantaneous precipitation rates of rain and snow:
- if(microp_scheme .ne. 'off') then
+ if (microp_scheme .ne. 'off') then
     do i = its,ite
        mpas_noahmp%sr(i) = sr(i)
        mpas_noahmp%rainncv(i)    = rainncv(i)
@@ -182,7 +192,6 @@
        mpas_noahmp%graupelncv(i) = graupelncv(i)
        mpas_noahmp%rainbl(i)     = mpas_noahmp%rainbl(i) + mpas_noahmp%rainncv(i)
        mpas_noahmp%snowbl(i)     = mpas_noahmp%snowbl(i) + mpas_noahmp%snowncv(i)
-
        mpas_noahmp%mp_rainnc(i)  = rainncv(i)
        mpas_noahmp%mp_snow(i)    = snowncv(i)
        mpas_noahmp%mp_graup(i)   = graupelncv(i)
@@ -193,18 +202,16 @@
        mpas_noahmp%rainncv(i)    = 0.
        mpas_noahmp%snowncv(i)    = 0.
        mpas_noahmp%graupelncv(i) = 0.
-
        mpas_noahmp%mp_rainnc(i)  = 0.
        mpas_noahmp%mp_snow(i)    = 0.
        mpas_noahmp%mp_graup(i)   = 0.
     enddo
  endif
- if(convection_scheme .ne. 'off') then
-    do i = its,ite
-       mpas_noahmp%raincv(i) = raincv(i)
-       mpas_noahmp%rainbl(i) = mpas_noahmp%rainbl(i) + mpas_noahmp%raincv(i)
-       mpas_noahmp%raincv(i) = raincv(i)
 
+ if (convection_scheme .ne. 'off') then
+    do i = its,ite
+       mpas_noahmp%raincv(i)   = raincv(i)
+       mpas_noahmp%rainbl(i)   = mpas_noahmp%rainbl(i) + mpas_noahmp%raincv(i)
        mpas_noahmp%mp_rainc(i) = raincv(i)
     enddo
  else
@@ -288,72 +295,95 @@
 
 !--- initialization of INOUT variables (with no Noah LSM equivalent as defined in WRF), i.e.
 !    see lines 186-222 in module NoahmpIOVarType.F90:
- call mpas_pool_get_array(diag_physics_noahmp,'isnowxy'  ,isnowxy     )
- call mpas_pool_get_array(diag_physics_noahmp,'tvxy'      ,tvxy       )
- call mpas_pool_get_array(diag_physics_noahmp,'tgxy'      ,tgxy       )
- call mpas_pool_get_array(diag_physics_noahmp,'canicexy'  ,canicexy   )
- call mpas_pool_get_array(diag_physics_noahmp,'canliqxy'  ,canliqxy   )
- call mpas_pool_get_array(diag_physics_noahmp,'eahxy'     ,eahxy      )
- call mpas_pool_get_array(diag_physics_noahmp,'tahxy'     ,tahxy      )
- call mpas_pool_get_array(diag_physics_noahmp,'cmxy'      ,cmxy       )
- call mpas_pool_get_array(diag_physics_noahmp,'chxy'      ,chxy       )
- call mpas_pool_get_array(diag_physics_noahmp,'fwetxy'    ,fwetxy     )
- call mpas_pool_get_array(diag_physics_noahmp,'sneqvoxy'  ,sneqvoxy   )
- call mpas_pool_get_array(diag_physics_noahmp,'alboldxy'  ,alboldxy   )
- call mpas_pool_get_array(diag_physics_noahmp,'qsnowxy'   ,qsnowxy    )
- call mpas_pool_get_array(diag_physics_noahmp,'qrainxy'   ,qrainxy    )
- call mpas_pool_get_array(diag_physics_noahmp,'wslakexy'  ,wslakexy   )
- call mpas_pool_get_array(diag_physics_noahmp,'zwtxy'     ,zwtxy      )
- call mpas_pool_get_array(diag_physics_noahmp,'waxy'      ,waxy       )
- call mpas_pool_get_array(diag_physics_noahmp,'wtxy'      ,wtxy       )
- call mpas_pool_get_array(diag_physics_noahmp,'deeprechxy',deeprechxy )
- call mpas_pool_get_array(diag_physics_noahmp,'rechxy'    ,rechxy     )
- call mpas_pool_get_array(diag_physics_noahmp,'tsnoxy'    ,tsnoxy     )
- call mpas_pool_get_array(diag_physics_noahmp,'zsnsoxy'   ,zsnsoxy    )
- call mpas_pool_get_array(diag_physics_noahmp,'snicexy'   ,snicexy    )
- call mpas_pool_get_array(diag_physics_noahmp,'snliqxy'   ,snliqxy    )
- call mpas_pool_get_array(diag_physics_noahmp,'lfmassxy'  ,lfmassxy   )
- call mpas_pool_get_array(diag_physics_noahmp,'rtmassxy'  ,rtmassxy   )
- call mpas_pool_get_array(diag_physics_noahmp,'stmassxy'  ,stmassxy   )
- call mpas_pool_get_array(diag_physics_noahmp,'woodxy'    ,woodxy     )
- call mpas_pool_get_array(diag_physics_noahmp,'grainxy'   ,grainxy    )
- call mpas_pool_get_array(diag_physics_noahmp,'gddxy'     ,gddxy      )
- call mpas_pool_get_array(diag_physics_noahmp,'stblcpxy'  ,stblcpxy   )
- call mpas_pool_get_array(diag_physics_noahmp,'fastcpxy'  ,fastcpxy   )
- call mpas_pool_get_array(diag_physics_noahmp,'xsaixy'    ,xsaixy     )
- call mpas_pool_get_array(diag_physics_noahmp,'taussxy'   ,taussxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'isnowxy'     ,isnowxy     )
+ call mpas_pool_get_array(diag_physics_noahmp,'tvxy'        ,tvxy        )
+ call mpas_pool_get_array(diag_physics_noahmp,'tgxy'        ,tgxy        )
+ call mpas_pool_get_array(diag_physics_noahmp,'canicexy'    ,canicexy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'canliqxy'    ,canliqxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'eahxy'       ,eahxy       )
+ call mpas_pool_get_array(diag_physics_noahmp,'tahxy'       ,tahxy       )
+ call mpas_pool_get_array(diag_physics_noahmp,'cmxy'        ,cmxy        )
+ call mpas_pool_get_array(diag_physics_noahmp,'chxy'        ,chxy        )
+ call mpas_pool_get_array(diag_physics_noahmp,'fwetxy'      ,fwetxy      )
+ call mpas_pool_get_array(diag_physics_noahmp,'sneqvoxy'    ,sneqvoxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'alboldxy'    ,alboldxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'wslakexy'    ,wslakexy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'zwtxy'       ,zwtxy       )
+ call mpas_pool_get_array(diag_physics_noahmp,'waxy'        ,waxy        )
+ call mpas_pool_get_array(diag_physics_noahmp,'wtxy'        ,wtxy        )
+ call mpas_pool_get_array(diag_physics_noahmp,'deeprechxy'  ,deeprechxy  )
+ call mpas_pool_get_array(diag_physics_noahmp,'rechxy'      ,rechxy      )
+ call mpas_pool_get_array(diag_physics_noahmp,'tsnoxy'      ,tsnoxy      )
+ call mpas_pool_get_array(diag_physics_noahmp,'zsnsoxy'     ,zsnsoxy     )
+ call mpas_pool_get_array(diag_physics_noahmp,'snicexy'     ,snicexy     )
+ call mpas_pool_get_array(diag_physics_noahmp,'snliqxy'     ,snliqxy     )
+ call mpas_pool_get_array(diag_physics_noahmp,'lfmassxy'    ,lfmassxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'rtmassxy'    ,rtmassxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'stmassxy'    ,stmassxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'woodxy'      ,woodxy      )
+ call mpas_pool_get_array(diag_physics_noahmp,'stblcpxy'    ,stblcpxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'fastcpxy'    ,fastcpxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'xsaixy'      ,xsaixy      )
+ call mpas_pool_get_array(diag_physics_noahmp,'taussxy'     ,taussxy     )
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_dwaterxy',acc_dwaterxy)
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_prcpxy'  ,acc_prcpxy  )
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_ecanxy'  ,acc_ecanxy  )
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_etranxy' ,acc_etranxy )
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_edirxy'  ,acc_edirxy  )
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_etranixy',acc_etranixy)
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_glaflwxy',acc_glaflwxy)
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_ssoilxy' ,acc_ssoilxy )
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_qinsurxy',acc_qinsurxy)
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_qsevaxy' ,acc_qsevaxy )
+ call mpas_pool_get_array(diag_physics_noahmp,'albsoildirxy',albsoildirxy)
+ call mpas_pool_get_array(diag_physics_noahmp,'albsoildifxy',albsoildifxy)
 
  do i = its,ite
-    mpas_noahmp%isnowxy(i)    = isnowxy(i)
-    mpas_noahmp%tvxy(i)       = tvxy(i)
-    mpas_noahmp%tgxy(i)       = tgxy(i)
-    mpas_noahmp%canicexy(i)   = canicexy(i)
-    mpas_noahmp%canliqxy(i)   = canliqxy(i)
-    mpas_noahmp%eahxy(i)      = eahxy(i)
-    mpas_noahmp%tahxy(i)      = tahxy(i)
-    mpas_noahmp%cmxy(i)       = cmxy(i)
-    mpas_noahmp%chxy(i)       = chxy(i)
-    mpas_noahmp%fwetxy(i)     = fwetxy(i)
-    mpas_noahmp%sneqvoxy(i)   = sneqvoxy(i)
-    mpas_noahmp%alboldxy(i)   = alboldxy(i)
-    mpas_noahmp%qsnowxy(i)    = qsnowxy(i)
-    mpas_noahmp%qrainxy(i)    = qrainxy(i)
-    mpas_noahmp%wslakexy(i)   = wslakexy(i)
-    mpas_noahmp%zwtxy(i)      = zwtxy(i)
-    mpas_noahmp%waxy(i)       = waxy(i)
-    mpas_noahmp%wtxy(i)       = wtxy(i)
-    mpas_noahmp%deeprechxy(i) = deeprechxy(i)
-    mpas_noahmp%rechxy(i)     = rechxy(i)
-    mpas_noahmp%lfmassxy(i)   = lfmassxy(i)
-    mpas_noahmp%rtmassxy(i)   = rtmassxy(i)
-    mpas_noahmp%stmassxy(i)   = stmassxy(i)
-    mpas_noahmp%woodxy(i)     = woodxy(i)
-    mpas_noahmp%grainxy(i)    = grainxy(i)
-    mpas_noahmp%gddxy(i)      = gddxy(i)
-    mpas_noahmp%stblcpxy(i)   = stblcpxy(i)
-    mpas_noahmp%fastcpxy(i)   = fastcpxy(i)
-    mpas_noahmp%xsaixy(i)     = xsaixy(i)
-    mpas_noahmp%taussxy(i)    = taussxy(i)
+    mpas_noahmp%isnowxy(i)      = isnowxy(i)
+    mpas_noahmp%tvxy(i)         = tvxy(i)
+    mpas_noahmp%tgxy(i)         = tgxy(i)
+    mpas_noahmp%canicexy(i)     = canicexy(i)
+    mpas_noahmp%canliqxy(i)     = canliqxy(i)
+    mpas_noahmp%eahxy(i)        = eahxy(i)
+    mpas_noahmp%tahxy(i)        = tahxy(i)
+    mpas_noahmp%cmxy(i)         = cmxy(i)
+    mpas_noahmp%chxy(i)         = chxy(i)
+    mpas_noahmp%fwetxy(i)       = fwetxy(i)
+    mpas_noahmp%sneqvoxy(i)     = sneqvoxy(i)
+    mpas_noahmp%alboldxy(i)     = alboldxy(i)
+    mpas_noahmp%wslakexy(i)     = wslakexy(i)
+    mpas_noahmp%zwtxy(i)        = zwtxy(i)
+    mpas_noahmp%waxy(i)         = waxy(i)
+    mpas_noahmp%wtxy(i)         = wtxy(i)
+    mpas_noahmp%deeprechxy(i)   = deeprechxy(i)
+    mpas_noahmp%rechxy(i)       = rechxy(i)
+    mpas_noahmp%lfmassxy(i)     = lfmassxy(i)
+    mpas_noahmp%rtmassxy(i)     = rtmassxy(i)
+    mpas_noahmp%stmassxy(i)     = stmassxy(i)
+    mpas_noahmp%woodxy(i)       = woodxy(i)
+    mpas_noahmp%stblcpxy(i)     = stblcpxy(i)
+    mpas_noahmp%fastcpxy(i)     = fastcpxy(i)
+    mpas_noahmp%xsaixy(i)       = xsaixy(i)
+    mpas_noahmp%taussxy(i)      = taussxy(i)
+    mpas_noahmp%acc_dwaterxy(i) = acc_dwaterxy(i)
+    mpas_noahmp%acc_prcpxy(i)   = acc_prcpxy(i)
+    mpas_noahmp%acc_ecanxy(i)   = acc_ecanxy(i)
+    mpas_noahmp%acc_etranxy(i)  = acc_etranxy(i)
+    mpas_noahmp%acc_edirxy(i)   = acc_edirxy(i)
+    mpas_noahmp%acc_ssoilxy(i)  = acc_ssoilxy(i)
+    mpas_noahmp%acc_qinsurxy(i) = acc_qinsurxy(i)
+    mpas_noahmp%acc_qsevaxy(i)  = acc_qsevaxy(i)
+    mpas_noahmp%acc_glaflwxy(i) = acc_glaflwxy(i)
+    do n = 1,mpas_noahmp%numrad 
+       mpas_noahmp%albsoildirxy(i,n) = albsoildirxy(n,i)
+       mpas_noahmp%albsoildifxy(i,n) = albsoildifxy(n,i)
+    enddo
+ enddo
+
+ do ns = 1,nsoil
+    do i = its,ite
+       mpas_noahmp%acc_etranixy(i,ns) = acc_etranixy(ns,i)
+    enddo
  enddo
 
  do ns = 1,nsnow
@@ -362,15 +392,149 @@
        mpas_noahmp%tsnoxy(i,n)  = tsnoxy(ns,i)
        mpas_noahmp%snicexy(i,n) = snicexy(ns,i)
        mpas_noahmp%snliqxy(i,n) = snliqxy(ns,i)
-       mpas_noahmp%zsnsoxy(i,n) = zsnsoxy(ns,i)
     enddo
  enddo
- do ns = nsnow+1,nzsnow
+ do ns = 1,nzsnow
     n = ns - nsnow
     do i = its,ite
        mpas_noahmp%zsnsoxy(i,n) = zsnsoxy(ns,i)
     enddo
  enddo
+
+ if (mpas_noahmp%iopt_crop > 0) then
+    call mpas_pool_get_array(diag_physics_noahmp,'cropcat',cropcat)
+    call mpas_pool_get_array(diag_physics_noahmp,'gddxy'  ,gddxy  )
+    call mpas_pool_get_array(diag_physics_noahmp,'grainxy',grainxy)
+    call mpas_pool_get_array(diag_physics_noahmp,'pgsxy'  ,pgsxy  )
+
+    do i = its,ite
+       mpas_noahmp%cropcat(i) = cropcat(i)
+       mpas_noahmp%grainxy(i) = grainxy(i)
+       mpas_noahmp%gddxy(i)   = gddxy(i)
+       mpas_noahmp%pgsxy(i)   = pgsxy(i)
+    enddo
+ endif
+
+ if (mpas_noahmp%iopt_tdrn > 0) then
+    call mpas_pool_get_array(diag_physics_noahmp,'qtdrain',qtdrain)
+
+    do i = its,ite
+       mpas_noahmp%qtdrain(i) = qtdrain(i)
+    enddo
+ endif
+
+ if (mpas_noahmp%iopt_irr > 0) then
+    call mpas_pool_get_array(diag_physics_noahmp,'irnumsi',irnumsi)
+    call mpas_pool_get_array(diag_physics_noahmp,'irsivol',irsivol)
+    call mpas_pool_get_array(diag_physics_noahmp,'irwatsi',irwatsi)
+    call mpas_pool_get_array(diag_physics_noahmp,'ireloss',ireloss)
+    call mpas_pool_get_array(diag_physics_noahmp,'irrsplh',irrsplh)
+    call mpas_pool_get_array(diag_physics_noahmp,'irnummi',irnummi)
+    call mpas_pool_get_array(diag_physics_noahmp,'irwatmi',irwatmi)
+    call mpas_pool_get_array(diag_physics_noahmp,'irmivol',irmivol)
+    call mpas_pool_get_array(diag_physics_noahmp,'irnumfi',irnumfi)
+    call mpas_pool_get_array(diag_physics_noahmp,'irwatfi',irwatfi)
+    call mpas_pool_get_array(diag_physics_noahmp,'irfivol',irfivol)
+
+    do i = its,ite
+       mpas_noahmp%irnumsi(i) = irnumsi(i)
+       mpas_noahmp%irwatsi(i) = irwatsi(i)
+       mpas_noahmp%irsivol(i) = irsivol(i)
+       mpas_noahmp%ireloss(i) = ireloss(i)
+       mpas_noahmp%irrsplh(i) = irrsplh(i)
+       mpas_noahmp%irnummi(i) = irnummi(i)
+       mpas_noahmp%irwatmi(i) = irwatmi(i)
+       mpas_noahmp%irmivol(i) = irmivol(i)
+       mpas_noahmp%irnumfi(i) = irnumfi(i)
+       mpas_noahmp%irwatfi(i) = irwatfi(i)
+       mpas_noahmp%irfivol(i) = irfivol(i)
+    enddo
+ endif
+
+ if (mpas_noahmp%iopt_runsub == 5) then  
+    call mpas_pool_get_array(diag_physics_noahmp,'smcwtdxy'   ,smcwtdxy   )
+    call mpas_pool_get_array(diag_physics_noahmp,'deeprechxy' ,deeprechxy )
+    call mpas_pool_get_array(diag_physics_noahmp,'rechxy'     ,rechxy     )
+    call mpas_pool_get_array(diag_physics_noahmp,'qrfsxy'     ,qrfsxy     )
+    call mpas_pool_get_array(diag_physics_noahmp,'qspringsxy' ,qspringsxy )
+    call mpas_pool_get_array(diag_physics_noahmp,'qslatxy'    ,qslatxy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'rivercondxy',rivercondxy)
+    call mpas_pool_get_array(diag_physics_noahmp,'pexpxy'     ,pexpxy     )
+    call mpas_pool_get_array(diag_physics_noahmp,'smoiseq'    ,smoiseq    )
+
+    do i = its,ite
+       mpas_noahmp%smcwtdxy(i)    = smcwtdxy(i)
+       mpas_noahmp%deeprechxy(i)  = deeprechxy(i)
+       mpas_noahmp%rechxy(i)      = rechxy(i)
+       mpas_noahmp%qrfsxy(i)      = qrfsxy(i)
+       mpas_noahmp%qspringsxy(i)  = qspringsxy(i)
+       mpas_noahmp%qslatxy(i)     = qslatxy(i)
+       mpas_noahmp%rivercondxy(i) = rivercondxy(i)
+       mpas_noahmp%pexpxy(i)      = pexpxy(i)
+       do ns = 1,nsoil
+          mpas_noahmp%smoiseq(i,ns) = smoiseq(ns,i)
+       enddo
+    enddo
+ endif
+
+ if (mpas_noahmp%iopt_wetland > 0) then  
+    call mpas_pool_get_array(diag_physics_noahmp,'fsatxy' ,fsatxy )
+    call mpas_pool_get_array(diag_physics_noahmp,'wsurfxy',wsurfxy)
+
+    do i = its,ite
+       mpas_noahmp%fsatxy(i)  = fsatxy(i)
+       mpas_noahmp%wsurfxy(i) = wsurfxy(i)
+    enddo
+ endif
+
+ if (mpas_noahmp%iopt_alb == 3) then
+    call mpas_pool_get_array(diag_physics_noahmp,'snrdsxy'    ,snrdsxy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'snfrxy'     ,snfrxy     )
+    call mpas_pool_get_array(diag_physics_noahmp,'bcphixy'    ,bcphixy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'bcphoxy'    ,bcphoxy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'ocphixy'    ,ocphixy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'ocphoxy'    ,ocphoxy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'dust1xy'    ,dust1xy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'dust2xy'    ,dust2xy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'dust3xy'    ,dust3xy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'dust4xy'    ,dust4xy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'dust5xy'    ,dust5xy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'concbcphixy',concbcphixy)
+    call mpas_pool_get_array(diag_physics_noahmp,'concbcphoxy',concbcphoxy)
+    call mpas_pool_get_array(diag_physics_noahmp,'concocphixy',concocphixy)
+    call mpas_pool_get_array(diag_physics_noahmp,'concocphoxy',concocphoxy)
+    call mpas_pool_get_array(diag_physics_noahmp,'concdust1xy',concdust1xy)
+    call mpas_pool_get_array(diag_physics_noahmp,'concdust2xy',concdust2xy)
+    call mpas_pool_get_array(diag_physics_noahmp,'concdust3xy',concdust3xy)
+    call mpas_pool_get_array(diag_physics_noahmp,'concdust4xy',concdust4xy)
+    call mpas_pool_get_array(diag_physics_noahmp,'concdust5xy',concdust5xy)
+
+    do ns = 1,nsnow
+       n = ns - nsnow
+       do i = its,ite
+          mpas_noahmp%snrdsxy(i,n)         = snrdsxy(ns,i)
+          mpas_noahmp%snfrxy(i,n)          = snfrxy(ns,i)
+          mpas_noahmp%bcphixy(i,n)         = bcphixy(ns,i)
+          mpas_noahmp%bcphoxy(i,n)         = bcphoxy(ns,i)
+          mpas_noahmp%ocphixy(i,n)         = ocphixy(ns,i)
+          mpas_noahmp%ocphoxy(i,n)         = ocphoxy(ns,i)
+          mpas_noahmp%dust1xy(i,n)         = dust1xy(ns,i)
+          mpas_noahmp%dust2xy(i,n)         = dust2xy(ns,i)
+          mpas_noahmp%dust3xy(i,n)         = dust3xy(ns,i)
+          mpas_noahmp%dust4xy(i,n)         = dust4xy(ns,i)
+          mpas_noahmp%dust5xy(i,n)         = dust5xy(ns,i)
+          mpas_noahmp%massconcbcphixy(i,n) = concbcphixy(ns,i)
+          mpas_noahmp%massconcbcphoxy(i,n) = concbcphoxy(ns,i)
+          mpas_noahmp%massconcocphixy(i,n) = concocphixy(ns,i)
+          mpas_noahmp%massconcocphoxy(i,n) = concocphoxy(ns,i)
+          mpas_noahmp%massconcdust1xy(i,n) = concdust1xy(ns,i)
+          mpas_noahmp%massconcdust2xy(i,n) = concdust2xy(ns,i)
+          mpas_noahmp%massconcdust3xy(i,n) = concdust3xy(ns,i)
+          mpas_noahmp%massconcdust4xy(i,n) = concdust4xy(ns,i)
+          mpas_noahmp%massconcdust5xy(i,n) = concdust5xy(ns,i)
+       enddo
+    enddo
+ endif
 
 
 !--- initialization of OUT (with no Noah LSM equivalent as defined in WRF), i.e.
@@ -416,9 +580,12 @@
  call mpas_pool_get_array(output_noahmp,'chv2xy'  ,chv2xy  )
  call mpas_pool_get_array(output_noahmp,'chb2xy'  ,chb2xy  )
  call mpas_pool_get_array(output_noahmp,'rs'      ,rs      )
- call mpas_pool_get_array(output_noahmp,'qtdrain',qtdrain  )
+ call mpas_pool_get_array(output_noahmp,'qsnowxy' ,qsnowxy )
+ call mpas_pool_get_array(output_noahmp,'qrainxy' ,qrainxy )
 
  do i = its,ite
+    mpas_noahmp%qsnowxy(i)  = qsnowxy(i)
+    mpas_noahmp%qrainxy(i)  = qrainxy(i)
     mpas_noahmp%tradxy(i)   = tradxy(i)
     mpas_noahmp%neexy(i)    = neexy(i)
     mpas_noahmp%gppxy(i)    = gppxy(i)
@@ -460,7 +627,6 @@
     mpas_noahmp%chv2xy(i)   = chv2xy(i)
     mpas_noahmp%chb2xy(i)   = chb2xy(i)
     mpas_noahmp%rs(i)       = rs(i)
-    mpas_noahmp%qtdrain(i)  = qtdrain(i)
  enddo
 
 
@@ -494,19 +660,10 @@
  call mpas_pool_get_array(output_noahmp,'forcplsm'    ,forcplsm     )
  call mpas_pool_get_array(output_noahmp,'forczlsm'    ,forczlsm     )
  call mpas_pool_get_array(output_noahmp,'forcwlsm'    ,forcwlsm     )
- call mpas_pool_get_array(output_noahmp,'acc_ssoilxy' ,acc_ssoilxy  )
- call mpas_pool_get_array(output_noahmp,'acc_qinsurxy',acc_qinsurxy )
- call mpas_pool_get_array(output_noahmp,'acc_qsevaxy' ,acc_qsevaxy  )
  call mpas_pool_get_array(output_noahmp,'eflxbxy'     ,eflxbxy      )
  call mpas_pool_get_array(output_noahmp,'soilenergy'  ,soilenergy   )
  call mpas_pool_get_array(output_noahmp,'snowenergy'  ,snowenergy   )
  call mpas_pool_get_array(output_noahmp,'canhsxy'     ,canhsxy      )
- call mpas_pool_get_array(output_noahmp,'acc_dwaterxy',acc_dwaterxy )
- call mpas_pool_get_array(output_noahmp,'acc_prcpxy'  ,acc_prcpxy   )
- call mpas_pool_get_array(output_noahmp,'acc_ecanxy'  ,acc_ecanxy   )
- call mpas_pool_get_array(output_noahmp,'acc_etranxy' ,acc_etranxy  )
- call mpas_pool_get_array(output_noahmp,'acc_edirxy'  ,acc_edirxy   )
- call mpas_pool_get_array(output_noahmp,'acc_etranixy',acc_etranixy )
 
  do i = its,ite
     mpas_noahmp%pahxy(i)        = pahxy(i)
@@ -538,19 +695,10 @@
     mpas_noahmp%forcplsm(i)     = forcplsm(i)
     mpas_noahmp%forczlsm(i)     = forczlsm(i)
     mpas_noahmp%forcwlsm(i)     = forcwlsm(i)
-    mpas_noahmp%acc_ssoilxy(i)  = acc_ssoilxy(i)
-    mpas_noahmp%acc_qinsurxy(i) = acc_qinsurxy(i)
-    mpas_noahmp%acc_qsevaxy(i)  = acc_qsevaxy(i)
     mpas_noahmp%eflxbxy(i)      = eflxbxy(i)
     mpas_noahmp%soilenergy(i)   = soilenergy(i)
     mpas_noahmp%snowenergy(i)   = snowenergy(i)
     mpas_noahmp%canhsxy(i)      = canhsxy(i)
-    mpas_noahmp%acc_dwaterxy(i) = acc_dwaterxy(i)
-    mpas_noahmp%acc_prcpxy(i)   = acc_prcpxy(i)
-    mpas_noahmp%acc_ecanxy(i)   = acc_ecanxy(i)
-    mpas_noahmp%acc_etranxy(i)  = acc_etranxy(i)
-    mpas_noahmp%acc_edirxy(i)   = acc_edirxy(i)
-!   real(kind=kind_noahmp), allocatable, dimension(:,:)    ::  acc_etranixy
  enddo
 
 !call mpas_log_write('--- end subroutine lsm_noahmp_fromMPAS.')
@@ -664,16 +812,29 @@
  real(kind=RKIND),dimension(:),pointer:: acsnom,acsnow,canwat,hfx,qfx,qsfc,lh,grdflx,sfc_albedo,sfc_emiss,  &
                                          sfcrunoff,skintemp,smstav,smstot,udrunoff,snow,snowc,snowh,lai,z0, &
                                          znt
- real(kind=RKIND),dimension(:,:),pointer:: sh2o,smois,tslb
+ real(kind=RKIND),dimension(:,:),pointer:: sh2o,smois,tslb,smoiseq
 
 
  !--- local INOUT pointers (with no Noah LSM equivalent as defined in WRF):
  integer,dimension(:),pointer:: isnowxy
+ integer,dimension(:),pointer:: irnumsi,irnummi,irnumfi,pgsxy
  real(kind=RKIND),dimension(:),pointer:: tvxy,tgxy,canicexy,canliqxy,eahxy,tahxy,cmxy,chxy,fwetxy,sneqvoxy, &
-                                         alboldxy,qsnowxy,qrainxy,wslakexy,zwtxy,waxy,wtxy,deeprechxy,      &
-                                         rechxy,lfmassxy,rtmassxy,stmassxy,woodxy,grainxy,gddxy,stblcpxy,   &
+                                         alboldxy,qsnowxy,qrainxy,wslakexy,zwtxy,waxy,wtxy,                 &
+                                         lfmassxy,rtmassxy,stmassxy,woodxy,grainxy,gddxy,stblcpxy,          &
                                          fastcpxy,xsaixy,taussxy
  real(kind=RKIND),dimension(:,:),pointer:: tsnoxy,zsnsoxy,snicexy,snliqxy
+ real(kind=RKIND),dimension(:),pointer:: irwatsi,irsivol,ireloss,irrsplh,irwatmi,irmivol,irwatfi,irfivol
+ real(kind=RKIND),dimension(:),pointer:: smcwtdxy,deeprechxy,rechxy,qrfsxy,qspringsxy,qslatxy, &
+                                         rivercondxy,pexpxy
+ real(kind=RKIND),dimension(:),pointer:: fsatxy,wsurfxy
+ real(kind=RKIND),dimension(:),pointer:: acc_ssoilxy,acc_qinsurxy,acc_qsevaxy,acc_dwaterxy,acc_prcpxy,      &
+                                         acc_ecanxy,acc_etranxy,acc_edirxy,acc_glaflwxy
+ real(kind=RKIND),dimension(:,:),pointer:: acc_etranixy
+ real(kind=RKIND),dimension(:,:),pointer:: albsoildirxy,albsoildifxy
+ real(kind=RKIND),dimension(:,:),pointer:: snrdsxy,snfrxy,bcphixy,bcphoxy,ocphixy,ocphoxy,  &
+                                           dust1xy,dust2xy,dust3xy,dust4xy,dust5xy,         &
+                                           concbcphixy,concbcphoxy,concocphixy,concocphoxy, &
+                                           concdust1xy,concdust2xy,concdust3xy,concdust4xy,concdust5xy
 
 
 !--- local OUT pointers (with no Noah LSM equivalent as defined in WRF):
@@ -689,19 +850,17 @@
                                          qthrosxy,qthrorxy,qsnsubxy,qmeltxy,qsnfroxy,qsubcxy,qfrocxy,          &
                                          qevacxy,qdewcxy,qfrzcxy,qmeltcxy,qsnbotxy,pondingxy,fpicexy,          &
                                          rainlsm,snowlsm,forctlsm,forcqlsm,forcplsm,forczlsm,forcwlsm,         &
-                                         acc_ssoilxy,acc_qinsurxy,acc_qsevaxy,eflxbxy,soilenergy,snowenergy,   &
-                                         canhsxy,acc_dwaterxy,acc_prcpxy,acc_ecanxy,acc_etranxy,acc_edirxy
- real(kind=RKIND),dimension(:,:),pointer:: acc_etranixy
+                                         eflxbxy,soilenergy,snowenergy,canhsxy
 
 !-----------------------------------------------------------------------------------------------------------------
 !call mpas_log_write('--- enter subroutine lsm_noahmp_toMPAS:')
 
 
 !--- initialization of local dimensions:
- its   = mpas_noahmp%its
- ite   = mpas_noahmp%ite
- nsoil = mpas_noahmp%nsoil
- nsnow = mpas_noahmp%nsnow
+ its    = mpas_noahmp%its
+ ite    = mpas_noahmp%ite
+ nsoil  = mpas_noahmp%nsoil
+ nsnow  = mpas_noahmp%nsnow
  nzsnow = nsnow + nsoil
 
 
@@ -715,10 +874,10 @@
  call mpas_pool_get_array(sfc_input,'smois'   ,smois   )
  call mpas_pool_get_array(sfc_input,'tslb'    ,tslb    )
 
- call mpas_pool_get_array(diag_physics,'hfx'      ,hfx        )
- call mpas_pool_get_array(diag_physics,'qfx'      ,qfx        )
- call mpas_pool_get_array(diag_physics,'lh '      ,lh         )
- call mpas_pool_get_array(diag_physics,'grdflx'   ,grdflx     )
+ call mpas_pool_get_array(diag_physics,'hfx'       ,hfx       )
+ call mpas_pool_get_array(diag_physics,'qfx'       ,qfx       )
+ call mpas_pool_get_array(diag_physics,'lh '       ,lh        )
+ call mpas_pool_get_array(diag_physics,'grdflx'    ,grdflx    )
  call mpas_pool_get_array(diag_physics,'smstav'    ,smstav    )
  call mpas_pool_get_array(diag_physics,'smstot'    ,smstot    )
  call mpas_pool_get_array(diag_physics,'sfcrunoff' ,sfcrunoff )
@@ -769,72 +928,93 @@
 
 !--- update of INOUT variables (with no Noah LSM equivalent as defined in WRF), i.e. see
 !    lines 186-222 in module NoahmpIOVarType.F90:
- call mpas_pool_get_array(diag_physics_noahmp,'isnowxy'  ,isnowxy     )
- call mpas_pool_get_array(diag_physics_noahmp,'tvxy'      ,tvxy       )
- call mpas_pool_get_array(diag_physics_noahmp,'tgxy'      ,tgxy       )
- call mpas_pool_get_array(diag_physics_noahmp,'canicexy'  ,canicexy   )
- call mpas_pool_get_array(diag_physics_noahmp,'canliqxy'  ,canliqxy   )
- call mpas_pool_get_array(diag_physics_noahmp,'eahxy'     ,eahxy      )
- call mpas_pool_get_array(diag_physics_noahmp,'tahxy'     ,tahxy      )
- call mpas_pool_get_array(diag_physics_noahmp,'cmxy'      ,cmxy       )
- call mpas_pool_get_array(diag_physics_noahmp,'chxy'      ,chxy       )
- call mpas_pool_get_array(diag_physics_noahmp,'fwetxy'    ,fwetxy     )
- call mpas_pool_get_array(diag_physics_noahmp,'sneqvoxy'  ,sneqvoxy   )
- call mpas_pool_get_array(diag_physics_noahmp,'alboldxy'  ,alboldxy   )
- call mpas_pool_get_array(diag_physics_noahmp,'qsnowxy'   ,qsnowxy    )
- call mpas_pool_get_array(diag_physics_noahmp,'qrainxy'   ,qrainxy    )
- call mpas_pool_get_array(diag_physics_noahmp,'wslakexy'  ,wslakexy   )
- call mpas_pool_get_array(diag_physics_noahmp,'zwtxy'     ,zwtxy      )
- call mpas_pool_get_array(diag_physics_noahmp,'waxy'      ,waxy       )
- call mpas_pool_get_array(diag_physics_noahmp,'wtxy'      ,wtxy       )
- call mpas_pool_get_array(diag_physics_noahmp,'deeprechxy',deeprechxy )
- call mpas_pool_get_array(diag_physics_noahmp,'rechxy'    ,rechxy     )
- call mpas_pool_get_array(diag_physics_noahmp,'tsnoxy'    ,tsnoxy     )
- call mpas_pool_get_array(diag_physics_noahmp,'zsnsoxy'   ,zsnsoxy    )
- call mpas_pool_get_array(diag_physics_noahmp,'snicexy'   ,snicexy    )
- call mpas_pool_get_array(diag_physics_noahmp,'snliqxy'   ,snliqxy    )
- call mpas_pool_get_array(diag_physics_noahmp,'lfmassxy'  ,lfmassxy   )
- call mpas_pool_get_array(diag_physics_noahmp,'rtmassxy'  ,rtmassxy   )
- call mpas_pool_get_array(diag_physics_noahmp,'stmassxy'  ,stmassxy   )
- call mpas_pool_get_array(diag_physics_noahmp,'woodxy'    ,woodxy     )
- call mpas_pool_get_array(diag_physics_noahmp,'grainxy'   ,grainxy    )
- call mpas_pool_get_array(diag_physics_noahmp,'gddxy'     ,gddxy      )
- call mpas_pool_get_array(diag_physics_noahmp,'stblcpxy'  ,stblcpxy   )
- call mpas_pool_get_array(diag_physics_noahmp,'fastcpxy'  ,fastcpxy   )
- call mpas_pool_get_array(diag_physics_noahmp,'xsaixy'    ,xsaixy     )
- call mpas_pool_get_array(diag_physics_noahmp,'taussxy'   ,taussxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'isnowxy'     ,isnowxy     )
+ call mpas_pool_get_array(diag_physics_noahmp,'tvxy'        ,tvxy        )
+ call mpas_pool_get_array(diag_physics_noahmp,'tgxy'        ,tgxy        )
+ call mpas_pool_get_array(diag_physics_noahmp,'canicexy'    ,canicexy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'canliqxy'    ,canliqxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'eahxy'       ,eahxy       )
+ call mpas_pool_get_array(diag_physics_noahmp,'tahxy'       ,tahxy       )
+ call mpas_pool_get_array(diag_physics_noahmp,'cmxy'        ,cmxy        )
+ call mpas_pool_get_array(diag_physics_noahmp,'chxy'        ,chxy        )
+ call mpas_pool_get_array(diag_physics_noahmp,'fwetxy'      ,fwetxy      )
+ call mpas_pool_get_array(diag_physics_noahmp,'sneqvoxy'    ,sneqvoxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'alboldxy'    ,alboldxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'wslakexy'    ,wslakexy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'zwtxy'       ,zwtxy       )
+ call mpas_pool_get_array(diag_physics_noahmp,'waxy'        ,waxy        )
+ call mpas_pool_get_array(diag_physics_noahmp,'wtxy'        ,wtxy        )
+ call mpas_pool_get_array(diag_physics_noahmp,'deeprechxy'  ,deeprechxy  )
+ call mpas_pool_get_array(diag_physics_noahmp,'rechxy'      ,rechxy      )
+ call mpas_pool_get_array(diag_physics_noahmp,'tsnoxy'      ,tsnoxy      )
+ call mpas_pool_get_array(diag_physics_noahmp,'zsnsoxy'     ,zsnsoxy     )
+ call mpas_pool_get_array(diag_physics_noahmp,'snicexy'     ,snicexy     )
+ call mpas_pool_get_array(diag_physics_noahmp,'snliqxy'     ,snliqxy     )
+ call mpas_pool_get_array(diag_physics_noahmp,'lfmassxy'    ,lfmassxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'rtmassxy'    ,rtmassxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'stmassxy'    ,stmassxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'woodxy'      ,woodxy      )
+ call mpas_pool_get_array(diag_physics_noahmp,'stblcpxy'    ,stblcpxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'fastcpxy'    ,fastcpxy    )
+ call mpas_pool_get_array(diag_physics_noahmp,'xsaixy'      ,xsaixy      )
+ call mpas_pool_get_array(diag_physics_noahmp,'taussxy'     ,taussxy     )
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_dwaterxy',acc_dwaterxy)
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_prcpxy'  ,acc_prcpxy  )
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_ecanxy'  ,acc_ecanxy  )
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_etranxy' ,acc_etranxy )
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_edirxy'  ,acc_edirxy  )
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_etranixy',acc_etranixy)
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_glaflwxy',acc_glaflwxy)
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_ssoilxy' ,acc_ssoilxy )
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_qinsurxy',acc_qinsurxy)
+ call mpas_pool_get_array(diag_physics_noahmp,'acc_qsevaxy' ,acc_qsevaxy )
+ call mpas_pool_get_array(diag_physics_noahmp,'albsoildirxy',albsoildirxy)
+ call mpas_pool_get_array(diag_physics_noahmp,'albsoildifxy',albsoildifxy)
 
  do i = its,ite
-    isnowxy(i)    = mpas_noahmp%isnowxy(i)
-    tvxy(i)       = mpas_noahmp%tvxy(i)
-    tgxy(i)       = mpas_noahmp%tgxy(i)
-    canicexy(i)   = mpas_noahmp%canicexy(i)
-    canliqxy(i)   = mpas_noahmp%canliqxy(i)
-    eahxy(i)      = mpas_noahmp%eahxy(i)
-    tahxy(i)      = mpas_noahmp%tahxy(i)
-    cmxy(i)       = mpas_noahmp%cmxy(i)
-    chxy(i)       = mpas_noahmp%chxy(i)
-    fwetxy(i)     = mpas_noahmp%fwetxy(i)
-    sneqvoxy(i)   = mpas_noahmp%sneqvoxy(i)
-    alboldxy(i)   = mpas_noahmp%alboldxy(i)
-    qsnowxy(i)    = mpas_noahmp%qsnowxy(i)
-    qrainxy(i)    = mpas_noahmp%qrainxy(i)
-    wslakexy(i)   = mpas_noahmp%wslakexy(i)
-    zwtxy(i)      = mpas_noahmp%zwtxy(i)
-    waxy(i)       = mpas_noahmp%waxy(i)
-    wtxy(i)       = mpas_noahmp%wtxy(i)
-    deeprechxy(i) = mpas_noahmp%deeprechxy(i)
-    rechxy(i)     = mpas_noahmp%rechxy(i)
-    lfmassxy(i)   = mpas_noahmp%lfmassxy(i)
-    rtmassxy(i)   = mpas_noahmp%rtmassxy(i)
-    stmassxy(i)   = mpas_noahmp%stmassxy(i)
-    woodxy(i)     = mpas_noahmp%woodxy(i)
-    grainxy(i)    = mpas_noahmp%grainxy(i)
-    gddxy(i)      = mpas_noahmp%gddxy(i)
-    stblcpxy(i)   = mpas_noahmp%stblcpxy(i)
-    fastcpxy(i)   =  mpas_noahmp%fastcpxy(i)
-    xsaixy(i)     = mpas_noahmp%xsaixy(i)
-    taussxy(i)    = mpas_noahmp%taussxy(i)
+    isnowxy(i)      = mpas_noahmp%isnowxy(i)
+    tvxy(i)         = mpas_noahmp%tvxy(i)
+    tgxy(i)         = mpas_noahmp%tgxy(i)
+    canicexy(i)     = mpas_noahmp%canicexy(i)
+    canliqxy(i)     = mpas_noahmp%canliqxy(i)
+    eahxy(i)        = mpas_noahmp%eahxy(i)
+    tahxy(i)        = mpas_noahmp%tahxy(i)
+    cmxy(i)         = mpas_noahmp%cmxy(i)
+    chxy(i)         = mpas_noahmp%chxy(i)
+    fwetxy(i)       = mpas_noahmp%fwetxy(i)
+    sneqvoxy(i)     = mpas_noahmp%sneqvoxy(i)
+    alboldxy(i)     = mpas_noahmp%alboldxy(i)
+    wslakexy(i)     = mpas_noahmp%wslakexy(i)
+    zwtxy(i)        = mpas_noahmp%zwtxy(i)
+    waxy(i)         = mpas_noahmp%waxy(i)
+    wtxy(i)         = mpas_noahmp%wtxy(i)
+    deeprechxy(i)   = mpas_noahmp%deeprechxy(i)
+    rechxy(i)       = mpas_noahmp%rechxy(i)
+    lfmassxy(i)     = mpas_noahmp%lfmassxy(i)
+    rtmassxy(i)     = mpas_noahmp%rtmassxy(i)
+    stmassxy(i)     = mpas_noahmp%stmassxy(i)
+    woodxy(i)       = mpas_noahmp%woodxy(i)
+    stblcpxy(i)     = mpas_noahmp%stblcpxy(i)
+    fastcpxy(i)     = mpas_noahmp%fastcpxy(i)
+    xsaixy(i)       = mpas_noahmp%xsaixy(i)
+    taussxy(i)      = mpas_noahmp%taussxy(i)
+    acc_dwaterxy(i) = mpas_noahmp%acc_dwaterxy(i)
+    acc_prcpxy(i)   = mpas_noahmp%acc_prcpxy(i)
+    acc_ecanxy(i)   = mpas_noahmp%acc_ecanxy(i)
+    acc_etranxy(i)  = mpas_noahmp%acc_etranxy(i)
+    acc_edirxy(i)   = mpas_noahmp%acc_edirxy(i)
+    acc_ssoilxy(i)  = mpas_noahmp%acc_ssoilxy(i)
+    acc_qinsurxy(i) = mpas_noahmp%acc_qinsurxy(i)
+    acc_qsevaxy(i)  = mpas_noahmp%acc_qsevaxy(i)
+    acc_glaflwxy(i) = mpas_noahmp%acc_glaflwxy(i)
+    do n = 1,mpas_noahmp%numrad
+       albsoildirxy(n,i) = mpas_noahmp%albsoildirxy(i,n)
+       albsoildifxy(n,i) = mpas_noahmp%albsoildifxy(i,n)
+    enddo
+
+    do ns = 1,nsoil
+       acc_etranixy(ns,i) = mpas_noahmp%acc_etranixy(i,ns)
+    enddo
 
     do ns = 1,nsnow
        n = ns - nsnow
@@ -842,15 +1022,151 @@
        snicexy(ns,i) = mpas_noahmp%snicexy(i,n)
        snliqxy(ns,i) = mpas_noahmp%snliqxy(i,n)
     enddo
+
     do ns = 1,nzsnow
        n = ns - nsnow
        zsnsoxy(ns,i) = mpas_noahmp%zsnsoxy(i,n)
     enddo
  enddo
 
+ if (mpas_noahmp%iopt_crop > 0) then
+    call mpas_pool_get_array(diag_physics_noahmp,'gddxy'  ,gddxy  )
+    call mpas_pool_get_array(diag_physics_noahmp,'grainxy',grainxy)
+    call mpas_pool_get_array(diag_physics_noahmp,'pgsxy'  ,pgsxy  )
+
+    do i = its,ite
+       grainxy(i) = mpas_noahmp%grainxy(i)
+       gddxy(i)   = mpas_noahmp%gddxy(i)
+       pgsxy(i)   = mpas_noahmp%pgsxy(i)
+    enddo
+ endif
+
+ if (mpas_noahmp%iopt_tdrn > 0) then
+    call mpas_pool_get_array(diag_physics_noahmp,'qtdrain',qtdrain)
+
+    do i = its,ite
+       qtdrain(i) = mpas_noahmp%qtdrain(i)
+    enddo
+ endif
+
+ if (mpas_noahmp%iopt_irr > 0) then
+    call mpas_pool_get_array(diag_physics_noahmp,'irnumsi',irnumsi)
+    call mpas_pool_get_array(diag_physics_noahmp,'irsivol',irsivol)
+    call mpas_pool_get_array(diag_physics_noahmp,'irwatsi',irwatsi)
+    call mpas_pool_get_array(diag_physics_noahmp,'ireloss',ireloss)
+    call mpas_pool_get_array(diag_physics_noahmp,'irrsplh',irrsplh)
+    call mpas_pool_get_array(diag_physics_noahmp,'irnummi',irnummi)
+    call mpas_pool_get_array(diag_physics_noahmp,'irwatmi',irwatmi)
+    call mpas_pool_get_array(diag_physics_noahmp,'irmivol',irmivol)
+    call mpas_pool_get_array(diag_physics_noahmp,'irnumfi',irnumfi)
+    call mpas_pool_get_array(diag_physics_noahmp,'irwatfi',irwatfi)
+    call mpas_pool_get_array(diag_physics_noahmp,'irfivol',irfivol)
+
+    do i = its,ite
+       irnumsi(i) = mpas_noahmp%irnumsi(i)
+       irwatsi(i) = mpas_noahmp%irwatsi(i)
+       irsivol(i) = mpas_noahmp%irsivol(i)
+       ireloss(i) = mpas_noahmp%ireloss(i)
+       irrsplh(i) = mpas_noahmp%irrsplh(i)
+       irnummi(i) = mpas_noahmp%irnummi(i)
+       irwatmi(i) = mpas_noahmp%irwatmi(i)
+       irmivol(i) = mpas_noahmp%irmivol(i)
+       irnumfi(i) = mpas_noahmp%irnumfi(i)
+       irwatfi(i) = mpas_noahmp%irwatfi(i)
+       irfivol(i) = mpas_noahmp%irfivol(i)
+    enddo
+ endif
+
+ if (mpas_noahmp%iopt_runsub == 5) then
+    call mpas_pool_get_array(diag_physics_noahmp,'smcwtdxy'   ,smcwtdxy   )
+    call mpas_pool_get_array(diag_physics_noahmp,'deeprechxy' ,deeprechxy )
+    call mpas_pool_get_array(diag_physics_noahmp,'rechxy'     ,rechxy     )
+    call mpas_pool_get_array(diag_physics_noahmp,'qrfsxy'     ,qrfsxy     )
+    call mpas_pool_get_array(diag_physics_noahmp,'qspringsxy' ,qspringsxy )
+    call mpas_pool_get_array(diag_physics_noahmp,'qslatxy'    ,qslatxy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'rivercondxy',rivercondxy)
+    call mpas_pool_get_array(diag_physics_noahmp,'pexpxy'     ,pexpxy     )
+    call mpas_pool_get_array(diag_physics_noahmp,'smoiseq'    ,smoiseq    )
+
+    do i = its,ite
+       smcwtdxy(i)    = mpas_noahmp%smcwtdxy(i)
+       deeprechxy(i)  = mpas_noahmp%deeprechxy(i)
+       rechxy(i)      = mpas_noahmp%rechxy(i)
+       qrfsxy(i)      = mpas_noahmp%qrfsxy(i)
+       qspringsxy(i)  = mpas_noahmp%qspringsxy(i)
+       qslatxy(i)     = mpas_noahmp%qslatxy(i)
+       rivercondxy(i) = mpas_noahmp%rivercondxy(i)
+       pexpxy(i)      = mpas_noahmp%pexpxy(i)
+       do ns = 1,nsoil
+          smoiseq(ns,i) = mpas_noahmp%smoiseq(i,ns)
+       enddo
+    enddo
+ endif
+
+if (mpas_noahmp%iopt_wetland > 0) then
+    call mpas_pool_get_array(diag_physics_noahmp,'fsatxy' ,fsatxy )
+    call mpas_pool_get_array(diag_physics_noahmp,'wsurfxy',wsurfxy)
+
+    do i = its,ite
+       fsatxy(i)  = mpas_noahmp%fsatxy(i) 
+       wsurfxy(i) = mpas_noahmp%wsurfxy(i)
+    enddo
+ endif
+
+ if (mpas_noahmp%iopt_alb == 3) then
+    call mpas_pool_get_array(diag_physics_noahmp,'snrdsxy'    ,snrdsxy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'snfrxy'     ,snfrxy     )
+    call mpas_pool_get_array(diag_physics_noahmp,'bcphixy'    ,bcphixy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'bcphoxy'    ,bcphoxy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'ocphixy'    ,ocphixy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'ocphoxy'    ,ocphoxy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'dust1xy'    ,dust1xy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'dust2xy'    ,dust2xy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'dust3xy'    ,dust3xy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'dust4xy'    ,dust4xy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'dust5xy'    ,dust5xy    )
+    call mpas_pool_get_array(diag_physics_noahmp,'concbcphixy',concbcphixy)
+    call mpas_pool_get_array(diag_physics_noahmp,'concbcphoxy',concbcphoxy)
+    call mpas_pool_get_array(diag_physics_noahmp,'concocphixy',concocphixy)
+    call mpas_pool_get_array(diag_physics_noahmp,'concocphoxy',concocphoxy)
+    call mpas_pool_get_array(diag_physics_noahmp,'concdust1xy',concdust1xy)
+    call mpas_pool_get_array(diag_physics_noahmp,'concdust2xy',concdust2xy)
+    call mpas_pool_get_array(diag_physics_noahmp,'concdust3xy',concdust3xy)
+    call mpas_pool_get_array(diag_physics_noahmp,'concdust4xy',concdust4xy)
+    call mpas_pool_get_array(diag_physics_noahmp,'concdust5xy',concdust5xy)
+
+    do ns = 1,nsnow
+       n = ns - nsnow
+       do i = its,ite
+          snrdsxy(ns,i)     = mpas_noahmp%snrdsxy(i,n)
+          snfrxy(ns,i)      = mpas_noahmp%snfrxy(i,n)
+          bcphixy(ns,i)     = mpas_noahmp%bcphixy(i,n)
+          bcphoxy(ns,i)     = mpas_noahmp%bcphoxy(i,n)
+          ocphixy(ns,i)     = mpas_noahmp%ocphixy(i,n)
+          ocphoxy(ns,i)     = mpas_noahmp%ocphoxy(i,n)
+          dust1xy(ns,i)     = mpas_noahmp%dust1xy(i,n)
+          dust2xy(ns,i)     = mpas_noahmp%dust2xy(i,n)
+          dust3xy(ns,i)     = mpas_noahmp%dust3xy(i,n)
+          dust4xy(ns,i)     = mpas_noahmp%dust4xy(i,n)
+          dust5xy(ns,i)     = mpas_noahmp%dust5xy(i,n)
+          concbcphixy(ns,i) = mpas_noahmp%massconcbcphixy(i,n)
+          concbcphoxy(ns,i) = mpas_noahmp%massconcbcphoxy(i,n)
+          concocphixy(ns,i) = mpas_noahmp%massconcocphixy(i,n)
+          concocphoxy(ns,i) = mpas_noahmp%massconcocphoxy(i,n)
+          concdust1xy(ns,i) = mpas_noahmp%massconcdust1xy(i,n)
+          concdust2xy(ns,i) = mpas_noahmp%massconcdust2xy(i,n)
+          concdust3xy(ns,i) = mpas_noahmp%massconcdust3xy(i,n)
+          concdust4xy(ns,i) = mpas_noahmp%massconcdust4xy(i,n)
+          concdust5xy(ns,i) = mpas_noahmp%massconcdust5xy(i,n)
+       enddo
+    enddo
+ endif
+
 
 !--- update of OUT (with no Noah LSM equivalent as defined in WRF), i.e. see
 !    lines 242-290 in module NoahmpIOVarType.F90:
+ call mpas_pool_get_array(output_noahmp,'qsnowxy' ,qsnowxy )
+ call mpas_pool_get_array(output_noahmp,'qrainxy' ,qrainxy )
  call mpas_pool_get_array(output_noahmp,'t2mvxy'  ,t2mvxy  )
  call mpas_pool_get_array(output_noahmp,'t2mbxy'  ,t2mbxy  )
  call mpas_pool_get_array(output_noahmp,'t2mxy'   ,t2mxy   )
@@ -898,9 +1214,10 @@
  call mpas_pool_get_array(output_noahmp,'chv2xy'  ,chv2xy  )
  call mpas_pool_get_array(output_noahmp,'chb2xy'  ,chb2xy  )
  call mpas_pool_get_array(output_noahmp,'rs'      ,rs      )
- call mpas_pool_get_array(output_noahmp,'qtdrain',qtdrain  )
 
  do i = its,ite
+    qsnowxy(i)  = mpas_noahmp%qsnowxy(i)
+    qrainxy(i)  = mpas_noahmp%qrainxy(i)
     t2mvxy(i)   = mpas_noahmp%t2mvxy(i)
     t2mbxy(i)   = mpas_noahmp%t2mbxy(i)
     t2mxy(i)    = mpas_noahmp%t2mxy(i)
@@ -948,7 +1265,6 @@
     chv2xy(i)   = mpas_noahmp%chv2xy(i)
     chb2xy(i)   = mpas_noahmp%chb2xy(i)
     rs(i)       = mpas_noahmp%rs(i)
-    qtdrain(i)  = mpas_noahmp%qtdrain(i)
  enddo
 
 
@@ -982,19 +1298,10 @@
  call mpas_pool_get_array(output_noahmp,'forcplsm'    ,forcplsm     )
  call mpas_pool_get_array(output_noahmp,'forczlsm'    ,forczlsm     )
  call mpas_pool_get_array(output_noahmp,'forcwlsm'    ,forcwlsm     )
- call mpas_pool_get_array(output_noahmp,'acc_ssoilxy' ,acc_ssoilxy  )
- call mpas_pool_get_array(output_noahmp,'acc_qinsurxy',acc_qinsurxy )
- call mpas_pool_get_array(output_noahmp,'acc_qsevaxy' ,acc_qsevaxy  )
  call mpas_pool_get_array(output_noahmp,'eflxbxy'     ,eflxbxy      )
  call mpas_pool_get_array(output_noahmp,'soilenergy'  ,soilenergy   )
  call mpas_pool_get_array(output_noahmp,'snowenergy'  ,snowenergy   )
  call mpas_pool_get_array(output_noahmp,'canhsxy'     ,canhsxy      )
- call mpas_pool_get_array(output_noahmp,'acc_dwaterxy',acc_dwaterxy )
- call mpas_pool_get_array(output_noahmp,'acc_prcpxy'  ,acc_prcpxy   )
- call mpas_pool_get_array(output_noahmp,'acc_ecanxy'  ,acc_ecanxy   )
- call mpas_pool_get_array(output_noahmp,'acc_etranxy' ,acc_etranxy  )
- call mpas_pool_get_array(output_noahmp,'acc_edirxy'  ,acc_edirxy   )
- call mpas_pool_get_array(output_noahmp,'acc_etranixy',acc_etranixy )
 
   do i = its,ite
     pahxy(i)        = mpas_noahmp%pahxy(i)
@@ -1026,19 +1333,10 @@
     forcplsm(i)     = mpas_noahmp%forcplsm(i)
     forczlsm(i)     = mpas_noahmp%forczlsm(i)
     forcwlsm(i)     = mpas_noahmp%forcwlsm(i)
-    acc_ssoilxy(i)  = mpas_noahmp%acc_ssoilxy(i)
-    acc_qinsurxy(i) = mpas_noahmp%acc_qinsurxy(i)
-    acc_qsevaxy(i)  = mpas_noahmp%acc_qsevaxy(i)
     eflxbxy(i)      = mpas_noahmp%eflxbxy(i)
     soilenergy(i)   = mpas_noahmp%soilenergy(i)
     snowenergy(i)   = mpas_noahmp%snowenergy(i)
     canhsxy(i)      = mpas_noahmp%canhsxy(i)
-    acc_dwaterxy(i) = mpas_noahmp%acc_dwaterxy(i)
-    acc_prcpxy(i)   = mpas_noahmp%acc_prcpxy(i)
-    acc_ecanxy(i)   = mpas_noahmp%acc_ecanxy(i)
-    acc_etranxy(i)  = mpas_noahmp%acc_etranxy(i)
-    acc_edirxy(i)   = mpas_noahmp%acc_edirxy(i)
-!   real(kind=kind_noahmp), allocatable, dimension(:,:)    ::  acc_etranixy
  enddo
 
 !call mpas_log_write('--- end subroutine lsm_noahmp_toMPAS:')

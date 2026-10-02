@@ -173,19 +173,19 @@ set(ATMOSPHERE_CORE_PHYSICS_NOAA_SOURCES
 
 list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_NOAA_SOURCES PREPEND physics/physics_noaa/UGWP/)
 
-set(ATMOSPHERE_CORE_PHYSICS_NOAMP_UTILITY_SOURCES
+set(ATMOSPHERE_CORE_PHYSICS_NOAHMP_UTILITY_SOURCES
     CheckNanMod.F90
     Machine.F90
+    PiecewiseLinearInterp1dMod.F90
 )
-list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_NOAMP_UTILITY_SOURCES PREPEND physics/physics_noahmp/utility/)
+list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_NOAHMP_UTILITY_SOURCES PREPEND physics/physics_noahmp/utility/)
 
-set(ATMOSPHERE_CORE_PHYSICS_NOAMP_MPAS_DRIVER_SOURCES
+set(ATMOSPHERE_CORE_PHYSICS_NOAHMP_MPAS_DRIVER_SOURCES
     BiochemVarInTransferMod.F90
     ConfigVarOutTransferMod.F90
     ForcingVarInTransferMod.F90
     NoahmpDriverMainMod.F90
     NoahmpIOVarFinalizeMod.F90
-    NoahmpReadNamelistMod.F90
     PedoTransferSR2006Mod.F90
     BiochemVarOutTransferMod.F90
     EnergyVarInTransferMod.F90
@@ -199,10 +199,13 @@ set(ATMOSPHERE_CORE_PHYSICS_NOAMP_MPAS_DRIVER_SOURCES
     NoahmpIOVarType.F90
     NoahmpSnowInitMod.F90
     WaterVarOutTransferMod.F90
+    GroundWaterMmfMod.F90
+    NoahmpGroundwaterInitMod.F90
+    NoahmpUrbanDriverMainMod.F90
 )
-list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_NOAMP_MPAS_DRIVER_SOURCES PREPEND physics/physics_noahmp/drivers/mpas/)
+list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_NOAHMP_MPAS_DRIVER_SOURCES PREPEND physics/physics_noahmp/drivers/mpas/)
 
-set(ATMOSPHERE_CORE_PHYSICS_NOAMP_SRC_SOURCES
+set(ATMOSPHERE_CORE_PHYSICS_NOAHMP_SRC_SOURCES
     AtmosForcingMod.F90
     BalanceErrorCheckGlacierMod.F90
     BalanceErrorCheckMod.F90
@@ -239,7 +242,6 @@ set(ATMOSPHERE_CORE_PHYSICS_NOAMP_SRC_SOURCES
     GroundRoughnessPropertyMod.F90
     GroundThermalPropertyGlacierMod.F90
     GroundThermalPropertyMod.F90
-    GroundWaterMmfMod.F90
     GroundWaterTopModelMod.F90
     HumiditySaturationMod.F90
     IrrigationFloodMod.F90
@@ -248,7 +250,6 @@ set(ATMOSPHERE_CORE_PHYSICS_NOAMP_SRC_SOURCES
     IrrigationPrepareMod.F90
     IrrigationSprinklerMod.F90
     IrrigationTriggerMod.F90
-    Makefile
     MatrixSolverTriDiagonalMod.F90
     NoahmpMainGlacierMod.F90
     NoahmpMainMod.F90
@@ -279,20 +280,28 @@ set(ATMOSPHERE_CORE_PHYSICS_NOAMP_SRC_SOURCES
     RunoffSurfaceTopModelGrdMod.F90
     RunoffSurfaceTopModelMmfMod.F90
     RunoffSurfaceVicMod.F90
+    RunoffSurfaceWetlandMod.F90
     RunoffSurfaceXinAnJiangMod.F90
     ShallowWaterTableMmfMod.F90
     SnowAgingBatsMod.F90
+    SnowAgingSnicarMod.F90
     SnowAlbedoBatsMod.F90
     SnowAlbedoClassMod.F90
+    SnowAlbedoSnicarMod.F90
     SnowCoverGlacierMod.F90
+    SnowCoverGroundAR25Mod.F90
     SnowCoverGroundNiu07Mod.F90
     SnowfallBelowCanopyMod.F90
+    SnowFreshRadiusMod.F90
+    SnowInputSnicarMod.F90
     SnowLayerCombineMod.F90
     SnowLayerDivideMod.F90
     SnowLayerWaterComboMod.F90
+    SnowpackCompactionAR24Mod.F90
     SnowpackCompactionMod.F90
     SnowpackHydrologyGlacierMod.F90
     SnowpackHydrologyMod.F90
+    SnowRadiationSnicarMod.F90
     SnowThermalPropertyMod.F90
     SnowWaterMainGlacierMod.F90
     SnowWaterMainMod.F90
@@ -330,8 +339,9 @@ set(ATMOSPHERE_CORE_PHYSICS_NOAMP_SRC_SOURCES
     WaterTableEquilibriumMod.F90
     WaterVarInitMod.F90
     WaterVarType.F90
+    WetlandWaterZhang22Mod.F90
 )
-list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_NOAMP_SRC_SOURCES PREPEND physics/physics_noahmp/src/)
+list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_NOAHMP_SRC_SOURCES PREPEND physics/physics_noahmp/src/)
 
 # diagnostics/
 set(ATMOSPHERE_CORE_DIAGNOSTIC_SOURCES
@@ -383,9 +393,9 @@ set(ATMOSPHERE_CORE_INCLUDES
 
 
 add_library(core_atmosphere ${ATMOSPHERE_CORE_SOURCES}
-            ${ATMOSPHERE_CORE_PHYSICS_NOAMP_UTILITY_SOURCES}
-            ${ATMOSPHERE_CORE_PHYSICS_NOAMP_MPAS_DRIVER_SOURCES}
-            ${ATMOSPHERE_CORE_PHYSICS_NOAMP_SRC_SOURCES}
+	    ${ATMOSPHERE_CORE_PHYSICS_NOAHMP_UTILITY_SOURCES}
+	    ${ATMOSPHERE_CORE_PHYSICS_NOAHMP_MPAS_DRIVER_SOURCES}
+	    ${ATMOSPHERE_CORE_PHYSICS_NOAHMP_SRC_SOURCES}
             ${ATMOSPHERE_CORE_PHYSICS_SOURCES}
             ${ATMOSPHERE_CORE_PHYSICS_MMM_SOURCES}
             ${ATMOSPHERE_CORE_PHYSICS_WRF_SOURCES}
