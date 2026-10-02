@@ -22,6 +22,7 @@
         integer :: nRecords
         integer :: precision = MPAS_IO_NATIVE_PRECISION
         integer :: clobber_mode
+        integer :: gattr_update = 1
         integer :: io_type
         type (MPAS_TimeInterval_type), pointer :: recordInterval => null()
         type (MPAS_stream_list_type), pointer :: alarmList_in => null()

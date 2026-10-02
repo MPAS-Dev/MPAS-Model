@@ -20,12 +20,16 @@
                                   MPAS_STREAM_PROPERTY_PRECISION     = 10, &
                                   MPAS_STREAM_PROPERTY_FILENAME_INTV = 11, &
                                   MPAS_STREAM_PROPERTY_CLOBBER       = 12, &
-                                  MPAS_STREAM_PROPERTY_IOTYPE        = 13
+                                  MPAS_STREAM_PROPERTY_IOTYPE        = 13, &
+                                  MPAS_STREAM_PROPERTY_GATTR_UPDATE  = 14
 
     integer, public, parameter :: MPAS_STREAM_CLOBBER_NEVER     = 100, &
                                   MPAS_STREAM_CLOBBER_APPEND    = 101, &
                                   MPAS_STREAM_CLOBBER_TRUNCATE  = 102, &
                                   MPAS_STREAM_CLOBBER_OVERWRITE = 103
+
+    integer, public, parameter :: MPAS_STREAM_GATTR_UPDATE_YES  = 201, &
+                                  MPAS_STREAM_GATTR_UPDATE_NO   = 200
 
     type MPAS_streamManager_type
 
