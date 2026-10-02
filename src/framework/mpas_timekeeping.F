@@ -16,14 +16,64 @@ module mpas_timekeeping
 
    use ESMF
 
-   private :: mpas_calibrate_alarms
-   private :: mpas_in_ringing_envelope
+   private
 
-   integer :: TheCalendar 
+   ! public members
+   public :: &
+        mpas_timekeeping_init, &
+        mpas_timekeeping_finalize, &
+        mpas_timekeeping_set_year_width, &
+        mpas_create_clock, &
+        mpas_destroy_clock, &
+        mpas_is_clock_start_time, &
+        mpas_is_clock_stop_time, &
+        mpas_set_clock_direction, &
+        mpas_get_clock_direction, &
+        mpas_set_clock_timestep, &
+        mpas_get_clock_timestep, &
+        mpas_advance_clock, &
+        mpas_set_clock_time, &
+        mpas_get_clock_time, &
+        mpas_add_clock_alarm, &
+        mpas_remove_clock_alarm, &
+        mpas_is_alarm_defined, &
+        mpas_alarm_interval, &
+        mpas_minimum_alarm_interval, &
+        mpas_alarm_get_next_ring_time, &
+        mpas_print_alarm, &
+        mpas_is_alarm_ringing, &
+        mpas_get_clock_ringing_alarms, &
+        mpas_reset_clock_alarm, &
+        mpas_adjust_alarm_to_reference_time, &
+        mpas_set_time, &
+        mpas_get_time, &
+        mpas_set_timeInterval, &
+        mpas_get_timeInterval, &
+        mpas_interval_division, &
+        mpas_split_string, &
+        mpas_get_month_day, &
+        isLeapYear, &
+        mpas_expand_string, &
+        abs
+
+   public :: &
+        operator(+), &
+        operator(-), &
+        operator(*), &
+        operator(/), &
+        operator(.EQ.), &
+        operator(.NE.), &
+        operator(.LT.), &
+        operator(.GT.), &
+        operator(.LE.), &
+        operator(.GE.)
+
+   integer, dimension(12), parameter, public :: daysInMonth     = (/31,28,31,30,31,30,31,31,30,31,30,31/)
+   integer, dimension(12), parameter, public :: daysInMonthLeap = (/31,29,31,30,31,30,31,31,30,31,30,31/)
+
+   ! local members
+   integer :: TheCalendar
    integer :: yearWidth
-
-   integer, dimension(12), parameter :: daysInMonth     = (/31,28,31,30,31,30,31,31,30,31,30,31/)
-   integer, dimension(12), parameter :: daysInMonthLeap = (/31,29,31,30,31,30,31,31,30,31,30,31/)
 
    interface operator (+)
       module procedure add_t_ti
