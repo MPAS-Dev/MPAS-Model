@@ -8,9 +8,9 @@ name: "NVHPC+OpenMPI (CPU)"
 on:
   workflow_dispatch:
   push:
-    branches: [master, develop, 'feature/ci-cpu-testing']
+    branches: [master]
   pull_request:
-    branches: [master, develop, 'feature/ci-cpu-testing']
+    branches: [develop]
 
 jobs:
   test:
