@@ -2,6 +2,18 @@
                           MPAS_STREAM_LIST_DUPLICATE = 1, &
                           MPAS_STREAM_LIST_NOT_FOUND = 2
 
+    ! Maximum number of segments in the output_timelevels specification
+    integer, parameter :: MAX_TIMELEVEL_SEGMENTS = 32
+
+    ! timelevel specification
+    type MPAS_timelevel_spec_type
+        integer :: n_segments = 0                                  ! Number of parsed segments
+        real(kind=RKIND) :: start_hour(MAX_TIMELEVEL_SEGMENTS)     ! Start hour for each segment
+        real(kind=RKIND) :: end_hour(MAX_TIMELEVEL_SEGMENTS)       ! End hour for each segment
+        real(kind=RKIND) :: interval_minutes(MAX_TIMELEVEL_SEGMENTS) ! Output interval in minutes
+        logical :: is_parsed = .false.                             ! True if successfully parsed
+    end type MPAS_timelevel_spec_type
+
     type MPAS_stream_list_type
 
         ! Used by list head
@@ -17,6 +29,8 @@
         character(len=StrKIND) :: filename
         character(len=StrKIND) :: filename_template
         character(len=StrKIND) :: filename_interval
+        character(len=StrKIND) :: output_timelevels = ''
+        type (MPAS_timelevel_spec_type) :: timelevel_spec
         type (MPAS_Stream_type), pointer :: stream => null()
         integer :: timeLevel = 0
         integer :: nRecords
