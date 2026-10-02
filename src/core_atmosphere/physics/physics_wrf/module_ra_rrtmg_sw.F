@@ -10008,7 +10008,7 @@
 
 !------------------------------------------------------------------
 MODULE module_ra_rrtmg_sw
-use mpas_atmphys_constants,only : cp,g=>gravity
+use mpas_atmphys_constants,only : cp,g=>gravity,pii
 use module_ra_rrtmg_vinterp,only: vinterp_ozn
 
 use parrrsw, only : nbndsw, ngptsw, naerec
@@ -10036,7 +10036,7 @@ CONTAINS
                        swupt,swuptc,swdnt,swdntc,                      &
                        swupb,swupbc,swdnb,swdnbc,                      &
                        swupflx, swupflxc, swdnflx, swdnflxc,           &
-                       swddir,swddni,swddif,                           &
+                       swddir,swddni,swddif,julian,                    &
                        ids,ide, jds,jde, kds,kde,                      & 
                        ims,ime, jms,jme, kms,kme,                      &
                        its,ite, jts,jte, kts,kte                       &
@@ -10054,6 +10054,7 @@ CONTAINS
  integer,intent(in):: icloud,cldovrlp,idcor
  integer,intent(in):: has_reqc,has_reqi,has_reqs
  integer,intent(in),optional:: o3input
+ real,intent(in):: julian
 
  real,intent(in):: radt,degrad,xtime,declin,solcon,gmt
  real,intent(in),dimension(ims:ime,jms:jme):: xlat,xlong
@@ -10101,6 +10102,7 @@ CONTAINS
  integer:: i,j,k,n
 
  real:: coszrs,xt24,tloctm,hrang,xxlat,adjes,scon
+ real:: da,eot
  real:: ro,dz
  real:: corr
  real:: gliqwp,gicewp,gsnowp,gravmks
@@ -10197,9 +10199,15 @@ CONTAINS
 
        !--- calculate the cosine of the solar zenith angle at the current time step to determine if the sun is
        !    above or below the horizon (xt24 is the fractional part of simulation days plus half of radt in 
-       !    units of minutes, julian is in days, and radt is in minutes). do not call rrtmg_sw is night-time:
+       !    units of minutes, julian is in days, and radt is in minutes). eot (equation of time) is a correction
+       !    of mean solar time due to the difference between that time and the apparent solar time
+       !    (https://gml.noaa.gov/grad/solcalc/solareqns.PDF).
+       !    do not call rrtmg_sw at night-time:
        dorrsw = .true.
-       xt24 = mod(xtime+radt*0.5,1440.)
+       da=2.*pii*(julian-0.5)/365.
+       eot=(0.000075+0.001868*cos(da)-0.032077*sin(da) &
+            -0.014615*cos(2*da)-0.040849*sin(2*da))*(229.18)
+       xt24 = mod(xtime+radt*0.5,1440.)+eot
        tloctm = gmt + xt24/60. + xlong(i,j)/15.
        hrang = 15. * (tloctm-12.) * degrad
        xxlat = xlat(i,j) * degrad
