@@ -143,6 +143,7 @@
                                   config_sfclayer_scheme
 
  logical, pointer:: config_oml1d
+ logical, pointer:: config_kim_tofd
  real(kind=RKIND),pointer:: config_bucket_radt
 
 !local variables:
@@ -171,6 +172,7 @@
  call mpas_pool_get_config(domain%configs,'config_bucket_update'    ,config_bucket_update    )
  call mpas_pool_get_config(domain%configs,'config_frac_seaice'      ,config_frac_seaice      ) 
  call mpas_pool_get_config(domain%configs,'config_oml1d'            ,config_oml1d            )
+ call mpas_pool_get_config(domain%configs,'config_kim_tofd'         ,config_kim_tofd         )
 
  if(config_convection_scheme .ne. 'off' .or. &
     config_lsm_scheme        .ne. 'off' .or. &
