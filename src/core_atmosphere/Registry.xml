@@ -559,6 +559,7 @@
                 <package name="sf_noahmp_in" description="parameterization of NOAH-MP land surface scheme."/>
 
                 <package name="iau" description="Incremental Analysis Update"/>
+                <package name="fdda" description="Analysis grid nudging"/>
                 <package name="limited_area" description="Limited-area simulations, which have lateral boundaries"/>
                 <package name="jedi_da" description="Data Assimilation in JEDI framework"/>
                 <package name="no_invariant_stream" description="No separate invariant I/O stream is active"/>
@@ -1265,7 +1266,8 @@
                         type="input" 
                         filename_template="fdda.$Y-$M-$D_$h.$m.$s.nc" 
                         input_interval="6:00:00"
-                        immutable="true">
+                        immutable="true"
+                        packages="fdda">
 
 			<var name="qv_fdda"/>
 			<var name="theta_fdda"/>
@@ -1893,7 +1895,7 @@
 #endif
         </var_struct>
 
-        <var_struct name="fdda" time_levs="2">
+        <var_struct name="fdda" time_levs="2" packages="fdda">
 
                 <var name="qv_fdda" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
                      description="water vapor mixing ratio for FDDA grid nudging"/>
