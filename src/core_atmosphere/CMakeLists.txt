@@ -18,6 +18,8 @@ set(ATMOSPHERE_CORE_PHYSICS_SOURCES
     mpas_atmphys_lsm_noahinit.F
     mpas_atmphys_manager.F
     mpas_atmphys_o3climatology.F
+    mpas_atmphys_p3_cumix.F
+    mpas_atmphys_p3_pblmix.F
     mpas_atmphys_rrtmg_lwinit.F
     mpas_atmphys_rrtmg_swinit.F
     mpas_atmphys_sfc_diagnostics.F
@@ -60,6 +62,7 @@ set(ATMOSPHERE_CORE_PHYSICS_WRF_SOURCES
     module_cu_gf.mpas.F
     module_mp_kessler.F
     module_mp_radar.F
+    module_mp_p3.F
     module_mp_thompson.F
     module_mp_thompson_cldfra3.F
     module_mp_thompson_aerosols.F

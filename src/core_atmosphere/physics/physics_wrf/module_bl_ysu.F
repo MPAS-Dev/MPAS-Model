@@ -38,7 +38,8 @@
                   ids,ide, jds,jde, kds,kde,                                   &
                   ims,ime, jms,jme, kms,kme,                                   &
                   its,ite, jts,jte, kts,kte,                                   &
-                  errmsg,errflg                                                &
+                  errmsg,errflg,                                               &
+                  qmix3d,rqmixblten3d                                          &
                  )
 !-------------------------------------------------------------------------------
   implicit none
@@ -227,6 +228,15 @@
 !
    character(len=*), intent(out)   ::                                  errmsg
    integer,          intent(out)   ::                                  errflg
+
+!optional tracers mixed by bl_ysu_run with the same implicit solver as qc and qi (used for the P3 cloud
+!microphysics prognostic scalars). If qmix3d is absent, nmix = 0 and no tracer is mixed:
+   real(kind=kind_phys),     dimension( ims:, kms:, jms:, : )                , &
+             optional                                                        , &
+             intent(in   )   ::                                        qmix3d
+   real(kind=kind_phys),     dimension( ims:, kms:, jms:, : )                , &
+             optional                                                        , &
+             intent(out  )   ::                                  rqmixblten3d
 !local
    integer ::  i,j,k
 
@@ -234,15 +244,12 @@
 !mixed in subroutine bl_ysu_run:
    logical:: l_topdown_pblmix
 
-   integer,  parameter :: nmix = 0
+   integer :: nmix
    integer :: n
-
-   real(kind=kind_phys),   dimension(ims:ime,kms:kme,jms:jme,nmix)::       qmix
-   real(kind=kind_phys),   dimension(ims:ime,kms:kme,jms:jme,nmix):: rqmixblten
 
    !  Local tile-sized arrays for contiguous data for bl_ysu_run call.
 
-   real(kind=kind_phys),   dimension(its:ite,kts:kte,nmix) ::              &
+   real(kind=kind_phys),   dimension(:,:,:), allocatable ::                &
                                                              qmix_hv     , &
                                                              rqmixblten_hv
 
@@ -315,6 +322,11 @@
    l_topdown_pblmix = .false.
    if(ysu_topdown_pblmix .eq. 1) l_topdown_pblmix = .true.
 
+   nmix = 0
+   if(present(qmix3d) .and. present(rqmixblten3d)) nmix = size(qmix3d,4)
+   allocate(qmix_hv(its:ite,kts:kte,nmix))
+   allocate(rqmixblten_hv(its:ite,kts:kte,nmix))
+
    do j = jts,jte
 !
       !  Assign input data to local tile-sized arrays.
@@ -322,7 +334,7 @@
       do n = 1, nmix
          do k = kts, kte
             do i = its, ite
-               qmix_hv(i,k,n) = qmix(i,k,j,n)
+               qmix_hv(i,k,n) = qmix3d(i,k,j,n)
             end do
          end do
       end do
@@ -439,7 +451,7 @@
       do n = 1, nmix
          do k = kts, kte
             do i = its, ite
-               rqmixblten(i,k,j,n) = rqmixblten_hv(i,k,n)
+               rqmixblten3d(i,k,j,n) = rqmixblten_hv(i,k,n)
             end do
          end do
       end do
