@@ -51,6 +51,7 @@ physcore: mpas_atm_dimensions.o
 	( mkdir libphys; cd libphys; ar -x ../physics/libphys.a )
 	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_wrf/files/*TBL .)
 	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_wrf/files/*DATA* .)
+	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_wrf/files/p3_lookupTable_* .)
 	( cd ../..; ln -sf ./src/core_atmosphere/physics/physics_noahmp/parameters/*TBL .)
 
 chemcore:
@@ -83,6 +84,7 @@ clean:
 	( cd utils; $(MAKE) clean )
 	( cd ../..; rm -f *TBL )
 	( cd ../..; rm -f *DATA* )
+	( cd ../..; rm -f p3_lookupTable_* )
 	$(RM) -r libphys
 	$(RM) *.o *.mod *.f90 libdycore.a
 	$(RM) Registry_processed.xml
