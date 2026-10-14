@@ -68,6 +68,7 @@ core_physics_wrf: core_physics_init core_physics_mmm core_UGWP
 
 core_physics_noahmp:
 	(cd physics_noahmp/utility; $(MAKE) all COREDEF="$(COREDEF)")
+	(cd physics_noahmp/drivers/mpas; $(MAKE) NoahmpIOVarType.o COREDEF="$(COREDEF)")
 	(cd physics_noahmp/src; $(MAKE) all COREDEF="$(COREDEF)")
 	(cd physics_noahmp/drivers/mpas; $(MAKE) all COREDEF="$(COREDEF)")
 

@@ -89,8 +89,12 @@
  ! use module level variables for now...
  !
  integer (kind=I8KIND), dimension(:), pointer :: ter_integer
+ integer (kind=I8KIND), dimension(:), pointer :: surfvar_integer
  integer (kind=I8KIND), dimension(:,:), pointer :: soilcomp_int
- real (kind=RKIND) :: soilcomp_msgval = 255.0_RKIND   ! Modified later based on index file for soilcomp
+ integer (kind=I8KIND), dimension(:,:), pointer :: croptype_int
+ real (kind=RKIND) :: soilcomp_msgval = 255.0_RKIND    ! Modified later based on index file for soilcomp
+ real (kind=RKIND) :: noahmpdata_msgval = -999.0_RKIND ! Modified later based on index file
+ real (kind=RKIND) :: surfvar_msgval = -999.0_RKIND    ! Modified later based on index file
  integer, dimension(:), pointer :: lu_index
  integer, dimension(:), pointer :: soilcat_top
  integer, dimension(:), pointer :: nhs
@@ -1248,6 +1252,137 @@
                              supersample_fac=supersample_fac_30s)
     call mpas_log_write('--- end interpolate SOILCL4')
 
+    !  
+    ! Interpolate CROPTYPE
+    !
+    geog_sub_path = 'crop/croptype/'
+
+    call mpas_log_write('--- start interpolate CROPTYPE')
+    call interp_croptype(mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                         supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate CROPTYPE')
+
+    !
+    ! Interpolate FDEPTHXY
+    !
+    geog_sub_path = 'groundwater/f/'
+
+    call mpas_log_write('--- start interpolate FDEPTHXY')
+    call interp_surf2D_cont('fdepthxy', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate FDEPTHXY')
+
+    !
+    ! Interpolate RECHCLIM
+    !
+    geog_sub_path = 'groundwater/recharge/'
+
+    call mpas_log_write('--- start interpolate RECHCLIM')
+    call interp_surf2D_cont('rechclim', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate RECHCLIM')
+
+    !
+    ! Interpolate EQZWT
+    !
+    geog_sub_path = 'groundwater/wtd/'
+
+    call mpas_log_write('--- start interpolate EQZWT')
+    call interp_surf2D_cont('eqzwt', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate EQZWT')
+
+    !
+    ! Interpolate RIVERBEDXY
+    !
+    geog_sub_path = 'groundwater/riverbed/'
+
+    call mpas_log_write('--- start interpolate RIVERBEDXY')
+    call interp_surf2D_cont('riverbedxy', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate RIVERBEDXY')
+
+    !
+    ! Interpolate IRFRACT
+    !
+    geog_sub_path = 'crop/irrigation_map/'
+
+    call mpas_log_write('--- start interpolate IRFRACT')
+    call interp_surf2D_nosf('irfract', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate IRFRACT')
+
+    !
+    ! Interpolate SIFRACT
+    !
+    geog_sub_path = 'crop/sprinkler_fra/'
+
+    call mpas_log_write('--- start interpolate SIFRACT')
+    call interp_surf2D_cont('sifract', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate SIFRACT')
+
+    !
+    ! Interpolate MIFRACT
+    !
+    geog_sub_path = 'crop/micro_fra/'
+
+    call mpas_log_write('--- start interpolate MIFRACT')
+    call interp_surf2D_cont('mifract', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate MIFRACT')
+
+    !
+    ! Interpolate FIFRACT
+    !
+    geog_sub_path = 'crop/flood_fra/'
+
+    call mpas_log_write('--- start interpolate FIFRACT')
+    call interp_surf2D_cont('fifract', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate FIFRACT')
+
+
+    !
+    ! Interpolate PLANTING
+    !
+    geog_sub_path = 'crop/crop_planting/'
+
+    call mpas_log_write('--- start interpolate PLANTING')
+    call interp_surf2D_nosf('planting', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate PLANTING')
+
+    !
+    ! Interpolate HARVEST
+    !
+    geog_sub_path = 'crop/crop_harvest/'
+
+    call mpas_log_write('--- start interpolate HARVEST')
+    call interp_surf2D_nosf('harvest', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate HARVEST')
+
+    !
+    ! Interpolate SEASON_GDD
+    !
+    geog_sub_path = 'crop/crop_gdd/'
+
+    call mpas_log_write('--- start interpolate SEASON_GDD')
+    call interp_surf2D_nosf('season_gdd', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate SEASON_GDD')
+
+    !
+    ! Interpolate TD_FRACTION
+    !
+    geog_sub_path = 'crop/drainage_map/'
+
+    call mpas_log_write('--- start interpolate TD_FRACTION')
+    call interp_surf2D_nosf('td_fraction', mesh, tree, trim(geog_data_path)//trim(geog_sub_path), &
+                             supersample_fac=supersample_fac_30s)
+    call mpas_log_write('--- end interpolate TD_FRACTION')
+
  end if
 
 !
@@ -1291,7 +1426,8 @@
  !> sub-pixels.
  !
  !-----------------------------------------------------------------------
- subroutine init_atm_map_static_data(mesh, mgr, kdtree, interp_criteria, accumulation_method, supersample_fac)
+ subroutine init_atm_map_static_data(mesh, mgr, kdtree, interp_criteria, &
+                                     accumulation_method, supersample_fac,allow_missing_tiles)
 
     implicit none
 
@@ -1302,6 +1438,8 @@
     procedure (interp_criteria_function) :: interp_criteria
     procedure (interp_accumulation_function) :: accumulation_method
     integer, intent(in), optional :: supersample_fac
+    logical, intent(in), optional :: allow_missing_tiles
+    logical :: allow_missing_tiles_lcl
 
     ! Local variables
     integer, pointer :: nCells
@@ -1335,6 +1473,9 @@
     type (mpas_kd_type), pointer :: res
 
     integer :: ierr
+
+    allow_missing_tiles_lcl = .false.
+    if (present(allow_missing_tiles)) allow_missing_tiles_lcl = allow_missing_tiles
 
     call mpas_pool_get_dimension(mesh, 'nCells', nCells)
     call mpas_pool_get_dimension(mesh, 'nCellsSolve', nCellsSolve)
@@ -1380,13 +1521,17 @@
         !
         if (interp_criteria(iCell)) then
             tile => null()
-            ierr = mgr % get_tile(latCell(iCell), lonCell(iCell), tile)
+            ierr = mgr % get_tile(latCell(iCell), lonCell(iCell), tile, allow_missing=allow_missing_tiles_lcl)
             if (ierr /= 0 .or. .not. associated(tile)) then
-                call mpas_log_write('Could not get tile that contained cell $i', intArgs=(/iCell/), messageType=MPAS_LOG_ERR)
-                return
-            end if
+               if (allow_missing_tiles_lcl) then
+                  cycle
+               else
+                  call mpas_log_write('Could not get tile that contained cell $i', intArgs=(/iCell/), messageType=MPAS_LOG_ERR)
+                  return
+               endif
+            endif
             ierr = mgr % push_tile(tile)
-        end if
+        endif
 
         !
         ! Process each tile by removing it from the stack. Determine the closest cell center to each tile
@@ -1453,7 +1598,12 @@
             ! to this process' compute cells, so add them to the stack.
             !
             if (.not. all_pixels_mapped_to_halo_cells) then
-                ierr = mgr % push_neighbors(tile)
+                ierr = mgr % push_neighbors(tile,allow_missing=allow_missing_tiles_lcl)
+                if (ierr /= 0) then
+                   call mpas_log_write('Error getting neighboring geotile', &
+                                        messageType=MPAS_LOG_ERR)
+                   return
+                end if
             end if
         end do
     end do
@@ -1513,6 +1663,32 @@
 
  end subroutine terrain_interp_accumulation
 
+!***********************************************************************
+ !
+ !  routine surfvar_interp_accumulation
+ !
+ !> \brief   Accumulate surface dataset values
+ !> \author  Cenlin He
+ !> \date    15 Sep 2026
+ !> \details
+ !> This routine accumulates surface variable values for the init_atm_map_static_data unified
+ !> function.
+ !
+ !-----------------------------------------------------------------------
+ subroutine surfvar_interp_accumulation(iCell, pixel)
+
+     integer, intent(in) ::iCell
+     integer (kind=I8KIND), dimension(:), intent(in) :: pixel
+
+     if (landmask(iCell) == 0) return
+
+     if (pixel(1) /= surfvar_msgval) then
+        surfvar_integer(iCell) = surfvar_integer(iCell) + int(pixel(1), kind=I8KIND)
+        nhs(iCell) = nhs(iCell) + 1
+     end if
+
+ end subroutine surfvar_interp_accumulation
+
 
  !***********************************************************************
  !
@@ -1539,6 +1715,32 @@
      end if
 
  end subroutine soilcomp_interp_accumulation
+
+ !***********************************************************************
+ !
+ !  routine croptype_interp_accumulation
+ !
+ !> \brief  Accumulate croptype dataset values
+ !> \author Cenlin He      
+ !> \date   14 Sep 2026
+ !> \details
+ !> This routine accumulates croptype values for the init_atm_map_static_data
+ !> routine.
+ !
+ !-----------------------------------------------------------------------
+ subroutine croptype_interp_accumulation(iCell, pixel)
+
+     integer, intent(in) ::iCell
+     integer (kind=I8KIND), dimension(:), intent(in) :: pixel
+
+     if (landmask(iCell) == 0) return
+
+     if (pixel(1) /= noahmpdata_msgval) then
+         croptype_int(:,iCell) = croptype_int(:,iCell) + int(pixel(:), kind=I8KIND)
+         nhs(iCell) = nhs(iCell) + 1
+     end if
+       
+ end subroutine croptype_interp_accumulation
 
 
  !***********************************************************************
@@ -1618,6 +1820,170 @@
     end if
 
  end subroutine interp_terrain
+
+!***********************************************************************
+ !
+ !  routine interp_surf2D_cont
+ !                   
+ !> \brief   Interpolate continous (not categorical) 2-D (lat-lon) surface variable
+ !> \author  Cenlin He
+ !> \date    15 Sep 2026
+ !> \details
+ !> Interpolate 2-D surface variable by using the init_atm_map_static_data routine and
+ !> accumulating pixel values into cells using surfvar_interp_accumulation.
+ !> mesh, should be a mpas_pool that contains specific vars and the nCells dimension. kdtree
+ !> should be a initialized kdtree of (xCell, yCell, zCell), and geog_data_path
+ !> should be the path to the specific surface variable dataset.
+ !
+ !-----------------------------------------------------------------------
+ subroutine interp_surf2D_cont(fieldname, mesh, kdtree, geog_data_path, supersample_fac)
+       
+    implicit none
+       
+    ! Input variables
+    character (len=*), intent(in) :: fieldname
+    type (mpas_pool_type), intent(inout) :: mesh
+    type (mpas_kd_type), pointer, intent(in) :: kdtree
+    character (len=*), intent(in) :: geog_data_path
+    integer, intent(in), optional :: supersample_fac
+
+    ! Local variables
+    type (mpas_geotile_mgr_type) :: mgr
+    integer, pointer :: nCells
+
+    real (kind=RKIND), dimension(:), pointer :: surfvar2D
+    real (kind=RKIND), pointer :: missing_value
+    real (kind=RKIND), pointer :: scalefactor
+
+    integer :: iCell
+    integer :: ierr
+
+    ierr = mgr % init(trim(geog_data_path))
+    if (ierr /= 0) then
+        call mpas_log_write("Error occurred initializing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+        return ! Program execution should not reach this statement since the preceding message is a critical error
+    end if
+
+    call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+    call mpas_pool_get_array(mesh, trim(fieldname), surfvar2D)
+    call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor)
+    call mpas_pool_get_config(mgr % pool, 'missing_value', missing_value)
+
+    surfvar_msgval = missing_value
+
+    allocate(surfvar_integer(nCells))
+    allocate(nhs(nCells))
+
+    !
+    ! Store tile values as a I8KIND integer temporarily to avoid floating
+    ! point round off differences and to have +/- 9.22x10^18 range of representative
+    ! values. For example, a 120 km mesh with a 1 meter data set with 6 decimal of
+    ! precision will allow for values of 180x10^12.
+    !
+    surfvar2D(:) = 0.0
+    surfvar_integer(:) = 0
+    nhs(:) = 0
+
+    call init_atm_map_static_data(mesh, mgr, kdtree, continuous_interp_criteria, &
+                                  surfvar_interp_accumulation, supersample_fac=supersample_fac, &
+                                  allow_missing_tiles=.true.)
+
+    do iCell = 1, nCells
+       surfvar2D(iCell) = real(real(surfvar_integer(iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND), kind=RKIND)
+       surfvar2D(iCell) = surfvar2D(iCell) * scalefactor
+    end do
+
+    deallocate(surfvar_integer)
+    deallocate(nhs)
+
+    ierr = mgr % finalize()
+    if (ierr /= 0) then
+        call mpas_log_write("Error occurred finalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+        return ! Program execution should not reach this statement since the preceding message is a critical error
+    end if
+
+ end subroutine interp_surf2D_cont
+
+!***********************************************************************
+ !     
+ !  routine interp_surf2D_nosf
+ !                   
+ !> \brief   Interpolate continous 2-D (lat-lon) surface variable w/o scale factor
+ !> \author  Cenlin He
+ !> \date    15 Sep 2026
+ !> \details
+ !> Interpolate 2-D surface variable by using the init_atm_map_static_data routine and
+ !> accumulating pixel values into cells using surfvar_interp_accumulation.
+ !> mesh, should be a mpas_pool that contains specific vars and the nCells dimension. kdtree
+ !> should be a initialized kdtree of (xCell, yCell, zCell), and geog_data_path
+ !> should be the path to the specific surface variable dataset.
+ !
+ !-----------------------------------------------------------------------
+ subroutine interp_surf2D_nosf(fieldname, mesh, kdtree, geog_data_path, supersample_fac)
+       
+    implicit none
+       
+    ! Input variables
+    character (len=*), intent(in) :: fieldname
+    type (mpas_pool_type), intent(inout) :: mesh
+    type (mpas_kd_type), pointer, intent(in) :: kdtree
+    character (len=*), intent(in) :: geog_data_path
+    integer, intent(in), optional :: supersample_fac
+        
+    ! Local variables
+    type (mpas_geotile_mgr_type) :: mgr
+    integer, pointer :: nCells
+     
+    real (kind=RKIND), dimension(:), pointer :: surfvar2D
+    real (kind=RKIND), pointer :: missing_value
+
+    integer :: iCell
+    integer :: ierr
+
+    ierr = mgr % init(trim(geog_data_path))
+    if (ierr /= 0) then
+        call mpas_log_write("Error occurred initializing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+        return ! Program execution should not reach this statement since the preceding message is a critical error
+    end if
+
+    call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+    call mpas_pool_get_array(mesh, trim(fieldname), surfvar2D)
+    call mpas_pool_get_config(mgr % pool, 'missing_value', missing_value)
+
+    surfvar_msgval = missing_value
+
+    allocate(surfvar_integer(nCells))
+    allocate(nhs(nCells))
+
+    !
+    ! Store tile values as a I8KIND integer temporarily to avoid floating
+    ! point round off differences and to have +/- 9.22x10^18 range of representative
+    ! values. For example, a 120 km mesh with a 1 meter data set with 6 decimal of
+    ! precision will allow for values of 180x10^12.
+    !
+    surfvar2D(:) = 0.0
+    surfvar_integer(:) = 0
+    nhs(:) = 0
+
+    call init_atm_map_static_data(mesh, mgr, kdtree, continuous_interp_criteria, &
+                                  surfvar_interp_accumulation, supersample_fac=supersample_fac, &
+                                  allow_missing_tiles=.true.)
+
+    do iCell = 1, nCells
+       surfvar2D(iCell) = real(real(surfvar_integer(iCell), kind=R8KIND) / real(nhs(iCell), kind=R8KIND), kind=RKIND)
+    end do
+
+    deallocate(surfvar_integer)
+    deallocate(nhs)
+
+    ierr = mgr % finalize()
+    if (ierr /= 0) then
+        call mpas_log_write("Error occurred finalizing interpolation for "//trim(geog_data_path), messageType=MPAS_LOG_CRIT)
+        return ! Program execution should not reach this statement since the preceding message is a critical error
+    end if
+
+ end subroutine interp_surf2D_nosf
+
 
  !***********************************************************************
  !
@@ -1716,6 +2082,105 @@
     end if
 
  end subroutine interp_soilcomp
+
+ !***********************************************************************
+ !
+ !  routine interp_croptype
+ !
+ !> \brief  Interpolate the croptype field for Noah-MP
+ !> \author Cenlin He
+ !> \date   14 Sep 2026 
+ !> \details
+ !> Interpolate croptype using the init_atm_map_static_data routine,
+ !> accumulating pixel values into cells using the croptype_interp_accumulation
+ !> method.
+ !>
+ !> The mesh argument is an mpas_pool that contains croptype as well as
+ !> the nCells dimension. kdtree is an initialized kdtree of (xCell, yCell, zCell),
+ !> and geog_data_path specifies the path to the croptype dataset.
+ !>
+ !> The supersample_fac argument specifies the supersampling factor to be
+ !> applied to the source dataset.
+ !
+ !-----------------------------------------------------------------------
+ subroutine interp_croptype(mesh, kdtree, geog_data_path, supersample_fac)
+
+    implicit none
+
+    ! Input variables
+    type (mpas_pool_type), intent(inout) :: mesh
+    type (mpas_kd_type), pointer, intent(in) :: kdtree
+    character (len=*), intent(in) :: geog_data_path
+    integer, intent(in), optional :: supersample_fac
+
+    ! Local variables
+    type (mpas_geotile_mgr_type) :: mgr
+    integer, pointer :: nCells, nCrops
+    real (kind=RKIND), pointer :: scalefactor
+    real (kind=RKIND), pointer :: missing_value
+
+    real (kind=RKIND), dimension(:,:), pointer :: croptype
+
+    integer :: iCell
+    integer :: ierr
+
+    ierr = mgr % init(trim(geog_data_path))
+    if (ierr /= 0) then
+        call mpas_log_write('Error occurred initializing interpolation for '//trim(geog_data_path), &
+                            messageType=MPAS_LOG_CRIT)
+
+        return ! Program execution should not reach this statement
+               ! since the preceding message is a critical error
+    end if
+
+    call mpas_pool_get_dimension(mesh, 'nCells', nCells)
+    call mpas_pool_get_dimension(mesh, 'nCrops', nCrops)
+    call mpas_pool_get_array(mesh, 'croptype', croptype)
+
+    call mpas_pool_get_config(mgr % pool, 'scale_factor', scalefactor)
+    call mpas_pool_get_config(mgr % pool, 'missing_value', missing_value)
+
+    noahmpdata_msgval = missing_value
+
+    allocate(croptype_int(nCrops,nCells))
+    allocate(nhs(nCells))
+
+    !
+    ! Store tile values as a I8KIND integer temporarily to avoid floating
+    ! point round off differences and to have +/- 9.22x10^18 range of representative
+    ! values. For example, a 120 km mesh with a 1 meter data set with 6 decimal of
+    ! precision will allow for values of 180x10^12.
+    !
+    croptype(:,:) = 0.0
+    croptype_int(:,:) = 0
+    nhs(:) = 0
+
+    call init_atm_map_static_data(mesh, mgr, kdtree, continuous_interp_criteria, &
+                                  croptype_interp_accumulation, &
+                                  supersample_fac=supersample_fac,&
+                                  allow_missing_tiles=.true.)
+
+    do iCell = 1, nCells
+       if (nhs(iCell) > 0) then
+           croptype(:,iCell) = real(real(croptype_int(:,iCell), kind=R8KIND) &
+                                    / real(nhs(iCell), kind=R8KIND), kind=RKIND)
+       end if
+    end do
+    croptype(:,:) = croptype(:,:) * scalefactor
+
+    deallocate(croptype_int)
+    deallocate(nhs)
+
+    ierr = mgr % finalize()
+    if (ierr /= 0) then
+        call mpas_log_write('Error occurred finalizing interpolation for '//trim(geog_data_path), &
+                            messageType=MPAS_LOG_CRIT)
+
+        return ! Program execution should not reach this statement
+               ! since the preceding message is a critical error
+    end if
+
+ end subroutine interp_croptype
 
 !--------------------------------------------------------------------------------------------------
 ! Categorical interpolations - Landuse and Soiltype
