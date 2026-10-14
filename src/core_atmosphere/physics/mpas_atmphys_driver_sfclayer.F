@@ -144,6 +144,7 @@
  if(.not.allocated(v10_p)   ) allocate(v10_p(ims:ime,jms:jme)   )
  if(.not.allocated(wspd_p)  ) allocate(wspd_p(ims:ime,jms:jme)  )
  if(.not.allocated(xland_p) ) allocate(xland_p(ims:ime,jms:jme) )
+ if(.not.allocated(var2d_p) ) allocate(var2d_p(ims:ime,jms:jme) )
  if(.not.allocated(zol_p)   ) allocate(zol_p(ims:ime,jms:jme)   )
  if(.not.allocated(znt_p)   ) allocate(znt_p(ims:ime,jms:jme)   )
 
@@ -277,6 +278,7 @@
  if(allocated(v10_p)   ) deallocate(v10_p   )
  if(allocated(wspd_p)  ) deallocate(wspd_p  )
  if(allocated(xland_p) ) deallocate(xland_p )
+ if(allocated(var2d_p) ) deallocate(var2d_p )
  if(allocated(zol_p)   ) deallocate(zol_p   )
  if(allocated(znt_p)   ) deallocate(znt_p   )
 
@@ -369,7 +371,7 @@
 
  real(kind=RKIND),pointer:: len_disp
  real(kind=RKIND),dimension(:),pointer:: meshDensity
- real(kind=RKIND),dimension(:),pointer:: skintemp,sst,xice,xland
+ real(kind=RKIND),dimension(:),pointer:: skintemp,sst,xice,xland,var2d
  real(kind=RKIND),dimension(:),pointer:: hpbl,mavail
  real(kind=RKIND),dimension(:),pointer:: br,cpm,chs,chs2,cqs2,flhc,flqc,gz1oz0,hfx,qfx,  &
                                          qgh,qsfc,lh,mol,psim,psih,regime,rmol,ust,ustm, &
@@ -393,6 +395,7 @@
  call mpas_pool_get_array(diag_physics,'mavail'  ,mavail  )
  call mpas_pool_get_array(sfc_input   ,'skintemp',skintemp)
  call mpas_pool_get_array(sfc_input   ,'xland'   ,xland   )
+ call mpas_pool_get_array(sfc_input   ,'var2d'   ,var2d   )
 
 !inout variables:
  call mpas_pool_get_array(diag_physics,'br'      ,br      )
@@ -427,6 +430,7 @@
     mavail_p(i,j) = mavail(i)
     tsk_p(i,j)    = skintemp(i)
     xland_p(i,j)  = xland(i)
+    var2d_p(i,j)  = var2d(i)
 
     !inout variables:
     br_p(i,j)     = br(i)
@@ -852,12 +856,14 @@
 
 !local pointers:
  logical,pointer:: config_do_restart,config_frac_seaice
+ logical,pointer:: config_kim_tofd
  character(len=StrKIND),pointer:: sfclayer_scheme
  real(kind=RKIND),dimension(:),pointer:: areaCell
 
 !local variables:
  integer:: initflag
  real(kind=RKIND):: dx
+ real(kind=RKIND), pointer :: tofd_factor
 
 !CCPP-compliant flags:
  character(len=StrKIND):: errmsg
@@ -874,6 +880,8 @@
  call mpas_pool_get_config(configs,'config_do_restart'     ,config_do_restart )
  call mpas_pool_get_config(configs,'config_frac_seaice'    ,config_frac_seaice)
  call mpas_pool_get_config(configs,'config_sfclayer_scheme',sfclayer_scheme   )
+ call mpas_pool_get_config(configs,'config_kim_tofd'       ,config_kim_tofd   )
+ call mpas_pool_get_config(configs,'config_tofd_factor'    ,tofd_factor)
 
  call mpas_pool_get_array(mesh,'areaCell',areaCell)
 
@@ -963,7 +971,9 @@
                xland        = xland_p        , hfx         = hfx_p        , qfx            = qfx_p          , &
                lh           = lh_p           , tsk         = tsk_p        , flhc           = flhc_p         , &
                flqc         = flqc_p         , qgh         = qgh_p        , qsfc           = qsfc_p         , &
-               rmol         = rmol_p         , u10         = u10_p        , v10            = v10_p          , &
+               rmol         = rmol_p         , var2d       = var2d_p      , u10            = u10_p          , &
+               if_kim_tofd  = config_kim_tofd, tofd_factor = tofd_factor                                    , &
+               v10          = v10_p          , &
                th2          = th2m_p         , t2          = t2m_p        , q2             = q2_p           , &
                gz1oz0       = gz1oz0_p       , wspd        = wspd_p       , br             = br_p           , &
                isfflx       = isfflx         , dx          = dx_p         , svp1           = svp1           , &
@@ -993,7 +1003,9 @@
                   xland        = xland_sea      , hfx         = hfx_sea      , qfx            = qfx_sea        , &
                   lh           = lh_sea         , tsk         = tsk_sea      , flhc           = flhc_sea       , &
                   flqc         = flqc_sea       , qgh         = qgh_sea      , qsfc           = qsfc_sea       , &
-                  rmol         = rmol_sea       , u10         = u10_sea      , v10            = v10_sea        , &
+                  rmol         = rmol_sea       , var2d       = var2d_p      , u10            = u10_sea        , &
+                  if_kim_tofd  = config_kim_tofd, tofd_factor = tofd_factor                                    , &
+                  v10          = v10_sea        , &
                   th2          = th2m_sea       , t2          = t2m_sea      , q2             = q2_sea         , &
                   gz1oz0       = gz1oz0_sea     , wspd        = wspd_sea     , br             = br_sea         , &
                   isfflx       = isfflx         , dx          = dx_p         , svp1           = svp1           , &
