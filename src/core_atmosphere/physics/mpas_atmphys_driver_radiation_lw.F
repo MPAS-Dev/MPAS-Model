@@ -11,12 +11,12 @@
  use mpas_pool_routines
  use mpas_timer,only: mpas_timer_start,mpas_timer_stop
 
- use mpas_atmphys_driver_radiation_sw, only: radconst
  use mpas_atmphys_constants
  use mpas_atmphys_manager, only: gmt,curr_julday,julday,year
  use mpas_atmphys_camrad_init
  use mpas_atmphys_rrtmg_lwinit
  use mpas_atmphys_vars
+ use mpas_atmphys_radiation_utils, only: radconst, co2_estimate
 
 !wrf physics:
  use module_ra_cam            
@@ -841,6 +841,15 @@
 !copy MPAS arrays to local arrays:
  call radiation_lw_from_MPAS(xtime_s,configs,mesh,state,time_lev,diag_physics,atm_input,sfc_input,its,ite)
 
+! This should be OMP MASTER with barrier afterwards or OMP SINGLE, since declin and solcon
+! are global variables in mpas_atmphys_vars.F and race conditions may occur otherwise!
+!$OMP SINGLE
+!... calculates solar declination:
+ call radconst(declin,solcon,curr_julday,degrad,dpd)
+!... estimates co2 concentration using a function of year: 
+ co2_val = co2_estimate(year,curr_julday) 
+!$OMP END SINGLE
+
 !call to longwave radiation scheme:
  radiation_lw_select: select case (trim(radt_lw_scheme))
     case ("rrtmg_lw")
@@ -878,7 +887,7 @@
             rre_ice  = rreice_p    , rre_snow   = rresnow_p     , lwupt     = lwupt_p    , &
             lwuptc   = lwuptc_p    , lwdnt      = lwdnt_p       , lwdntc    = lwdntc_p   , &
             lwupb    = lwupb_p     , lwupbc     = lwupbc_p      , lwdnb     = lwdnb_p    , &
-            lwdnbc   = lwdnbc_p    ,                                                       &
+            lwdnbc   = lwdnbc_p    , co2        = co2_val       ,                          &
             ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde ,        &
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme ,        &
             its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte          &
@@ -887,13 +896,6 @@
 
     case ("cam_lw")
        xtime_m = xtime_s/60.
-
-! This should be OMP MASTER with barrier afterwards or OMP SINGLE, since declin and solcon
-! are global variables in mpas_atmphys_vars.F and race conditions may occur otherwise!
-!$OMP SINGLE
-       !... calculates solar declination:
-       call radconst(declin,solcon,curr_julday,degrad,dpd)
-!$OMP END SINGLE
 
 !... convert the radiation time_step to minutes:
        radt = dt_radtlw/60.
