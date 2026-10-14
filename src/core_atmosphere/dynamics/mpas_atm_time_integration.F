@@ -16,6 +16,10 @@
 
 module atm_time_integration
 
+#ifdef MPAS_OPENMP
+   use omp_lib
+#endif
+
    use mpas_pool_routines
    use mpas_kind_types
    use mpas_constants
@@ -3135,9 +3139,18 @@ module atm_time_integration
       call mpas_pool_get_array(state, 'scalars', scalars_2, 2)
 
 
-      !$acc kernels
-      theta_m_2(:,cellEnd+1) = 0.0_RKIND
-      !$acc end kernels
+#ifdef MPAS_OPENMP
+      ! Assign 0 to cellEnd+1 element only on the last thread, because on
+      ! all other threads cellEnd+1 is the same memory location
+      ! as cellStart on the following threads
+      if (omp_get_thread_num() == omp_get_num_threads() - 1) then
+#endif
+         !$acc kernels
+         theta_m_2(:,cellEnd+1) = 0.0_RKIND
+         !$acc end kernels
+#ifdef MPAS_OPENMP
+      end if
+#endif
 
       !$acc parallel default(present)
       !$acc loop gang worker
@@ -3422,6 +3435,7 @@ module atm_time_integration
       rcv = rgas/(cp-rgas)
       c2 = cp*rcv
 
+!$omp single
       !$acc parallel default(present)
       !$acc loop gang worker
 ! MGD bad to have all threads setting this variable?
@@ -3429,6 +3443,7 @@ module atm_time_integration
          cofrz(k) = rdzw(k)
       end do
       !$acc end parallel
+!$omp end single
 
       !$acc parallel default(present)
       !$acc loop gang worker private(b_tri,c_tri)
@@ -4384,12 +4399,14 @@ module atm_time_integration
 
       ! Avoid FP errors caused by a potential division by zero below by
       ! initializing the "garbage cell" of rho_zz to a non-zero value
+!$omp single
       !$acc parallel default(present)
       !$acc loop gang vector
       do k=1,nVertLevels
          rho_zz(k,nCells+1) = 1.0
       end do
       !$acc end parallel
+!$omp end single
 
       ! compute new density everywhere so we can compute u from ru.
       ! we will also need it to compute theta_m below
@@ -5294,10 +5311,12 @@ module atm_time_integration
          end do
 
 #ifndef MPAS_OPENACC
+!$omp single
          do k=1,nVertLevels
             scalar_old(k,nCells+1) = 0.0_RKIND
             scalar_new(k,nCells+1) = 0.0_RKIND
          end do
+!$omp end single
 #endif
 
          !$acc end parallel
@@ -7724,11 +7743,20 @@ module atm_time_integration
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_1, 1)
       call mpas_pool_get_array(state, 'rho_zz', rho_zz_2, 2)
 
-      ! Interim fix for the atm_compute_dyn_tend_work subroutine accessing uninitialized values
-      ! in garbage cells of theta_m
-      !$acc kernels
-      theta_m_1(:,cellEnd+1) = 0.0_RKIND
-      !$acc end kernels
+#ifdef MPAS_OPENMP
+      ! Assign 0 to cellEnd+1 element only on the last thread, because on
+      ! all other threads cellEnd+1 is the same memory location
+      ! as cellStart on the following threads
+      if (omp_get_thread_num() == omp_get_num_threads() - 1) then
+#endif
+         ! Interim fix for the atm_compute_dyn_tend_work subroutine accessing uninitialized values
+         ! in garbage cells of theta_m
+         !$acc kernels
+         theta_m_1(:,cellEnd+1) = 0.0_RKIND
+         !$acc end kernels
+#ifdef MPAS_OPENMP
+      end if
+#endif
 
       inv_dynamics_split = 1.0_RKIND / real(dynamics_split)
 

@@ -382,6 +382,7 @@
                        !do not run urban physics, idiff is set to zero.
 
  integer:: ysu_pblmix
+!$omp threadprivate(ysu_pblmix)
 
  integer,dimension(:,:),allocatable:: &
     kpbl_p             !index of PBL top                                                                       [-]
@@ -670,6 +671,8 @@
  integer,parameter:: taer_asy_opt    = 3!input option for nwfa, nifa aerosol asymmetry factor.
 
  integer:: aer_opt                      !=[0,3]  : 0 for no aerosols, 3 for "water-" and "ice-friendly" aerosols.
+!$omp threadprivate(aer_opt)
+
  integer,dimension(:,:),allocatable:: &
                      taer_type_p        !=[1,2,3]: 1 for rural, 2 is urban and 3 is maritime in WRF. In MPAS,
                                         !aer_type is initialized as a function of landmask (=1 over land; =2 over
