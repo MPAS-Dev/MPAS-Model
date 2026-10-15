@@ -6477,6 +6477,7 @@ module atm_time_integration
       ! Compute u (normal) velocity tendency for each edge (cell face)
       !
 
+      call mpas_timer_start('atm_dyn_tend_work_6480')
       !$acc parallel default(present)
       !$acc loop gang worker private(wduz, q)
       do iEdge=edgeSolveStart,edgeSolveEnd
@@ -6572,6 +6573,7 @@ module atm_time_integration
 
       end do
       !$acc end parallel
+      call mpas_timer_stop('atm_dyn_tend_work_6480')
 
       !
       !  horizontal mixing for u
