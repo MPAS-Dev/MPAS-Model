@@ -6283,6 +6283,8 @@ module atm_time_integration
       real (kind=RKIND) :: theta_turb_flux, w_turb_flux, r
       real (kind=RKIND) :: scalar_weight
       real (kind=RKIND) :: inv_r_earth
+      real (kind=RKIND) :: w_below, w_above, qk
+      integer :: kp1
 
       real (kind=RKIND) :: invDt, flux, workpv
       real (kind=RKIND) :: edge_sign, pr_scale, r_dc, r_dv, u_mix_scale
@@ -6497,78 +6499,69 @@ module atm_time_integration
          !$acc end parallel
       end if
 
+!
+!     --- vertical transport + Coriolis + KE + vorticity + curvature ---
+!
 
       !$acc parallel default(present) async(2)
-      !$acc loop gang private(wduz, q)
+      !$acc loop gang worker
       do iEdge=edgeSolveStart,edgeSolveEnd
 
          cell1 = cellsOnEdge(1,iEdge)
          cell2 = cellsOnEdge(2,iEdge)
 
-         ! vertical transport of u
-
-         wduz(1) = 0.
-
-         k = 2
-         wduz(k) =  0.5*( rw(k,cell1)+rw(k,cell2))*(fzm(k)*u(k,iEdge)+fzp(k)*u(k-1,iEdge))
-         !$acc loop vector
-         do k=3,nVertLevels-1
-            wduz(k) = flux3( u(k-2,iEdge),u(k-1,iEdge),u(k,iEdge),u(k+1,iEdge),0.5*(rw(k,cell1)+rw(k,cell2)), 1.0_RKIND )
-         end do
-         k = nVertLevels
-         wduz(k) =  0.5*( rw(k,cell1)+rw(k,cell2))*(fzm(k)*u(k,iEdge)+fzp(k)*u(k-1,iEdge))
-
-         wduz(nVertLevels+1) = 0.
-
 !DIR$ IVDEP
-         !$acc loop vector
+         !$acc loop vector private(w_below, w_above, qk, kp1)
          do k=1,nVertLevels
-            tend_u(k,iEdge) = - rdzw(k)*(wduz(k+1)-wduz(k)) !  first use of tend_u
-         end do
 
-         ! Next, nonlinear Coriolis term (q) following Ringler et al JCP 2009
+            ! --- w_below = wduz(k)
+            if (k == 1) then
+               w_below = 0.0_RKIND
+            else if (k == 2 .or. k == nVertLevels) then
+               w_below = 0.5*( rw(k,cell1)+rw(k,cell2))*(fzm(k)*u(k,iEdge)+fzp(k)*u(k-1,iEdge))
+            else
+               w_below = flux3( u(k-2,iEdge),u(k-1,iEdge),u(k,iEdge),u(k+1,iEdge), &
+                                0.5*(rw(k,cell1)+rw(k,cell2)), 1.0_RKIND )
+            end if
 
-         !$acc loop vector
-         do k=1,nVertLevels
-            q(k) = 0.0_RKIND
-         end do
+            ! --- w_above = wduz(k+1)
+            kp1 = k + 1
+            if (kp1 == nVertLevels+1) then
+               w_above = 0.0_RKIND
+            else if (kp1 == 2 .or. kp1 == nVertLevels) then
+               w_above = 0.5*( rw(kp1,cell1)+rw(kp1,cell2))*(fzm(kp1)*u(kp1,iEdge)+fzp(kp1)*u(kp1-1,iEdge))
+            else
+               w_above = flux3( u(kp1-2,iEdge),u(kp1-1,iEdge),u(kp1,iEdge),u(kp1+1,iEdge), &
+                                0.5*(rw(kp1,cell1)+rw(kp1,cell2)), 1.0_RKIND )
+            end if
 
-         !$acc loop seq
-         do j = 1,nEdgesOnEdge(iEdge)
-            eoe = edgesOnEdge(j,iEdge)
+            ! --- vertical transport of u ---
+            tend_u(k,iEdge) = -rdzw(k)*(w_above - w_below)
 
-            !$acc loop vector
-            do k=1,nVertLevels
-               workpv = 0.5 * (pv_edge(k,iEdge) + pv_edge(k,eoe))
-!  the original definition of pv_edge had a factor of 1/density.  We have removed that factor
-!  given that it was not integral to any conservation property of the system
-               q(k) = q(k) + weightsOnEdge(j,iEdge) * u(k,eoe) * workpv
-            end do
-         end do
-
-         if (perturbation_coriolis) then  !  this is correct only for constant f
+            ! --- Coriolis q accumulation ---
+            qk = 0.0_RKIND
             !$acc loop seq
             do j = 1,nEdgesOnEdge(iEdge)
                eoe = edgesOnEdge(j,iEdge)
-
-               !$acc loop vector
-               do k=1,nVertLevels
-                  reference_u = u_init(k) * cos(angleEdge(eoe)) -  v_init(k) * sin(angleEdge(eoe))
-                  q(k) = q(k) - weightsOnEdge(j,iEdge) * reference_u * fEdge(iEdge)
-!                 q(k) = q(k) - weightsOnEdge(j,iEdge) * reference_u * 0.729210E-04
-               end do
+               scalar_weight = weightsOnEdge(j,iEdge)
+               workpv = 0.5 * (pv_edge(k,iEdge) + pv_edge(k,eoe))
+               qk = qk + scalar_weight * u(k,eoe) * workpv
             end do
-         end if
 
-!DIR$ IVDEP
-         !$acc loop vector
-         do k=1,nVertLevels
+            if (perturbation_coriolis) then
+               !$acc loop seq
+               do j = 1,nEdgesOnEdge(iEdge)
+                  eoe = edgesOnEdge(j,iEdge)
+                  scalar_weight = weightsOnEdge(j,iEdge)
+                  reference_u = u_init(k) * cos(angleEdge(eoe)) -  v_init(k) * sin(angleEdge(eoe))
+                  qk = qk - scalar_weight * reference_u * fEdge(iEdge)
+               end do
+            end if
 
-            ! horizontal ke gradient and vorticity terms in the vector invariant formulation
-            ! of the horizontal momentum equation
-            tend_u(k,iEdge) = tend_u(k,iEdge) + rho_edge(k,iEdge)* (q(k) - (ke(k,cell2) - ke(k,cell1))       &
+            ! --- KE gradient + vorticity + curvature ---
+            tend_u(k,iEdge) = tend_u(k,iEdge) + rho_edge(k,iEdge)* (qk - (ke(k,cell2) - ke(k,cell1))       &
                                                                  * invDcEdge(iEdge))                            &
-                                             - u(k,iEdge)*0.5*(h_divergence(k,cell1)+h_divergence(k,cell2)) 
+                                             - u(k,iEdge)*0.5*(h_divergence(k,cell1)+h_divergence(k,cell2))
 #ifdef CURVATURE
             ! curvature terms for the sphere
             tend_u(k,iEdge) = tend_u(k,iEdge) &
