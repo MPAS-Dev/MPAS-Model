@@ -6478,24 +6478,32 @@ module atm_time_integration
       !
 
       call mpas_timer_start('atm_dyn_tend_work_6480')
-      !$acc parallel default(present)
-      !$acc loop gang private(wduz, q)
-      do iEdge=edgeSolveStart,edgeSolveEnd
-
-         cell1 = cellsOnEdge(1,iEdge)
-         cell2 = cellsOnEdge(2,iEdge)
-
-         ! horizontal pressure gradient 
-
-         if(rk_step == 1) then
+!
+!     horizontal pressure gradient
+!
+      if(rk_step == 1) then
+         !$acc parallel default(present) async(1)
+         !$acc loop gang worker
+         do iEdge=edgeSolveStart,edgeSolveEnd
+            cell1 = cellsOnEdge(1,iEdge)
+            cell2 = cellsOnEdge(2,iEdge)
 !DIR$ IVDEP
             !$acc loop vector
             do k=1,nVertLevels
                tend_u_euler(k,iEdge) =  - cqu(k,iEdge)*( (pp(k,cell2)-pp(k,cell1))*invDcEdge(iEdge)/(.5*(zz(k,cell2)+zz(k,cell1))) &
                                               -0.5*zxu(k,iEdge)*(dpdz(k,cell1)+dpdz(k,cell2)) )
             end do
+         end do
+         !$acc end parallel
+      end if
 
-         end if
+
+      !$acc parallel default(present) async(2)
+      !$acc loop gang private(wduz, q)
+      do iEdge=edgeSolveStart,edgeSolveEnd
+
+         cell1 = cellsOnEdge(1,iEdge)
+         cell2 = cellsOnEdge(2,iEdge)
 
          ! vertical transport of u
 
@@ -6573,6 +6581,8 @@ module atm_time_integration
 
       end do
       !$acc end parallel
+
+      !$acc wait
       call mpas_timer_stop('atm_dyn_tend_work_6480')
 
       !
