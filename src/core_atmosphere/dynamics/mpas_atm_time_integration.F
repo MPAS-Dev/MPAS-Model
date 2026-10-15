@@ -6479,19 +6479,18 @@ module atm_time_integration
       ! Compute u (normal) velocity tendency for each edge (cell face)
       !
 
-      call mpas_timer_start('atm_dyn_tend_work_6480')
 !
 !     horizontal pressure gradient
 !
+      call mpas_timer_start('atm_dyn_tend_work_6480')
       if(rk_step == 1) then
          !$acc parallel default(present) async(1)
-         !$acc loop gang worker
+         !$acc loop gang vector collapse(2) private(cell1, cell2)
          do iEdge=edgeSolveStart,edgeSolveEnd
-            cell1 = cellsOnEdge(1,iEdge)
-            cell2 = cellsOnEdge(2,iEdge)
 !DIR$ IVDEP
-            !$acc loop vector
             do k=1,nVertLevels
+               cell1 = cellsOnEdge(1,iEdge)
+               cell2 = cellsOnEdge(2,iEdge)
                tend_u_euler(k,iEdge) =  - cqu(k,iEdge)*( (pp(k,cell2)-pp(k,cell1))*invDcEdge(iEdge)/(.5*(zz(k,cell2)+zz(k,cell1))) &
                                               -0.5*zxu(k,iEdge)*(dpdz(k,cell1)+dpdz(k,cell2)) )
             end do
@@ -6504,15 +6503,13 @@ module atm_time_integration
 !
 
       !$acc parallel default(present) async(2)
-      !$acc loop gang worker
+      !$acc loop gang vector collapse(2) private(cell1, cell2, w_below, w_above, qk, kp1)
       do iEdge=edgeSolveStart,edgeSolveEnd
-
-         cell1 = cellsOnEdge(1,iEdge)
-         cell2 = cellsOnEdge(2,iEdge)
-
 !DIR$ IVDEP
-         !$acc loop vector private(w_below, w_above, qk, kp1)
          do k=1,nVertLevels
+
+            cell1 = cellsOnEdge(1,iEdge)
+            cell2 = cellsOnEdge(2,iEdge)
 
             ! --- w_below = wduz(k)
             if (k == 1) then
