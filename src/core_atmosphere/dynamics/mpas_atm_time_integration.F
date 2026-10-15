@@ -6479,7 +6479,7 @@ module atm_time_integration
 
       call mpas_timer_start('atm_dyn_tend_work_6480')
       !$acc parallel default(present)
-      !$acc loop gang worker private(wduz, q)
+      !$acc loop gang private(wduz, q)
       do iEdge=edgeSolveStart,edgeSolveEnd
 
          cell1 = cellsOnEdge(1,iEdge)
