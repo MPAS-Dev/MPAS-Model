@@ -6294,7 +6294,7 @@ module atm_time_integration
 
       real (kind=RKIND), dimension( nVertLevels ) :: rayleigh_damp_coef
 
-      real (kind=RKIND) :: flux3, flux4
+      real (kind=RKIND) :: flux3, flux4, flux_arr_local
       real (kind=RKIND) :: q_im2, q_im1, q_i, q_ip1, ua, coef3
 
       logical, parameter :: perturbation_coriolis = .true.
@@ -6648,9 +6648,9 @@ module atm_time_integration
       !
       !  horizontal advection for w
       !
-
+      call mpas_timer_start('atm_dyn_tend_work_6652')
       !$acc parallel default(present)
-      !$acc loop gang worker private(ru_edge_w, flux_arr)
+      !$acc loop gang worker private(ru_edge_w)
       do iCell=cellSolveStart,cellSolveEnd    ! Technically updating fewer cells than before...
 
          !$acc loop vector
@@ -6669,34 +6669,35 @@ module atm_time_integration
                ru_edge_w(k) = fzm(k)*ru(k,iEdge) + fzp(k)*ru(k-1,iEdge)
             end do
 
-            !$acc loop vector
-            do k=1,nVertLevels
-               flux_arr(k) = 0.0_RKIND
-            end do
-
             ! flux_arr stores the value of w at the cell edge used in the horizontal transport
 
-            !$acc loop seq
-            do j=1,nAdvCellsForEdge(iEdge)
-               iAdvCell = advCellsForEdge(j,iEdge)
-
-               !$acc loop vector
-               do k=2,nVertLevels
-                  scalar_weight = adv_coefs(j,iEdge) + sign(1.0_RKIND,ru_edge_w(k)) * adv_coefs_3rd(j,iEdge)
-                  flux_arr(k) = flux_arr(k) + scalar_weight * w(k,iAdvCell)
-               end do
-            end do
-
-!DIR$ IVDEP
             !$acc loop vector
             do k=2,nVertLevels
-               tend_w(k,iCell) = tend_w(k,iCell) - edgesOnCell_sign(i,iCell) * ru_edge_w(k)*flux_arr(k)
+               flux_arr_local = 0.0_RKIND
+
+               select case(nAdvCellsForEdge(iEdge))
+               case (10)
+                  !$acc loop seq
+                  do j=1,nAdvCellsForEdge(iEdge)
+                     iAdvCell = advCellsForEdge(j,iEdge)
+                     scalar_weight = adv_coefs(j,iEdge) + sign(1.0_RKIND,ru_edge_w(k)) * adv_coefs_3rd(j,iEdge)
+                     flux_arr_local = flux_arr_local + scalar_weight * w(k,iAdvCell)
+                  end do
+               case default
+                  !$acc loop seq
+                  do j=1,nAdvCellsForEdge(iEdge)
+                     iAdvCell = advCellsForEdge(j,iEdge)
+                     scalar_weight = adv_coefs(j,iEdge) + sign(1.0_RKIND,ru_edge_w(k)) * adv_coefs_3rd(j,iEdge)
+                     flux_arr_local = flux_arr_local + scalar_weight * w(k,iAdvCell)
+                  end do
+               end select
+               tend_w(k,iCell) = tend_w(k,iCell) - edgesOnCell_sign(i,iCell) * ru_edge_w(k)*flux_arr_local
             end do
 
          end do
       end do
       !$acc end parallel
-
+      call mpas_timer_stop('atm_dyn_tend_work_6652')
 #ifdef CURVATURE
       !$acc parallel default(present)
       !$acc loop gang worker
