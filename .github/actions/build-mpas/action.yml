@@ -1,0 +1,213 @@
+name: 'Build MPAS'
+description: 'Build MPAS-Atmosphere with specified compiler configuration'
+
+inputs:
+  compiler:
+    description: 'Compiler family (gcc, nvhpc, oneapi, etc.)'
+    required: true
+  core:
+    description: 'MPAS core to build (atmosphere, init_atmosphere)'
+    required: false
+    default: 'atmosphere'
+  use-pio:
+    description: 'Use PIO library (true/false)'
+    required: false
+    default: 'false'
+  openacc:
+    description: 'Enable OpenACC (true/false)'
+    required: false
+    default: 'false'
+  precision:
+    description: 'Floating-point precision (single or double)'
+    required: false
+    default: 'single'
+  build-timeout:
+    description: 'Build timeout in minutes'
+    required: false
+    default: '20'
+  make-target:
+    description: 'Make target to build. Empty = look up MAKE_TARGET_<compiler> in ci-config.env'
+    required: false
+    default: ''
+  make-flags:
+    description: 'Extra make arguments for this build (e.g. "OPENMP=true"), added after the compiler defaults from ci-config.env'
+    required: false
+    default: ''
+  use-target-arch:
+    description: 'NVHPC only: add NVHPC_TARGET_ARCH from ci-config.env to the build flags (true/false). Use false for performance runs.'
+    required: false
+    default: 'true'
+  clean-core:
+    description: 'Run "make clean" for this core before building (use when a different core was built earlier in the same source tree; empty = no clean)'
+    required: false
+    default: ''
+  log-file:
+    description: 'Write the build output to this file as well as the job log (empty = no file)'
+    required: false
+    default: ''
+
+outputs:
+  executable:
+    description: 'Path to built executable (atmosphere_model or init_atmosphere_model)'
+    value: ${{ steps.build.outputs.executable }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Build MPAS-A
+      id: build
+      shell: bash
+      env:
+        INPUT_MAKE_TARGET: ${{ inputs.make-target }}
+        INPUT_MAKE_FLAGS: ${{ inputs.make-flags }}
+      run: |
+        # Source container environment if available
+        # This sets NETCDF, PNETCDF, PIO, and other library paths
+        if [ -f /container/config_env.sh ]; then
+          echo "Sourcing container environment from /container/config_env.sh"
+          source /container/config_env.sh
+        fi
+
+        # MPAS Makefile uses `cpp` for Registry preprocessing.
+        # Some containers (e.g. openSUSE Leap) don't ship it separately.
+        if ! command -v cpp &>/dev/null; then
+          echo "cpp not found, installing..."
+          if command -v zypper &>/dev/null; then
+            zypper install -y --no-recommends cpp
+          elif command -v dnf &>/dev/null; then
+            dnf install -y cpp
+          elif command -v apt-get &>/dev/null; then
+            apt-get update && apt-get install -y cpp
+          fi
+        fi
+
+        # Map compiler input to COMPILER_FAMILY if not already set
+        # The container should set this, but we provide a fallback
+        if [ -z "${COMPILER_FAMILY}" ]; then
+          case "${{ inputs.compiler }}" in
+            gcc|gfortran|gnu)   export COMPILER_FAMILY="gcc" ;;
+            nvhpc|nvfortran)    export COMPILER_FAMILY="nvhpc" ;;
+            oneapi|intel|ifx)   export COMPILER_FAMILY="oneapi" ;;
+            llvm|flang|clang)   export COMPILER_FAMILY="clang" ;;
+            *)                  export COMPILER_FAMILY="${{ inputs.compiler }}" ;;
+          esac
+        fi
+
+        # Set up I/O configuration
+        if [ "${{ inputs.use-pio }}" = "true" ]; then
+          export PIO_ROOT=${PIO_ROOT:-/container/pio}
+          export USE_PIO2=true
+        else
+          unset PIO
+          export USE_PIO2=false
+        fi
+
+        # Set up accelerator configuration
+        if [ "${{ inputs.openacc }}" = "true" ]; then
+          export OPENACC=true
+        fi
+
+        echo "Build configuration:"
+        echo "  Core: ${{ inputs.core }}"
+        echo "  Compiler input: ${{ inputs.compiler }}"
+        echo "  COMPILER_FAMILY: ${COMPILER_FAMILY}"
+        echo "  NETCDF: ${NETCDF:-not set}"
+        echo "  PNETCDF: ${PNETCDF:-not set}"
+        echo "  USE_PIO2: ${USE_PIO2}"
+        echo "  OPENACC: ${OPENACC:-false}"
+        echo "  PRECISION: ${{ inputs.precision }}"
+
+        # Settings from .github/ci-config.env — edit that file to change targets/workarounds
+        CI_CONFIG="${GITHUB_WORKSPACE}/.github/ci-config.env"
+        if [ -f "${CI_CONFIG}" ]; then
+          source "${CI_CONFIG}"
+        fi
+
+        # Make target: the make-target input, else MAKE_TARGET_<compiler> from ci-config.env
+        MAKE_TARGET="${INPUT_MAKE_TARGET}"
+        if [ -z "${MAKE_TARGET}" ]; then
+          VARNAME="MAKE_TARGET_${COMPILER_FAMILY}"
+          MAKE_TARGET="${!VARNAME}"
+        fi
+        if [ -z "${MAKE_TARGET}" ]; then
+          echo "::error::No make target for COMPILER_FAMILY=${COMPILER_FAMILY}. Add MAKE_TARGET_${COMPILER_FAMILY}= to .github/ci-config.env"
+          exit 1
+        fi
+
+        case "${{ inputs.core }}" in
+          atmosphere)      EXE="atmosphere_model" ;;
+          init_atmosphere) EXE="init_atmosphere_model" ;;
+          *) echo "::error::Unsupported core '${{ inputs.core }}' (atmosphere, init_atmosphere)"; exit 1 ;;
+        esac
+
+        if [ "${COMPILER_FAMILY}" = "nvhpc" ]; then
+          ARCH=""
+          if [ "${{ inputs.use-target-arch }}" = "true" ]; then
+            ARCH="${NVHPC_TARGET_ARCH}"
+          fi
+          if [ -n "${ARCH}" ]; then
+            for FLAG in FFLAGS_OPT CFLAGS_OPT CXXFLAGS_OPT LDFLAGS_OPT; do
+              if ! sed -n "/^${MAKE_TARGET}:/,/^[a-z]/p" Makefile | grep -qF "\"${FLAG} = "; then
+                echo "::error::Could not locate ${FLAG} in the '${MAKE_TARGET}' Makefile target"
+                exit 1
+              fi
+              # Skip if already applied (the action can run twice in one source tree)
+              if sed -n "/^${MAKE_TARGET}:/,/^[a-z]/p" Makefile | grep -qF "\"${FLAG} = ${ARCH} "; then
+                continue
+              fi
+              sed -i "/^${MAKE_TARGET}:/,/^[a-z]/ s/\"${FLAG} = /\"${FLAG} = ${ARCH} /" Makefile
+            done
+          fi
+        fi
+
+        # Compiler defaults from ci-config.env (<FAMILY>_EXTRA_MAKE_FLAGS, family in
+        # upper case), then the make-flags input
+        FLAGS_VAR="${COMPILER_FAMILY^^}_EXTRA_MAKE_FLAGS"
+        EXTRA_MAKE_FLAGS="${!FLAGS_VAR}"
+        if [ -n "${INPUT_MAKE_FLAGS}" ]; then
+          EXTRA_MAKE_FLAGS="${EXTRA_MAKE_FLAGS:+${EXTRA_MAKE_FLAGS} }${INPUT_MAKE_FLAGS}"
+        fi
+
+        echo "  Make target: ${MAKE_TARGET}"
+        echo "  Extra make flags: ${EXTRA_MAKE_FLAGS:-<none>}"
+        echo "  Parallel jobs: ${MAKE_J_PROCS:-$(nproc)}"
+
+        PRECISION_FLAG=""
+        if [ "${{ inputs.precision }}" = "double" ]; then
+          PRECISION_FLAG="PRECISION=double"
+        fi
+
+        CLEAN_CMD=""
+        if [ -n "${{ inputs.clean-core }}" ]; then
+          CLEAN_CMD="make clean CORE=${{ inputs.clean-core }}"
+        fi
+        MAKE_CMD="timeout ${{ inputs.build-timeout }}m make ${MAKE_TARGET} CORE=${{ inputs.core }} ${EXTRA_MAKE_FLAGS} ${PRECISION_FLAG} --jobs ${MAKE_J_PROCS:-$(nproc)}"
+
+        LOG_FILE="${{ inputs.log-file }}"
+        set -o pipefail
+        # Tool versions and the exact commands (job log + log file)
+        PRINT_ENV="${GITHUB_WORKSPACE}/.github/actions/build-mpas/print-build-env.sh"
+        if [ ! -f "${PRINT_ENV}" ]; then
+          echo "::error::${PRINT_ENV} not found"
+          exit 1
+        fi
+        export COMPILER_FAMILY MAKE_TARGET ARCH CLEAN_CMD MAKE_CMD
+        CORE="${{ inputs.core }}" USE_PIO="${{ inputs.use-pio }}" PRECISION="${{ inputs.precision }}" \
+          bash "${PRINT_ENV}" | tee "${LOG_FILE:-/dev/null}"
+        if [ -n "${CLEAN_CMD}" ]; then
+          ${CLEAN_CMD} 2>&1 | tee -a "${LOG_FILE:-/dev/null}"
+        fi
+        ${MAKE_CMD} 2>&1 | tee -a "${LOG_FILE:-/dev/null}"
+
+        echo "executable=$(pwd)/${EXE}" >> "$GITHUB_OUTPUT"
+
+    - name: Verify executable
+      shell: bash
+      run: |
+        EXE="${{ steps.build.outputs.executable }}"
+        if [ ! -f "${EXE}" ]; then
+          echo "::error::${EXE} not found"
+          exit 1
+        fi
+        ls -la "${EXE}"
+        file "${EXE}"
