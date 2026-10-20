@@ -292,11 +292,10 @@
        call deallocate_lsm
 
        elseif(config_lsm_scheme == 'sf_noahmp') then
-          do thread=1,nThreads
+         ! Do not use Openmp here: the routine accepts thread loop bounds but does not use them
              call driver_lsm_noahmp(block%configs,mesh,state,time_lev,diag,diag_physics,   &
                                     diag_physics_noahmp,output_noahmp,sfc_input,itimestep, &
-                                    cellSolveThreadStart(thread),cellSolveThreadEnd(thread))
-          enddo
+                                    cellSolveThreadStart(1),cellSolveThreadEnd(nThreads))
        endif
 
        call allocate_seaice(block%configs)
