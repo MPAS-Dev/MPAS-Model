@@ -202,7 +202,17 @@
        if(.not.allocated(maxtkeprod_dd_p))allocate(maxtkeprod_dd_p(ims:ime,jms:jme)     )
        if(.not.allocated(cldtop_cooling_p))allocate(cldtop_cooling_p(ims:ime,jms:jme)   )
        if(.not.allocated(ent_eff_p)     ) allocate(ent_eff_p(ims:ime,jms:jme)           )
-       
+
+       if(.not.allocated(lwpbl_p)       ) allocate(lwpbl_p(ims:ime,jms:jme)             )
+       if(.not.allocated(iwpbl_p)       ) allocate(iwpbl_p(ims:ime,jms:jme)             )
+       if(.not.allocated(swpbl_p)       ) allocate(swpbl_p(ims:ime,jms:jme)             )
+       if(.not.allocated(cldceil_p)     ) allocate(cldceil_p(ims:ime,jms:jme)           )
+       if(.not.allocated(wspd10_p)      ) allocate(wspd10_p(ims:ime,jms:jme)            )
+       if(.not.allocated(wspd80_p)      ) allocate(wspd80_p(ims:ime,jms:jme)            )
+       if(.not.allocated(wspd160_p)     ) allocate(wspd160_p(ims:ime,jms:jme)           )
+       if(.not.allocated(maxcldfra_p)   ) allocate(maxcldfra_p(ims:ime,jms:jme)         )
+       if(.not.allocated(maxcldfrabl_p) ) allocate(maxcldfrabl_p(ims:ime,jms:jme)       )
+
        if(.not.allocated(cov_p)         ) allocate(cov_p(ims:ime,kms:kme,jms:jme)       )
        if(.not.allocated(qke_p)         ) allocate(qke_p(ims:ime,kms:kme,jms:jme)       )
        if(.not.allocated(qsq_p)         ) allocate(qsq_p(ims:ime,kms:kme,jms:jme)       )
@@ -365,7 +375,17 @@
        if(allocated(maxtkeprod_dd_p) ) deallocate(maxtkeprod_dd_p )
        if(allocated(cldtop_cooling_p)) deallocate(cldtop_cooling_p)
        if(allocated(ent_eff_p)       ) deallocate(ent_eff_p       )
-       
+
+       if(allocated(lwpbl_p)       ) deallocate(lwpbl_p          )
+       if(allocated(iwpbl_p)       ) deallocate(iwpbl_p          )
+       if(allocated(swpbl_p)       ) deallocate(swpbl_p          )
+       if(allocated(cldceil_p)     ) deallocate(cldceil_p        )
+       if(allocated(wspd10_p)      ) deallocate(wspd10_p         )
+       if(allocated(wspd80_p)      ) deallocate(wspd80_p         )
+       if(allocated(wspd160_p)     ) deallocate(wspd160_p        )
+       if(allocated(maxcldfra_p)   ) deallocate(maxcldfra_p      )
+       if(allocated(maxcldfrabl_p) ) deallocate(maxcldfrabl_p    )
+
        if(allocated(cov_p)       ) deallocate(cov_p       )
        if(allocated(qke_p)       ) deallocate(qke_p       )
        if(allocated(qsq_p)       ) deallocate(qsq_p       )
@@ -439,7 +459,7 @@
 
 !local pointers for MYNN scheme:
  real(kind=RKIND),pointer:: len_disp
- integer,pointer:: config_mynn_tkebudget,config_mynn_edmf_output
+ integer,pointer:: config_mynn_tkebudget,config_mynn_diags2d,config_mynn_diags3d
  real(kind=RKIND),dimension(:),pointer  :: meshDensity
  real(kind=RKIND),dimension(:),pointer  :: ch,qsfc,rmol,skintemp
  real(kind=RKIND),dimension(:,:),pointer:: cov,qke,qsq,tsq,sh3d,sm3d,tke_pbl,qke_adv,el_pbl
@@ -616,7 +636,8 @@
        
     case("bl_mynnedmf")
        call mpas_pool_get_config(configs,'config_len_disp',len_disp)
-       call mpas_pool_get_config(configs,'config_mynn_edmf_output',config_mynn_edmf_output)
+       call mpas_pool_get_config(configs,'config_mynn_diags2d',config_mynn_diags2d)
+       call mpas_pool_get_config(configs,'config_mynn_diags3d',config_mynn_diags3d)
        call mpas_pool_get_config(configs,'config_mynn_tkebudget',config_mynn_tkebudget)
        call mpas_pool_get_array(mesh,'meshDensity',meshDensity)
 
@@ -634,7 +655,7 @@
        call mpas_pool_get_array(diag_physics,'cldfrac_bl',cldfrac_bl)
        call mpas_pool_get_array(diag_physics,'qc_bl'     ,qc_bl     )
        call mpas_pool_get_array(diag_physics,'qi_bl'     ,qi_bl     )
-       if(config_mynn_edmf_output > 0) then
+       if(config_mynn_diags3d > 0) then
           call mpas_pool_get_array(diag_physics,'edmf_a'    ,edmf_a    )
           call mpas_pool_get_array(diag_physics,'edmf_ent'  ,edmf_ent  )
           call mpas_pool_get_array(diag_physics,'edmf_qc'   ,edmf_qc   )
@@ -683,7 +704,7 @@
        enddo
        enddo
 
-       if(config_mynn_edmf_output > 0)then
+       if(config_mynn_diags3d > 0)then
          do j = jts,jte
          do k = kts,kte
          do i = its,ite
@@ -731,6 +752,22 @@
        enddo
        enddo
 
+       if(config_mynn_diags2d >= 1)then
+         do j = jts,jte
+         do i = its,ite
+            lwpbl_p(i,j)         = 0._RKIND
+            iwpbl_p(i,j)         = 0._RKIND
+            swpbl_p(i,j)         = 0._RKIND
+            cldceil_p(i,j)       = 0._RKIND
+            wspd10_p(i,j)        = 0._RKIND
+            wspd80_p(i,j)        = 0._RKIND
+            wspd160_p(i,j)       = 0._RKIND
+            maxcldfra_p(i,j)     = 0._RKIND
+            maxcldfrabl_p(i,j)   = 0._RKIND
+         enddo
+         enddo
+       endif
+      
     case default
 
  end select pbl_select
@@ -786,9 +823,11 @@
  real(kind=RKIND),dimension(:),pointer  :: delta,wstar
       
 !local pointers for MYNN scheme:
- integer,pointer:: config_mynn_tkebudget,config_mynn_edmf_output
+ integer,pointer:: config_mynn_tkebudget,config_mynn_diags2d,config_mynn_diags3d
  real(kind=RKIND),dimension(:),pointer  :: maxmf,maxwidth,ztop_plume,excess_h,excess_q
  real(kind=RKIND),dimension(:),pointer  :: maxmf_dd,maxwidth_dd,maxtkeprod_dd,cldtop_cooling,ent_eff
+ real(kind=RKIND),dimension(:),pointer  :: lwp_bl,iwp_bl,swp_bl,cldceil
+ real(kind=RKIND),dimension(:),pointer  :: wspd10,wspd80,wspd160,maxcldfra,maxcldfra_pbl
  real(kind=RKIND),dimension(:,:),pointer:: cov,qke,qsq,tsq,sh3d,sm3d,tke_pbl,qke_adv,el_pbl,dqke,qbuoy, &
                                            qdiss,qshear,qwt
  real(kind=RKIND),dimension(:,:),pointer:: cldfrac_bl,qc_bl,qi_bl
@@ -948,8 +987,9 @@
        endif
        
       case("bl_mynnedmf")
-       call mpas_pool_get_config(configs,'config_mynn_edmf_output',config_mynn_edmf_output)
        call mpas_pool_get_config(configs,'config_mynn_tkebudget',config_mynn_tkebudget)
+       call mpas_pool_get_config(configs,'config_mynn_diags2d',config_mynn_diags2d)
+       call mpas_pool_get_config(configs,'config_mynn_diags3d',config_mynn_diags3d)
        call mpas_pool_get_array(diag_physics,'maxmf'         ,maxmf         )
        call mpas_pool_get_array(diag_physics,'maxwidth'      ,maxwidth      )
        call mpas_pool_get_array(diag_physics,'ztop_plume'    ,ztop_plume    )
@@ -978,7 +1018,20 @@
        call mpas_pool_get_array(diag_physics,'cldfrac_bl'    ,cldfrac_bl    )
        call mpas_pool_get_array(diag_physics,'qc_bl'         ,qc_bl         )
        call mpas_pool_get_array(diag_physics,'qi_bl'         ,qi_bl         )
-       if(config_mynn_edmf_output > 0) then
+       if(config_mynn_diags2d > 0) then
+          call mpas_pool_get_array(diag_physics,'lwp_bl'     ,lwp_bl        )
+          call mpas_pool_get_array(diag_physics,'iwp_bl'     ,iwp_bl        )
+          call mpas_pool_get_array(diag_physics,'swp_bl'     ,swp_bl        )
+          call mpas_pool_get_array(diag_physics,'cldceil'    ,cldceil       )
+       endif
+       if(config_mynn_diags2d > 1) then
+          call mpas_pool_get_array(diag_physics,'wspd10'     ,wspd10        )
+          call mpas_pool_get_array(diag_physics,'wspd80'     ,wspd80        )
+          call mpas_pool_get_array(diag_physics,'wspd160'    ,wspd160       )
+          call mpas_pool_get_array(diag_physics,'maxcldfra'  ,maxcldfra     )
+          call mpas_pool_get_array(diag_physics,'maxcldfra_pbl',maxcldfra_pbl)
+       endif
+       if(config_mynn_diags3d > 0) then
           call mpas_pool_get_array(diag_physics,'edmf_a'     ,edmf_a        )
           call mpas_pool_get_array(diag_physics,'edmf_ent'   ,edmf_ent      )
           call mpas_pool_get_array(diag_physics,'edmf_qc'    ,edmf_qc       )
@@ -1026,7 +1079,28 @@
        enddo
        enddo
 
-       if(config_mynn_edmf_output > 0)then
+       if(config_mynn_diags2d > 0)then
+         do j = jts,jte
+         do i = its,ite
+            lwp_bl(i)      = lwpbl_p(i,j)
+            iwp_bl(i)      = iwpbl_p(i,j)
+            swp_bl(i)      = swpbl_p(i,j)
+            cldceil(i)     = cldceil_p(i,j)
+         enddo
+         enddo
+       endif
+       if(config_mynn_diags2d > 1)then
+         do j = jts,jte
+         do i = its,ite
+            wspd10(i)      = wspd10_p(i,j)
+            wspd80(i)      = wspd80_p(i,j)
+            wspd160(i)     = wspd160_p(i,j)
+            maxcldfra(i)   = maxcldfra_p(i,j)
+            maxcldfra_pbl(i)=maxcldfrabl_p(i,j)
+         enddo
+         enddo
+       endif
+       if(config_mynn_diags3d > 0)then
           do j = jts,jte
           do k = kts,kte
           do i = its,ite
@@ -1153,14 +1227,15 @@
                    bl_mynn_edmf_dd,     &
                    bl_mynn_edmf_mom,    &
                    bl_mynn_edmf_tke,    &
-                   bl_mynn_edmf_output, &
                    bl_mynn_mixscalars,  &
                    bl_mynn_mixaerosols, &
                    bl_mynn_mixnumcon,   &
                    bl_mynn_cloudmix,    &
                    bl_mynn_mixqt,       &
                    bl_mynn_ess,         &
-                   bl_mynn_tkebudget
+                   bl_mynn_tkebudget,   &
+                   bl_mynn_diags2d,     &
+                   bl_mynn_diags3d
 
  real(kind=RKIND),pointer:: bl_mynn_closure
 
@@ -1242,7 +1317,7 @@
        call mpas_pool_get_config(configs,'config_mynn_edmf_dd'    ,bl_mynn_edmf_dd    )
        call mpas_pool_get_config(configs,'config_mynn_edmf_mom'   ,bl_mynn_edmf_mom   )
        call mpas_pool_get_config(configs,'config_mynn_edmf_tke'   ,bl_mynn_edmf_tke   )
-       call mpas_pool_get_config(configs,'config_mynn_edmf_output',bl_mynn_edmf_output)
+       call mpas_pool_get_config(configs,'config_mynn_diags3d'    ,bl_mynn_diags3d    )
        call mpas_pool_get_config(configs,'config_mynn_closure'    ,bl_mynn_closure    )
        call mpas_pool_get_config(configs,'config_mynn_mixscalars' ,bl_mynn_mixscalars )
        call mpas_pool_get_config(configs,'config_mynn_mixclouds'  ,bl_mynn_cloudmix   )
@@ -1262,7 +1337,7 @@
 !      call mpas_log_write('--- config_mynn_edmf_dd     = $i',intArgs=(/bl_mynn_edmf_dd/))
 !      call mpas_log_write('--- config_mynn_edmf_mom    = $i',intArgs=(/bl_mynn_edmf_mom/))
 !      call mpas_log_write('--- config_mynn_edmf_tke    = $i',intArgs=(/bl_mynn_edmf_tke/))
-!      call mpas_log_write('--- config_mynn_edmf_output = $i',intArgs=(/bl_mynn_edmf_output/))
+!      call mpas_log_write('--- config_mynn_diags3d     = $i',intArgs=(/bl_mynn_diags3d/))
 !      call mpas_log_write('--- config_mynn_mixscalars  = $i',intArgs=(/bl_mynn_mixscalars/))
 !      call mpas_log_write('--- config_mynn_mixclouds   = $i',intArgs=(/bl_mynn_cloudmix/))
 !      call mpas_log_write('--- config_mynn_mixqt       = $i',intArgs=(/bl_mynn_mixqt/))
@@ -1328,7 +1403,7 @@
                   bl_mynn_edmf_dd    = bl_mynn_edmf_dd     ,                                              &
                   bl_mynn_edmf_mom   = bl_mynn_edmf_mom    ,                                              &
                   bl_mynn_edmf_tke   = bl_mynn_edmf_tke    ,                                              &
-                  bl_mynn_output     = bl_mynn_edmf_output ,                                              &
+                  bl_mynn_output     = bl_mynn_diags3d     ,                                              &
                   bl_mynn_mixscalars = bl_mynn_mixscalars  ,                                              &
                   bl_mynn_cloudmix   = bl_mynn_cloudmix    ,                                              &
                   bl_mynn_mixqt      = bl_mynn_mixqt       ,                                              &
@@ -1348,7 +1423,8 @@
        call mpas_pool_get_config(configs,'config_mynn_edmf_dd'    ,bl_mynn_edmf_dd    )
        call mpas_pool_get_config(configs,'config_mynn_edmf_mom'   ,bl_mynn_edmf_mom   )
        call mpas_pool_get_config(configs,'config_mynn_edmf_tke'   ,bl_mynn_edmf_tke   )
-       call mpas_pool_get_config(configs,'config_mynn_edmf_output',bl_mynn_edmf_output)
+       call mpas_pool_get_config(configs,'config_mynn_diags2d'    ,bl_mynn_diags2d    )
+       call mpas_pool_get_config(configs,'config_mynn_diags3d'    ,bl_mynn_diags3d    )
        call mpas_pool_get_config(configs,'config_mynn_closure'    ,bl_mynn_closure    )
        call mpas_pool_get_config(configs,'config_mynn_mixscalars' ,bl_mynn_mixscalars )
        call mpas_pool_get_config(configs,'config_mynn_mixaerosols',bl_mynn_mixaerosols)
@@ -1368,7 +1444,8 @@
 !      call mpas_log_write('--- config_mynn_edmf_dd     = $i',intArgs=(/bl_mynn_edmf_dd/))
 !      call mpas_log_write('--- config_mynn_edmf_mom    = $i',intArgs=(/bl_mynn_edmf_mom/))
 !      call mpas_log_write('--- config_mynn_edmf_tke    = $i',intArgs=(/bl_mynn_edmf_tke/))
-!      call mpas_log_write('--- config_mynn_edmf_output = $i',intArgs=(/bl_mynn_edmf_output/))
+!      call mpas_log_write('--- config_mynn_diags2d     = $i',intArgs=(/bl_mynn_diags2d/))
+!      call mpas_log_write('--- config_mynn_diags3d     = $i',intArgs=(/bl_mynn_diags3d/))
 !      call mpas_log_write('--- config_mynn_mixscalars  = $i',intArgs=(/bl_mynn_mixscalars/))
 !      call mpas_log_write('--- config_mynn_mixclouds   = $i',intArgs=(/bl_mynn_cloudmix/))
 !      call mpas_log_write('--- config_mynn_mixqt       = $i',intArgs=(/bl_mynn_mixqt/))
@@ -1410,7 +1487,10 @@
                   maxwidth   = maxwidthbl_p , maxmf        = maxmfbl_p      , ztop_plume    = zbl_plume_p      , &
                   excess_h   = excessh_p    , excess_q     = excessq_p      , maxwidth_dd   = maxwidth_dd_p    , &
                   maxmf_dd   = maxmf_dd_p   , maxtkeprod   = maxtkeprod_dd_p, cldtop_cooling= cldtop_cooling_p , &
-                  ent_eff    = ent_eff_p    ,                                                                    &
+                  ent_eff    = ent_eff_p    , lwp          = lwpbl_p        , iwp           = iwpbl_p          , &
+                  swp        = swpbl_p      , cldceil      = cldceil_p      , wspd10        = wspd10_p         , &
+                  wspd80     = wspd80_p     , wspd160      = wspd160_p      , maxcldfra     = maxcldfra_p      , &
+                  maxcldfra_pbl = maxcldfrabl_p ,                                                                &
                   qke        = qke_p        , qke_adv      = qkeadv_p       ,                                    &
                   tsq        = tsq_p        , qsq          = qsq_p          , cov           = cov_p            , &
                   el_pbl     = elpbl_p      , rublten      = rublten_p      , rvblten       = rvblten_p        , &
@@ -1436,7 +1516,8 @@
                   bl_mynn_edmf_dd    = bl_mynn_edmf_dd     ,                                              &
                   bl_mynn_edmf_mom   = bl_mynn_edmf_mom    ,                                              &
                   bl_mynn_edmf_tke   = bl_mynn_edmf_tke    ,                                              &
-                  bl_mynn_output     = bl_mynn_edmf_output ,                                              &
+                  bl_mynn_diags2d    = bl_mynn_diags2d     ,                                              &
+                  bl_mynn_diags3d    = bl_mynn_diags3d     ,                                              &
                   bl_mynn_mixscalars = bl_mynn_mixscalars  ,                                              &
                   bl_mynn_mixaerosols= bl_mynn_mixaerosols ,                                              &
                   bl_mynn_mixnumcon  = bl_mynn_mixnumcon   ,                                              &

@@ -475,7 +475,8 @@
                 <package name="bl_mynn_in" description="parameterization of MYNN Planetary Boundary Layer."/>
                 <package name="bl_mynnedmf_in" description="parameterization of MYNN-EDMF Planetary Boundary Layer."/>
                 <package name="bl_mynnedmf_tkebudget_in" description="TKE budget variables for output in MYNN-EDMF."/>
-                <package name="bl_mynnedmf_output_in" description="additional diagnostic variables output in MYNN-EDMF."/>
+                <package name="bl_mynn_diags2d_in" description="additional 2D diagnostic variables output in MYNN-EDMF."/>
+                <package name="bl_mynn_diags3d_in" description="additional 3D diagnostic variables output in MYNN-EDMF."/>
                 <package name="sf_noahmp_in" description="parameterization of NOAH-MP land surface scheme."/>
 
                 <package name="iau" description="Incremental Analysis Update"/>
@@ -1128,19 +1129,27 @@
 			<var name="t2m"/>
 			<var name="th2m"/>
 			<var name="cldfrac_bl"/>
-                        <var name="qc_bl"/>
-                        <var name="qi_bl"/>
+			<var name="qc_bl"/>
+			<var name="qi_bl"/>
 			<var name="maxmf"/>
-                        <var name="maxwidth"/>
-                        <var name="ztop_plume"/>
+			<var name="maxwidth"/>
+			<var name="ztop_plume"/>
 			<var name="excess_h"/>
-                        <var name="excess_q"/>
-                        <var name="maxmf_dd"/>
-                        <var name="maxwidth_dd"/>
-                        <var name="maxtkeprod_dd"/>
+			<var name="excess_q"/>
+			<var name="maxmf_dd"/>
+			<var name="maxwidth_dd"/>
+			<var name="maxtkeprod_dd"/>
 			<var name="cldtop_cooling"/>
-                        <var name="ent_eff"/>
-                        <var name="hpbl"/>
+			<var name="lwp_bl"/>
+			<var name="iwp_bl"/>
+			<var name="swp_bl"/>
+			<var name="wspd10"/>
+			<var name="wspd80"/>
+			<var name="wspd160"/>
+			<var name="cldceil"/>
+			<var name="maxcldfra"/>
+			<var name="maxcldfra_pbl"/>
+			<var name="hpbl"/>
 #endif
 
                         <!-- Begin convective diagnostics defined in diagnostics/Registry_convective.xml -->
@@ -1292,19 +1301,19 @@
 			<var name="rainc"/>
 			<var name="rainnc"/>
 			<var name="sh3d"/>
-                        <var name="sm3d"/>
-                        <var name="qke"/>
-                        <var name="qke_adv"/>
-                        <var name="cov"/>
-                        <var name="qsq"/>
-                        <var name="tsq"/>
-                        <var name="el_pbl"/>
+			<var name="sm3d"/>
+			<var name="qke"/>
+			<var name="qke_adv"/>
+			<var name="cov"/>
+			<var name="qsq"/>
+			<var name="tsq"/>
+			<var name="el_pbl"/>
 			<var name="cldfrac_bl"/>
-                        <var name="qc_bl"/>
-                        <var name="qi_bl"/>
-                        <var name="ch"/>
-                        <var name="kpbl"/>
-                        <var name="hpbl"/>
+			<var name="qc_bl"/>
+			<var name="qi_bl"/>
+			<var name="ch"/>
+			<var name="kpbl"/>
+			<var name="hpbl"/>
 			<var name="lai"/>
 			<var name="isice_lu"/>
 			<var name="iswater_lu"/>
@@ -2536,7 +2545,12 @@
                      description="=1:activate TKE transport with the EDMF option of the MYNN PBL scheme (=0 otherwise)"
                      possible_values="0,1"/>
 
-                <nml_option name="config_mynn_edmf_output" type="integer" default_value="0" in_defaults="false"
+		<nml_option name="config_mynn_diags2d" type="integer" default_value="0" in_defaults="false"
+                     units="-"
+                     description="=control the allocation/output of 2d diagnostics used in the the MYNN-EDMF scheme"
+                     possible_values="0:do not allocate/output,1:realtime diags,2:additional research diags"/>
+		
+                <nml_option name="config_mynn_diags3d" type="integer" default_value="0" in_defaults="false"
                      units="-"
                      description="=control the allocation/output of variables used in the MF component of the MYNN-EDMF scheme"
                      possible_values="0:do not allocate/output,1:updrafts,2:downdrafts"/>
@@ -2906,43 +2920,43 @@
 
                 <var name="edmf_a" type="real" dimensions="nVertLevels nCells Time" units="unitless"
                      description="EDMF relative updraft area of moist updrafts in the MYNN PBL scheme"
-                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
+                     packages="bl_mynn_in;bl_mynn_diags3d_in"/>
 
                 <var name="edmf_w" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
                      description="EDMF vertical velocity of  moist updrafts in the MYNN PBL scheme"
-                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
+                     packages="bl_mynn_in;bl_mynn_diags3d_in"/>
 
                 <var name="edmf_qt" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
                      description="EDMF total water mixing ratio in moist updrafts in the MYNN PBL scheme"
-                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
+                     packages="bl_mynn_in;bl_mynn_diags3d_in"/>
 
                 <var name="edmf_qc" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
                      description="EDMF liquid water mixing ratio in moist updrafts in the MYNN PBL scheme"
-                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
+                     packages="bl_mynn_in;bl_mynn_diags3d_in"/>
 
                 <var name="edmf_thl" type="real" dimensions="nVertLevels nCells Time" units="K"
                      description="EDMF liquid-ice water potential temperature in moist updrafts in the MYNN PBL scheme"
-                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
+                     packages="bl_mynn_in;bl_mynn_diags3d_in"/>
 
                 <var name="edmf_ent" type="real" dimensions="nVertLevels nCells Time" units="m^{-1}"
                      description="EDMF entrainment rate in moist updrafts in the MYNN PBL scheme"
-                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
+                     packages="bl_mynn_in;bl_mynn_diags3d_in"/>
 
                 <var name="sub_thl" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
                      description="EDMF subsidence of liquid-ice potential temperature in the MYNN PBL scheme"
-                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
+                     packages="bl_mynn_in;bl_mynn_diags3d_in"/>
 
                 <var name="sub_qv" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="EDMF subsidence of water vapor mixing ratio in the MYNN PBL scheme"
-                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
+                     packages="bl_mynn_in;bl_mynn_diags3d_in"/>
 
                 <var name="det_thl" type="real" dimensions="nVertLevels nCells Time" units="K s^{-1}"
                      description="EDMF detrainment of liquid-ice potential temperature in the MYNN PBL scheme"
-                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
+                     packages="bl_mynn_in;bl_mynn_diags3d_in"/>
 
                 <var name="det_qv" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="EDMF detrainment of water vapor mixing ratio in the MYNN PBL scheme"
-                     packages="bl_mynn_in;bl_mynnedmf_output_in"/>
+                     packages="bl_mynn_in;bl_mynn_diags3d_in"/>
 
 		<var name="maxmf" type="real" dimensions="nCells Time" units="m s^{-1}"
                      description="Maximum mass flux in the each column"
@@ -2983,6 +2997,42 @@
                 <var name="ent_eff" type="real" dimensions="nCells Time" units=""
                      description="Entrainment efficiency"
                      packages="bl_mynnedmf_in"/>
+
+		<var name="lwp_bl" type="real" dimensions="nCells Time" units=""
+                     description="liquid water path including pbl sgs clouds"
+                     packages="bl_mynn_diags2d_in"/>
+
+		<var name="iwp_bl" type="real" dimensions="nCells Time" units=""
+                     description="ice water path including pbl sgs clouds"
+                     packages="bl_mynn_diags2d_in"/>
+
+		<var name="swp_bl" type="real" dimensions="nCells Time" units=""
+                     description="water path including pbl sgs clouds"
+                     packages="bl_mynn_diags2d_in"/>
+
+		<var name="wspd10" type="real" dimensions="nCells Time" units=""
+                     description="wind speed interpolated to 10 m"
+                     packages="bl_mynn_diags2d_in"/>
+
+		<var name="wspd80" type="real" dimensions="nCells Time" units=""
+                     description="wind speed interpolated to 80 m"
+                     packages="bl_mynn_diags2d_in"/>
+
+		<var name="wspd160" type="real" dimensions="nCells Time" units=""
+                     description="wind speed interpolated to 160 m"
+                     packages="bl_mynn_diags2d_in"/>
+
+		<var name="cldceil" type="real" dimensions="nCells Time" units=""
+                     description="diagnosed cloud ceiling using pbl sgs clouds"
+                     packages="bl_mynn_diags2d_in"/>
+
+		<var name="maxcldfra" type="real" dimensions="nCells Time" units=""
+                     description="max cloud fraction in the column"
+                     packages="bl_mynn_diags2d_in"/>
+
+		<var name="maxcldfra_pbl" type="real" dimensions="nCells Time" units=""
+                     description="max cloud fraction between the surface and pblh + 1km"
+                     packages="bl_mynn_diags2d_in"/>
 
 
                 <!-- ================================================================================================== -->
