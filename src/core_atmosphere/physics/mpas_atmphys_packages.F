@@ -37,11 +37,12 @@
  character(len=StrKIND),pointer:: config_convection_scheme
  character(len=StrKIND),pointer:: config_pbl_scheme
  character(len=StrKIND),pointer:: config_lsm_scheme
- integer,pointer:: config_mynn_tkebudget,config_mynn_diags2d,config_mynn_diags3d
+ integer,pointer:: config_mynn_tkebudget,config_mynn_diags3d,config_mynn_diags2d
  logical,pointer:: mp_kessler_in,mp_thompson_in,mp_thompson_aers_in,mp_wsm6_in
  logical,pointer:: cu_grell_freitas_in,cu_kain_fritsch_in,cu_ntiedtke_in
  logical,pointer:: bl_mynn_in,bl_mynnedmf_in,bl_ysu_in
- logical,pointer:: bl_mynnedmf_tkebudget_in,bl_mynn_diags2d_in,bl_mynn_diags3d_in
+ logical,pointer:: bl_mynnedmf_tkebudget_in,bl_mynn_diags3d_in
+ logical,pointer:: bl_mynn_diags2d_in,bl_mynn_diags2dextra_in     
  logical,pointer:: sf_noahmp_in
 
  integer :: ierr
@@ -161,6 +162,9 @@
  nullify(bl_mynn_diags2d_in)
  call mpas_pool_get_package(packages,'bl_mynn_diags2d_inActive',bl_mynn_diags2d_in)
 
+ nullify(bl_mynn_diags2dextra_in)
+ call mpas_pool_get_package(packages,'bl_mynn_diags2dextra_inActive',bl_mynn_diags2dextra_in)
+      
  nullify(bl_mynn_diags3d_in)
  call mpas_pool_get_package(packages,'bl_mynn_diags3d_inActive',bl_mynn_diags3d_in)
       
@@ -170,6 +174,7 @@
  if(.not.associated(bl_mynn_in) .or. &
     .not.associated(bl_mynnedmf_in) .or. &
     .not.associated(bl_mynn_diags2d_in) .or. &
+    .not.associated(bl_mynn_diags2dextra_in) .or. &  
     .not.associated(bl_mynn_diags3d_in) .or. &
     .not.associated(bl_mynnedmf_tkebudget_in) .or. &
     .not.associated(bl_ysu_in)) then
@@ -183,6 +188,7 @@
  bl_mynn_in = .false.
  bl_mynnedmf_in = .false.
  bl_mynn_diags2d_in = .false.
+ bl_mynn_diags2dextra_in = .false.     
  bl_mynn_diags3d_in = .false.
  bl_mynnedmf_tkebudget_in = .false.
  bl_ysu_in  = .false.
@@ -192,6 +198,7 @@
  elseif(config_pbl_scheme == 'bl_mynnedmf') then
     bl_mynnedmf_in = .true.
     if(config_mynn_diags2d >=1) bl_mynn_diags2d_in = .true.
+    if(config_mynn_diags2d >=2) bl_mynn_diags2dextra_in = .true.  
     if(config_mynn_diags3d >=1) bl_mynn_diags3d_in = .true.
     if(config_mynn_tkebudget ==1) bl_mynnedmf_tkebudget_in = .true.
  elseif(config_pbl_scheme == 'bl_ysu') then
@@ -201,6 +208,7 @@
  call mpas_log_write('    bl_mynn_in              = $l', logicArgs=(/bl_mynn_in/))
  call mpas_log_write('    bl_mynnedmf_in          = $l', logicArgs=(/bl_mynnedmf_in/))
  call mpas_log_write('    bl_mynn_diags2d_in      = $l', logicArgs=(/bl_mynn_diags2d_in/))
+ call mpas_log_write('    bl_mynn_diags2dextra_in = $l', logicArgs=(/bl_mynn_diags2dextra_in/))     
  call mpas_log_write('    bl_mynn_diags3d_in      = $l', logicArgs=(/bl_mynn_diags3d_in/))
  call mpas_log_write('    bl_mynnedmf_tkebudget_in= $l', logicArgs=(/bl_mynnedmf_tkebudget_in/))
  call mpas_log_write('    bl_ysu_in               = $l', logicArgs=(/bl_ysu_in/))

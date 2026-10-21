@@ -432,12 +432,12 @@
     cldtop_cooling_p, &!maximum net cooling at boundary layer cloud top                                     [K/hr]
     ent_eff_p,        &!entrainment efficiency
     lwpbl_p,          &!liquid water path (resolved + bl clouds)                                            [g/m2]
-    iwpbl_p,	      &!ice water path (resolved + bl clouds)                                               [g/m2]
-    swpbl_p,	      &!snow water path (resolved + bl clouds)                                              [g/m2]
-    cldceil_p,	      &!cloud ceiling (using resolved + bl clouds) from MYNN                                   [m]
-    wspd10_p,	      &!wind speed interpolated to 10m                                                       [m/s]
-    wspd80_p,	      &!wind speed interpolated to 80m                                                       [m/s]
-    wspd160_p,	      &!wind speed interpolated to 160m                                                      [m/s]
+    iwpbl_p,          &!ice water path (resolved + bl clouds)                                               [g/m2]
+    swpbl_p,          &!snow water path (resolved + bl clouds)                                              [g/m2]
+    cldceil_p,        &!cloud ceiling (using resolved + bl clouds) from MYNN                                   [m]
+    wspd10_p,         &!wind speed interpolated to 10m                                                       [m/s]
+    wspd80_p,         &!wind speed interpolated to 80m                                                       [m/s]
+    wspd160_p,        &!wind speed interpolated to 160m                                                      [m/s]
     maxcldfra_p,      &!maximum cloud fraction in the column (from MYNN)                                       [-]
     maxcldfrabl_p      !maximum cloud fraction between surface and pblh + 1km (from MYNN)                      [-]
       

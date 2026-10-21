@@ -476,6 +476,7 @@
                 <package name="bl_mynnedmf_in" description="parameterization of MYNN-EDMF Planetary Boundary Layer."/>
                 <package name="bl_mynnedmf_tkebudget_in" description="TKE budget variables for output in MYNN-EDMF."/>
                 <package name="bl_mynn_diags2d_in" description="additional 2D diagnostic variables output in MYNN-EDMF."/>
+                <package name="bl_mynn_diags2dextra_in" description="research mode 2D diagnostic variables output in MYNN-EDMF."/>
                 <package name="bl_mynn_diags3d_in" description="additional 3D diagnostic variables output in MYNN-EDMF."/>
                 <package name="sf_noahmp_in" description="parameterization of NOAH-MP land surface scheme."/>
 
@@ -2547,7 +2548,7 @@
 
 		<nml_option name="config_mynn_diags2d" type="integer" default_value="0" in_defaults="false"
                      units="-"
-                     description="=control the allocation/output of 2d diagnostics used in the the MYNN-EDMF scheme"
+                     description="=control the allocation/output of 2d diagnostics used in the MYNN-EDMF scheme"
                      possible_values="0:do not allocate/output,1:realtime diags,2:additional research diags"/>
 		
                 <nml_option name="config_mynn_diags3d" type="integer" default_value="0" in_defaults="false"
@@ -2994,45 +2995,45 @@
                      description="Maximum cooling at boundary layer cloud top"
                      packages="bl_mynnedmf_in"/>
 
-                <var name="ent_eff" type="real" dimensions="nCells Time" units=""
+                <var name="ent_eff" type="real" dimensions="nCells Time" units="unitless"
                      description="Entrainment efficiency"
                      packages="bl_mynnedmf_in"/>
 
-		<var name="lwp_bl" type="real" dimensions="nCells Time" units=""
+		<var name="lwp_bl" type="real" dimensions="nCells Time" units="g m-2"
                      description="liquid water path including pbl sgs clouds"
                      packages="bl_mynn_diags2d_in"/>
 
-		<var name="iwp_bl" type="real" dimensions="nCells Time" units=""
+		<var name="iwp_bl" type="real" dimensions="nCells Time" units="g m-2"
                      description="ice water path including pbl sgs clouds"
                      packages="bl_mynn_diags2d_in"/>
 
-		<var name="swp_bl" type="real" dimensions="nCells Time" units=""
-                     description="water path including pbl sgs clouds"
+		<var name="swp_bl" type="real" dimensions="nCells Time" units="g m-2"
+                     description="snow water path"
                      packages="bl_mynn_diags2d_in"/>
 
-		<var name="wspd10" type="real" dimensions="nCells Time" units=""
+		<var name="wspd10" type="real" dimensions="nCells Time" units="m s-1"
                      description="wind speed interpolated to 10 m"
-                     packages="bl_mynn_diags2d_in"/>
+                     packages="bl_mynn_diags2dextra_in"/>
 
-		<var name="wspd80" type="real" dimensions="nCells Time" units=""
+		<var name="wspd80" type="real" dimensions="nCells Time" units="m s-1"
                      description="wind speed interpolated to 80 m"
-                     packages="bl_mynn_diags2d_in"/>
+                     packages="bl_mynn_diags2dextra_in"/>
 
-		<var name="wspd160" type="real" dimensions="nCells Time" units=""
+		<var name="wspd160" type="real" dimensions="nCells Time" units="m s-1"
                      description="wind speed interpolated to 160 m"
-                     packages="bl_mynn_diags2d_in"/>
+                     packages="bl_mynn_diags2dextra_in"/>
 
-		<var name="cldceil" type="real" dimensions="nCells Time" units=""
+		<var name="cldceil" type="real" dimensions="nCells Time" units="m"
                      description="diagnosed cloud ceiling using pbl sgs clouds"
                      packages="bl_mynn_diags2d_in"/>
 
-		<var name="maxcldfra" type="real" dimensions="nCells Time" units=""
+		<var name="maxcldfra" type="real" dimensions="nCells Time" units="fraction"
                      description="max cloud fraction in the column"
-                     packages="bl_mynn_diags2d_in"/>
+                     packages="bl_mynn_diags2dextra_in"/>
 
-		<var name="maxcldfra_pbl" type="real" dimensions="nCells Time" units=""
+		<var name="maxcldfra_pbl" type="real" dimensions="nCells Time" units="fraction"
                      description="max cloud fraction between the surface and pblh + 1km"
-                     packages="bl_mynn_diags2d_in"/>
+                     packages="bl_mynn_diags2dextra_in"/>
 
 
                 <!-- ================================================================================================== -->
