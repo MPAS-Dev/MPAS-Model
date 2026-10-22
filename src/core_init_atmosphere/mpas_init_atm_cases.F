@@ -68,6 +68,7 @@ module init_atm_cases
       logical, pointer :: config_static_interp
       logical, pointer :: config_native_gwd_static
       logical, pointer :: config_native_gwd_gsl_static
+      logical, pointer :: config_vertical_grid
       logical, pointer :: config_met_interp
       logical, pointer :: config_blend_bdy_terrain
       character (len=StrKIND), pointer :: config_start_time
@@ -178,6 +179,7 @@ module init_atm_cases
             call mpas_pool_get_config(block_ptr % configs, 'config_static_interp', config_static_interp)
             call mpas_pool_get_config(block_ptr % configs, 'config_native_gwd_static', config_native_gwd_static)
             call mpas_pool_get_config(block_ptr % configs, 'config_native_gwd_gsl_static', config_native_gwd_gsl_static)
+            call mpas_pool_get_config(block_ptr % configs, 'config_vertical_grid', config_vertical_grid)
             call mpas_pool_get_config(block_ptr % configs, 'config_met_interp', config_met_interp)
             call mpas_pool_get_config(block_ptr % configs, 'config_blend_bdy_terrain', config_blend_bdy_terrain)
 
@@ -199,7 +201,7 @@ module init_atm_cases
             !     bdyMaskCell, and ter arguments are not used -- only the config_met_prefix and config_start_time
             !     arguments are used.
             !
-            if (config_blend_bdy_terrain) then
+            if (config_blend_bdy_terrain .and. config_vertical_grid) then
                 call mpas_pool_get_config(block_ptr % configs, 'config_start_time', config_start_time)
                 call mpas_pool_get_config(block_ptr % configs, 'config_met_prefix', config_met_prefix)
 
@@ -2994,6 +2996,8 @@ module init_atm_cases
       p0 = 1.e+05
 
 
+      if (config_vertical_grid) then
+
       !
       ! If requested, blend the terrain along the domain boundaries with terrain from
       ! an intermediate file. For global domains, this routine will have no effect even
@@ -3011,8 +3015,6 @@ module init_atm_cases
          end if
       end if
 
-
-      if (config_vertical_grid) then
 
       !
       ! Vertical grid setup
