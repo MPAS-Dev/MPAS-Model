@@ -83,6 +83,7 @@ module mpas_framework
    subroutine mpas_framework_init_phase2(domain, io_system, calendar)!{{{
 
       use mpas_log, only : mpas_log_write
+      use mpas_log_ext
       use mpas_derived_types, only : MPAS_LOG_CRIT
 
       implicit none
@@ -100,6 +101,9 @@ module mpas_framework
       integer, pointer :: config_pio_num_iotasks, config_pio_stride
       integer :: pio_num_iotasks
       integer :: pio_stride
+
+      ! Initialize log extensions
+      call mpas_log_ext_init( domain )
 
       call mpas_timer_init(domain)
 

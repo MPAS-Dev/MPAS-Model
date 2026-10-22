@@ -1,4 +1,4 @@
-.SUFFIXES: .F .c .o
+.SUFFIXES: .F .c .o .cpp
 
 DEPS := $(shell find ../core_$(CORE)/ -type f -name "*.xml" ! -name "*processed.xml")
 TYPE_DEPS := $(shell find . -type f -name "*_types.inc")
@@ -34,12 +34,16 @@ OBJS = mpas_kind_types.o \
        xml_stream_parser.o \
        regex_matching.o \
        mpas_log.o \
+       mpas_log_ext.o \
        mpas_halo.o \
        mpas_string_utils.o \
        mpas_ptscotch_interface.o \
        ptscotch_interface.o \
+       string.o \
        mpas_stream_inquiry.o \
-       stream_inquiry.o
+       stream_inquiry.o \
+       mpas_debug_spec_handler.o \
+       DebugSpecHandler.o
 
 all: framework $(DEPS)
 
@@ -57,13 +61,17 @@ mpas_framework.o: mpas_dmpar.o \
                   mpas_io_units.o \
                   mpas_block_decomp.o \
                   mpas_stream_manager.o \
-                  mpas_c_interfacing.o
+                  mpas_c_interfacing.o \
+                  mpas_log.o \
+                  mpas_log_ext.o
 
 mpas_abort.o: mpas_kind_types.o mpas_io_units.o mpas_threading.o
 
 mpas_constants.o: mpas_kind_types.o
 
-mpas_log.o: mpas_derived_types.o mpas_io_units.o mpas_abort.o mpas_threading.o mpas_c_interfacing.o
+mpas_log.o: mpas_derived_types.o mpas_io_units.o mpas_abort.o mpas_threading.o mpas_c_interfacing.o mpas_debug_spec_handler.o
+
+mpas_log_ext.o : mpas_log.o mpas_pool_routines.o mpas_debug_spec_handler.o
 
 mpas_attlist.o: mpas_kind_types.o mpas_io_units.o mpas_derived_types.o
 
@@ -135,3 +143,6 @@ endif
 
 .c.o:
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(CPPINCLUDES) -I../external/ezxml -c $<
+
+.cpp.o:
+	$(CXX) $(CXXFLAGS) -c $*.cpp $(CXINCLUDES) $(CPPINCLUDES) -lmpi_cxx -lstdc++ $(CPPFLAGS)

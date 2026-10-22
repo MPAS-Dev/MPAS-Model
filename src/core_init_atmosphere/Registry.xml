@@ -374,6 +374,14 @@
 
         </nml_record>
 
+        <nml_record name="development" in_defaults="false">
+                <nml_option name="debug_specs" type="character" default_value="0"
+                     units="-"
+                     description="Adjust debug specifications for debug purposes"
+                     possible_values="Series of [a single number or series of tags delimited by ::] then delimited by , e.g 2, module_io.F::9"
+                     />
+        </nml_record>
+
 
 <!-- **************************************************************************************** -->
 <!-- **************************************  Packages  ************************************** -->
