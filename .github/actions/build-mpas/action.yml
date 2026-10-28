@@ -93,13 +93,15 @@ runs:
           esac
         fi
 
-        # Set up I/O configuration
+        # Set up I/O configuration. The container sets PIO; the MPAS Makefile
+        # builds with PIO when it is set and with SMIOL when it is not.
         if [ "${{ inputs.use-pio }}" = "true" ]; then
-          export PIO_ROOT=${PIO_ROOT:-/container/pio}
-          export USE_PIO2=true
+          if [ -z "${PIO}" ]; then
+            echo "::error::use-pio is true but PIO is not set by the container environment"
+            exit 1
+          fi
         else
           unset PIO
-          export USE_PIO2=false
         fi
 
         # Set up accelerator configuration
@@ -113,7 +115,7 @@ runs:
         echo "  COMPILER_FAMILY: ${COMPILER_FAMILY}"
         echo "  NETCDF: ${NETCDF:-not set}"
         echo "  PNETCDF: ${PNETCDF:-not set}"
-        echo "  USE_PIO2: ${USE_PIO2}"
+        echo "  PIO: ${PIO:-not set}"
         echo "  OPENACC: ${OPENACC:-false}"
         echo "  PRECISION: ${{ inputs.precision }}"
 

@@ -11,7 +11,7 @@
 #   ARCH             NVHPC target arch flag that was applied (empty = none)
 #   CLEAN_CMD        clean command run before the build (empty = none)
 #   MAKE_CMD         the build command
-# NETCDF, PNETCDF and PIO_ROOT come from the container environment.
+# NETCDF, PNETCDF and PIO come from the container environment.
 
 # First non-empty line of a command's output, or "not found"
 v() { command -v "$1" >/dev/null 2>&1 || { echo "not found"; return 0; }; { "$@" 2>&1 || true; } | grep -m1 . || true; }
@@ -40,7 +40,7 @@ echo "NetCDF-C:        $(v nc-config --version)"
 echo "NetCDF-Fortran:  $(v nf-config --version)"
 echo "PnetCDF:         $(v pnetcdf-config --version)"
 if [ "${USE_PIO}" = "true" ]; then
-  echo "I/O layer:       PIO (${PIO_ROOT})"
+  echo "I/O layer:       PIO (${PIO})"
 else
   echo "I/O layer:       SMIOL (in-tree)"
 fi
