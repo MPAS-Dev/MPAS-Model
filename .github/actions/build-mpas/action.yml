@@ -24,7 +24,7 @@ inputs:
   build-timeout:
     description: 'Build timeout in minutes'
     required: false
-    default: '20'
+    default: '30'
   make-target:
     description: 'Make target to build. Empty = look up MAKE_TARGET_<compiler> in ci-config.env'
     required: false
