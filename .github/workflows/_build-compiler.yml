@@ -1,6 +1,6 @@
 # Reusable workflow: build the MPAS-A cores for a single compiler + MPI.
 # The I/O layer (smiol or pio) and precision (single or double) are inputs;
-# the defaults are smiol and double. Both cores are built in one source
+# the defaults are smiol and single. Both cores are built in one source
 # tree, in sequence: atmosphere first, then init_atmosphere.
 # Called by per-compiler workflows (e.g. build-gcc-mpich.yml).
 # Build only: no model runs and no validation.
@@ -30,7 +30,7 @@ on:
         description: 'Floating-point precision (single, double)'
         required: false
         type: string
-        default: 'double'
+        default: 'single'
 
 jobs:
   config:
