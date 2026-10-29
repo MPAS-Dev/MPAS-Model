@@ -29,10 +29,6 @@ inputs:
     description: 'Make target to build. Empty = look up MAKE_TARGET_<compiler> in ci-config.env'
     required: false
     default: ''
-  make-flags:
-    description: 'Extra make arguments for this build (e.g. "OPENMP=true"), added after the compiler defaults from ci-config.env'
-    required: false
-    default: ''
   use-target-arch:
     description: 'NVHPC only: add NVHPC_TARGET_ARCH from ci-config.env to the build flags (true/false). Use false for performance runs.'
     required: false
@@ -59,7 +55,6 @@ runs:
       shell: bash
       env:
         INPUT_MAKE_TARGET: ${{ inputs.make-target }}
-        INPUT_MAKE_FLAGS: ${{ inputs.make-flags }}
       run: |
         # Source container environment if available
         # This sets NETCDF, PNETCDF, PIO, and other library paths
@@ -163,12 +158,9 @@ runs:
         fi
 
         # Compiler defaults from ci-config.env (<FAMILY>_EXTRA_MAKE_FLAGS, family in
-        # upper case), then the make-flags input
+        # upper case)
         FLAGS_VAR="${COMPILER_FAMILY^^}_EXTRA_MAKE_FLAGS"
         EXTRA_MAKE_FLAGS="${!FLAGS_VAR}"
-        if [ -n "${INPUT_MAKE_FLAGS}" ]; then
-          EXTRA_MAKE_FLAGS="${EXTRA_MAKE_FLAGS:+${EXTRA_MAKE_FLAGS} }${INPUT_MAKE_FLAGS}"
-        fi
 
         echo "  Make target: ${MAKE_TARGET}"
         echo "  Extra make flags: ${EXTRA_MAKE_FLAGS:-<none>}"
