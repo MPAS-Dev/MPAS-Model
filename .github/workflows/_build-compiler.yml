@@ -1,0 +1,143 @@
+# Reusable workflow: build the MPAS-A cores for a single compiler + MPI.
+# The I/O layer (smiol or pio) and precision (single or double) are inputs;
+# the defaults are smiol and single. Both cores are built in one source
+# tree, in sequence: atmosphere first, then init_atmosphere.
+# Called by per-compiler workflows (e.g. build-gcc-mpich.yml).
+# Build only: no model runs and no validation.
+
+name: _build-compiler
+
+permissions:
+  contents: read
+
+on:
+  workflow_call:
+    inputs:
+      compiler:
+        description: 'Compiler family (gcc, nvhpc, oneapi)'
+        required: true
+        type: string
+      mpi:
+        description: 'MPI implementation (mpich, openmpi)'
+        required: true
+        type: string
+      io:
+        description: 'I/O layer (smiol, pio)'
+        required: false
+        type: string
+        default: 'smiol'
+      precision:
+        description: 'Floating-point precision (single, double)'
+        required: false
+        type: string
+        default: 'single'
+
+jobs:
+  config:
+    name: Resolve Config
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    outputs:
+      image: ${{ steps.container.outputs.image }}
+      sha: ${{ steps.sha.outputs.short }}
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          sparse-checkout: .github
+          persist-credentials: false
+      - uses: ./.github/actions/resolve-container
+        id: container
+        with:
+          compiler: ${{ inputs.compiler }}
+          mpi: ${{ inputs.mpi }}
+      - name: Check inputs
+        shell: bash
+        env:
+          IO: ${{ inputs.io }}
+          PRECISION: ${{ inputs.precision }}
+        run: |
+          case "${IO}" in smiol|pio) ;; *) echo "::error::io must be smiol or pio (got '${IO}')"; exit 1 ;; esac
+          case "${PRECISION}" in single|double) ;; *) echo "::error::precision must be single or double (got '${PRECISION}')"; exit 1 ;; esac
+      - name: Short commit SHA (PR head for pull requests)
+        id: sha
+        shell: bash
+        env:
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: echo "short=${SHA::7}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: config
+    name: Build atmosphere + init_atmosphere (${{ inputs.compiler }}, ${{ inputs.mpi }}, ${{ inputs.io }}, ${{ inputs.precision }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    container:
+      image: ${{ needs.config.outputs.image }}
+
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          submodules: 'true'
+          persist-credentials: false
+
+      # atmosphere first: it is the more likely to fail
+      - name: Build atmosphere (${{ inputs.precision }} precision, ${{ inputs.io }})
+        id: atmosphere
+        uses: ./.github/actions/build-mpas
+        with:
+          compiler: ${{ inputs.compiler }}
+          core: atmosphere
+          use-pio: ${{ inputs.io == 'pio' && 'true' || 'false' }}
+          precision: ${{ inputs.precision }}
+          log-file: build-atmosphere.log
+
+      # Same source tree: clean atmosphere, then build init_atmosphere.
+      # Skipped (not failed) if the atmosphere build failed.
+      - name: Build init_atmosphere (${{ inputs.precision }} precision, ${{ inputs.io }})
+        id: init_atmosphere
+        uses: ./.github/actions/build-mpas
+        with:
+          compiler: ${{ inputs.compiler }}
+          core: init_atmosphere
+          clean-core: atmosphere
+          use-pio: ${{ inputs.io == 'pio' && 'true' || 'false' }}
+          precision: ${{ inputs.precision }}
+          log-file: build-init_atmosphere.log
+
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          summarize() {  # core, step outcome, executable path
+            local core="$1" outcome="$2" exe="$3" log="build-$1.log"
+            if [ "${outcome}" = "success" ]; then
+              echo "✅ **${core}**: built $(basename "${exe}") (${{ inputs.compiler }}, ${{ inputs.mpi }}, ${{ inputs.io }}, ${{ inputs.precision }})"
+            elif [ "${outcome}" = "skipped" ]; then
+              echo "⏭️ **${core}**: skipped"
+            else
+              echo "❌ **${core}**: build failed (${{ inputs.compiler }}, ${{ inputs.mpi }}, ${{ inputs.io }}, ${{ inputs.precision }})"
+            fi
+            if [ -f "${log}" ]; then
+              echo "<details><summary>${core}: build environment and command</summary>"
+              echo
+              echo '```'
+              sed -n '/^==== Build environment/,/^==== End build environment/p' "${log}"
+              echo '```'
+              echo "</details>"
+              echo
+            fi
+          }
+          {
+            summarize atmosphere "${{ steps.atmosphere.outcome }}" "${{ steps.atmosphere.outputs.executable }}"
+            summarize init_atmosphere "${{ steps.init_atmosphere.outcome }}" "${{ steps.init_atmosphere.outputs.executable }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: build-logs-${{ needs.config.outputs.sha }}-${{ inputs.compiler }}-${{ inputs.mpi }}-${{ inputs.io }}-${{ inputs.precision }}
+          path: |
+            build-atmosphere.log
+            build-init_atmosphere.log
+          if-no-files-found: ignore
+          retention-days: 7
