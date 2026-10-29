@@ -227,6 +227,8 @@
        if(.not.allocated(ch_p)   ) allocate(ch_p(ims:ime,jms:jme)   )
        if(.not.allocated(cqs_p)  ) allocate(cqs_p(ims:ime,jms:jme)  )
        if(.not.allocated(qcg_p)  ) allocate(qcg_p(ims:ime,jms:jme)  )
+       if(.not.allocated(uoce_p) ) allocate(uoce_p(ims:ime,jms:jme) )
+       if(.not.allocated(voce_p) ) allocate(voce_p(ims:ime,jms:jme) )
        if(config_frac_seaice) then
           if(.not.allocated(ch_sea) ) allocate(ch_sea(ims:ime,jms:jme) )
           if(.not.allocated(cqs_sea)) allocate(cqs_sea(ims:ime,jms:jme))
@@ -359,6 +361,8 @@
        if(allocated(ch_p)   ) deallocate(ch_p   )
        if(allocated(cqs_p)  ) deallocate(cqs_p  )
        if(allocated(qcg_p)  ) deallocate(qcg_p  )
+       if(allocated(uoce_p) ) deallocate(uoce_p )
+       if(allocated(voce_p) ) deallocate(voce_p )
        if(config_frac_seaice) then
           if(allocated(ch_sea)) deallocate(ch_sea)
        endif
@@ -622,6 +626,8 @@
           !inout variables:
           ch_p(i,j)    = ch(i)
           cqs_p(i,j)   = cqs(i)
+          uoce_p(i,j)  = 0._RKIND
+          voce_p(i,j)  = 0._RKIND
           if(config_frac_seaice) then
              ch_sea(i,j)  = ch(i)
              cqs_sea(i,j) = cqs(i)
@@ -1161,9 +1167,9 @@
                    rho3d    = rho_p      , dz8w      = dz_p     ,                          &
                    chs      = chs_p      , chs2      = chs2_p   , psfcpa   = psfc_p      , &
                    cqs      = cqs_p      , cqs2      = cqs2_p   , cpm      = cpm_p       , &
-                   znt      = znt_p      , qgh       = qgh_p                             , &
+                   znt      = znt_p      , uoce      = uoce_p   , voce     = voce_p      , &
                    ust      = ust_p      , pblh      = hpbl_p   , mavail   = mavail_p    , &
-                   zol      = zol_p      , mol       = mol_p    ,                          &
+                   zol      = zol_p      , mol       = mol_p    , qgh      = qgh_p       , &
                    psim     = psim_p     , psih      = psih_p   , xland    = xland_p     , &
                    hfx      = hfx_p      , qfx       = qfx_p    , lh       = lh_p        , &
                    tsk      = tsk_p      , flhc      = flhc_p   , flqc     = flqc_p      , &
@@ -1174,7 +1180,7 @@
                    isfflx   = isfflx     , dx        = dx_p     ,                          &
                    ustm     = ustm_p     , ck        = ck_p     , cka      = cka_p       , &
                    cd       = cd_p       , cda       = cda_p    , ch       = ch_p        , &
-                   xice     =xice_P      , xice_threshold       = xice_threshold         , &
+                   xice     = xice_p     , xice_threshold       = xice_threshold         , &
                    spp_pbl               = spp_pbl                                       , &
                    sf_mynn_sfcflux_land  = sf_mynn_sfcflux_land                          , &
                    sf_mynn_sfcflux_water = sf_mynn_sfcflux_water                         , &
@@ -1195,9 +1201,9 @@
                       rho3d    = rho_p      , dz8w      = dz_p     ,                          &
                       chs      = chs_sea    , chs2      = chs2_sea , psfcpa   = psfc_p      , &
                       cqs      = cqs_sea    , cqs2      = cqs2_sea , cpm      = cpm_sea     , &
-                      znt      = znt_sea    , qgh       = qgh_sea                           , &
+                      znt      = znt_sea    , uoce      = uoce_p   , voce     = voce_p      , &
                       ust      = ust_sea    , pblh      = hpbl_p   , mavail   = mavail_sea  , &
-                      zol      = zol_sea    , mol       = mol_sea  ,                          &
+                      zol      = zol_sea    , mol       = mol_sea  , qgh      = qgh_sea     , &
                       psim     = psim_sea   , psih      = psih_sea , xland    = xland_sea   , &
                       hfx      = hfx_sea    , qfx       = qfx_sea  , lh       = lh_sea      , &
                       tsk      = tsk_sea    , flhc      = flhc_sea , flqc     = flqc_sea    , &
@@ -1208,7 +1214,7 @@
                       isfflx   = isfflx     , dx        = dx_p     ,                          &
                       ustm     = ustm_sea   , ck        = ck_sea   , cka      = cka_sea     , &
                       cd       = cd_sea     , cda       = cda_sea  , ch       = ch_sea      , &
-                      xice     =xice_P      , xice_threshold       = xice_threshold         , & 
+                      xice     = xice_p     , xice_threshold       = xice_threshold         , & 
                       spp_pbl               = spp_pbl                                       , &
                       sf_mynn_sfcflux_land  = sf_mynn_sfcflux_land                          , &
                       sf_mynn_sfcflux_water = sf_mynn_sfcflux_water     	            , &
