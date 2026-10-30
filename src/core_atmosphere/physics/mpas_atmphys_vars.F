@@ -470,6 +470,7 @@
 
  real(kind=RKIND),dimension(:,:),allocatable:: &
     var2d_p,          &!orographic variance                                                                   [m2]
+    elvmax_p,         &!orographic maximum                                                                     [m]
     con_p,            &!orographic convexity                                                                  [m2]
     oa1_p,            &!orographic direction asymmetry function                                                [-]
     oa2_p,            &!orographic direction asymmetry function                                                [-]
