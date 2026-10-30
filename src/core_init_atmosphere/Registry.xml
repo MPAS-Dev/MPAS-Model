@@ -273,7 +273,7 @@
 
                 <nml_option name="config_blend_bdy_terrain"     type="logical"       default_value="false"
                      units="-"
-                     description="Whether to blend terrain along domain boundaries with first-guess terrain. Only useful for limited-area domains."
+                     description="Whether to blend terrain along domain boundaries with first-guess terrain. This option takes effect only when config_vertical_grid = true, and it is only useful for limited-area domains."
                      possible_values="true or false"/>
 
         </nml_record>
