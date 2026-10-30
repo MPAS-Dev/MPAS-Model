@@ -244,9 +244,22 @@
        qstar_hv(i) = qstar(i,j)
     enddo
 
-    call sf_mynn_pre_run(its,ite,kte,itimestep,dz8w,u3d,v3d,p3d,t3d,rho3d,qv3d,qc3d,f_spp, &
-              pattern_spp_pbl,ust_hv,mol_hv,qsfc_hv,qstar_hv,dz8w1d,u1d,v1d,p1d,t1d,rho1d, &
-              qv1d,qc1d,rstoch1d,dz2w1d,u1d2,v1d2,errmsg,errflg)
+    !pass the (its:ite,kts:kte) sections of the 3d arrays at j, matching the dummy arguments of sf_mynn_pre_run.
+    !pattern_spp_pbl is optional, and is only passed when present (f_spp is true):
+    if(f_spp) then
+       call sf_mynn_pre_run(its,ite,kte,itimestep,dz8w(its:ite,kts:kte,j),u3d(its:ite,kts:kte,j),         &
+                 v3d(its:ite,kts:kte,j),p3d(its:ite,kts:kte,j),t3d(its:ite,kts:kte,j),                    &
+                 rho3d(its:ite,kts:kte,j),qv3d(its:ite,kts:kte,j),qc3d(its:ite,kts:kte,j),f_spp,          &
+                 pattern_spp_pbl(its:ite,kts:kte,j),ust_hv,mol_hv,qsfc_hv,qstar_hv,dz8w1d,u1d,v1d,p1d,    &
+                 t1d,rho1d,qv1d,qc1d,rstoch1d,dz2w1d,u1d2,v1d2,errmsg,errflg)
+    else
+       call sf_mynn_pre_run(its,ite,kte,itimestep,dz8w(its:ite,kts:kte,j),u3d(its:ite,kts:kte,j),         &
+                 v3d(its:ite,kts:kte,j),p3d(its:ite,kts:kte,j),t3d(its:ite,kts:kte,j),                    &
+                 rho3d(its:ite,kts:kte,j),qv3d(its:ite,kts:kte,j),qc3d(its:ite,kts:kte,j),f_spp,          &
+                 ust=ust_hv,mol=mol_hv,qsfc=qsfc_hv,qstar=qstar_hv,dz8w1d=dz8w1d,u1d=u1d,v1d=v1d,p1d=p1d, &
+                 t1d=t1d,rho1d=rho1d,qv1d=qv1d,qc1d=qc1d,rstoch1d=rstoch1d,dz2w1d=dz2w1d,u1d2=u1d2,       &
+                 v1d2=v1d2,errmsg=errmsg,errflg=errflg)
+    endif
 
     !input arguments:
     do i = its,ite
