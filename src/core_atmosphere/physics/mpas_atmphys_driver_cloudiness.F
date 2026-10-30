@@ -325,29 +325,31 @@
  do k = kts,kte
  do i = its,ite
 
+    ! Skip saturation calculations for cloud-free cells.
+    qcld = qc(i,k,j) + qi(i,k,j) + qs(i,k,j)
+    if (qcld .lt. qcldmin) then
+       cldfrac(i,k,j) = 0._RKIND
+       cycle
+    endif
+
 !... calculation of the saturation mixing ratios over water and over ice (Murray, 1966):
     esw = 1000. * svp1 * exp(svp2 * (t_p(i,k,j) - svpt0) / (t_p(i,k,j) - svp3))
     esi = 1000. * svp1 * exp(svpi2 * (t_p(i,k,j) - svpt0) / (t_p(i,k,j) - svpi3))
 
+    ! Limit es below p to avoid zero or negative saturation denominators.
+    ! The 0.99 factor follows WSM6.
+    esw = min(esw, 0.99_RKIND*pres_p(i,k,j))
+    esi = min(esi, 0.99_RKIND*pres_p(i,k,j))
+
     qvsw = ep_2 * esw / (pres_p(i,k,j) - esw)
     qvsi = ep_2 * esi / (pres_p(i,k,j) - esi)
 
-    qcld = qc(i,k,j) + qi(i,k,j) + qs(i,k,j)
-    if(qcld .lt. qcldmin) then
-       weight = 0.
-    else
-       weight = (qi(i,k,j) + qs(i,k,j)) / qcld
-    endif
+    weight = (qi(i,k,j) + qs(i,k,j)) / qcld
 
     qvs = (1-weight) * qvsw + weight * qvsi
     rhum = qv(i,k,j) / qvs
 
-    if(qcld .lt. qcldmin) then
-
-       !assume that the cloud fraction is equal to 0. when the cloudy mixing ratio equals 0.
-       cldfrac(i,k,j) = 0.
-
-    elseif(rhum .ge. rhgrid) then
+    if(rhum .ge. rhgrid) then
        !assume that the cloud fraction is equal to 1. when the relative humidity equal 100%.
        cldfrac(i,k,j) = 1.
 
