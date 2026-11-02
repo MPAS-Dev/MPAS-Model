@@ -6595,7 +6595,7 @@ module atm_time_integration
                                  fzm, fzp, les_model_opt, les_surface_opt,                                    &
                                  config_surface_drag_coefficient,                                             &
                                  delsq_u, delsq_vorticity, delsq_divergence,                                  &
-                                 u, v, divergence, vorticity, rho_edge, rho_zz, u_init, v_init, ustm, tend_u_euler )
+                                 u, v, divergence, vorticity, rho_edge, rho_zz, u_init, v_init, ustm, dt, tend_u_euler )
 
 
       end if ! (rk_step 1 test for computing mixing terms)
@@ -6735,7 +6735,7 @@ module atm_time_integration
                                  w, rho_edge, rho_zz, divergence, zz,                      &
                                  eddy_visc_horz, eddy_visc_vert,                           &
                                  les_model_opt, les_surface_opt,                           &
-                                 tend_w_euler                                             )
+                                 dt, tend_w_euler                                             )
 
       end if ! mixing for w computed in first rk_step
 
