@@ -595,6 +595,19 @@
 			<var name="soilcl2"/>
 			<var name="soilcl3"/>
 			<var name="soilcl4"/>
+			<var name="croptype"/>
+			<var name="fdepthxy"/>
+			<var name="rechclim"/>
+			<var name="eqzwt"/>
+			<var name="riverbedxy"/>
+			<var name="irfract"/>
+			<var name="sifract"/>
+			<var name="mifract"/>
+			<var name="fifract"/>
+			<var name="planting"/>
+			<var name="harvest"/>
+			<var name="season_gdd"/>
+			<var name="td_fraction"/>
 #endif
 
                 </stream>
@@ -2298,10 +2311,10 @@
                      description="logical for turning on/off top-down, radiation_driven mixing"
                      possible_values=".true. to turn on top-down radiation_driven mixing; .false. otherwise"/>
 
-                <nml_option name="config_urban_physics" type="logical" default_value="false" in_defaults="false"
+                <nml_option name="config_urban_physics" type="integer" default_value="0" in_defaults="false"
                      units="-"
-                     description="logical for turn on/off the urban physics parameterization"
-                     possible_values=".true. to turn on the urban physics; .false. otherwise"/>
+                     description="option for urban physics parameterization"
+			possible_values=">0 to turn on the urban physics; 0 otherwise (no urban in MPAS currently)"/>
 
                 <nml_option name="config_n_microp" type="integer" default_value="1" in_defaults="false"
                      units="-"
