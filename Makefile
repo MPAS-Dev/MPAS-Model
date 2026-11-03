@@ -1477,7 +1477,7 @@ $(SCOTCH_ROOT)/$(SCOTCH_LIB_DIR)/libptscotch.a:
 
 scotch_build: $(SCOTCH_ROOT)/$(SCOTCH_LIB_DIR)/libptscotch.a
 
-scotch_c_test:
+scotch_c_test: scotch_build
 	@#
 	@# Create a C test program and try to build against the PT-SCOTCH library
 	@#
