@@ -55,6 +55,10 @@
 ! * this is a bug fix. dx_p is converted from meters to kilometers prior to calling the thompson parameterization
 !   of the cloud fraction.
 !   Laura D. Fowler (laura@ucar.edu) / 2024-03-23.
+! * P3 with config_microp_re: the P3 ice is moved to the radiative snow mixing ratio once per radiation call, at
+!   the end of driver_cloudiness (subroutine p3_ice_to_radiative_snow), so that the short wave and long wave
+!   radiation codes see the same ice. Before, both radiation drivers repeated the split in place.
+!   2026-10-06.
 
 
  contains
@@ -187,6 +191,8 @@
 
 !local variables and pointers:
  character(len=StrKIND),pointer:: radt_cld_scheme
+ character(len=StrKIND),pointer:: microp_scheme
+ logical,pointer:: config_microp_re
 
  integer:: i,j,k
 
@@ -226,12 +232,63 @@
 
  end select cld_fraction_select
 
+!P3: move the ice to the radiative snow, once for both the short wave and long wave radiation codes:
+ call mpas_pool_get_config(configs,'config_microp_scheme',microp_scheme   )
+ call mpas_pool_get_config(configs,'config_microp_re'    ,config_microp_re)
+ if(trim(microp_scheme) == 'mp_p3' .and. config_microp_re) &
+    call p3_ice_to_radiative_snow(diag_physics,its,ite)
+
 !copy local arrays to MPAS grid:
  call cloudiness_to_MPAS(diag_physics,its,ite)
 
 !call mpas_log_write('--- end subroutine driver_cloudiness.')
 
  end subroutine driver_cloudiness
+
+!=================================================================================================================
+ subroutine p3_ice_to_radiative_snow(diag_physics,its,ite)
+!=================================================================================================================
+
+!P3 ice spans the sizes of cloud ice and snow; all of it goes through the RRTMG snow optics, with the P3 effective
+!radius re_ice, and the radiative cloud ice is set to zero. The RRTMG snow optics accept sizes up to 140 microns:
+!for re_ice > 130 microns the radiation drivers use 130 microns, and the mass is scaled by 130/re_ice so that the
+!optical depth (~ ice water path / re) is kept; the rest of the mass is neglected. This differs on purpose from
+!WRF, which keeps 1% of the ice at 10 microns in the cloud ice optics and scales the mass by (130/re_ice)**2.
+
+!input arguments:
+ type(mpas_pool_type),intent(in):: diag_physics
+ integer,intent(in):: its,ite
+
+!local variables and pointers:
+ real(kind=RKIND),dimension(:,:),pointer:: re_ice
+
+ integer:: i,j,k
+ real(kind=RKIND):: rei_um,snow_mass_factor
+
+!-----------------------------------------------------------------------------------------------------------------
+
+ call mpas_pool_get_array(diag_physics,'re_ice',re_ice)
+
+ do j = jts,jte
+ do k = kts,kte
+ do i = its,ite
+    !same default as in p3_radiation_re (driver_radiation_sw) where re_ice is not a valid size:
+    if(re_ice(k,i) > 0._RKIND .and. re_ice(k,i) < 1.0e-2_RKIND) then
+       rei_um = re_ice(k,i) * 1.0e6_RKIND
+    else
+       rei_um = 25.0_RKIND
+    endif
+
+    snow_mass_factor = 1.0_RKIND
+    if(rei_um > 130.0_RKIND) snow_mass_factor = 130.0_RKIND / rei_um
+
+    qsrad_p(i,k,j) = qsrad_p(i,k,j) + qirad_p(i,k,j) * snow_mass_factor
+    qirad_p(i,k,j) = 0._RKIND
+ enddo
+ enddo
+ enddo
+
+ end subroutine p3_ice_to_radiative_snow
 
 !=================================================================================================================
  subroutine calc_cldincidence(cldfrac,qc,qi,f_qc,f_qi,its,ite)

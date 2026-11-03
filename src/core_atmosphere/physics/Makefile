@@ -6,7 +6,7 @@ endif
 
 all:
 	./../tools/manage_externals/checkout_externals --externals ./../Externals.cfg
-	$(MAKE) lookup_tables core_physics_init core_physics_mmm core_UGWP core_physics_wrf core_physics_noahmp core_physics
+	$(MAKE) lookup_tables p3_lookup_tables core_physics_init core_physics_mmm core_UGWP core_physics_wrf core_physics_noahmp core_physics
 
 dummy:
 	echo "****** compiling physics ******"
@@ -45,6 +45,8 @@ OBJS = \
 	mpas_atmphys_lsm_shared.o          \
 	mpas_atmphys_manager.o             \
 	mpas_atmphys_o3climatology.o       \
+	mpas_atmphys_p3_cumix.o            \
+	mpas_atmphys_p3_pblmix.o           \
 	mpas_atmphys_packages.o            \
 	mpas_atmphys_rrtmg_lwinit.o        \
 	mpas_atmphys_rrtmg_swinit.o        \
@@ -56,6 +58,16 @@ OBJS = \
 
 lookup_tables:
 	./checkout_data_files.sh
+
+# P3 lookup tables are stored gzipped (the 3-moment ice table exceeds GitHub's
+# 100 MB file limit) and unzipped next to the other physics tables
+P3_TABLES = $(patsubst physics_wrf/p3_lookup_tables/%.gz,physics_wrf/files/%,$(wildcard physics_wrf/p3_lookup_tables/*.gz))
+
+p3_lookup_tables: $(P3_TABLES)
+
+physics_wrf/files/p3_lookupTable_%: physics_wrf/p3_lookup_tables/p3_lookupTable_%.gz
+	mkdir -p physics_wrf/files
+	gunzip -c $< > $@.tmp && mv $@.tmp $@
 
 core_physics_mmm: core_physics_init
 	(cd physics_mmm; $(MAKE) -f Makefile.mpas all)
@@ -148,6 +160,7 @@ mpas_atmphys_driver_oml.o: \
 
 mpas_atmphys_driver_pbl.o: \
 	mpas_atmphys_constants.o \
+	mpas_atmphys_p3_pblmix.o \
 	mpas_atmphys_vars.o
 
 mpas_atmphys_driver_radiation_lw.o: \
@@ -185,6 +198,7 @@ mpas_atmphys_init.o: \
 	mpas_atmphys_driver_radiation_lw.o \
 	mpas_atmphys_driver_radiation_sw.o \
 	mpas_atmphys_driver_sfclayer.o \
+	mpas_atmphys_interface.o \
 	mpas_atmphys_lsm_noahmpinit.o \
 	mpas_atmphys_landuse.o \
 	mpas_atmphys_o3climatology.o \
@@ -192,6 +206,8 @@ mpas_atmphys_init.o: \
 
 mpas_atmphys_interface.o: \
 	mpas_atmphys_constants.o \
+	mpas_atmphys_p3_pblmix.o \
+	mpas_atmphys_utilities.o \
 	mpas_atmphys_vars.o
 
 mpas_atmphys_landuse.o: \
@@ -233,8 +249,20 @@ mpas_atmphys_sfc_diagnostics.o: \
 	mpas_atmphys_constants.o \
 	mpas_atmphys_vars.o
 
+mpas_atmphys_init_microphysics.o: \
+	mpas_atmphys_p3_cumix.o \
+	mpas_atmphys_utilities.o
+
+mpas_atmphys_p3_cumix.o: \
+	mpas_atmphys_p3_pblmix.o
+
+mpas_atmphys_p3_pblmix.o: \
+	mpas_atmphys_vars.o
+
 mpas_atmphys_todynamics.o: \
 	mpas_atmphys_constants.o \
+	mpas_atmphys_p3_cumix.o \
+	mpas_atmphys_p3_pblmix.o \
 	mpas_atmphys_vars.o
 
 mpas_atmphys_update_surface.o: \

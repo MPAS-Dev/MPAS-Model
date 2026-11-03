@@ -18,6 +18,8 @@ set(ATMOSPHERE_CORE_PHYSICS_SOURCES
     mpas_atmphys_lsm_noahinit.F
     mpas_atmphys_manager.F
     mpas_atmphys_o3climatology.F
+    mpas_atmphys_p3_cumix.F
+    mpas_atmphys_p3_pblmix.F
     mpas_atmphys_rrtmg_lwinit.F
     mpas_atmphys_rrtmg_swinit.F
     mpas_atmphys_sfc_diagnostics.F
@@ -60,6 +62,7 @@ set(ATMOSPHERE_CORE_PHYSICS_WRF_SOURCES
     module_cu_gf.mpas.F
     module_mp_kessler.F
     module_mp_radar.F
+    module_mp_p3.F
     module_mp_thompson.F
     module_mp_thompson_cldfra3.F
     module_mp_thompson_aerosols.F
@@ -427,6 +430,28 @@ foreach (data_file IN LISTS PHYSICS_WRF_DATA)
          ${CMAKE_BINARY_DIR}/${PROJECT_NAME}/core_atmosphere/${data_file} SYMBOLIC)
 endforeach ()
 install(DIRECTORY ${PHYSICS_WRF_DATA_DIR}/ DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/core_atmosphere)
+
+#Unzip P3 lookup tables (stored gzipped: the 3-moment ice table exceeds GitHub's 100 MB file limit)
+file(GLOB P3_LOOKUP_TABLES_GZ ${CMAKE_CURRENT_SOURCE_DIR}/physics/physics_wrf/p3_lookup_tables/*.gz)
+find_program(GZIP_EXECUTABLE gzip)
+if (NOT GZIP_EXECUTABLE)
+    message(FATAL_ERROR "gzip is required to unzip the P3 lookup tables")
+endif ()
+foreach (gz_file IN LISTS P3_LOOKUP_TABLES_GZ)
+    get_filename_component(table_name ${gz_file} NAME_WLE)
+    set(table_file ${CMAKE_BINARY_DIR}/${PROJECT_NAME}/core_atmosphere/${table_name})
+    if (NOT EXISTS ${table_file} OR ${gz_file} IS_NEWER_THAN ${table_file})
+        message(STATUS "Unzipping P3 lookup table ${table_name}")
+        execute_process(COMMAND ${GZIP_EXECUTABLE} -dc ${gz_file}
+                        OUTPUT_FILE ${table_file}
+                        RESULT_VARIABLE gzip_result)
+        if (NOT gzip_result EQUAL 0)
+            file(REMOVE ${table_file})
+            message(FATAL_ERROR "Could not unzip P3 lookup table ${gz_file}")
+        endif ()
+    endif ()
+    install(FILES ${table_file} DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/core_atmosphere)
+endforeach ()
 
 add_executable(mpas_atmosphere_build_tables ${ATMOSPHERE_CORE_UTILS_SOURCES})
 target_link_libraries(mpas_atmosphere_build_tables PUBLIC core_atmosphere)

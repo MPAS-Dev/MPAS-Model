@@ -104,6 +104,7 @@
     do i = its,ite
        sqc(i,k) = 0._kind_phys
        sqi(i,k) = 0._kind_phys
+       sqs(i,k) = 0._kind_phys
     enddo
  enddo
 

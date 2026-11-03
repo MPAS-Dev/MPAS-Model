@@ -127,6 +127,16 @@ if __name__ == '__main__':
             ]
         ]
 
+    # Lookup tables used by P3 microphysics (unzipped during the build)
+    physics_p3 = ['src/core_atmosphere/physics/physics_wrf/files/' + f
+        for f in [
+            'p3_lookupTable_1.dat-v6.9-2momI',
+            'p3_lookupTable_1.dat-v6.9-3momI',
+            'p3_lookupTable_2.dat-v6.2',
+            'p3_lookupTable_3.dat-v1.4',
+            ]
+        ]
+
     # Lookup tables used by Noah-MP
     physics_noahmp = ['src/core_atmosphere/physics/physics_noahmp/parameters/' + f
         for f in [
@@ -153,7 +163,7 @@ if __name__ == '__main__':
         ]
 
     atm_files_to_link = ['atmosphere_model', 'build_tables']
-    atm_files_to_link = atm_files_to_link + physics_wrf + physics_noahmp
+    atm_files_to_link = atm_files_to_link + physics_wrf + physics_p3 + physics_noahmp
     atm_opt_files_to_link = opt_physics_wrf
     atm_files_to_copy = ['default_inputs/' + f
         for f in [

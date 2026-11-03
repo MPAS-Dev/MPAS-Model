@@ -390,7 +390,7 @@
                 <package name="met_stage_in" description="Active only if meteorological fields are being interpolated"/>
                 <package name="met_stage_out" description="Active only if meteorological fields are being interpolated"/>
                 <package name="first_guess_field" description="3-d atmospheric or land-surface fields on first-guess levels"/>
-                <package name="microphysics_aerosols" description="Initialization of GOCART-based water- and ice-friendly aerosols for Thompson and TEMPO microphysics"/>
+                <package name="microphysics_aerosols" description="Initialization of GOCART-based water- and ice-friendly aerosols for Thompson, TEMPO and P3 microphysics"/>
                 <package name="noahmp" description="Whether to process, read, and write static fields only required by Noah-MP"/>
                 <package name="qc" description="Whether QC is available for inclusion in ICs and LBCs"/>
                 <package name="qr" description="Whether QR is available for inclusion in ICs and LBCs"/>
