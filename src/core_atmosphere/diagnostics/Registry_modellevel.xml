@@ -1,0 +1,15 @@
+<!-- ******************************************* -->
+<!-- Diagnostics for model-level height surfaces -->
+<!-- ******************************************* -->
+
+<!-- temperature and spechum are already added in core_atmosphere/Registry.xml -->
+
+<!-- <var_struct name="diag" time_levs="1">
+
+        <var name="temperature" type="real" dimensions="nVertLevels nCells Time" units="K"
+             description="temperature" />
+
+        <var name="spechum" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1}"
+             description="specific humidity"/>
+
+</var_struct> -->
