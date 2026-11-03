@@ -1471,7 +1471,8 @@ $(SCOTCH_ROOT)/$(SCOTCH_LIB_DIR)/libptscotch.a:
 	$(info Building Scotch library...)
 	src/core_atmosphere/tools/manage_externals/checkout_externals --externals src/Externals.cfg;
 	cd ${SCOTCH_RELPATH} && mkdir -p build;
-	cd ${SCOTCH_RELPATH}/build && cmake .. -DCMAKE_INSTALL_PREFIX=$(SCOTCH_ROOT) -DCMAKE_INSTALL_LIBDIR=$(SCOTCH_LIB_DIR) -DCMAKE_BUILD_TYPE=Release;
+	cd ${SCOTCH_RELPATH}/build && cmake .. -DCMAKE_INSTALL_PREFIX=$(SCOTCH_ROOT) -DCMAKE_INSTALL_LIBDIR=$(SCOTCH_LIB_DIR) -DCMAKE_BUILD_TYPE=Release \
+	-DCMAKE_C_COMPILER=$(CC) -DCMAKE_CXX_COMPILER=$(CXX) -DBUILD_FORTRAN=OFF;
 	cd ${SCOTCH_RELPATH}/build && make -j$(nproc);
 	cd ${SCOTCH_RELPATH}/build && make install;
 
