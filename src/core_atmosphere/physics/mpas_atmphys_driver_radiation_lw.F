@@ -491,7 +491,7 @@
                 p2d(i,k)  = pres_hyd_p(i,k,j) / 100._RKIND
              enddo
              enddo
-             call vinterp_ozn(1,ncols,ncols,nlevs,p2d,pin_p,num_oznlevels,o3clim_p(1,1,j),o32d)
+             call vinterp_ozn(1,ncols,ncols,nlevs,p2d,pin_p,num_oznlevels,o3clim_p(its:ite,1:num_oznLevels,j),o32d)
              do i = its,ite
              do k = kts,kte
                 o3vmr(k,i) = o32d(i,k)
