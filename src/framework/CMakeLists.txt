@@ -1,11 +1,13 @@
 
 set(MPAS_FRAMEWORK_SOURCES
+        DebugSpecHandler.cpp
         mpas_block_creator.F
         mpas_block_decomp.F
         mpas_bootstrapping.F
         mpas_c_interfacing.F
         mpas_constants.F
         mpas_decomp.F
+        mpas_debug_spec_handler.F
         mpas_domain_routines.F
         mpas_field_routines.F
         mpas_forcing.F
@@ -26,6 +28,7 @@ set(MPAS_FRAMEWORK_SOURCES
         mpas_io.F
         mpas_io_streams.F
         mpas_log.F
+        mpas_log_ext.F
         mpas_stream_inquiry.F
         mpas_stream_manager.F
         mpas_string_utils.F
@@ -34,6 +37,7 @@ set(MPAS_FRAMEWORK_SOURCES
         random_id.c
         regex_matching.c
         xml_stream_parser.c
+        string.cpp
         stream_inquiry.c)
 
 add_library(framework ${MPAS_FRAMEWORK_SOURCES})
