@@ -1475,6 +1475,7 @@ $(SCOTCH_ROOT)/$(SCOTCH_LIB_DIR)/libptscotch.a:
 	-DCMAKE_C_COMPILER=$(CC) -DCMAKE_CXX_COMPILER=$(CXX) -DBUILD_FORTRAN=OFF;
 	cd ${SCOTCH_RELPATH}/build && make -j$(nproc);
 	cd ${SCOTCH_RELPATH}/build && make install;
+	$(RM) -r ${SCOTCH_RELPATH}/build;
 
 scotch_build: $(SCOTCH_ROOT)/$(SCOTCH_LIB_DIR)/libptscotch.a
 
