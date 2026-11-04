@@ -14,11 +14,10 @@
 
  implicit none
  private
- public:: gammln,gammp,wgamma,rslf,rsif
+ public:: gammp,wgamma,rslf,rsif
 
 
  contains
-
 
 !=================================================================================================================
 !NOTE: functions rslf and rsif are taken from module_mp_thompson temporarily for computing
@@ -27,128 +26,241 @@
 !      Laura D. Fowler (birch.mmm.ucar.edu) / 2013-07-11.
 
 !+---+-----------------------------------------------------------------+
-      SUBROUTINE GCF(GAMMCF,A,X,GLN)
-!     --- RETURNS THE INCOMPLETE GAMMA FUNCTION Q(A,X) EVALUATED BY ITS
-!     --- CONTINUED FRACTION REPRESENTATION AS GAMMCF.  ALSO RETURNS
-!     --- LN(GAMMA(A)) AS GLN.  THE CONTINUED FRACTION IS EVALUATED BY
-!     --- A MODIFIED LENTZ METHOD.
-!     --- USES GAMMLN
-      IMPLICIT NONE
-      INTEGER, PARAMETER:: ITMAX=100
-      REAL(KIND=RKIND), PARAMETER:: gEPS=3.E-7
-      REAL(KIND=RKIND), PARAMETER:: FPMIN=1.E-30
-      REAL(KIND=RKIND), INTENT(IN):: A, X
-      REAL(KIND=RKIND):: GAMMCF,GLN
-      INTEGER:: I
-      REAL(KIND=RKIND):: AN,B,C,D,DEL,H
-      GLN=GAMMLN(A)
-      B=X+1.-A
-      C=1./FPMIN
-      D=1./B
-      H=D
-      DO 11 I=1,ITMAX
-        AN=-I*(I-A)
-        B=B+2.
-        D=AN*D+B
-        IF(ABS(D).LT.FPMIN)D=FPMIN
-        C=B+AN/C
-        IF(ABS(C).LT.FPMIN)C=FPMIN
-        D=1./D
-        DEL=D*C
-        H=H*DEL
-        IF(ABS(DEL-1.).LT.gEPS)GOTO 1
- 11   CONTINUE
-      CALL MPAS_LOG_WRITE('A TOO LARGE, ITMAX TOO SMALL IN GCF', MESSAGETYPE=MPAS_LOG_ERR)
- 1    GAMMCF=EXP(-X+A*LOG(X)-GLN)*H
-      END SUBROUTINE GCF
-!  (C) Copr. 1986-92 Numerical Recipes Software 2.02
-!+---+-----------------------------------------------------------------+
-      SUBROUTINE GSER(GAMSER,A,X,GLN)
-!     --- RETURNS THE INCOMPLETE GAMMA FUNCTION P(A,X) EVALUATED BY ITS
-!     --- ITS SERIES REPRESENTATION AS GAMSER.  ALSO RETURNS LN(GAMMA(A)) 
-!     --- AS GLN.
-!     --- USES GAMMLN
-      IMPLICIT NONE
-      INTEGER, PARAMETER:: ITMAX=100
-      REAL(KIND=RKIND), PARAMETER:: gEPS=3.E-7
-      REAL(KIND=RKIND), INTENT(IN):: A, X
-      REAL(KIND=RKIND):: GAMSER,GLN
-      INTEGER:: N
-      REAL(KIND=RKIND):: AP,DEL,SUM
-      GLN=GAMMLN(A)
-      IF(X.LE.0.)THEN
-        IF(X.LT.0.) CALL MPAS_LOG_WRITE('X < 0 IN GSER', MESSAGETYPE=MPAS_LOG_ERR)
-        GAMSER=0.
-        RETURN
-      ENDIF
-      AP=A
-      SUM=1./A
-      DEL=SUM
-      DO 11 N=1,ITMAX
-        AP=AP+1.
-        DEL=DEL*X/AP
-        SUM=SUM+DEL
-        IF(ABS(DEL).LT.ABS(SUM)*gEPS)GOTO 1
- 11   CONTINUE
-      CALL MPAS_LOG_WRITE('A TOO LARGE, ITMAX TOO SMALL IN GSER', MESSAGETYPE=MPAS_LOG_ERR)
- 1    GAMSER=SUM*EXP(-X+A*LOG(X)-GLN)
-      END SUBROUTINE GSER
-!  (C) Copr. 1986-92 Numerical Recipes Software 2.02
-!+---+-----------------------------------------------------------------+
-      REAL(KIND=RKIND) FUNCTION GAMMLN(XX)
-!     --- RETURNS THE VALUE LN(GAMMA(XX)) FOR XX > 0.
-      IMPLICIT NONE
-      REAL(KIND=RKIND), INTENT(IN):: XX
-      DOUBLE PRECISION, PARAMETER:: STP = 2.5066282746310005D0
-      DOUBLE PRECISION, DIMENSION(6), PARAMETER:: &
-               COF = (/76.18009172947146D0, -86.50532032941677D0, &
-                       24.01409824083091D0, -1.231739572450155D0, &
-                      .1208650973866179D-2, -.5395239384953D-5/)
-      DOUBLE PRECISION:: SER,TMP,X,Y
-      INTEGER:: J
-
-      X=XX
-      Y=X
-      TMP=X+5.5D0
-      TMP=(X+0.5D0)*LOG(TMP)-TMP
-      SER=1.000000000190015D0
-      DO 11 J=1,6
-        Y=Y+1.D0
-        SER=SER+COF(J)/Y
-11    CONTINUE
-      GAMMLN=TMP+LOG(STP*SER/X)
-      END FUNCTION GAMMLN
-!  (C) Copr. 1986-92 Numerical Recipes Software 2.02
-!+---+-----------------------------------------------------------------+
       REAL(KIND=RKIND) FUNCTION GAMMP(A,X)
-!     --- COMPUTES THE INCOMPLETE GAMMA FUNCTION P(A,X)
-!     --- SEE ABRAMOWITZ AND STEGUN 6.5.1
-!     --- USES GCF,GSER
+!     --- COMPUTES THE REGULARIZED LOWER INCOMPLETE GAMMA FUNCTION P(A,X)
+!     --- USES GAMIT
       IMPLICIT NONE
       REAL(KIND=RKIND), INTENT(IN):: A,X
-      REAL(KIND=RKIND):: GAMMCF,GAMSER,GLN
-      GAMMP = 0.
+      GAMMP = 0.0_RKIND
       IF((X.LT.0.) .OR. (A.LE.0.)) THEN
         CALL MPAS_LOG_WRITE('BAD ARGUMENTS IN GAMMP', MESSAGETYPE=MPAS_LOG_ERR)
         RETURN
-      ELSEIF(X.LT.A+1.)THEN
-        CALL GSER(GAMSER,A,X,GLN)
-        GAMMP=GAMSER
-      ELSE
-        CALL GCF(GAMMCF,A,X,GLN)
-        GAMMP=1.-GAMMCF
       ENDIF
+      IF(X.EQ.0.0_RKIND) RETURN
+      GAMMP = X**A * GAMIT(A,X)
       END FUNCTION GAMMP
-!  (C) Copr. 1986-92 Numerical Recipes Software 2.02
+
 !+---+-----------------------------------------------------------------+
+      REAL(KIND=RKIND) FUNCTION GAMIT(A,X)
+!     --- COMPUTES TRICOMI'S INCOMPLETE GAMMA FUNCTION
+      IMPLICIT NONE
+      REAL(KIND=RKIND), INTENT(IN):: A,X
+
+      REAL(KIND=RKIND):: AEPS, AINTA,ALGAP1,ALNEPS,ALNG,ALX,BOT,H,SGA,SGNGAM,T
+
+      ALNEPS = -LOG(EPSILON(1.0_RKIND)/RADIX(1.0_RKIND))
+      BOT = LOG(TINY(1.0_RKIND))
+
+      gamit = 0.0_RKIND
+      IF (X.LT.0.0_RKIND) THEN
+            CALL MPAS_LOG_WRITE('BAD ARGUMENTS IN GAMIT', MESSAGETYPE=MPAS_LOG_ERR)
+            RETURN
+      ENDIF
+
+      ALX = 0.0_RKIND
+      IF (X.NE.0.0_RKIND) ALX = LOG(X)
+      SGA = 1.0_RKIND
+      IF (A.NE.0.0_RKIND) SGA = SIGN (1.0_RKIND, A)
+      AINTA = AINT (A + 0.5_RKIND*SGA)
+      AEPS = A - AINTA
+
+      IF (X.EQ.0.0_RKIND) THEN
+            IF (AINTA.GT.0.0_RKIND .OR. AEPS.NE.0.0_RKIND) &
+                  GAMIT = 1.0_RKIND/GAMMA(A+1.0_RKIND)
+
+      ELSEIF (X.LE.1.0_RKIND) THEN
+            ALGAP1 = 0.0_RKIND
+            SGNGAM = 1.0_RKIND
+            IF (A.GE.(-0.5_RKIND) .OR. AEPS.NE.0.0_RKIND) &
+                  ALGAP1 = LOG_GAMMA(A+1.0_RKIND)
+            GAMIT = G9GMIT(A,X,ALGAP1,SGNGAM,ALX)
+      
+      ELSEIF (A.GE.X) THEN
+            T = G9LGIT(A,X,LOG_GAMMA(A+1.0_RKIND))
+            GAMIT = EXP(T)
+      
+      ELSE
+!     --- EVALUATE GAMIT IN TERMS OF LOG OF THE COMPLEMENTARY INCOMPLETE GAMMA FUNCTION
+            ALNG = G9LGIC(A,X,ALX)
+
+            H = 1.0_RKIND
+            IF (AEPS.NE.0.0_RKIND .OR. AINTA.GT.0.0_RKIND) THEN
+                  ALGAP1 = LOG_GAMMA(A+1.0_RKIND)
+                  SGNGAM = 1.0_RKIND
+                  T = LOG(ABS(A)) + ALNG - ALGAP1
+                  IF (T.GT.ALNEPS) THEN
+                        T = T - A*ALX
+                        GAMIT = -SGA * SGNGAM * EXP(T)
+                        RETURN
+                  ENDIF
+                  IF (T.GT.(-ALNEPS)) H = 1.0_RKIND - SGA*SGNGAM*EXP(T)
+            ENDIF
+
+            T = -A*ALX + LOG(ABS(H))
+            GAMIT = SIGN(EXP(T), H)
+      END IF
+      END FUNCTION GAMIT
+
+!+---+-----------------------------------------------------------------+
+! Tricomi's incomplete gamma function for small X (Taylor series).
+!+---+-----------------------------------------------------------------+
+      REAL(KIND=RKIND) FUNCTION G9GMIT(A,X,ALGAP1,SGNGAM,ALX)
+      IMPLICIT NONE
+      REAL(KIND=RKIND), INTENT(IN):: A,X,ALGAP1,SGNGAM,ALX
+
+      INTEGER:: K,M,MA
+      REAL(KIND=RKIND)::AE,AEPS,ALGS,ALG2,BOT,GEPS,FK,S,SGNG2,T,TE
+
+      GEPS = 0.5_RKIND*EPSILON(1.0_RKIND)/RADIX(1.0_RKIND)
+      BOT = LOG(TINY(1.0_RKIND))
+
+      G9GMIT = 0.0_RKIND
+      IF (X.LE.0.0_RKIND) THEN
+            CALL MPAS_LOG_WRITE('BAD ARGUMENTS IN G9GMIT', MESSAGETYPE=MPAS_LOG_ERR)
+            RETURN
+      ENDIF
+
+      MA = INT(A+0.5_RKIND)
+      IF (A.LT.0.0_RKIND) MA = INT(A - 0.5_RKIND)
+      AEPS = A - MA
+
+      AE = A
+      IF ( A.LT.(-0.5_RKIND)) AE = AEPS
+
+      T = 1.0_RKIND
+      TE = AE
+      S = T
+      DO K = 1, 200
+            FK = REAL(K,RKIND)
+            TE = -X*TE/FK
+            T = TE/(AE+FK)
+            S = S + T 
+            IF (ABS(T).LT.GEPS*ABS(S)) EXIT
+            IF (K.EQ.200) CALL MPAS_LOG_WRITE( &
+                  'NO CONVERGENCE IN 200 TERMS OF TAYLOR SERIES IN G9GMIT', &
+                  MESSAGETYPE=MPAS_LOG_ERR)
+      ENDDO
+
+      IF (A.GE.(-0.5_RKIND)) THEN
+            ALGS = -ALGAP1 + LOG(S)
+            G9GMIT = EXP(ALGS)
+            RETURN
+      ENDIF
+      
+      ALGS = -LOG_GAMMA(1.0_RKIND+AEPS) + LOG(S)
+      S = 1.0_RKIND
+      M = -MA - 1
+      IF (M.NE.0) THEN
+            T = 1.0_RKIND
+            DO K = 1, M
+                  T = X*T/(AEPS-(M+1-K))
+                  S = S + T
+                  IF (ABS(T).LT.GEPS*ABS(S)) EXIT
+            ENDDO
+      ENDIF
+
+      G9GMIT = 0.0_RKIND
+      ALGS = -MA*LOG(X) + ALGS
+      IF (S.EQ.0.0_RKIND .OR. AEPS.EQ.0.0_RKIND) THEN
+            G9GMIT = EXP(ALGS)
+            RETURN
+      ENDIF
+
+      SGNG2 = SGNGAM * SIGN(1.0_RKIND,S)
+      ALG2 = -X-ALGAP1+LOG(ABS(S))
+
+      IF (ALG2.GT.BOT) G9GMIT=SGNG2*EXP(ALG2)
+      IF (ALGS.GT.BOT) G9GMIT = G9GMIT+EXP(ALGS)
+
+      END FUNCTION G9GMIT
+
+!+---+-----------------------------------------------------------------+
+! Log of Tricomi's incomplete gamma function evaluated with Perron's 
+! continued fraction
+!+---+-----------------------------------------------------------------+
+      REAL(KIND=RKIND) FUNCTION G9LGIT(A,X,ALGAP1)
+      IMPLICIT NONE
+      REAL(KIND=RKIND), INTENT(IN)::A,X,ALGAP1
+
+      INTEGER:: K 
+      REAL(KIND=RKIND)::AX,A1X,GEPS,FK,HSTAR,P,R,S,T 
+
+      GEPS = 0.5_RKIND*EPSILON(1.0_RKIND)/RADIX(1.0_RKIND)
+
+      G9LGIT = 0.0_RKIND
+      IF (X.LE.0.0_RKIND .OR. A.LT.X) THEN
+            CALL MPAS_LOG_WRITE('X SHOULD BE GT 0.0 AND LE A IN G9LGIT', &
+                  MESSAGETYPE=MPAS_LOG_ERR)
+            RETURN
+      ENDIF
+
+      AX = A + X
+      A1X = AX + 1.0_RKIND
+      R = 0.0_RKIND
+      P = 1.0_RKIND
+      S = P 
+      DO K = 1,200
+            FK = REAL(K,RKIND)
+            T = (A+FK)*X*(1.0_RKIND+R)
+            R = T/((AX+FK)*(A1X+FK)-T)
+            P = R*P
+            S = S + P
+            IF (ABS(P).LT.GEPS*S) EXIT
+            IF (K.EQ.200) CALL MPAS_LOG_WRITE( &
+                  'NO CONVERGENCE IN 200 TERMS OF CONTINUED FRACTION IN G9LGIT', &
+                  MESSAGETYPE=MPAS_LOG_ERR)
+      ENDDO
+
+      HSTAR = 1.0_RKIND - X*S/A1X
+      G9LGIT = -X - ALGAP1 - LOG(HSTAR)
+
+      END FUNCTION G9LGIT
+
+!+---+-----------------------------------------------------------------+      
+! Log of the complementary incomplete gamma function for large X and
+! A <= X
+!+---+-----------------------------------------------------------------+      
+      REAL (KIND=RKIND) FUNCTION G9LGIC(A,X,ALX)
+      IMPLICIT NONE
+      REAL(KIND=RKIND), INTENT(IN):: A,X,ALX
+
+      INTEGER::K
+      REAL(KIND=RKIND):: GEPS,FK,P,R,S,T,XMA,XPA
+
+      GEPS = 0.5_RKIND*EPSILON(1.0_RKIND)/RADIX(1.0_RKIND)
+
+      XPA = X + 1.0_RKIND - A
+      XMA = X - 1.0_RKIND - A
+
+      R = 0.0_RKIND
+      P = 1.0_RKIND
+      S = P
+      DO K = 1,300
+            FK = REAL(K,RKIND)
+            T = FK*(A-FK)*(1.0_RKIND+R)
+            R = -T/((XMA+2.0_RKIND*FK)*(XPA+2.0_RKIND*FK)+T)
+            P = R*P 
+            S = S + P
+            IF (ABS(P).LT.GEPS*S) EXIT
+            IF (K.EQ.300) CALL MPAS_LOG_WRITE( &
+                  'NO CONVERGENCE IN 300 TERMS OF CONTINUED FRACTION IN G9LGIC', &
+                  MESSAGETYPE=MPAS_LOG_ERR)
+      ENDDO
+
+      G9LGIC = A*ALX - X + LOG(S/XPA)
+
+      END FUNCTION G9LGIC
+      
+!+---+-----------------------------------------------------------------+            
       REAL(KIND=RKIND) FUNCTION WGAMMA(y)
 
       IMPLICIT NONE
       REAL(KIND=RKIND), INTENT(IN):: y
 
-      WGAMMA = EXP(GAMMLN(y))
+      WGAMMA = EXP(LOG_GAMMA(y))
 
       END FUNCTION WGAMMA
+
 !+---+-----------------------------------------------------------------+
 ! THIS FUNCTION CALCULATES THE LIQUID SATURATION VAPOR MIXING RATIO AS
 ! A FUNCTION OF TEMPERATURE AND PRESSURE

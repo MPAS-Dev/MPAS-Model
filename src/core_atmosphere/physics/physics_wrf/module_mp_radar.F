@@ -39,10 +39,8 @@ MODULE module_mp_radar
       PRIVATE :: get_m_mix
 #if defined(mpas)
       PUBLIC  :: WGAMMA
-      PUBLIC  :: GAMMLN
 #else
       PRIVATE :: WGAMMA
-      PRIVATE :: GAMMLN
 #endif
 
 #if !defined(mpas)
