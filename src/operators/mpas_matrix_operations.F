@@ -46,7 +46,7 @@ module mpas_matrix_operations
              mpas_matrix_cell_to_edge, &
              mpas_outer_product, &
              mpas_migs, &
-             mpas_elgs
+             mpas_legs
 
    !--------------------------------------------------------------------
    !
@@ -437,132 +437,198 @@ contains
 
    end subroutine mpas_outer_product!}}}
 
-   ! Updated 10/24/2001.
-   !
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!   Program 4.4   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   !
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   !                                                                       !
-   ! Please Note:                                                          !
-   !                                                                       !
-   ! (1) This computer program is written by Tao Pang in conjunction with  !
-   !     his book, "An Introduction to Computational Physics," published   !
-   !     by Cambridge University Press in 1997.                            !
-   !                                                                       !
-   ! (2) No warranties, express or implied, are made for this program.     !
-   !                                                                       !
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   !
-   subroutine mpas_migs (a,n,x,indx)!{{{
-   !
-   ! subroutine to invert matrix a(n,n) with the inverse stored
-   ! in x(n,n) in the output.  copyright (c) tao pang 2001.
-   !
-     implicit none
-     integer, intent (in) :: n
-     integer :: i,j,k
-     integer, intent (out), dimension (n) :: indx
-     real (kind=RKIND), intent (inout), dimension (n,n):: a
-     real (kind=RKIND), intent (out), dimension (n,n):: x
-     real (kind=RKIND), dimension (n,n) :: b
-   !
-     do i = 1, n
-       do j = 1, n
-         b(i,j) = 0.0
-       end do
-     end do
-     do i = 1, n
-       b(i,i) = 1.0
-     end do
-   !
-     call mpas_elgs (a,n,indx)
-   !
-     do i = 1, n-1
-       do j = i+1, n
-         do k = 1, n
-           b(indx(j),k) = b(indx(j),k)-a(indx(j),i)*b(indx(i),k)
-         end do
-       end do
-     end do
-   !
-     do i = 1, n
-       x(n,i) = b(indx(n),i)/a(indx(n),n)
-       do j = n-1, 1, -1
-         x(j,i) = b(indx(j),i)
-         do k = j+1, n
-           x(j,i) = x(j,i)-a(indx(j),k)*x(k,i)
-         end do
-         x(j,i) =  x(j,i)/a(indx(j),j)
-       end do
-     end do
-   end subroutine mpas_migs!}}}
-   
-   
-   subroutine mpas_elgs (a,n,indx)!{{{
-   !
-   ! subroutine to perform the partial-pivoting gaussian elimination.
-   ! a(n,n) is the original matrix in the input and transformed matrix
-   ! plus the pivoting element ratios below the diagonal in the output.
-   ! indx(n) records the pivoting order.  copyright (c) tao pang 2001.
-   !
-     implicit none
-     integer, intent (in) :: n
-     integer :: i,j,k,itmp
-     integer, intent (out), dimension (n) :: indx
-     real (kind=RKIND) :: c1,pi,pi1,pj
-     real (kind=RKIND), intent (inout), dimension (n,n) :: a
-     real (kind=RKIND), dimension (n) :: c
-   !
-   ! initialize the index
-   !
-     do i = 1, n
-       indx(i) = i
-     end do
-   !
-   ! find the rescaling factors, one from each row
-   !
-     do i = 1, n
-       c1= 0.0
-       do j = 1, n
-         c1 = max(c1,abs(a(i,j)))
-       end do
-       c(i) = c1
-     end do
-   !
-   ! search the pivoting (largest) element from each column
-   !
-     do j = 1, n-1
-       pi1 = 0.0
-       do i = j, n
-         pi = abs(a(indx(i),j))/c(indx(i))
-         if (pi.gt.pi1) then
-           pi1 = pi
-           k   = i
-         endif
-       end do
-   !
-   ! interchange the rows via indx(n) to record pivoting order
-   !
-       itmp    = indx(j)
-       indx(j) = indx(k)
-       indx(k) = itmp
-       do i = j+1, n
-         pj  = a(indx(i),j)/a(indx(j),j)
-   !
-   ! record pivoting ratios below the diagonal
-   !
-         a(indx(i),j) = pj
-   !
-   ! modify other elements accordingly
-   !
-         do k = j+1, n
-           a(indx(i),k) = a(indx(i),k)-pj*a(indx(j),k)
-         end do
-       end do
-     end do
-   !
-   end subroutine mpas_elgs!}}}
+!------------------------------------------------------------------------
+!
+! The LU factorization and solve routines below (mpas_getrf, mpas_getrs)
+! are adapted from the LAPACK reference implementation of DGETF2 and
+! DGETRS, converted to free-form Fortran at MPAS real precision (RKIND).
+!
+! Copyright (c) 1992-2025 The University of Tennessee and The University
+!                         of Tennessee Research Foundation.  All rights
+!                         reserved.
+! Copyright (c) 2000-2025 The University of California Berkeley. All
+!                         rights reserved.
+! Copyright (c) 2006-2025 The University of Colorado Denver.  All rights
+!                         reserved.
+!
+! Redistribution and use in source and binary forms, with or without
+! modification, are permitted provided that the following conditions are
+! met:
+!
+! - Redistributions of source code must retain the above copyright
+!   notice, this list of conditions and the following disclaimer.
+!
+! - Redistributions in binary form must reproduce the above copyright
+!   notice, this list of conditions and the following disclaimer listed
+!   in this license in the documentation and/or other materials
+!   provided with the distribution.
+!
+! - Neither the name of the copyright holders nor the names of its
+!   contributors may be used to endorse or promote products derived from
+!   this software without specific prior written permission.
+!
+! The copyright holders provide no reassurances that the source code
+! provided does not infringe any patent, copyright, or any other
+! intellectual property rights of third parties.  The copyright holders
+! disclaim any liability to any recipient for claims brought against
+! recipient by any third party for infringement of that parties
+! intellectual property rights.
+!
+! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+! "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+! LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+! A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+! OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+! SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+! LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+! DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+! THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+! (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+! OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+!
+!------------------------------------------------------------------------
 
+   subroutine mpas_getrf(N, A, IPIV, INFO)!{{{
+
+      ! LU factorization with partial pivoting: A = P*L*U, in place.
+
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN):: N
+      REAL(KIND=RKIND), DIMENSION(N,N), INTENT(INOUT):: A
+      INTEGER, DIMENSION(N), INTENT(OUT):: IPIV
+      INTEGER, INTENT(OUT):: INFO
+
+      REAL(KIND=RKIND), PARAMETER:: ZERO = 0.0_RKIND
+
+      INTEGER:: I,J,JP
+      REAL(KIND=RKIND):: TMP
+
+      INFO = 0
+
+      DO J = 1, N
+         ! Find pivot and test for singularity
+
+         JP = J - 1 + MAXLOC(ABS(A(J:N,J)), DIM=1)
+         IPIV(J) = JP
+         IF(A(JP,J).NE.ZERO) THEN
+            ! Apply the interchange to columns 1:n
+
+            IF (JP.NE.J) THEN
+               DO I = 1, N
+                  TMP = A(J,I)
+                  A(J,I) = A(JP,I)
+                  A(JP,I) = TMP
+               ENDDO
+            ENDIF
+         
+            ! Compute elements j+1:n of j-th column
+
+            IF (J.LT.N) THEN
+               DO I = 1, N-J
+                  A(J+I,J) = A(J+I,J) / A(J,J)
+               ENDDO
+            ENDIF
+         
+         ELSE IF (INFO.EQ.0) THEN
+            INFO = J
+         ENDIF
+
+         IF(J.LT.N) THEN
+            !Update trailing submatrix
+
+            DO I = J+1, N
+               A(J+1:N,I) = A(J+1:N,I) - A(J+1:N,J) * A(J,I)
+            ENDDO
+         ENDIF
+      ENDDO
+   end subroutine mpas_getrf!}}}
+
+   subroutine mpas_getrs(N, NRHS,A,IPIV,B)!{{{
+      ! Solves A*X = B for nrhs right-hand sides using the P*L*U
+      ! factors computed by mpas_getrf
+
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN):: N,NRHS
+      REAL(KIND=RKIND), DIMENSION(N,N), INTENT(IN):: A
+      INTEGER, DIMENSION(N), INTENT(IN):: IPIV
+      REAL(KIND=RKIND), DIMENSION(N,NRHS), INTENT(INOUT):: B
+
+      INTEGER:: I,K
+      REAL(KIND=RKIND):: TMP
+
+      ! Apply row interchanges to the right hand sides
+      DO I = 1, N
+         IF (IPIV(I).NE.I) THEN 
+            DO K = 1, NRHS
+               TMP = B(I,K)
+               B(I,K) = B(IPIV(I),K)
+               B(IPIV(I),K) = TMP
+            ENDDO
+         ENDIF
+      ENDDO
+
+      ! Solve L*X = B, overwriting B with X
+      DO K = 1, NRHS
+         DO I =2, N
+            B(I,K) = B(I,K) - DOT_PRODUCT(A(I,1:I-1), B(1:I-1,K))
+         ENDDO
+      ENDDO
+
+      ! Solve U*X = B, overwriting B with X
+      DO K=1, NRHS
+         DO I = N, 1, -1
+            B(I,K) = (B(I,K) - DOT_PRODUCT(A(I,I+1:N), B(I+1:N,K)))/A(I,I)
+         ENDDO
+      ENDDO
+   
+   end subroutine mpas_getrs!}}}
+
+   subroutine mpas_migs(A,N,X,INDX)!{{{
+      ! Invert the N x N matrix A, returning the inverse in X
+
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN):: N
+      REAL(KIND=RKIND), DIMENSION(N,N), INTENT(INOUT):: A
+      REAL(KIND=RKIND), DIMENSION(N,N), INTENT(OUT):: X
+      INTEGER, DIMENSION(N), INTENT(OUT):: INDX
+
+      INTEGER::K, INFO
+
+      CALL mpas_getrf(N,A,INDX,INFO)
+
+      X(:,:) = 0.0_RKIND
+      DO K = 1,N
+         X(K,K) = 1.0_RKIND
+      ENDDO
+
+      CALL mpas_getrs(N,N,A,INDX,X)
+   
+   end subroutine mpas_migs!}}}
+
+   subroutine mpas_legs(A,N,B,X,INDX)!{{{
+      ! Solve the linear system A*X = B by LU factorization.
+
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN) :: N
+      REAL(KIND=RKIND), DIMENSION(N,N), INTENT(INOUT) :: A
+      REAL(KIND=RKIND), DIMENSION(N), INTENT(INOUT) :: B
+      REAL(KIND=RKIND), DIMENSION(N), INTENT(OUT) :: X
+      INTEGER, DIMENSION(N), INTENT(OUT) :: INDX
+
+      REAL(KIND=RKIND), DIMENSION(N,1) :: RHS
+      INTEGER :: INFO
+
+      CALL  mpas_getrf(N,A,INDX,INFO)
+
+      RHS(:,1) = B(:)
+      CALL mpas_getrs(N,1,A,INDX,RHS)
+      X(:) = RHS(:,1)
+   
+   end subroutine mpas_legs!}}}
 
 end module mpas_matrix_operations
 
