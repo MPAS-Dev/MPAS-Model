@@ -6106,7 +6106,45 @@ module mpas_stream_manager
        return
 
     end function MPAS_stream_mgr_stream_exists!}}}
- 
+
+
+    !-----------------------------------------------------------------------
+    !  logical function is_active_stream
+    !
+    !> \brief Check if a stream will perform I/O in the specified direction
+    !> \author Michael Duda
+    !> \date   11/03/2026
+    !> \details
+    !>  This function takes a stream manager and the pointer to a stream cursor,
+    !>  the direction of I/O operation, and returns true if the stream will actually
+    !>  perform I/O in the specified direction. If not, it returns false. This function
+    !>  checks if the stream is active, if the packages are active, and if there are any
+    !>  alarms set for the stream in the specified direction. This is required because
+    !>  a stream may have a 'true' active_stream attribute that may effectively not
+    !>  perform any I/O due to the packages being inactive or no alarms being set for
+    !>  the stream.
+    !
+    !-----------------------------------------------------------------------
+    logical function is_active_stream(manager, stream_ptr, direction)!{{{
+
+       implicit none
+
+       type (MPAS_streamManager_type), intent(in) :: manager
+       type (mpas_stream_list_type), pointer :: stream_ptr
+       integer, intent(in) :: direction
+
+       logical :: hasAlarms
+
+       hasAlarms = ((stream_ptr % direction == direction) .or. &
+                    (stream_ptr % direction == MPAS_STREAM_INPUT_OUTPUT)) .and. &
+                    (MPAS_stream_mgr_get_num_alarms(manager, trim(stream_ptr % name), direction) > 0)
+
+       is_active_stream = (stream_ptr % active_stream &
+                           .and. stream_active_pkg_check(stream_ptr) &
+                           .and. hasAlarms)
+
+    end function is_active_stream!}}}
+
 
 end module mpas_stream_manager
 
