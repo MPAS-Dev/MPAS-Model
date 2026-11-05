@@ -604,11 +604,8 @@ module mpas_stream_manager
         integer :: threadNum, err_local
         character (len=StrKIND) :: message, streamID
         type (MPAS_stream_list_type), pointer :: stream1_cursor, stream2_cursor
-        type (MPAS_TimeInterval_type)  :: clock_interval
-        logical :: pkg_active
         logical :: stream1_input, stream2_input
         logical :: stream1_output, stream2_output
-        integer :: input_nalarms, output_nalarms
 
         STREAM_DEBUG_WRITE('-- Called MPAS_stream_mgr_check_filename_template() for all streams')
 
@@ -623,21 +620,11 @@ module mpas_stream_manager
             nullify(stream1_cursor)
             do while (MPAS_stream_list_query(manager % streams, streamID, stream1_cursor))
 
-                pkg_active = stream_active_pkg_check(stream1_cursor)
+                stream1_input = is_active_stream(manager, stream1_cursor, MPAS_STREAM_INPUT)
+                stream1_output = is_active_stream(manager, stream1_cursor, MPAS_STREAM_OUTPUT)
 
-                input_nalarms = MPAS_stream_mgr_get_num_alarms(manager, trim(stream1_cursor % name), &
-                                                                       MPAS_STREAM_INPUT)
-                output_nalarms = MPAS_stream_mgr_get_num_alarms(manager, trim(stream1_cursor % name), &
-                                                                        MPAS_STREAM_OUTPUT)
-
-                stream1_input = (stream1_cursor % direction == MPAS_STREAM_INPUT .and. input_nalarms > 0)
-                stream1_output = ((stream1_cursor % direction == MPAS_STREAM_OUTPUT .or. &
-                                 stream1_cursor % direction == MPAS_STREAM_INPUT_OUTPUT) .and. &
-                                 output_nalarms > 0)
-
-                if (.not. stream1_cursor % active_stream &
-                    .or. .not. (stream1_input .or. stream1_output) &
-                    .or. .not. pkg_active) then
+                ! If stream1 is not active in either direction, we can cycle to the next stream
+                if (.not. (stream1_input .or. stream1_output)) then
                     cycle
                 end if
 
@@ -645,24 +632,16 @@ module mpas_stream_manager
                 stream2_cursor => stream1_cursor
                 do while (MPAS_stream_list_query(manager % streams, streamID, stream2_cursor))
 
-                    input_nalarms = MPAS_stream_mgr_get_num_alarms(manager, trim(stream2_cursor % name), &
-                                                                           MPAS_STREAM_INPUT)
-                    output_nalarms = MPAS_stream_mgr_get_num_alarms(manager, trim(stream2_cursor % name), &
-                                                                            MPAS_STREAM_OUTPUT)
+                    stream2_input = is_active_stream(manager, stream2_cursor, MPAS_STREAM_INPUT)
+                    stream2_output = is_active_stream(manager, stream2_cursor, MPAS_STREAM_OUTPUT)
 
-                    pkg_active = stream_active_pkg_check(stream2_cursor)
-                    stream2_input = (stream2_cursor % direction == MPAS_STREAM_INPUT .and. input_nalarms > 0)
-                    stream2_output = ((stream2_cursor % direction == MPAS_STREAM_OUTPUT .or. &
-                                     stream2_cursor % direction == MPAS_STREAM_INPUT_OUTPUT) .and. &
-                                     output_nalarms > 0)
+                    ! If stream2 is not active in either direction, we can cycle to the next stream
+                    if (.not. (stream2_input .or. stream2_output)) then
+                        cycle
+                    end if
 
-                     call mpas_log_write('Stream 2 '//trim(stream2_cursor % name)//' filename '//trim(stream2_cursor % filename_template)//' &
-                        & active = $l input = $l output = $l pkg_active: $l',logicArgs=(/stream2_cursor % active_stream, stream2_input, stream2_output, pkg_active/))
-
-                    if (.not. stream2_cursor % active_stream & ! Skip if Stream 2 is not active
-                        .or. .not. (stream2_input .or. stream2_output) &
-                        .or. (stream1_input .and. stream2_input) & ! Skip if Streams 1 and 2 are both input streams
-                        .or. .not. pkg_active) then ! Skip if Stream 2 is inactive due to inactive package
+                    ! If neither stream is an output stream, there can be no conflict, so cycle
+                    if (.not. (stream1_output .or. stream2_output)) then
                         cycle
                     end if
 
