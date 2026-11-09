@@ -21,7 +21,7 @@ tempo_build_tables: module_mp_tempo_tables.o tempo_build_tables.o
 	mv tempo_build_tables ../../..
 
 module_mp_tempo_tables.o: ../physics/physics_noaa/TEMPO/src/module_mp_tempo_tables.F90
-	$(FC) $(CPPFLAGS) $(PHYSICS) $(FFLAGS) -c ../physics/physics_noaa/TEMPO/src/module_mp_tempo_tables.F90 $(CPPINCLUDES) $(FCINCLUDES) -I../../framework -I../../operators -I../physics -I../physics/physics_mmm -I../physics/physics_wrf -I../physics/physics_noaa/TEMPO $(MPAS_ESMF_INC)
+	$(FC) $(CPPFLAGS) -DTEMPO_IGNORE_CONVERT_ARG $(PHYSICS) $(FFLAGS) -c ../physics/physics_noaa/TEMPO/src/module_mp_tempo_tables.F90 $(CPPINCLUDES) $(FCINCLUDES) -I../../framework -I../../operators -I../physics -I../physics/physics_mmm -I../physics/physics_wrf -I../physics/physics_noaa/TEMPO $(MPAS_ESMF_INC)
 
 tempo_build_tables.o: module_mp_tempo_tables.o ../physics/physics_noaa/TEMPO/tools/build_tables.F90
 	$(FC) $(CPPFLAGS) $(PHYSICS) $(FFLAGS) -o tempo_build_tables.o -c ../physics/physics_noaa/TEMPO/tools/build_tables.F90 $(CPPINCLUDES) $(FCINCLUDES) -I../../framework -I../../operators -I../physics -I../physics/physics_mmm -I../physics/physics_wrf -I../physics/physics_noaa/TEMPO $(MPAS_ESMF_INC)
