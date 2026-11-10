@@ -98,7 +98,6 @@ jobs:
         with:
           compiler: ${{ inputs.compiler }}
           core: init_atmosphere
-          clean-core: atmosphere
           use-pio: ${{ inputs.io == 'pio' && 'true' || 'false' }}
           precision: ${{ inputs.precision }}
           log-file: build-init_atmosphere.log
