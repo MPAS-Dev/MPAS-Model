@@ -62,6 +62,7 @@
  integer,dimension(:),pointer:: landmask
 
  real(kind=RKIND),dimension(:),pointer:: nt_c,mu_c
+ real(kind=RKIND), dimension(:)  , pointer:: latCell
 
  integer:: iCell
 
@@ -74,15 +75,24 @@
  call mpas_pool_get_array(sfc_input,'landmask',landmask)
  call mpas_pool_get_array(diag_physics,'nt_c',nt_c)
  call mpas_pool_get_array(diag_physics,'mu_c',mu_c)
+ call mpas_pool_get_array(mesh,'latCell',latCell)
 
 !... initialize the prescribed number of cloud droplets, and mu_c (parameter in the exponential of the generalized
 !gamma distribution) as a function of the land-cean mask. as set in the thompson cloud microphysics scheme, nt_c
 !is set to 100 per cc (100.E6 m^-3) for maritime cases and 300 per cc (300.E6 m^-3) for continental cases.
  do iCell = 1, nCellsSolve
     if(landmask(iCell) .eq. 1) then
-       nt_c(iCell) = 300.e6 
-    elseif(landmask(iCell) .eq. 0) then
+     IF(latCell(iCell)*180./3.1415926 > 75. .OR. latCell(iCell)*180./3.1415926 < -66.) THEN
        nt_c(iCell) = 100.e6
+     ELSE 
+       nt_c(iCell) = 300.e6
+     ENDIF
+    elseif(landmask(iCell) .eq. 0) then
+     IF(latCell(iCell)*180./3.1415926 > 75. .OR. latCell(iCell)*180./3.1415926 < -66.) THEN
+       nt_c(iCell) = 50.E6
+     ELSE
+       nt_c(iCell) = 100.e6
+     ENDIF
     endif
     mu_c(iCell) = MIN(15., (1000.e6/nt_c(iCell) + 2.))
  enddo
