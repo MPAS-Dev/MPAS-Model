@@ -10,6 +10,7 @@ module mpas_convective_diagnostics
     use mpas_derived_types, only : MPAS_pool_type, MPAS_clock_type, MPAS_LOG_ERR, MPAS_LOG_CRIT
     use mpas_kind_types, only : RKIND, R8KIND
     use mpas_log, only : mpas_log_write
+    use calculate_ctt
 
     type (MPAS_pool_type), pointer :: mesh
     type (MPAS_pool_type), pointer :: state
@@ -240,6 +241,8 @@ module mpas_convective_diagnostics
         real (kind=RKIND), dimension(:), pointer :: cin
         real (kind=RKIND), dimension(:), pointer :: lcl
         real (kind=RKIND), dimension(:), pointer :: lfc
+        real (kind=RKIND), dimension(:), pointer :: ctt
+        real (kind=RKIND), dimension(:), pointer :: ctpres
         real (kind=RKIND), dimension(:), pointer :: srh_0_1km
         real (kind=RKIND), dimension(:), pointer :: srh_0_3km
         real (kind=RKIND), dimension(:), pointer :: uzonal_surface
@@ -262,7 +265,7 @@ module mpas_convective_diagnostics
         real (kind=RKIND), dimension(:,:), pointer :: pressure_p
         real (kind=RKIND), dimension(:,:), pointer :: pressure_base
         real (kind=RKIND), dimension(:,:,:), pointer :: scalars
-        integer, pointer :: index_qv
+        integer, pointer :: index_qv, index_qc, index_qi
 
         real (kind=RKIND), parameter :: dev_motion = 7.5, z_bunker_bot = 0., z_bunker_top = 6000.
         real (kind=RKIND)            :: u_storm, v_storm, u_srh_bot, v_srh_bot, u_srh_top, v_srh_top
@@ -271,13 +274,17 @@ module mpas_convective_diagnostics
         real (kind=RKIND), dimension(:), allocatable :: dudz, dvdz, zp
         real (kind=RKIND), dimension(:), allocatable :: zrel, srh
         real (kind=RKIND), dimension(:), allocatable :: p_in, t_in, td_in
+        real (kind=8), dimension(:), allocatable :: p_in_dble
+        real (kind=RKIND), dimension(:), allocatable :: qc_in, qvapor_in, qi_in
+        real (kind=RKIND)            :: ctt_out, ctpres_out
 
         real (kind=RKIND), dimension(:,:), allocatable :: temperature, dewpoint
 
         real (kind=RKIND) :: evp
 
         logical :: need_cape, need_cin, need_lcl, need_lfc, need_srh_01km, need_srh_03km, need_uzonal_sfc, need_uzonal_1km, &
-                   need_uzonal_6km, need_umerid_sfc, need_umerid_1km, need_umerid_6km, need_tsfc, need_tdsfc
+                   need_uzonal_6km, need_umerid_sfc, need_umerid_1km, need_umerid_6km, need_tsfc, need_tdsfc, need_ctt, &
+                   need_ctpres
         logical :: need_any_diags
 
         need_any_diags = .false.
@@ -310,6 +317,10 @@ module mpas_convective_diagnostics
         need_any_diags = need_any_diags .or. need_tsfc
         need_tdsfc = MPAS_field_will_be_written('dewpoint_surface')
         need_any_diags = need_any_diags .or. need_tdsfc
+        need_ctt = MPAS_field_will_be_written('ctt')
+        need_any_diags = need_any_diags .or. need_ctt
+        need_ctpres = MPAS_field_will_be_written('ctpres')
+        need_any_diags = need_any_diags .or. need_ctpres
 
         if (need_any_diags) then
 
@@ -322,6 +333,8 @@ module mpas_convective_diagnostics
             call mpas_pool_get_array(diag, 'cin',  cin)
             call mpas_pool_get_array(diag, 'lcl',  lcl)
             call mpas_pool_get_array(diag, 'lfc',  lfc)
+            call mpas_pool_get_array(diag, 'ctt',  ctt)
+            call mpas_pool_get_array(diag, 'ctpres',  ctpres)
             call mpas_pool_get_array(diag, 'srh_0_1km', srh_0_1km)
             call mpas_pool_get_array(diag, 'srh_0_3km', srh_0_3km)
             call mpas_pool_get_array(diag, 'uzonal_surface', uzonal_surface)
@@ -344,6 +357,8 @@ module mpas_convective_diagnostics
             call mpas_pool_get_array(diag, 'pressure_p', pressure_p)
 
             call mpas_pool_get_dimension(state, 'index_qv', index_qv)
+            call mpas_pool_get_dimension(state, 'index_qc', index_qc)
+            call mpas_pool_get_dimension(state, 'index_qi', index_qi)
 
             allocate(temperature(nVertLevels,nCells))
             allocate(dewpoint(nVertLevels,nCells))
@@ -357,6 +372,11 @@ module mpas_convective_diagnostics
             allocate(p_in(nVertLevels))
             allocate(t_in(nVertLevels))
             allocate(td_in(nVertLevels))
+
+            allocate(qc_in(nVertLevels))
+            allocate(qi_in(nVertLevels))
+            allocate(qvapor_in(nVertLevels))
+            allocate(p_in_dble(nVertLevels))
 
             do iCell = 1,nCells
             do k = 1,nVertLevels
@@ -396,6 +416,25 @@ module mpas_convective_diagnostics
               if (need_umerid_6km) then
                   umeridional_6km(iCell) = column_height_value(umeridional(1:nVertLevels,iCell), zp, 6000.0_RKIND, nVertLevels)
               end if
+
+            !  calculate ctt or HCF
+            if (need_ctt .OR. need_ctpres) then
+!           from NCL https://github.com/NCAR/wrf-python/blob/develop/fortran/wrf_fctt.f90
+                do iCell=1, nCellsSolve
+                    p_in(1:nVertLevels) = (pressure_p(1:nVertLevels,iCell) + pressure_base(1:nVertLevels,iCell))
+                    t_in(1:nVertLevels) = temperature(1:nVertLevels,iCell) 
+                    qvapor_in(1:nVertLevels) = scalars(index_qv,1:nVertLevels,iCell)
+                    qc_in(1:nVertLevels) = scalars(index_qc,1:nVertLevels,iCell)
+                    qi_in(1:nVertLevels) = scalars(index_qi,1:nVertLevels,iCell)
+                    zp(1:nVertLevels) = 0.5*(height(1:nVertLevels,iCell)+height(2:nVertlevels+1,iCell)) - height(1,iCell)
+
+                    p_in_dble = p_in
+                    call get_ctt(p_in_dble,DBLE(temperature(1:nVertLevels,iCell)), DBLE(scalars(index_qi,1:nVertLevels,iCell)), &
+                                 DBLE(scalars(index_qi,1:nVertLevels,iCell)) ,  ctt_out, &
+                                 1, 0, -9999.D0, 1.D0, nVertLevels, ctpres_out)
+                    ctt(iCell) = ctt_out
+                    ctpres(iCell) = ctpres_out/100.
+             endif
 
            !  storm-relative helicity
            !  first, calculate storm motion, using Bunkers formula for right-moving storms
@@ -482,7 +521,11 @@ module mpas_convective_diagnostics
             deallocate(p_in)
             deallocate(t_in)
             deallocate(td_in)
-        end if
+            deallocate(qc_in)
+            deallocate(qi_in)
+            deallocate(qvapor_in)
+            deallocate(p_in_dble)
+        end if ! any diags
 
     end subroutine convective_diagnostics_compute
 
