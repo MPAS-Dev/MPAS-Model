@@ -708,6 +708,7 @@
 !local variables:
  character(len=StrKIND),pointer:: gwdo_scheme
  logical,pointer:: ugwp_diags,ngw_scheme
+ real(kind=RKIND),pointer:: alpha_fd
  integer,pointer:: ntau_d1y_ptr,ntau_d2t_ptr
  real(kind=RKIND),dimension(:),pointer :: days_limb_ptr
  real(kind=RKIND),dimension(:,:),pointer:: tau_limb_ptr
@@ -733,6 +734,7 @@
  call mpas_pool_get_config(configs,'config_gwdo_scheme',gwdo_scheme)
  call mpas_pool_get_config(configs,'config_ugwp_diags',ugwp_diags)
  call mpas_pool_get_config(configs,'config_ngw_scheme',ngw_scheme)
+ call mpas_pool_get_config(configs,'config_alpha_fd',alpha_fd)
 
  ! Call up variables needed for NGW scheme
  if (ngw_scheme) then
@@ -804,6 +806,7 @@
                   dtaux3d_bl = dtaux3d_bl_p, dtauy3d_bl = dtauy3d_bl_p,                         &
                   dtaux3d_ss = dtaux3d_ss_p, dtauy3d_ss = dtauy3d_ss_p,                         &
                   dtaux3d_fd = dtaux3d_fd_p, dtauy3d_fd = dtauy3d_fd_p,                         &
+                  alpha_fd   = alpha_fd,                                                        &
                   ugwp_diags = ugwp_diags  , ngw_scheme = ngw_scheme  , xlatd    = xlat_p     , &
                   jindx1_tau = jindx1_tau_p, jindx2_tau = jindx2_tau_p,                         &
                   ddy_j1tau  = ddy_j1tau_p , ddy_j2tau  = ddy_j2tau_p , r_DoY    = curr_julday, &
