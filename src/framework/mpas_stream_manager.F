@@ -341,7 +341,7 @@ module mpas_stream_manager
     !-----------------------------------------------------------------------
     subroutine MPAS_stream_mgr_create_stream(manager, streamID, direction, filename, &
                                              filenameInterval, referenceTime, recordInterval, &
-                                             realPrecision, clobberMode, ioType, ierr) !{{{
+                                             realPrecision, clobberMode, gattrUpdate, ioType, ierr) !{{{
 
         use mpas_io, only : MPAS_IO_PNETCDF
 
@@ -358,6 +358,7 @@ module mpas_stream_manager
         type (MPAS_TimeInterval_type), intent(in), optional :: recordInterval
         integer, intent(in), optional :: realPrecision
         integer, intent(in), optional :: clobberMode
+        integer, intent(in), optional :: gattrUpdate
         integer, intent(in), optional :: ioType
         integer, intent(out), optional :: ierr
 
@@ -404,6 +405,11 @@ module mpas_stream_manager
                new_stream % clobber_mode = clobberMode
            else
                new_stream % clobber_mode = MPAS_STREAM_CLOBBER_NEVER
+           end if
+           if (present(gattrUpdate)) then
+               new_stream % gattr_update = gattrUpdate
+           else
+               new_stream % gattr_update = MPAS_STREAM_GATTR_UPDATE_YES
            end if
            if (present(ioType)) then
                new_stream % io_type = ioType
@@ -1508,7 +1514,7 @@ module mpas_stream_manager
         logical :: resetAlarms
 
         threadNum = mpas_threading_get_thread_num()
-        
+
         if (present(streamID)) then
             STREAM_DEBUG_WRITE('-- Called MPAS_stream_mgr_reset_alarms() for stream ' // trim(streamID))
         else
@@ -1823,6 +1829,9 @@ module mpas_stream_manager
                   case (MPAS_STREAM_PROPERTY_CLOBBER)
                       stream_cursor % clobber_mode = propertyValue
 
+                  case (MPAS_STREAM_PROPERTY_GATTR_UPDATE)
+                      stream_cursor % gattr_update = propertyValue
+
                   case (MPAS_STREAM_PROPERTY_IOTYPE)
                       stream_cursor % io_type = propertyValue
 
@@ -2055,6 +2064,9 @@ module mpas_stream_manager
 
             case (MPAS_STREAM_PROPERTY_CLOBBER)
                 propertyValue = stream_cursor % clobber_mode
+
+            case (MPAS_STREAM_PROPERTY_GATTR_UPDATE)
+                propertyValue = stream_cursor % gattr_update
 
             case (MPAS_STREAM_PROPERTY_IOTYPE)
                 propertyValue = stream_cursor % io_type
@@ -4295,7 +4307,7 @@ module mpas_stream_manager
         integer :: err_level
 
 
-        if (direction == MPAS_STREAM_OUTPUT) then
+        if (direction == MPAS_STREAM_OUTPUT .and. stream % gattr_update == MPAS_STREAM_GATTR_UPDATE_YES) then
 
             !
             ! Write attributes to stream
@@ -5750,7 +5762,7 @@ module mpas_stream_manager
     logical function MPAS_stream_mgr_get_next_stream(manager, streamID, directionProperty, activeProperty, & !{{{
                                                      immutableProperty, filenameTemplateProperty, &
                                                      referenceTimeProperty, recordIntervalProperty, precisionProperty, &
-                                                     filenameIntervalProperty, clobberProperty) result(validStream)
+                                                     filenameIntervalProperty, clobberProperty, gattrUpdateProperty) result(validStream)
 
         implicit none
 
@@ -5765,6 +5777,7 @@ module mpas_stream_manager
         integer, intent(out), optional :: precisionProperty                        !< Output: Integer describing the precision of the stream
         character (len=StrKIND), intent(out), optional :: filenameIntervalProperty !< Output: String containing the filename interval for the stream
         integer, intent(out), optional :: clobberProperty                          !< Output: Interger describing the clobber mode of the stream
+        integer, intent(out), optional :: gattrUpdateProperty                      !< Output: Interger describing whether to update global attributes
 
         integer :: threadNum
 
@@ -5830,6 +5843,10 @@ module mpas_stream_manager
 
         if ( present(clobberProperty) ) then
             clobberProperty = manager % currentStream % clobber_mode
+        end if
+
+        if ( present(gattrUpdateProperty) ) then
+            gattrUpdateProperty = manager % currentStream % gattr_update
         end if
 
     end function MPAS_stream_mgr_get_next_stream !}}}
@@ -5954,7 +5971,7 @@ end module mpas_stream_manager
 
 
 subroutine stream_mgr_create_stream_c(manager_c, streamID_c, direction_c, filename_c, filename_intv_c, ref_time_c, rec_intv_c, &
-                                      immutable_c, precision_c, clobber_c, iotype_c, ierr_c) bind(c) !{{{
+                                      immutable_c, precision_c, clobber_c, gattr_update_c, iotype_c, ierr_c) bind(c) !{{{
 
     use mpas_c_interfacing, only : mpas_c_to_f_string
     use iso_c_binding, only : c_char, c_int, c_ptr, c_f_pointer
@@ -5963,7 +5980,8 @@ subroutine stream_mgr_create_stream_c(manager_c, streamID_c, direction_c, filena
                                         MPAS_STREAM_PROPERTY_FILENAME_INTV, MPAS_STREAM_PROPERTY_REF_TIME, &
                                         MPAS_STREAM_PROPERTY_RECORD_INTV, MPAS_STREAM_PROPERTY_PRECISION, &
                                         MPAS_STREAM_PROPERTY_CLOBBER, MPAS_STREAM_CLOBBER_NEVER, MPAS_STREAM_CLOBBER_APPEND, &
-                                        MPAS_STREAM_CLOBBER_TRUNCATE, MPAS_STREAM_CLOBBER_OVERWRITE, MPAS_STREAM_PROPERTY_IOTYPE
+                                        MPAS_STREAM_CLOBBER_TRUNCATE, MPAS_STREAM_CLOBBER_OVERWRITE, MPAS_STREAM_PROPERTY_IOTYPE, &
+                                        MPAS_STREAM_PROPERTY_GATTR_UPDATE, MPAS_STREAM_GATTR_UPDATE_YES, MPAS_STREAM_GATTR_UPDATE_NO
     use mpas_stream_manager, only : MPAS_stream_mgr_create_stream, MPAS_stream_mgr_set_property
     use mpas_kind_types, only : StrKIND
     use mpas_derived_types, only : MPAS_LOG_ERR
@@ -5983,13 +6001,14 @@ subroutine stream_mgr_create_stream_c(manager_c, streamID_c, direction_c, filena
     integer(kind=c_int) :: immutable_c
     integer(kind=c_int) :: precision_c
     integer(kind=c_int) :: clobber_c
+    integer(kind=c_int) :: gattr_update_c
     integer(kind=c_int) :: iotype_c
     integer(kind=c_int) :: ierr_c
 
     type (MPAS_streamManager_type), pointer :: manager
     character(len=StrKIND) :: streamID, filename, filename_interval, reference_time, record_interval
     integer :: direction, immutable, prec, ierr
-    integer :: clobber_mode, iotype
+    integer :: clobber_mode, iotype, gattr_update
 
     call c_f_pointer(manager_c, manager)
     call mpas_c_to_f_string(streamID_c, streamID)
@@ -6018,6 +6037,12 @@ subroutine stream_mgr_create_stream_c(manager_c, streamID_c, direction_c, filena
        clobber_mode = MPAS_STREAM_CLOBBER_OVERWRITE
     else
        clobber_mode = MPAS_STREAM_CLOBBER_NEVER
+    end if
+
+    if (gattr_update_c == 0) then
+       gattr_update = MPAS_STREAM_GATTR_UPDATE_NO
+    else
+       gattr_update = MPAS_STREAM_GATTR_UPDATE_YES
     end if
 
     if (iotype_c == 0) then
@@ -6055,10 +6080,11 @@ subroutine stream_mgr_create_stream_c(manager_c, streamID_c, direction_c, filena
         end if
         call MPAS_stream_mgr_set_property(manager, streamID, MPAS_STREAM_PROPERTY_PRECISION, prec, ierr=ierr)
         call MPAS_stream_mgr_set_property(manager, streamID, MPAS_STREAM_PROPERTY_CLOBBER, clobber_mode, ierr=ierr)
+        call MPAS_stream_mgr_set_property(manager, streamID, MPAS_STREAM_PROPERTY_GATTR_UPDATE, gattr_update, ierr=ierr)
         call MPAS_stream_mgr_set_property(manager, streamID, MPAS_STREAM_PROPERTY_IOTYPE, iotype, ierr=ierr)
     else
         call MPAS_stream_mgr_create_stream(manager, streamID, direction, filename, realPrecision=prec, &
-                                           clobberMode=clobber_mode, ioType=iotype, ierr=ierr)
+                                           clobberMode=clobber_mode, gattrUpdate=gattr_update, ioType=iotype, ierr=ierr)
     end if
 
     if (reference_time /= 'initial_time') then
