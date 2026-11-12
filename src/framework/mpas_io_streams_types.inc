@@ -29,6 +29,8 @@
       integer :: field_type = -999
       logical :: isDecomposed
       integer :: totalDimSize     ! Total size of outer dimension across all blocks for decomposed fields
+      logical, dimension(:), pointer :: isRequested => null() ! Used for reading/writing var-arrays where one or more 
+                                                              !   constitutent arrays may be excluded from the stream I/O at runtime
       logical, dimension(:), pointer :: isAvailable => null() ! Used for reading var-arrays where one or more 
                                                               !   constitutent arrays may not be present in the input file
       type (field0dInteger), pointer :: int0dField => null()

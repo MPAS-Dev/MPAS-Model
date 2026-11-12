@@ -1111,13 +1111,14 @@ module mpas_io_streams
    end subroutine MPAS_streamAddField_2dReal
 
 
-   subroutine MPAS_streamAddField_3dReal(stream, field, precision, ierr)
+   subroutine MPAS_streamAddField_3dReal(stream, field, precision, constituents, ierr)
 
       implicit none
 
       type (MPAS_Stream_type), intent(inout) :: stream
       type (field3DReal), intent(in), target :: field
       integer, intent(in), optional :: precision
+      character (len=*), intent(in), optional :: constituents  ! For var_arrays, comma-separated list of constituents to include in this stream
       integer, intent(out), optional :: ierr
 
       integer :: io_err
@@ -1133,6 +1134,7 @@ module mpas_io_streams
       type (field_list_type), pointer :: new_field_list_node
       logical :: any_success
       logical, dimension(:), pointer :: isAvailable
+      logical, dimension(:), pointer :: isRequested
       integer :: local_precision
 
       type (mpas_pool_type), pointer :: meshPool
@@ -1179,9 +1181,25 @@ module mpas_io_streams
       any_success = .false.
       if (field % isVarArray) then
 !call mpas_log_write('^^^^^^^^^^^^^^^^^^^^^^^^^^^ we are adding a var-array')
+         ! For var_arrays specified in the form field:constituent1,constituent2,.. 
+         allocate(isRequested(size(field % constituentNames)))
+         if (present(constituents)) then
+            call parse_constituent_list(trim(field % fieldName), field % constituentNames, trim(constituents), isRequested, io_err)
+            if (io_err /= MPAS_STREAM_NOERR) then
+               deallocate(isRequested)
+               if (present(ierr)) ierr = io_err
+               return
+            end if
+         else
+            isRequested(:) = .true.
+         end if
+         ! For constituent fields in var_arrays that may not be present in the input file
          allocate(isAvailable(size(field % constituentNames)))
          isAvailable(:) = .false.
          do i=1,size(field % constituentNames)
+            call mpas_log_write('streamAddField -- Constituent: '//trim(field % constituentNames(i)))
+
+            if (.not. isRequested(i)) cycle
             call MPAS_streamAddField_generic(stream, trim(field % constituentNames(i)), REAL_IO_TYPE , field % dimNames(2:ndims), &
                                              field % dimSizes(2:ndims), field % hasTimeDimension, field % isDecomposed, totalDimSize, globalDimSize, &
                                              indices, precision=local_precision, ierr=io_err)
@@ -1192,6 +1210,7 @@ module mpas_io_streams
          end do
       else
          nullify(isAvailable)
+         nullify(isRequested)
          call MPAS_streamAddField_generic(stream, trim(field % fieldName), REAL_IO_TYPE , field % dimNames, field % dimSizes, &
                                           field % hasTimeDimension, field % isDecomposed, totalDimSize, globalDimSize, indices, precision=local_precision, ierr=io_err)
          if (io_err == MPAS_STREAM_NOERR) then
@@ -1224,11 +1243,75 @@ module mpas_io_streams
       new_field_list_node % field_type = FIELD_3D_REAL
       new_field_list_node % real3dField => field
       new_field_list_node % isAvailable => isAvailable
+      new_field_list_node % isRequested => isRequested
 
 !call mpas_log_write('... done adding field')
 !call mpas_log_write('DEBUGGING : Finished adding 3d real field '//trim(field % fieldName))
 
    end subroutine MPAS_streamAddField_3dReal
+
+
+   !-----------------------------------------------------------------------
+   !  routine parse_constituent_list
+   !
+   !> \brief Converts a comma-separated constituent list to a mask.
+   !> \details
+   !>  Sets isActive(i) to .true. for each entry of constituentNames that
+   !>  appears in the comma-separated list constituentList (e.g., 'qv,qc'),
+   !>  and to .false. otherwise. Empty entries in the list are ignored.
+   !>  An error is written and ierr is set to MPAS_STREAM_FIELD_NOT_FOUND if a
+   !>  name in the list is not a constituent of the var_array.
+   !
+   !-----------------------------------------------------------------------
+   subroutine parse_constituent_list(varArrayName, constituentNames, constituentList, isActive, ierr)
+
+      implicit none
+
+      character (len=*), intent(in) :: varArrayName
+      character (len=StrKIND), dimension(:), intent(in) :: constituentNames
+      character (len=*), intent(in) :: constituentList
+      logical, dimension(:), intent(out) :: isActive
+      integer, intent(out) :: ierr
+
+      character (len=StrKIND) :: constituentName
+      logical :: found
+      integer :: i, j, comma_ind
+
+
+      ierr = MPAS_STREAM_NOERR
+      isActive(:) = .false.
+
+      if(len_trim(constituentList) == 0) isActive(:) = .true.
+
+      i = 1
+      do while (i <= len_trim(constituentList))
+         comma_ind = index(constituentList(i:), ',')
+         if (comma_ind > 0) then
+            constituentName = constituentList(i:i+comma_ind-2)
+            i = i + comma_ind
+         else
+            constituentName = constituentList(i:)
+            i = len_trim(constituentList) + 1
+         end if
+         if (len_trim(constituentName) == 0) cycle
+
+         found = .false.
+         do j=1,size(constituentNames)
+            if (trim(constituentNames(j)) == trim(constituentName)) then
+               found = .true.
+               isActive(j) = .true.
+            end if
+         end do
+
+         if (.not. found) then
+            call mpas_log_write('Requested field '//trim(constituentName)//' is not a constituent of var_array '//trim(varArrayName), &
+                                messageType=MPAS_LOG_ERR)
+            ierr = MPAS_STREAM_FIELD_NOT_FOUND
+            return
+         end if
+      end do
+
+   end subroutine parse_constituent_list
 
 
    subroutine MPAS_streamAddField_4dReal(stream, field, precision, ierr)
@@ -2948,7 +3031,9 @@ module mpas_io_streams
 
             do j=1,ncons
                if (field_cursor % real3dField % isVarArray) then
-                  if (.not. field_cursor % isAvailable(j)) cycle
+                  call mpas_log_write('Read stream '//trim(stream % filename) // ' -- Constituent: '//trim(field_cursor % real3dField % constituentNames(j)) &
+                     // ' isavailable $l isrequested $l', logicArgs=(/field_cursor % isAvailable(j), field_cursor % isRequested(j)/))
+                  if (.not. (field_cursor % isAvailable(j) .and. field_cursor % isRequested(j))) cycle
 !call mpas_log_write('DEBUGGING : calling get_var for a constitutent')
                   call MPAS_io_get_var(stream % fileHandle, field_cursor % real3dField % constituentNames(j), real2d_temp, io_err)
                else
@@ -3696,6 +3781,18 @@ module mpas_io_streams
             end if
 
             do j=1,ncons
+               if (field_cursor % real3dField % isVarArray) then
+                  if (.not. field_cursor % isRequested(j)) then
+                     call mpas_log_write('Write stream '//trim(stream % filename) // ' -- Constituent: '//trim(field_cursor % real3dField % constituentNames(j)) &
+                     // ' is not requested, skipping write')
+
+                     cycle
+                  end if
+                  call mpas_log_write('Write stream '//trim(stream % filename) // ' -- Constituent: '//trim(field_cursor % real3dField % constituentNames(j)) &
+                     // ' is requested, writing to file')
+               end if
+               
+               !call mpas_log_write('Write stream -- Constituent: '//trim(field_cursor % real3dField % constituentNames(j)))
                if (field_cursor % isDecomposed) then
                   ! Gather field from across multiple blocks
                   field_3dreal_ptr => field_cursor % real3dField
@@ -4277,6 +4374,10 @@ module mpas_io_streams
          if (associated(field_cursor % isAvailable)) then
             deallocate(field_cursor % isAvailable)
 !call mpas_log_write('Deallocating isAvailable array')
+         end if
+         if (associated(field_cursor % isRequested)) then
+            deallocate(field_cursor % isRequested)
+!call mpas_log_write('Deallocating isRequested array')
          end if
          stream % fieldList => stream % fieldList % next
          deallocate(field_cursor)
