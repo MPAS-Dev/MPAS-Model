@@ -3031,6 +3031,8 @@ module mpas_io_streams
 
             do j=1,ncons
                if (field_cursor % real3dField % isVarArray) then
+                  call mpas_log_write('Read stream '//trim(stream % filename) // ' -- Constituent: '//trim(field_cursor % real3dField % constituentNames(j)) &
+                     // ' isavailable $l isrequested $l', logicArgs=(/field_cursor % isAvailable(j), field_cursor % isRequested(j)/))
                   if (.not. (field_cursor % isAvailable(j) .and. field_cursor % isRequested(j))) cycle
 !call mpas_log_write('DEBUGGING : calling get_var for a constitutent')
                   call MPAS_io_get_var(stream % fileHandle, field_cursor % real3dField % constituentNames(j), real2d_temp, io_err)
