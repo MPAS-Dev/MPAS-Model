@@ -1231,6 +1231,67 @@ module mpas_io_streams
    end subroutine MPAS_streamAddField_3dReal
 
 
+   !-----------------------------------------------------------------------
+   !  routine parse_constituent_list
+   !
+   !> \brief Converts a comma-separated constituent list to a mask.
+   !> \details
+   !>  Sets isActive(i) to .true. for each entry of constituentNames that
+   !>  appears in the comma-separated list constituentList (e.g., 'qv,qc'),
+   !>  and to .false. otherwise. Empty entries in the list are ignored.
+   !>  An error is written and ierr is set to MPAS_STREAM_FIELD_NOT_FOUND if a
+   !>  name in the list is not a constituent of the var_array.
+   !
+   !-----------------------------------------------------------------------
+   subroutine parse_constituent_list(varArrayName, constituentNames, constituentList, isActive, ierr)
+
+      implicit none
+
+      character (len=*), intent(in) :: varArrayName
+      character (len=StrKIND), dimension(:), intent(in) :: constituentNames
+      character (len=*), intent(in) :: constituentList
+      logical, dimension(:), intent(out) :: isActive
+      integer, intent(out), optional :: ierr
+      character (len=StrKIND) :: constituentName
+      logical :: found
+      integer :: i, j, comma_ind
+
+
+      if (present(ierr)) ierr = MPAS_STREAM_NOERR
+      isActive(:) = .false.
+
+      if(len_trim(constituentList) == 0) isActive(:) = .true.
+
+      i = 1
+      do while (i <= len_trim(constituentList))
+         comma_ind = index(constituentList(i:), ',')
+         if (comma_ind > 0) then
+            constituentName = constituentList(i:i+comma_ind-2)
+            i = i + comma_ind
+         else
+            constituentName = constituentList(i:)
+            i = len_trim(constituentList) + 1
+         end if
+         if (len_trim(constituentName) == 0) cycle
+
+         found = .false.
+         do j=1,size(constituentNames)
+            if (trim(constituentNames(j)) == trim(constituentName)) then
+               found = .true.
+               isActive(j) = .true.
+            end if
+         end do
+
+         if (.not. found) then
+            STREAM_DEBUG_WRITE('Requested constituent '//trim(constituentName)//' is not a constituent of var_array '//trim(varArrayName))
+            if (present(ierr)) ierr = MPAS_STREAM_FIELD_NOT_FOUND
+            return
+         end if
+      end do
+
+   end subroutine parse_constituent_list
+
+
    subroutine MPAS_streamAddField_4dReal(stream, field, precision, ierr)
 
       implicit none
