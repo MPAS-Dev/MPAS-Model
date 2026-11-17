@@ -4384,6 +4384,7 @@ module mpas_stream_manager
         character(kind=c_char), dimension(idLength+1) :: c_file_id
 
         character (len=StrKIND), pointer :: packages
+        character (len=StrKIND), pointer :: constituents
         logical :: active_field
         integer :: err_level
 
@@ -4453,9 +4454,11 @@ module mpas_stream_manager
                 else
                     active_field = .true.
                 end if
+                nullify(constituents)
+                call mpas_pool_get_config(stream % field_cons_pool, trim(itr % memberName)//':constituents', constituents)
                 call mpas_pool_set_error_level(err_level)
 
-                STREAM_DEBUG_WRITE('Is field '''//trim(itr % memberName)//''' active in stream '''//trim(stream % name)//'? $l' COMMA logicArgs=(/active_field/))
+                STREAM_WARNING_WRITE('Is field '''//trim(itr % memberName)//''' active in stream '''//trim(stream % name)//'? $l' COMMA logicArgs=(/active_field/))
 
                 if (.not. active_field) cycle FIELD_LOOP
 
@@ -4485,7 +4488,11 @@ module mpas_stream_manager
                                 call MPAS_streamAddField(stream % stream, real2d)
                             case (3)
                                 call mpas_pool_get_field(allFields, itr % memberName, real3d, timeLevel)
-                                call MPAS_streamAddField(stream % stream, real3d)
+                                if (associated(constituents)) then
+                                    call MPAS_streamAddField(stream % stream, real3d, constituents=trim(constituents))
+                                else
+                                    call MPAS_streamAddField(stream % stream, real3d)
+                                end if
                             case (4)
                                 call mpas_pool_get_field(allFields, itr % memberName, real4d, timeLevel)
                                 call MPAS_streamAddField(stream % stream, real4d)
