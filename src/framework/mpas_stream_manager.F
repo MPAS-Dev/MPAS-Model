@@ -442,6 +442,7 @@ module mpas_stream_manager
            call mpas_pool_clone_pool(manager % defaultAtts, new_stream % att_pool)
            call mpas_pool_create_pool(new_stream % field_pool)
            call mpas_pool_create_pool(new_stream % field_pkg_pool)
+           call mpas_pool_create_pool(new_stream % field_cons_pool)
            call mpas_pool_create_pool(new_stream % pkg_pool)
            nullify(new_stream % next)
 
@@ -650,6 +651,7 @@ module mpas_stream_manager
            call mpas_pool_destroy_pool(stream % att_pool)
            call mpas_pool_destroy_pool(stream % field_pool)
            call mpas_pool_destroy_pool(stream % field_pkg_pool)
+           call mpas_pool_destroy_pool(stream % field_cons_pool)
            call mpas_pool_destroy_pool(stream % pkg_pool)
            if (associated(stream % referenceTime)) then
                deallocate(stream % referenceTime)
@@ -872,11 +874,13 @@ module mpas_stream_manager
 
         type (MPAS_stream_list_type), pointer :: stream
         type (mpas_pool_field_info_type) :: info
-        character (len=StrKIND) :: field_pkg
+        character (len=StrKIND) :: field_pkg, field_cons
         integer, pointer :: test_ptr
         logical :: test_logical
         integer :: err_level
         integer :: err_local, threadNum
+        character (len=StrKIND) :: localFieldName, constituentList
+        integer :: colon_ind
 
         threadNum = mpas_threading_get_thread_num()
 
@@ -905,12 +909,26 @@ module mpas_stream_manager
            end if
 
            !
+           ! A field name of the form 'varArray:constituent1,constituent2,...' names a var_array
+           ! and a list of its constituents. If relevant, separate the field name into the 
+           ! var_array name and the constituent list
+           STREAM_WARNING_WRITE('-- fieldname '//trim(fieldName)//' in stream '//trim(streamID))
+           colon_ind = index(fieldName, ':')
+           if (colon_ind > 0) then
+               localFieldName = fieldName(1:colon_ind-1)
+               constituentList = fieldName(colon_ind+1:)
+               STREAM_WARNING_WRITE('-- Constituents specified for field '//trim(localFieldName)//' in stream '//trim(streamID)//' : '//trim(constituentList))
+           else
+               localFieldName = trim(fieldName)
+           end if
+
+           !
            ! Check that field exists
            !
            info % nDims = -1
-           call mpas_pool_get_field_info(manager % allFields, fieldName, info)
+           call mpas_pool_get_field_info(manager % allFields, trim(localFieldName), info)
            if (info % nDims == -1) then
-               STREAM_ERROR_WRITE('Requested field '//trim(fieldName)//' not available')
+               STREAM_ERROR_WRITE('Requested field "'//trim(localFieldName)//'" not available')
                if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
                return
            end if
@@ -921,10 +939,10 @@ module mpas_stream_manager
            nullify(test_ptr)
            err_level = mpas_pool_get_error_level()
            call mpas_pool_set_error_level(MPAS_POOL_SILENT)
-           call mpas_pool_get_config(stream % field_pool, fieldName, value=test_ptr)
+           call mpas_pool_get_config(stream % field_pool, trim(localFieldName), value=test_ptr)
            call mpas_pool_set_error_level(err_level)
            if (associated(test_ptr)) then
-               STREAM_WARNING_WRITE('Requested field '//trim(fieldName)//' already in stream '//trim(streamID))
+               STREAM_WARNING_WRITE('Requested field '//trim(localFieldName)//' already in stream '//trim(streamID))
                return
            end if
 
@@ -934,7 +952,19 @@ module mpas_stream_manager
            if (present(packages)) then
                test_logical = parse_package_list(manager % allPackages, trim(packages), err_local)
                if (err_local /= 0) then
-                   STREAM_WARNING_WRITE('One or more packages in '''//trim(packages)//''' attached to field '''//trim(fieldName)//''' is undefined')
+                   STREAM_WARNING_WRITE('One or more packages in '''//trim(packages)//''' attached to field '''//trim(localFieldName)//''' is undefined')
+               end if
+           end if
+
+           !
+           ! Validate the constituent list, if any
+           !
+           if (colon_ind > 0) then
+               call stream_mgr_check_constituents(manager, trim(localFieldName), constituentList, err_local)
+               if (err_local /= MPAS_STREAM_MGR_NOERR) then
+                   STREAM_ERROR_WRITE('One or more constituents in '''//trim(constituentList)//''' attached to field '''//trim(localFieldName)//''' is undefined')
+                   if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
+                   return
                end if
            end if
 
@@ -942,15 +972,21 @@ module mpas_stream_manager
            ! Add field to field pool in stream if the field is activated
            !
            if (info % isActive) then
-               call mpas_pool_add_config(stream % field_pool, fieldName, 1)
+               call mpas_pool_add_config(stream % field_pool, trim(localFieldName), 1)
+
+               if (colon_ind > 0) then
+                  STREAM_DEBUG_WRITE('-- Attaching constituents '//trim(constituentList)//' to field '//trim(localFieldName)//' in stream '//trim(streamID))
+                  write(field_cons,'(a)') trim(localFieldName)//':constituents'
+                  call mpas_pool_add_config(stream % field_cons_pool, field_cons, constituentList)
+               end if
 
                if (present(packages)) then
-                  STREAM_DEBUG_WRITE('-- Attaching packages '//trim(packages)//' to field '//trim(fieldName)//' in stream '//trim(streamID))
-                  write(field_pkg,'(a)') trim(fieldName)//':packages'
+                  STREAM_DEBUG_WRITE('-- Attaching packages '//trim(packages)//' to field '//trim(localFieldName)//' in stream '//trim(streamID))
+                  write(field_pkg,'(a)') trim(localFieldName)//':packages'
                   call mpas_pool_add_config(stream % field_pkg_pool, field_pkg, packages)
                end if
            else
-               call mpas_log_write(' * Requested field '//trim(fieldName)//' is deactivated due to packages, or is a scratch variable.')
+               call mpas_log_write(' * Requested field '//trim(localFieldName)//' is deactivated due to packages, or is a scratch variable.')
            end if
         end if
 
