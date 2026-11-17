@@ -29,6 +29,7 @@ module mpas_stream_manager
               MPAS_stream_mgr_remove_pkg, &
               MPAS_stream_mgr_add_pool, &
               MPAS_stream_mgr_add_field, &
+              stream_mgr_check_constituents, &
               MPAS_stream_mgr_add_stream_fields, &
               MPAS_stream_mgr_remove_field, &
               MPAS_stream_mgr_add_alarm, &
@@ -954,6 +955,62 @@ module mpas_stream_manager
         end if
 
     end subroutine MPAS_stream_mgr_add_field!}}}
+
+
+    !-----------------------------------------------------------------------
+    !  routine stream_mgr_check_constituents
+    !
+    !> \brief Checks that a field is a var_array with the listed constituents.
+    !> \details
+    !>  Checks that the field named varArrayName exists in the stream manager's
+    !>  pool of all fields and is a var_array, and that each name in the
+    !>  comma-separated list constituentList (e.g., 'qc,qv,qg') is one of its
+    !>  constituents. Empty entries in the list are ignored. An error is
+    !>  written for each problem found, and ierr is set to
+    !>  MPAS_STREAM_MGR_ERROR if any problem was found; otherwise, ierr is set
+    !>  to MPAS_STREAM_MGR_NOERR.
+    !
+    !-----------------------------------------------------------------------
+    subroutine stream_mgr_check_constituents(manager, varArrayName, constituentList, ierr)!{{{
+
+        implicit none
+
+        type (MPAS_streamManager_type), intent(in) :: manager
+        character (len=*), intent(in) :: varArrayName
+        character (len=*), intent(in) :: constituentList
+        integer, intent(out), optional :: ierr
+
+        type (mpas_pool_field_info_type) :: info
+        type (field3DReal), pointer :: real3d
+        logical, dimension(:), allocatable :: isRequested
+        integer :: err_local
+
+
+        if (present(ierr)) ierr = MPAS_STREAM_MGR_NOERR
+
+        call mpas_pool_get_field_info(manager % allFields, trim(varArrayName), info)
+
+        if (info % fieldType /= MPAS_POOL_REAL .or. info % nDims /= 3) then
+            STREAM_ERROR_WRITE('Constituent lists are only supported for 3-d real var_arrays; '//trim(varArrayName)//' is not one')
+            if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
+            return
+        end if
+
+        call mpas_pool_get_field(manager % allFields, trim(varArrayName), real3d, 1)
+        if (.not. real3d % isVarArray .or. .not. associated(real3d % constituentNames)) then
+            STREAM_ERROR_WRITE('Requested field '//trim(varArrayName)//' is not a var_array')
+            if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
+            return
+        end if
+
+        allocate(isRequested(size(real3d % constituentNames)))
+        call parse_constituent_list(trim(varArrayName), real3d % constituentNames, trim(constituentList), isRequested, ierr=err_local)
+        deallocate(isRequested)
+        if (err_local /= MPAS_STREAM_NOERR) then
+            if (present(ierr)) ierr = MPAS_STREAM_MGR_ERROR
+        end if
+
+    end subroutine stream_mgr_check_constituents!}}}
 
 
     !-----------------------------------------------------------------------
