@@ -1615,7 +1615,7 @@ contains
 
             !$acc parallel default(present)
 
-            !$acc loop gang worker
+            !$acc loop gang worker private(t_mix)
             do iCell = cellSolveStart,cellSolveEnd
 
                !$acc loop vector
