@@ -4382,6 +4382,7 @@ CONTAINS
         z(i,k)=zo(i,k)
         xz(i,k)=zo(i,k)
         qrco(i,k)=0.
+        qco(i,k)=0.
         cd(i,k)=1.*entr_rate
         dellaqc(i,k)=0.
       enddo
