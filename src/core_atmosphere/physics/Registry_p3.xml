@@ -1,0 +1,384 @@
+<!-- ========================================================================================================= -->
+<!-- P3 CLOUD MICROPHYSICS (config_microp_scheme = mp_p3):                                                     -->
+<!-- The registry parser appends the variables below to the var_structs and var_arrays of the same name in     -->
+<!-- Registry.xml. The P3 scalars of ice category c are at index_p3_xxx + c-1, so the three categories of each  -->
+<!-- scalar have to stay contiguous and in order; p3_qit is in the moist group so that P3 ice enters the        -->
+<!-- condensate loading in the dynamics.                                                                       -->
+<!-- ========================================================================================================= -->
+
+ <dims>
+
+      <dim name="nP3pblmax"          definition="21"
+           description="Maximum number of P3 prognostic scalars mixed by the PBL (6 per ice category, 3 categories, plus nc, nwfa and nifa with bl_ysu)"/>
+
+      <dim name="nIceCat"            definition="namelist:config_p3_nCat"
+           description="The number of P3 ice categories"/>
+
+ </dims>
+
+
+ <nml_record name="physics_mp_p3" in_defaults="true">
+
+      <nml_option name="config_p3_nCat" type="integer" default_value="1" in_defaults="false"
+           units="-"
+           description="number of free ice categories of the P3 cloud microphysics"
+           possible_values="1, 2 or 3"/>
+
+      <nml_option name="config_p3_trplMomI" type="logical" default_value="false" in_defaults="false"
+           units="-"
+           description="triple-moment ice (P3): predicted sixth moment of each ice category (p3_qzi)"
+           possible_values=".true. or .false."/>
+
+      <nml_option name="config_p3_liqfrac" type="logical" default_value="false" in_defaults="false"
+           units="-"
+           description="predicted liquid fraction of each ice category (P3, p3_qli)"
+           possible_values=".true. or .false."/>
+
+      <nml_option name="config_p3_predictNc" type="logical" default_value="true" in_defaults="false"
+           units="-"
+           description="predicted cloud droplet number (double-moment cloud water) in P3"
+           possible_values=".true. or .false."/>
+
+      <nml_option name="config_p3_aerosols" type="logical" default_value="true" in_defaults="false"
+           units="-"
+           description="predicted aerosols in P3: the water- and ice-friendly aerosol numbers nwfa and nifa are allocated, advected and used by P3 (and by the RRTMG short wave aerosol optics) only if true; requires config_p3_predictNc = true"
+           possible_values=".true. or .false."/>
+
+      <nml_option name="config_p3_autoAccr_param" type="integer" default_value="2" in_defaults="false"
+           units="-"
+           description="warm-rain autoconversion and accretion in P3: 1 = Seifert and Beheng (2001), 2 = Khairoutdinov and Kogan (2000), 3 = Kogan (2013)"
+           possible_values="1, 2 or 3"/>
+
+      <nml_option name="config_p3_lookup_file_dir" type="character" default_value="." in_defaults="false"
+           units="-"
+           description="directory containing the P3 lookup tables"
+           possible_values="Path to a directory"/>
+
+      <nml_option name="config_p3_cu_ri" type="real" default_value="125.e-6" in_defaults="false"
+           units="m"
+           description="mean-volume radius of the ice particles detrained by the convection scheme, used for the P3 ice number tendency, the p3_qzi tendency (triple-moment ice) and the destination ice category (config_p3_nCat &gt; 1)"
+           possible_values="Positive real values"/>
+
+      <nml_option name="config_p3_ic_bulk_ice" type="logical" default_value="false" in_defaults="false"
+           units="-"
+           description="convert the bulk ice (qi + qs + qg) of the initial conditions (data assimilation analysis, or a forecast with another microphysics scheme) to P3 ice at a cold start, as ice detrained by the convection scheme (config_p3_cu_ri). Needed only if the initial conditions contain bulk ice: qi, qs and qg are then allocated and advected (zero) for the whole run"
+           possible_values=".true. or .false."/>
+
+      <nml_option name="config_p3_cu_rc" type="real" default_value="10.e-6" in_defaults="false"
+           units="m"
+           description="radius of the cloud droplets detrained by the convection scheme, used for the nc tendency (config_p3_predictNc = true)"
+           possible_values="Positive real values"/>
+
+      <nml_option name="config_p3_cu_rr" type="real" default_value="0.25e-3" in_defaults="false"
+           units="m"
+           description="mean-volume radius of the rain drops detrained by the Kain-Fritsch convection scheme, used for the nr tendency"
+           possible_values="Positive real values"/>
+
+ </nml_record>
+
+
+ <packages>
+
+      <package name="mp_p3_in" description="parameterization of P3 cloud microphysics."/>
+      <package name="mp_p3_aers_in" description="P3 with predicted aerosols (config_p3_aerosols): nwfa, nifa and the aerosol surface source and optical depth active."/>
+      <package name="mp_p3_cat2_in" description="P3 category-2 prognostic scalars active."/>
+      <package name="mp_p3_cat3_in" description="P3 category-3 prognostic scalars active."/>
+      <package name="mp_p3_3mom_in" description="P3 triple-moment ice (config_p3_trplMomI): category-1 p3_qzi active."/>
+      <package name="mp_p3_3mom_cat2_in" description="P3 triple-moment ice with nCat &gt;= 2: category-2 p3_qzi2 active."/>
+      <package name="mp_p3_3mom_cat3_in" description="P3 triple-moment ice with nCat &gt;= 3: category-3 p3_qzi3 active."/>
+      <package name="mp_p3_lf_in" description="P3 predicted liquid fraction (config_p3_liqfrac): category-1 p3_qli active."/>
+      <package name="mp_p3_lf_cat2_in" description="P3 predicted liquid fraction with nCat &gt;= 2: category-2 p3_qli2 active."/>
+      <package name="mp_p3_lf_cat3_in" description="P3 predicted liquid fraction with nCat &gt;= 3: category-3 p3_qli3 active."/>
+      <package name="mp_p3_pbl_in" description="P3 with the YSU or MYNN PBL: storage for the PBL tendencies of the P3 prognostic scalars (rp3blten)."/>
+      <package name="mp_p3_icice_in" description="P3 with config_p3_ic_bulk_ice: the bulk qi, qs and qg scalars are allocated so that the ice of the initial conditions is read, converted to P3 ice at a cold start and then kept zero."/>
+      <package name="bl_ysu_nop3_in" description="YSU PBL without P3 microphysics (bulk qi is not a scalar with P3)."/>
+      <package name="bl_mynn_nop3_in" description="MYNN PBL without P3 microphysics (bulk qi, qs, ni are not scalars with P3)."/>
+      <package name="cu_ntiedtke_nop3_in" description="Tiedtke convection without P3 microphysics (bulk qi is not a scalar with P3)."/>
+
+ </packages>
+
+
+ <var_struct name="state" time_levs="2">
+    <var_array name="scalars" type="real" dimensions="nVertLevels nCells Time">
+
+         <var name="p3_qit"  array_group="moist" units="kg kg^{-1}"
+              description="P3 total ice mixing ratio (cat 1)"
+              packages="mp_p3_in"/>
+
+         <var name="p3_qit2" array_group="moist" units="kg kg^{-1}"
+              description="P3 total ice mixing ratio (cat 2)"
+              packages="mp_p3_cat2_in"/>
+
+         <var name="p3_qit3" array_group="moist" units="kg kg^{-1}"
+              description="P3 total ice mixing ratio (cat 3)"
+              packages="mp_p3_cat3_in"/>
+
+         <var name="p3_qni"  array_group="number" units="kg^{-1}"
+              description="P3 total ice number mixing ratio (cat 1)"
+              packages="mp_p3_in"/>
+
+         <var name="p3_qni2" array_group="number" units="kg^{-1}"
+              description="P3 total ice number mixing ratio (cat 2)"
+              packages="mp_p3_cat2_in"/>
+
+         <var name="p3_qni3" array_group="number" units="kg^{-1}"
+              description="P3 total ice number mixing ratio (cat 3)"
+              packages="mp_p3_cat3_in"/>
+
+         <var name="p3_qir"  array_group="number" units="kg kg^{-1}"
+              description="P3 rime ice mass mixing ratio (cat 1)"
+              packages="mp_p3_in"/>
+
+         <var name="p3_qir2" array_group="number" units="kg kg^{-1}"
+              description="P3 rime ice mass mixing ratio (cat 2)"
+              packages="mp_p3_cat2_in"/>
+
+         <var name="p3_qir3" array_group="number" units="kg kg^{-1}"
+              description="P3 rime ice mass mixing ratio (cat 3)"
+              packages="mp_p3_cat3_in"/>
+
+         <var name="p3_qib"  array_group="number" units="m^{3} kg^{-1}"
+              description="P3 rime ice volume mixing ratio (cat 1)"
+              packages="mp_p3_in"/>
+
+         <var name="p3_qib2" array_group="number" units="m^{3} kg^{-1}"
+              description="P3 rime ice volume mixing ratio (cat 2)"
+              packages="mp_p3_cat2_in"/>
+
+         <var name="p3_qib3" array_group="number" units="m^{3} kg^{-1}"
+              description="P3 rime ice volume mixing ratio (cat 3)"
+              packages="mp_p3_cat3_in"/>
+
+         <var name="p3_qzi"  array_group="number" units="m^{6} kg^{-1}"
+              description="P3 reflectivity-related ice moment (cat 1)"
+              packages="mp_p3_3mom_in"/>
+
+         <var name="p3_qzi2" array_group="number" units="m^{6} kg^{-1}"
+              description="P3 reflectivity-related ice moment (cat 2)"
+              packages="mp_p3_3mom_cat2_in"/>
+
+         <var name="p3_qzi3" array_group="number" units="m^{6} kg^{-1}"
+              description="P3 reflectivity-related ice moment (cat 3)"
+              packages="mp_p3_3mom_cat3_in"/>
+
+         <var name="p3_qli"  array_group="number" units="kg kg^{-1}"
+              description="P3 liquid fraction on ice mixing ratio (cat 1)"
+              packages="mp_p3_lf_in"/>
+
+         <var name="p3_qli2" array_group="number" units="kg kg^{-1}"
+              description="P3 liquid fraction on ice mixing ratio (cat 2)"
+              packages="mp_p3_lf_cat2_in"/>
+
+         <var name="p3_qli3" array_group="number" units="kg kg^{-1}"
+              description="P3 liquid fraction on ice mixing ratio (cat 3)"
+              packages="mp_p3_lf_cat3_in"/>
+
+    </var_array>
+ </var_struct>
+
+
+ <var_struct name="tend" time_levs="1">
+    <var_array name="scalars_tend" type="real" dimensions="nVertLevels nCells Time">
+
+         <var name="tend_p3_qit"  name_in_code="p3_qit"  array_group="moist" units="kg m^{-3} s^{-1}"
+              description="Tendency of P3 total ice mixing ratio for category 1 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_in"/>
+
+         <var name="tend_p3_qit2" name_in_code="p3_qit2" array_group="moist" units="kg m^{-3} s^{-1}"
+              description="Tendency of P3 total ice mixing ratio for category 2 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_cat2_in"/>
+
+         <var name="tend_p3_qit3" name_in_code="p3_qit3" array_group="moist" units="kg m^{-3} s^{-1}"
+              description="Tendency of P3 total ice mixing ratio for category 3 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_cat3_in"/>
+
+         <var name="tend_p3_qni"  name_in_code="p3_qni"  array_group="number" units="nb m^{-3} s^{-1}"
+              description="Tendency of P3 ice number mixing ratio for category 1 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_in"/>
+
+         <var name="tend_p3_qni2" name_in_code="p3_qni2" array_group="number" units="nb m^{-3} s^{-1}"
+              description="Tendency of P3 ice number mixing ratio for category 2 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_cat2_in"/>
+
+         <var name="tend_p3_qni3" name_in_code="p3_qni3" array_group="number" units="nb m^{-3} s^{-1}"
+              description="Tendency of P3 ice number mixing ratio for category 3 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_cat3_in"/>
+
+         <var name="tend_p3_qir"  name_in_code="p3_qir"  array_group="number" units="kg m^{-3} s^{-1}"
+              description="Tendency of P3 rime ice mass mixing ratio for category 1 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_in"/>
+
+         <var name="tend_p3_qir2" name_in_code="p3_qir2" array_group="number" units="kg m^{-3} s^{-1}"
+              description="Tendency of P3 rime ice mass mixing ratio for category 2 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_cat2_in"/>
+
+         <var name="tend_p3_qir3" name_in_code="p3_qir3" array_group="number" units="kg m^{-3} s^{-1}"
+              description="Tendency of P3 rime ice mass mixing ratio for category 3 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_cat3_in"/>
+
+         <var name="tend_p3_qib"  name_in_code="p3_qib"  array_group="number" units="m^{3} m^{-3} s^{-1}"
+              description="Tendency of P3 rime ice volume mixing ratio for category 1 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_in"/>
+
+         <var name="tend_p3_qib2" name_in_code="p3_qib2" array_group="number" units="m^{3} m^{-3} s^{-1}"
+              description="Tendency of P3 rime ice volume mixing ratio for category 2 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_cat2_in"/>
+
+         <var name="tend_p3_qib3" name_in_code="p3_qib3" array_group="number" units="m^{3} m^{-3} s^{-1}"
+              description="Tendency of P3 rime ice volume mixing ratio for category 3 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_cat3_in"/>
+
+         <var name="tend_p3_qzi"  name_in_code="p3_qzi"  array_group="number" units="m^{6} m^{-3} s^{-1}"
+              description="Tendency of P3 reflectivity-related ice moment for category 1 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_3mom_in"/>
+
+         <var name="tend_p3_qzi2" name_in_code="p3_qzi2" array_group="number" units="m^{6} m^{-3} s^{-1}"
+              description="Tendency of P3 reflectivity-related ice moment for category 2 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_3mom_cat2_in"/>
+
+         <var name="tend_p3_qzi3" name_in_code="p3_qzi3" array_group="number" units="m^{6} m^{-3} s^{-1}"
+              description="Tendency of P3 reflectivity-related ice moment for category 3 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_3mom_cat3_in"/>
+
+         <var name="tend_p3_qli"  name_in_code="p3_qli"  array_group="number" units="kg m^{-3} s^{-1}"
+              description="Tendency of P3 liquid fraction on ice mixing ratio for category 1 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_lf_in"/>
+
+         <var name="tend_p3_qli2" name_in_code="p3_qli2" array_group="number" units="kg m^{-3} s^{-1}"
+              description="Tendency of P3 liquid fraction on ice mixing ratio for category 2 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_lf_cat2_in"/>
+
+         <var name="tend_p3_qli3" name_in_code="p3_qli3" array_group="number" units="kg m^{-3} s^{-1}"
+              description="Tendency of P3 liquid fraction on ice mixing ratio for category 3 multiplied by dry air density divided by d(zeta)/dz"
+              packages="mp_p3_lf_cat3_in"/>
+
+    </var_array>
+ </var_struct>
+
+
+ <var_struct name="lbc" time_levs="2" packages="limited_area">
+    <var_array name="lbc_scalars" type="real" dimensions="nVertLevels nCells Time">
+
+         <var name="lbc_p3_qit" name_in_code="p3_qit" array_group="moist" packages="mp_p3_in"
+              units="kg kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 total ice mixing ratio (cat 1)"/>
+
+         <var name="lbc_p3_qit2" name_in_code="p3_qit2" array_group="moist" packages="mp_p3_cat2_in"
+              units="kg kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 total ice mixing ratio (cat 2)"/>
+
+         <var name="lbc_p3_qit3" name_in_code="p3_qit3" array_group="moist" packages="mp_p3_cat3_in"
+              units="kg kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 total ice mixing ratio (cat 3)"/>
+
+         <var name="lbc_p3_qni" name_in_code="p3_qni" array_group="number" packages="mp_p3_in"
+              units="kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 total ice number mixing ratio (cat 1)"/>
+
+         <var name="lbc_p3_qni2" name_in_code="p3_qni2" array_group="number" packages="mp_p3_cat2_in"
+              units="kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 total ice number mixing ratio (cat 2)"/>
+
+         <var name="lbc_p3_qni3" name_in_code="p3_qni3" array_group="number" packages="mp_p3_cat3_in"
+              units="kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 total ice number mixing ratio (cat 3)"/>
+
+         <var name="lbc_p3_qir" name_in_code="p3_qir" array_group="number" packages="mp_p3_in"
+              units="kg kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 rime ice mixing ratio (cat 1)"/>
+
+         <var name="lbc_p3_qir2" name_in_code="p3_qir2" array_group="number" packages="mp_p3_cat2_in"
+              units="kg kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 rime ice mixing ratio (cat 2)"/>
+
+         <var name="lbc_p3_qir3" name_in_code="p3_qir3" array_group="number" packages="mp_p3_cat3_in"
+              units="kg kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 rime ice mixing ratio (cat 3)"/>
+
+         <var name="lbc_p3_qib" name_in_code="p3_qib" array_group="number" packages="mp_p3_in"
+              units="m^3 kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 rime volume mixing ratio (cat 1)"/>
+
+         <var name="lbc_p3_qib2" name_in_code="p3_qib2" array_group="number" packages="mp_p3_cat2_in"
+              units="m^3 kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 rime volume mixing ratio (cat 2)"/>
+
+         <var name="lbc_p3_qib3" name_in_code="p3_qib3" array_group="number" packages="mp_p3_cat3_in"
+              units="m^3 kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 rime volume mixing ratio (cat 3)"/>
+
+         <var name="lbc_p3_qzi" name_in_code="p3_qzi" array_group="number" packages="mp_p3_3mom_in"
+              units="m^6 kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 sixth moment of ice (cat 1)"/>
+
+         <var name="lbc_p3_qzi2" name_in_code="p3_qzi2" array_group="number" packages="mp_p3_3mom_cat2_in"
+              units="m^6 kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 sixth moment of ice (cat 2)"/>
+
+         <var name="lbc_p3_qzi3" name_in_code="p3_qzi3" array_group="number" packages="mp_p3_3mom_cat3_in"
+              units="m^6 kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 sixth moment of ice (cat 3)"/>
+
+         <var name="lbc_p3_qli" name_in_code="p3_qli" array_group="number" packages="mp_p3_lf_in"
+              units="kg kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 liquid fraction in ice (cat 1)"/>
+
+         <var name="lbc_p3_qli2" name_in_code="p3_qli2" array_group="number" packages="mp_p3_lf_cat2_in"
+              units="kg kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 liquid fraction in ice (cat 2)"/>
+
+         <var name="lbc_p3_qli3" name_in_code="p3_qli3" array_group="number" packages="mp_p3_lf_cat3_in"
+              units="kg kg^{-1} s^{-1}"
+              description="Lateral boundary tendency of P3 liquid fraction in ice (cat 3)"/>
+
+    </var_array>
+ </var_struct>
+
+
+ <var_struct name="diag_physics" time_levs="1">
+
+      <var name="sigw_p3" type="real" dimensions="nVertLevels nCells Time" units="m s^{-1}"
+           description="P3: sub-grid vertical velocity added to w for droplet activation, at layer centres (MYNN: sqrt(2/3 TKE), TKE = qke/2; YSU: kzh/l, l = max(0.1 hpbl, 10 m) inside the PBL, 30 m above)"
+           packages="mp_p3_in"/>
+
+      <var name="p3_rhoi" type="real" dimensions="nIceCat nVertLevels nCells Time" units="kg m^{-3}"
+           description="P3: mass-weighted mean bulk density of each ice category from the last P3 call (0 where the category is empty); also used to compute the mean ice diameter for the destination category of the convectively detrained ice (config_p3_nCat &gt;= 2)"
+           packages="mp_p3_in"/>
+
+      <var name="p3_vmi" type="real" dimensions="nIceCat nVertLevels nCells Time" units="m s^{-1}"
+           description="P3: mass-weighted mean fall speed of each ice category, including the air-density correction, from the last P3 call (0 where the category is empty)"
+           packages="mp_p3_in"/>
+
+      <var name="p3_dmi" type="real" dimensions="nIceCat nVertLevels nCells Time" units="m"
+           description="P3: mass-weighted mean diameter of each ice category from the last P3 call (0 where the category is empty)"
+           packages="mp_p3_in"/>
+
+ </var_struct>
+
+
+ <var_struct name="tend_physics" time_levs="1">
+
+      <var name="rp3blten" type="real" dimensions="nP3pblmax nVertLevels nCells Time" units="(P3 scalar units) s^{-1}"
+           description="tendencies of the P3 prognostic scalars due to pbl processes (order set in mpas_atmphys_p3_pblmix)"
+           packages="mp_p3_pbl_in"/>
+
+ </var_struct>
+
+
+ <var_struct name="tend_iau" time_levs="1" packages="iau">
+    <var_array name="scalars_amb" name_in_code="scalars" type="real" dimensions="nVertLevels nCells Time">
+
+         <var name="p3_qit_amb"  name_in_code="p3_qit"  array_group="moist" packages="mp_p3_in"
+              units="kg kg^{-1}"
+              description="P3 total ice mixing ratio increment (cat 1)"/>
+
+         <var name="p3_qit2_amb" name_in_code="p3_qit2" array_group="moist" packages="mp_p3_cat2_in"
+              units="kg kg^{-1}"
+              description="P3 total ice mixing ratio increment (cat 2)"/>
+
+         <var name="p3_qit3_amb" name_in_code="p3_qit3" array_group="moist" packages="mp_p3_cat3_in"
+              units="kg kg^{-1}"
+              description="P3 total ice mixing ratio increment (cat 3)"/>
+
+    </var_array>
+ </var_struct>

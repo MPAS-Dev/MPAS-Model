@@ -22,6 +22,7 @@
  use mpas_atmphys_constants
  use mpas_atmphys_vars
  use mpas_timer, only: mpas_timer_start, mpas_timer_stop
+ use mpas_atmphys_p3_pblmix, only: allocate_p3pbl,deallocate_p3pbl,p3pbl_from_MPAS
 
  implicit none
  private
@@ -31,7 +32,8 @@
           post_microphysics, &
           MPAS_to_physics,           &
           microphysics_from_MPAS,    &
-          microphysics_to_MPAS
+          microphysics_to_MPAS,      &
+          p3_allocate_work
 
 !Interface for conversion between variables used in the MPAS dynamical core and variables needed in the
 !physics parameterizations.
@@ -79,7 +81,60 @@
 ! * changed microphysics update such that the microphsyics tendency is ignored above level mp_top_level
 !   Bill Skamarock / 2025/10/17 
 
+!P3 predicts its own ice categories (p3_* scalars) and does not allocate the bulk qi, qs, qg and ni scalars.
+!Where code shared with the other schemes reads qi/qs/qg/ni for mp_p3, the pointers are redirected to these
+!fields instead of scalars(-1,:,:): an all-zero field for qs and qg, and the sums over the P3 ice categories
+!of the total ice mass (p3_qit*) and number (p3_qni*) for qi and ni. They are allocated once in
+!p3_allocate_work (called from physics_init, outside OpenMP regions) and are never written back to scalars.
+ real(kind=RKIND),dimension(:,:),allocatable,target:: p3_zero_qsqg,p3_qi_sum,p3_ni_sum
+
  contains
+
+!=================================================================================================================
+ subroutine p3_allocate_work(state)
+!=================================================================================================================
+!allocates the mp_p3 work fields p3_zero_qsqg, p3_qi_sum and p3_ni_sum (same shape as scalars(n,:,:)).
+ type(mpas_pool_type),intent(in):: state
+ real(kind=RKIND),dimension(:,:,:),pointer:: scalars
+
+ call mpas_pool_get_array(state,'scalars',scalars,1)
+ if(.not. allocated(p3_zero_qsqg)) allocate(p3_zero_qsqg(size(scalars,2),size(scalars,3)))
+ if(.not. allocated(p3_qi_sum)   ) allocate(p3_qi_sum(size(scalars,2),size(scalars,3))   )
+ if(.not. allocated(p3_ni_sum)   ) allocate(p3_ni_sum(size(scalars,2),size(scalars,3))   )
+ p3_zero_qsqg(:,:) = 0._RKIND
+ p3_qi_sum(:,:)    = 0._RKIND
+ p3_ni_sum(:,:)    = 0._RKIND
+
+ end subroutine p3_allocate_work
+
+!=================================================================================================================
+ subroutine p3_sum_ice(state,scalars,its,ite)
+!=================================================================================================================
+!sets p3_qi_sum and p3_ni_sum to the sums over the P3 ice categories of p3_qit and p3_qni.
+ type(mpas_pool_type),intent(in):: state
+ integer,intent(in):: its,ite
+ real(kind=RKIND),intent(in),dimension(:,:,:):: scalars
+
+ integer,pointer:: index_p3_qit,index_p3_qni,index_p3_qir
+ integer:: c,i,k,nCat
+
+ call mpas_pool_get_dimension(state,'index_p3_qit',index_p3_qit)
+ call mpas_pool_get_dimension(state,'index_p3_qni',index_p3_qni)
+ call mpas_pool_get_dimension(state,'index_p3_qir',index_p3_qir)
+ nCat = index_p3_qir - index_p3_qni
+
+ do i = its,ite
+ do k = kts,kte
+    p3_qi_sum(k,i) = 0._RKIND
+    p3_ni_sum(k,i) = 0._RKIND
+    do c = 1, nCat
+       p3_qi_sum(k,i) = p3_qi_sum(k,i) + max(0._RKIND,scalars(index_p3_qit+c-1,k,i))
+       p3_ni_sum(k,i) = p3_ni_sum(k,i) + max(0._RKIND,scalars(index_p3_qni+c-1,k,i))
+    enddo
+ enddo
+ enddo
+
+ end subroutine p3_sum_ice
 
 
 !=================================================================================================================
@@ -91,6 +146,7 @@
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme,pbl_scheme
+ logical,pointer:: p3_aerosols
 
 !-----------------------------------------------------------------------------------------------------------------
 
@@ -133,6 +189,15 @@
        if(.not.allocated(nifa_p)) allocate(nifa_p(ims:ime,kms:kme,jms:jme))
        if(.not.allocated(nwfa_p)) allocate(nwfa_p(ims:ime,kms:kme,jms:jme))
 
+    case("mp_p3")
+       !nc is always predicted, nifa and nwfa only with predicted aerosols:
+       call mpas_pool_get_config(configs,'config_p3_aerosols',p3_aerosols)
+       if(.not.allocated(nc_p)) allocate(nc_p(ims:ime,kms:kme,jms:jme))
+       if(p3_aerosols) then
+          if(.not.allocated(nifa_p)) allocate(nifa_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(nwfa_p)) allocate(nwfa_p(ims:ime,kms:kme,jms:jme))
+       endif
+
     case default
  end select microp_select
 
@@ -155,6 +220,9 @@
  if(.not.allocated(pres2_hydd_p)) allocate(pres2_hydd_p(ims:ime,kms:kme,jms:jme))
  if(.not.allocated(znu_hyd_p)   ) allocate(znu_hyd_p(ims:ime,kms:kme,jms:jme)   )
  
+ !P3 prognostic scalars mixed by the YSU or MYNN PBL schemes (mp_p3 only; filled in MPAS_to_physics):
+ call allocate_p3pbl(configs)
+
  end subroutine allocate_forall_physics
 
 !=================================================================================================================
@@ -208,6 +276,11 @@
        if(allocated(nifa_p)) deallocate(nifa_p)
        if(allocated(nwfa_p)) deallocate(nwfa_p)
 
+    case("mp_p3")
+       if(allocated(nc_p)  ) deallocate(nc_p  )
+       if(allocated(nifa_p)) deallocate(nifa_p)
+       if(allocated(nwfa_p)) deallocate(nwfa_p)
+
     case default
  end select microp_select
 
@@ -229,6 +302,8 @@
  if(allocated(pres2_hydd_p)) deallocate(pres2_hydd_p)
  if(allocated(znu_hyd_p)   ) deallocate(znu_hyd_p   )
  
+ call deallocate_p3pbl
+
  end subroutine deallocate_forall_physics
 
 !=================================================================================================================
@@ -316,9 +391,19 @@
  qv => scalars(index_qv,:,:)
  qc => scalars(index_qc,:,:)
  qr => scalars(index_qr,:,:)
- qi => scalars(index_qi,:,:)
- qs => scalars(index_qs,:,:)
- qg => scalars(index_qg,:,:)
+ if(trim(microp_scheme) == 'mp_p3') then
+    !qi, qs and qg are not allocated with mp_p3 (or are zero, with config_p3_ic_bulk_ice): qi_p is the sum
+    !over the P3 ice categories of the total ice mass, and qs_p and qg_p are zero. The P3 scalars mixed by the PBL are copied to p3mix_p.
+    call p3_sum_ice(state,scalars,its,ite)
+    qi => p3_qi_sum
+    qs => p3_zero_qsqg
+    qg => p3_zero_qsqg
+    call p3pbl_from_MPAS(configs,state,scalars,its,ite)
+ else
+    qi => scalars(index_qi,:,:)
+    qs => scalars(index_qs,:,:)
+    qg => scalars(index_qg,:,:)
+ endif
 
  call mpas_pool_get_array(diag_physics,'plrad',plrad)
 
@@ -355,21 +440,25 @@
  enddo
 
  microp_select: select case(trim(microp_scheme))
-    case("mp_thompson_aerosols")
-       nullify(nifa)
-       nullify(nwfa)
-       call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
-       call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
-       nifa => scalars(index_nifa,:,:)
-       nwfa => scalars(index_nwfa,:,:)
-       do j = jts,jte
-          do k = kts,kte
-             do i = its,ite
-                nifa_p(i,k,j) = max(0.,nifa(k,i))
-                nwfa_p(i,k,j) = max(0.,nwfa(k,i))
+    !mp_p3: nwfa/nifa are also needed by the RRTMG shortwave aerosol optics (gt_aod). They exist only
+    !with predicted aerosols (config_p3_aerosols; f_nifa and f_nwfa are then true).
+    case("mp_thompson_aerosols","mp_p3")
+       if(f_nifa .and. f_nwfa) then
+          nullify(nifa)
+          nullify(nwfa)
+          call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
+          call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
+          nifa => scalars(index_nifa,:,:)
+          nwfa => scalars(index_nwfa,:,:)
+          do j = jts,jte
+             do k = kts,kte
+                do i = its,ite
+                   nifa_p(i,k,j) = max(0.,nifa(k,i))
+                   nwfa_p(i,k,j) = max(0.,nwfa(k,i))
+                enddo
              enddo
           enddo
-       enddo
+       endif
 
     case default
  end select microp_select
@@ -399,21 +488,30 @@
              enddo
           enddo
        endif
-       !initializes nc_p, nifa_p, and nwfa_p when running the option "mp_thompson_aerosols":
-       if(f_nc .and. f_nifa .and. f_nwfa) then
+       !initializes nc_p, nifa_p, and nwfa_p when running the option "mp_thompson_aerosols". mp_p3 always
+       !has nc, and has nifa and nwfa only with predicted aerosols (config_p3_aerosols):
+       if(f_nc) then
           nullify(nc)
+          call mpas_pool_get_dimension(state,'index_nc',index_nc)
+          nc   => scalars(index_nc,:,:)
+          do j = jts,jte
+             do k = kts,kte
+                do i = its,ite
+                   nc_p(i,k,j)   = max(0.,nc(k,i))
+                enddo
+             enddo
+          enddo
+       endif
+       if(f_nifa .and. f_nwfa) then
           nullify(nifa)
           nullify(nwfa)
-          call mpas_pool_get_dimension(state,'index_nc',index_nc)
           call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
           call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
-          nc   => scalars(index_nc,:,:)
           nifa => scalars(index_nifa,:,:)
           nwfa => scalars(index_nwfa,:,:)
           do j = jts,jte
              do k = kts,kte
                 do i = its,ite
-                   nc_p(i,k,j)   = max(0.,nc(k,i))
                    nifa_p(i,k,j) = max(0.,nifa(k,i))
                    nwfa_p(i,k,j) = max(0.,nwfa(k,i))
                 enddo
@@ -759,12 +857,73 @@ end subroutine pre_microphysics
           case default
        end select mp2_select
 
+    case("mp_p3")
+       !qi, qs, qg and ni are not allocated with mp_p3: qi and ni are the sums over the P3 ice categories of
+       !p3_qit and p3_qni, and qs and qg are zero, for the tendencies below (P3 does not use qi_p, qs_p, qg_p
+       !and ni_p):
+       call p3_sum_ice(state,scalars,its,ite)
+       qi => p3_qi_sum
+       qs => p3_zero_qsqg
+       qg => p3_zero_qsqg
+       ni => p3_ni_sum
+
+       call mpas_pool_get_dimension(state,'index_nr',index_nr)
+       nr => scalars(index_nr,:,:)
+
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          nr_p(i,k,j) = max(0._RKIND,nr(k,i))
+       enddo
+       enddo
+       enddo
+
+       !nc is always predicted; nifa, nwfa, nifa2d and nwfa2d exist only with predicted aerosols (f_nifa and
+       !f_nwfa are then true):
+       call mpas_pool_get_dimension(state,'index_nc',index_nc)
+       nc => scalars(index_nc,:,:)
+       if(f_nifa .and. f_nwfa) then
+          call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
+          call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
+          nifa => scalars(index_nifa,:,:)
+          nwfa => scalars(index_nwfa,:,:)
+       endif
+
+       call mpas_pool_get_array(diag_physics,'nifa2d'  ,nifa2d  )
+       call mpas_pool_get_array(diag_physics,'nwfa2d'  ,nwfa2d  )
+       call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
+       call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
+       call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
+
+       do j = jts,jte
+          if(f_nifa .and. f_nwfa) then
+             do i = its,ite
+                nifa2d_p(i,j) = nifa2d(i)
+                nwfa2d_p(i,j) = nwfa2d(i)
+             enddo
+             do k = kts,kte
+             do i = its,ite
+                nifa_p(i,k,j) = nifa(k,i)
+                nwfa_p(i,k,j) = nwfa(k,i)
+             enddo
+             enddo
+          endif
+          do k = kts,kte
+          do i = its,ite
+             nc_p(i,k,j)       = nc(k,i)
+             recloud_p(i,k,j)  = re_cloud(k,i)
+             reice_p(i,k,j)    = re_ice(k,i)
+             resnow_p(i,k,j)   = re_snow(k,i)
+          enddo
+          enddo
+       enddo
+
     case default
  end select mp_select
 
 !begin calculation of cloud microphysics tendencies:
  mp_tend_select: select case(trim(mp_scheme))
-    case("mp_thompson","mp_thompson_aerosols","mp_wsm6")
+    case("mp_thompson","mp_thompson_aerosols","mp_p3","mp_wsm6")
        call mpas_pool_get_array(tend_physics,'rthmpten',rthmpten)
        call mpas_pool_get_array(tend_physics,'rqvmpten',rqvmpten)
        call mpas_pool_get_array(tend_physics,'rqcmpten',rqcmpten)
@@ -786,7 +945,7 @@ end subroutine pre_microphysics
        enddo
 
        mp2_tend_select: select case(trim(mp_scheme))
-          case("mp_thompson","mp_thompson_aerosols")
+          case("mp_thompson","mp_thompson_aerosols","mp_p3")
              call mpas_pool_get_array(tend_physics,'rnimpten',rnimpten)
              call mpas_pool_get_array(tend_physics,'rnrmpten',rnrmpten)
 
@@ -798,18 +957,25 @@ end subroutine pre_microphysics
              enddo
 
              mp3_tend_select: select case(trim(mp_scheme))
-                case("mp_thompson_aerosols")
+                case("mp_thompson_aerosols","mp_p3")
+                   !mp_p3: nifa and nwfa exist only with predicted aerosols (config_p3_aerosols):
                    call mpas_pool_get_array(tend_physics,'rncmpten',rncmpten)
-                   call mpas_pool_get_array(tend_physics,'rnifampten',rnifampten)
-                   call mpas_pool_get_array(tend_physics,'rnwfampten',rnwfampten)
 
                    do k = kts,kte
                    do i = its,ite
                       rncmpten(k,i) = nc(k,i)
-                      rnifampten(k,i) = nifa(k,i)
-                      rnwfampten(k,i) = nwfa(k,i)
                    enddo
                    enddo
+                   if(f_nifa .and. f_nwfa) then
+                      call mpas_pool_get_array(tend_physics,'rnifampten',rnifampten)
+                      call mpas_pool_get_array(tend_physics,'rnwfampten',rnwfampten)
+                      do k = kts,kte
+                      do i = its,ite
+                         rnifampten(k,i) = nifa(k,i)
+                         rnwfampten(k,i) = nwfa(k,i)
+                      enddo
+                      enddo
+                   endif
 
                 case default
              end select mp3_tend_select
@@ -860,10 +1026,13 @@ end subroutine pre_microphysics
  real(kind=RKIND),dimension(:,:),pointer  :: rncmpten,rnimpten,rnrmpten,rnifampten,rnwfampten
  real(kind=RKIND),dimension(:,:,:),pointer:: scalars
  integer,pointer:: mp_top_level
+ logical,pointer:: p3_liqfrac
+ integer,pointer:: p3_nCat
+ integer,pointer:: index_p3_qit,index_p3_qir,index_p3_qli
 
 !local variables:
  integer:: icount
- integer:: i,k,j
+ integer:: c,i,k,j
  real(kind=RKIND):: rho1,rho2,tem1,tem2
 
 !-----------------------------------------------------------------------------------------------------------------
@@ -1059,12 +1228,97 @@ end subroutine pre_microphysics
           case default
        end select mp2_select
 
+    case("mp_p3")
+       ! no microphysics updates above mp_top_level: as qi, qs and qg above, the P3 ice mass mixing ratios
+       ! (written to scalars in driver_microphysics) are set to zero. The number, rime volume and 6th moment
+       ! are not; P3 sets them to zero at its next call where the ice mass is zero:
+       if(kte .gt. mp_top_level) then
+          call mpas_pool_get_config(configs,'config_p3_nCat'   ,p3_nCat   )
+          call mpas_pool_get_config(configs,'config_p3_liqfrac',p3_liqfrac)
+          call mpas_pool_get_dimension(state,'index_p3_qit',index_p3_qit)
+          call mpas_pool_get_dimension(state,'index_p3_qir',index_p3_qir)
+          call mpas_pool_get_dimension(state,'index_p3_qli',index_p3_qli)
+          do i = its,ite
+          do k = mp_top_level+1,kte
+             do c = 1,p3_nCat
+                scalars(index_p3_qit+c-1,k,i) = 0.
+                scalars(index_p3_qir+c-1,k,i) = 0.
+                if(p3_liqfrac) scalars(index_p3_qli+c-1,k,i) = 0.
+             enddo
+          enddo
+          enddo
+       endif
+
+       !the P3 ice categories were written to scalars in driver_microphysics. qi, qs, qg and ni are not
+       !allocated with mp_p3: qi and ni point to the sums over the updated P3 ice categories, and qs and qg to
+       !zero, for the tendencies below; nothing is written to them:
+       call p3_sum_ice(state,scalars,its,ite)
+       qi => p3_qi_sum
+       qs => p3_zero_qsqg
+       qg => p3_zero_qsqg
+       ni => p3_ni_sum
+
+       call mpas_pool_get_dimension(state,'index_nr',index_nr)
+       nr => scalars(index_nr,:,:)
+
+       do j = jts,jte
+       do k = kts,kte
+       do i = its,ite
+          nr(k,i) = max(0._RKIND,nr_p(i,k,j))
+       enddo
+       enddo
+       enddo
+
+       !nc is always predicted; nifa, nwfa, nifa2d and nwfa2d exist only with predicted aerosols (f_nifa and
+       !f_nwfa are then true):
+       call mpas_pool_get_dimension(state,'index_nc',index_nc)
+       nc => scalars(index_nc,:,:)
+       if(f_nifa .and. f_nwfa) then
+          call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
+          call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
+          nifa => scalars(index_nifa,:,:)
+          nwfa => scalars(index_nwfa,:,:)
+       endif
+
+       call mpas_pool_get_array(diag_physics,'nifa2d'  ,nifa2d  )
+       call mpas_pool_get_array(diag_physics,'nwfa2d'  ,nwfa2d  )
+       call mpas_pool_get_array(diag_physics,'rainprod',rainprod)
+       call mpas_pool_get_array(diag_physics,'evapprod',evapprod)
+       call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
+       call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
+       call mpas_pool_get_array(diag_physics,'re_snow' ,re_snow )
+
+       do j = jts,jte
+          if(f_nifa .and. f_nwfa) then
+             do i = its,ite
+                nifa2d(i) = nifa2d_p(i,j)
+                nwfa2d(i) = nwfa2d_p(i,j)
+             enddo
+             do k = kts,kte
+             do i = its,ite
+                nifa(k,i) = nifa_p(i,k,j)
+                nwfa(k,i) = nwfa_p(i,k,j)
+             enddo
+             enddo
+          endif
+          do k = kts,kte
+          do i = its,ite
+             nc(k,i)       = nc_p(i,k,j)
+             rainprod(k,i) = rainprod_p(i,k,j)
+             evapprod(k,i) = evapprod_p(i,k,j)
+             re_cloud(k,i) = recloud_p(i,k,j)
+             re_ice(k,i)   = reice_p(i,k,j)
+             re_snow(k,i)  = resnow_p(i,k,j)
+          enddo
+          enddo
+       enddo
+
     case default
  end select mp_select
 
 !end calculation of cloud microphysics tendencies:
  mp_tend_select: select case(trim(mp_scheme))
-    case("mp_thompson","mp_thompson_aerosols","mp_wsm6")
+    case("mp_thompson","mp_thompson_aerosols","mp_p3","mp_wsm6")
        call mpas_pool_get_array(tend_physics,'rthmpten',rthmpten)
        call mpas_pool_get_array(tend_physics,'rqvmpten',rqvmpten)
        call mpas_pool_get_array(tend_physics,'rqcmpten',rqcmpten)
@@ -1101,7 +1355,7 @@ end subroutine pre_microphysics
        endif
 
        mp2_tend_select: select case(trim(mp_scheme))
-          case("mp_thompson","mp_thompson_aerosols")
+          case("mp_thompson","mp_thompson_aerosols","mp_p3")
              call mpas_pool_get_array(tend_physics,'rnimpten',rnimpten)
              call mpas_pool_get_array(tend_physics,'rnrmpten',rnrmpten)
 
@@ -1113,18 +1367,25 @@ end subroutine pre_microphysics
              enddo
 
              mp3_tend_select: select case(trim(mp_scheme))
-                case("mp_thompson_aerosols")
+                case("mp_thompson_aerosols","mp_p3")
+                   !mp_p3: nifa and nwfa exist only with predicted aerosols (config_p3_aerosols):
                    call mpas_pool_get_array(tend_physics,'rncmpten',rncmpten)
-                   call mpas_pool_get_array(tend_physics,'rnifampten',rnifampten)
-                   call mpas_pool_get_array(tend_physics,'rnwfampten',rnwfampten)
 
                    do k = kts,kte
                    do i = its,ite
                       rncmpten(k,i)   = (nc(k,i)-rncmpten(k,i))/dt_dyn
-                      rnifampten(k,i) = (nifa(k,i)-rnifampten(k,i))/dt_dyn
-                      rnwfampten(k,i) = (nwfa(k,i)-rnwfampten(k,i))/dt_dyn
                    enddo
                    enddo
+                   if(f_nifa .and. f_nwfa) then
+                      call mpas_pool_get_array(tend_physics,'rnifampten',rnifampten)
+                      call mpas_pool_get_array(tend_physics,'rnwfampten',rnwfampten)
+                      do k = kts,kte
+                      do i = its,ite
+                         rnifampten(k,i) = (nifa(k,i)-rnifampten(k,i))/dt_dyn
+                         rnwfampten(k,i) = (nwfa(k,i)-rnwfampten(k,i))/dt_dyn
+                      enddo
+                      enddo
+                   endif
 
                 case default
              end select mp3_tend_select
