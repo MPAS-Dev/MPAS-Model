@@ -173,6 +173,19 @@ set(ATMOSPHERE_CORE_PHYSICS_NOAA_SOURCES
 
 list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_NOAA_SOURCES PREPEND physics/physics_noaa/UGWP/)
 
+# physics/physics_noaa/TEMPO/
+set(ATMOSPHERE_CORE_PHYSICS_TEMPO_SOURCES
+    module_mp_tempo_params.F90
+    module_mp_tempo_cfgs.F90
+    module_mp_tempo_utils.F90
+    module_mp_tempo_diags.F90
+    module_mp_tempo_aerosols.F90
+    module_mp_tempo_ml.F90
+    module_mp_tempo_main.F90
+    module_mp_tempo_driver.F90
+)
+list(TRANSFORM ATMOSPHERE_CORE_PHYSICS_TEMPO_SOURCES PREPEND physics/physics_noaa/TEMPO/src/)
+
 set(ATMOSPHERE_CORE_PHYSICS_NOAMP_UTILITY_SOURCES
     CheckNanMod.F90
     Machine.F90
@@ -361,6 +374,10 @@ set(ATMOSPHERE_CORE_UTILS_SOURCES
     build_tables.F)
 list(TRANSFORM ATMOSPHERE_CORE_UTILS_SOURCES PREPEND utils/)
 
+set(ATMOSPHERE_CORE_TEMPO_UTILS_SOURCES
+    physics/physics_noaa/TEMPO/src/module_mp_tempo_tables.F90
+    physics/physics_noaa/TEMPO/tools/build_tables.F90)
+
 # core_atosphere
 set(ATMOSPHERE_CORE_SOURCES
     mpas_atm_dimensions.F
@@ -390,6 +407,7 @@ add_library(core_atmosphere ${ATMOSPHERE_CORE_SOURCES}
             ${ATMOSPHERE_CORE_PHYSICS_MMM_SOURCES}
             ${ATMOSPHERE_CORE_PHYSICS_WRF_SOURCES}
             ${ATMOSPHERE_CORE_PHYSICS_NOAA_SOURCES}
+            ${ATMOSPHERE_CORE_PHYSICS_TEMPO_SOURCES}
             ${ATMOSPHERE_CORE_DIAGNOSTIC_SOURCES}
             ${ATMOSPHERE_CORE_DYNAMICS_SOURCES})
 
@@ -401,6 +419,14 @@ if (${DO_PHYSICS})
     list(APPEND CORE_ATMOSPHERE_COMPILE_DEFINITIONS DO_PHYSICS)
 endif ()
 target_compile_definitions(core_atmosphere PRIVATE ${CORE_ATMOSPHERE_COMPILE_DEFINITIONS})
+
+set_source_files_properties(${ATMOSPHERE_CORE_PHYSICS_TEMPO_SOURCES}
+                            PROPERTIES COMPILE_DEFINITIONS "tempo_mpas;TEMPO_IGNORE_CONVERT_ARG")
+if (CMAKE_Fortran_COMPILER_ID MATCHES "^Intel")
+    set_source_files_properties(${ATMOSPHERE_CORE_PHYSICS_TEMPO_SOURCES}
+                                PROPERTIES COMPILE_OPTIONS "-fma;-fp-model=fast;-fprotect-parens;-fimf-precision=high")
+endif ()
+
 set_MPAS_DEBUG_flag(core_atmosphere)
 mpas_core_target(CORE atmosphere TARGET core_atmosphere INCLUDES ${ATMOSPHERE_CORE_INCLUDES})
 
@@ -433,3 +459,16 @@ target_link_libraries(mpas_atmosphere_build_tables PUBLIC core_atmosphere)
 mpas_fortran_target(mpas_atmosphere_build_tables)
 install(TARGETS mpas_atmosphere_build_tables EXPORT ${PROJECT_NAME}ExportsCore
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+add_executable(mpas_atmosphere_tempo_build_tables ${ATMOSPHERE_CORE_TEMPO_UTILS_SOURCES})
+set_source_files_properties(physics/physics_noaa/TEMPO/src/module_mp_tempo_tables.F90
+                            PROPERTIES COMPILE_DEFINITIONS TEMPO_IGNORE_CONVERT_ARG)
+target_link_libraries(mpas_atmosphere_tempo_build_tables PUBLIC core_atmosphere)
+mpas_fortran_target(mpas_atmosphere_tempo_build_tables)
+install(TARGETS mpas_atmosphere_tempo_build_tables EXPORT ${PROJECT_NAME}ExportsCore
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+set(TEMPO_CCN_TABLE ${CMAKE_CURRENT_SOURCE_DIR}/physics/physics_noaa/TEMPO/tables/ccn_activate.bin)
+file(CREATE_LINK ${TEMPO_CCN_TABLE}
+     ${CMAKE_BINARY_DIR}/${PROJECT_NAME}/core_atmosphere/ccn_activate.bin SYMBOLIC)
+install(FILES ${TEMPO_CCN_TABLE} DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/core_atmosphere)
