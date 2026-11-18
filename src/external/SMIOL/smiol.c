@@ -2606,8 +2606,20 @@ int write_chunk_pnetcdf(struct SMIOL_file *file,
 	/*
 	 * For scalar variables (with or without an unlimited dimension),
 	 * just write with a single call to the blocking write interface.
+	 * The request list holds MAX_REQS pending writes: when it is full,
+	 * wait for them first, as for the other variables below (n_reqs is
+	 * the same on every I/O task, so all of them make the collective
+	 * wait together).
 	 */
 	if (ndims == 0 || (has_unlimited_dim && ndims == 1)) {
+		if (file->n_reqs == MAX_REQS) {
+			ierr = ncmpi_wait_all(file->ncidp, file->n_reqs,
+			                      file->reqs, NULL);  /* statuses */
+			file->n_reqs = 0;
+			if (ierr != NC_NOERR) {
+				return ierr;
+			}
+		}
 		ierr = ncmpi_bput_vara(file->ncidp,
 		                       varidp,
 		                       mpi_start, mpi_count,
