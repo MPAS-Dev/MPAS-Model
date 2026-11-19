@@ -3962,7 +3962,7 @@ module atm_time_integration
          !$acc end parallel
       else
          !$acc parallel default(present)
-         !$acc loop gang worker collapse(2)
+         !$acc loop gang worker vector collapse(2)
          do iCell=cellStart,cellEnd
             do k=1,nVertLevels
                rtheta_pp_old(k,iCell) = rtheta_pp(k,iCell)
