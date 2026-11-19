@@ -131,6 +131,9 @@ if __name__ == '__main__':
     physics_noahmp = ['src/core_atmosphere/physics/physics_noahmp/parameters/' + f
         for f in [
             'NoahmpTable.TBL',
+            'snicar_drdt_bst_fit_60_c070416.nc',
+            'snicar_optics_480bnd_c012422.nc',
+            'snicar_optics_5bnd_c013122.nc',
             ]
         ]
 

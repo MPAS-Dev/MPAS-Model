@@ -44,6 +44,8 @@
                      description="The number of prescribed pressure levels in the climatological GOCART data set"/>
                 <dim name="nMonths" definition="namelist:config_months"
                      description="The number of months in a year"/>
+                <dim name="nCrops" definition="5"
+                     description="The number of crop types as needed as input in the NOAH-MP land surface model"/>
         </dims>
 
 
@@ -471,7 +473,20 @@
                         <var name="soilcl2" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="soilcl3" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
                         <var name="soilcl4" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
-                        <var name="var2d" packages="vertical_stage_in;met_stage_in"/>
+			<var name="croptype" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+			<var name="fdepthxy" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+			<var name="rechclim" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+			<var name="eqzwt" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+			<var name="riverbedxy" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+			<var name="irfract" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+			<var name="sifract" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+			<var name="mifract" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+			<var name="fifract" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+			<var name="planting" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+			<var name="harvest" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+			<var name="season_gdd" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+			<var name="td_fraction" packages="gwd_stage_in;vertical_stage_in;met_stage_in"/>
+			<var name="var2d" packages="vertical_stage_in;met_stage_in"/>
                         <var name="con" packages="vertical_stage_in;met_stage_in"/>
                         <var name="oa1" packages="vertical_stage_in;met_stage_in"/>
                         <var name="oa2" packages="vertical_stage_in;met_stage_in"/>
@@ -573,7 +588,20 @@
                         <var name="soilcl1"/>
                         <var name="soilcl2"/>
                         <var name="soilcl3"/>
-                        <var name="soilcl4"/>
+			<var name="soilcl4"/>
+			<var name="croptype"/>
+			<var name="fdepthxy"/>
+			<var name="rechclim"/>
+			<var name="eqzwt"/>
+			<var name="riverbedxy"/>
+			<var name="irfract"/>
+			<var name="sifract"/>
+			<var name="mifract"/>
+			<var name="fifract"/>
+			<var name="planting"/>
+			<var name="harvest"/>
+			<var name="season_gdd"/>
+			<var name="td_fraction"/>
                         <var name="var2d" packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
                         <var name="con" packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
                         <var name="oa1" packages="gwd_stage_out;vertical_stage_out;met_stage_out"/>
@@ -885,7 +913,7 @@
                 <var name="iswater_lu" type="integer" dimensions="" units="unitless" default_value="16"
                      description="Index category for water"/>
 
-                <!-- SOIL COMPOSITION fields needed for the NOAH-MP land surface scheme -->
+                <!-- Some special input static fields needed for the NOAH-MP land surface scheme -->
                 <var name="soilcomp" type="real" dimensions="nSoilComps nCells" units="percent"
                      description="soil composition needed as input in the NOAH-MP land surface model"
                      packages="noahmp"/>
@@ -904,6 +932,58 @@
 
                 <var name="soilcl4" type="real" dimensions="nCells" units="unitless"
                      description="soil texture class level 4 needed as input for the NOAH-MP land surface model"
+                     packages="noahmp"/>
+
+                <var name="croptype" type="real" dimensions="nCrops nCells" units="unitless"
+                     description="fraction of ncrop types needed as input for the NOAH-MP land surface model"
+                     packages="noahmp"/>
+
+		<var name="fdepthxy" type="real" dimensions="nCells" units="m"
+                     description="f factor for MMF groundwater needed as input for the NOAH-MP land surface model"
+                     packages="noahmp"/>
+
+		<var name="rechclim" type="real" dimensions="nCells" units="mm"
+                     description="recharge climatology for MMF groundwater needed as input for the NOAH-MP land surface model"
+                     packages="noahmp"/>
+
+		<var name="eqzwt" type="real" dimensions="nCells" units="m"
+                     description="climatology water table for MMF groundwater needed as input for the NOAH-MP land surface model"
+                     packages="noahmp"/>
+
+		<var name="riverbedxy" type="real" dimensions="nCells" units="m"
+                     description="riverbed elevation for MMF groundwater needed as input for the NOAH-MP land surface model"
+                     packages="noahmp"/>
+                        
+                <var name="irfract" type="real" dimensions="nCells" units="fraction"
+                     description="total irrigation fraction needed as input for the NOAH-MP land surface model"
+                     packages="noahmp"/>
+                        
+                <var name="sifract" type="real" dimensions="nCells" units="fraction"
+                     description="sprinkler irrigation fraction needed as input for the NOAH-MP land surface model"
+                     packages="noahmp"/>
+                        
+                <var name="mifract" type="real" dimensions="nCells" units="fraction"
+                     description="micro irrigation fraction needed as input for the NOAH-MP land surface model"
+                     packages="noahmp"/>
+                        
+                <var name="fifract" type="real" dimensions="nCells" units="fraction"
+                     description="flood irrigation fraction needed as input for the NOAH-MP land surface model"
+                     packages="noahmp"/>
+                        
+                <var name="planting" type="real" dimensions="nCells" units="day"
+                     description="planting date needed as input for the NOAH-MP land surface model"
+                     packages="noahmp"/>
+                        
+                <var name="harvest" type="real" dimensions="nCells" units="day"
+                     description="harvest date needed as input for the NOAH-MP land surface model"
+                     packages="noahmp"/>
+                        
+                <var name="season_gdd" type="real" dimensions="nCells" units="K"
+                     description="seasonal growing degree day needed as input for the NOAH-MP land surface model"
+                     packages="noahmp"/>
+                        
+                <var name="td_fraction" type="real" dimensions="nCells" units="fraction"
+                     description="tile drainage fraction needed as input for the NOAH-MP land surface model"
                      packages="noahmp"/>
 
                 <!-- GWDO fields -->
