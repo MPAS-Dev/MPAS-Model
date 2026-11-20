@@ -2549,6 +2549,14 @@
                      units="s"
                      description="Relaxation time to initial values in 1-d OML"
                      possible_values="Non-negative real values"/>
+				<nml_option name="config_kim_tofd" type="logical" default_value="true" in_defaults="true"
+                     units="-"
+                     description="Tubulent orographic form drag (tofd) in kim_gwdo scheme"
+                     possible_values="true. or .false."/>
+                <nml_option name="config_tofd_factor" type="real" default_value="0.003" in_defaults="false" 
+                     units="-"
+                     description="Factor in kim_tofd scheme"
+                     possible_values="Non-negative real values"/>
         </nml_record>
 
         <var_struct name="diag_physics" time_levs="1">
