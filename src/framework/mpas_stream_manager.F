@@ -1772,6 +1772,54 @@ module mpas_stream_manager
 
 
     !-----------------------------------------------------------------------
+    !  routine MPAS_stream_mgr_get_num_alarms
+    !
+    !> \brief Returns the number of I/O alarms associated with a stream in a given direction
+    !> \author Abishek Gopal
+    !> \date   10 June 2026
+    !> \details
+    !>  Returns the number of I/O alarms associated with a stream in a given direction.
+    !
+    !-----------------------------------------------------------------------
+    function MPAS_stream_mgr_get_num_alarms(manager, streamID, direction, ierr) result(numAlarms)
+
+       implicit none
+
+       integer :: numAlarms
+
+       type (MPAS_streamManager_type), intent(in) :: manager
+       character(len=*), intent(in) :: streamID
+       integer, intent(in) :: direction
+       integer, intent(out), optional :: ierr
+
+       type (mpas_stream_list_type), pointer :: streamCursor
+       integer :: err_local
+
+       numAlarms = 0
+       err_local = MPAS_STREAM_MGR_NOERR
+       nullify(streamCursor)
+
+       if (mpas_stream_list_query(manager % streams, streamID, streamCursor)) then
+          if (direction == MPAS_STREAM_INPUT) then
+            numAlarms = MPAS_stream_list_length(streamCursor % alarmList_in, err_local)
+          else if (direction == MPAS_STREAM_OUTPUT) then
+            numAlarms = MPAS_stream_list_length(streamCursor % alarmList_out, err_local)
+          else
+            err_local = MPAS_STREAM_MGR_ERROR
+            call MPAS_stream_mesg(manager % errorLevel, 'Invalid direction encountered in MPAS_stream_mgr_get_num_alarms')
+          end if
+       else
+          err_local = MPAS_STREAM_MGR_ERROR
+          call MPAS_stream_mesg(manager % errorLevel, 'Stream ' // trim(streamID) // &
+                                ' does not exist. Cannot retrieve number of alarms in stream.')
+       end if
+
+       if (present(ierr)) ierr = err_local
+
+    end function MPAS_stream_mgr_get_num_alarms
+
+
+    !-----------------------------------------------------------------------
     !  routine MPAS_stream_mgr_set_property_int
     !
     !> \brief Sets a property of a stream in an MPAS stream manager.
