@@ -564,6 +564,12 @@ module mpas_stream_manager
 
         end do
 
+        ! Only check filename_template uniqueness when validating all streams
+        if (.not. present(streamID)) then
+            call MPAS_stream_mgr_check_filename_template(manager, ierr=err_local)
+            if (present(ierr)) ierr = err_local
+        end if
+
     end subroutine MPAS_stream_mgr_validate_streams!}}}
 
 
