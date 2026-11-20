@@ -147,6 +147,7 @@ use mpas_stream_manager
  logical,pointer:: ngw_scheme
  integer,pointer:: ntau_d1y
  real(kind=RKIND),pointer:: knob_ugwp_tauamp
+ real(kind=RKIND),pointer:: alpha_fd
  real(kind=RKIND),dimension(:),pointer:: ugwp_taulat
  integer,dimension(:),pointer:: jindx1_tau, jindx2_tau
  real(kind=RKIND),dimension(:),pointer:: ddy_j1tau, ddy_j2tau
@@ -448,6 +449,13 @@ use mpas_stream_manager
     else
        call init_radiation_lw(dminfo,configs)
     endif
+ endif
+
+!Output of misc namelist settings related to the UGWP suite
+ if(trim(gwdo_scheme).eq.'bl_ugwp_gwdo') then
+    call mpas_pool_get_config(configs,'config_alpha_fd',alpha_fd)
+    call mpas_log_write('Turbulent orographic form drag coeff. alpha_fd = $r',         &
+            realArgs=(/alpha_fd/),masterOnly=.true.)
  endif
 
 !initialization of non-stationary gravity wave drag
