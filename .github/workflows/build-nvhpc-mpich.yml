@@ -1,0 +1,18 @@
+# BUILD: NVHPC + MPICH (CPU)
+# Builds the atmosphere and init_atmosphere cores with SMIOL.
+
+name: "BUILD: NVHPC + MPICH (CPU)"
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [develop]
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build-compiler.yml
+    with:
+      compiler: nvhpc
+      mpi: mpich
