@@ -36,6 +36,7 @@ module atm_time_integration
    use mpas_atm_boundaries, only : nSpecZone, nRelaxZone, nBdyZone, mpas_atm_get_bdy_state, mpas_atm_get_bdy_tend  ! regional_MPAS addition
    
    use mpas_atm_iau  
+   use mpas_atm_fdda
    use mpas_atm_dissipation_models
 
    ! Provides definition of halo_exchange_routine
@@ -1786,7 +1787,7 @@ module atm_time_integration
    end subroutine mpas_atm_dynamics_finalize
 
 
-   subroutine atm_timestep(domain, dt, nowTime, itimestep, exchange_halo_group)
+   subroutine atm_timestep(domain, dt, nowTime, itimestep, xtime_s, exchange_halo_group)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    ! Advance model state forward in time by the specified time step
    !
@@ -1802,6 +1803,7 @@ module atm_time_integration
       real (kind=RKIND), intent(in) :: dt
       type (MPAS_Time_type), intent(in) :: nowTime
       integer, intent(in) :: itimestep
+      real (kind=RKIND), intent(in) :: xtime_s
       procedure (halo_exchange_routine) :: exchange_halo_group
 
 
@@ -1826,7 +1828,7 @@ module atm_time_integration
 
       call mpas_atm_pre_dynamics(domain)
       if (trim(config_time_integration) == 'SRK3') then
-         call atm_srk3(domain, dt, itimestep, exchange_halo_group)
+         call atm_srk3(domain, dt, itimestep, xtime_s, exchange_halo_group)
       else
          call mpas_log_write('Unknown time integration option '//trim(config_time_integration), messageType=MPAS_LOG_ERR)
          call mpas_log_write('Currently, only ''SRK3'' is supported.', messageType=MPAS_LOG_CRIT)
@@ -1852,7 +1854,7 @@ module atm_time_integration
    end subroutine atm_timestep
 
 
-   subroutine atm_srk3(domain, dt, itimestep, exchange_halo_group)
+   subroutine atm_srk3(domain, dt, itimestep, xtime_s, exchange_halo_group)
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
    ! Advance model state forward in time by the specified time step using 
    !   time-split RK3 scheme
@@ -1871,6 +1873,7 @@ module atm_time_integration
       type (domain_type), intent(inout) :: domain
       real (kind=RKIND), intent(in) :: dt
       integer, intent(in) :: itimestep
+      real (kind=RKIND), intent(in) :: xtime_s
       procedure (halo_exchange_routine) :: exchange_halo_group
 
       integer :: thread
@@ -1912,14 +1915,17 @@ module atm_time_integration
       integer :: nCells, nEdges, nVertices, nEdgesSolve, nVertLevels, num_scalars
 
       character(len=StrKIND), pointer :: config_IAU_option
+      character(len=StrKIND), pointer :: config_fdda_scheme
 
       type (mpas_pool_type), pointer :: state
       type (mpas_pool_type), pointer :: diag
       type (mpas_pool_type), pointer :: diag_physics
       type (mpas_pool_type), pointer :: mesh
       type (mpas_pool_type), pointer :: tend
+      type (mpas_pool_type), pointer :: tend_fdda => null()
       type (mpas_pool_type), pointer :: tend_physics
       type (mpas_pool_type), pointer :: lbc  ! regional_MPAS addition
+      type (mpas_pool_type), pointer :: fdda 
 
       real (kind=RKIND), dimension(:,:), pointer :: w
       real (kind=RKIND), dimension(:,:), pointer :: u, uReconstructZonal, uReconstructMeridional, uReconstructX, uReconstructY, uReconstructZ
@@ -1957,6 +1963,7 @@ module atm_time_integration
       call mpas_pool_get_config(block % configs, 'config_microp_scheme', config_microp_scheme)
       call mpas_pool_get_config(block % configs, 'config_convection_scheme', config_convection_scheme)
 #endif
+      call mpas_pool_get_config(block % configs, 'config_fdda_scheme', config_fdda_scheme)
 
       !
       ! Retrieve field structures
@@ -1966,9 +1973,11 @@ module atm_time_integration
       call mpas_pool_get_subpool(block % structs, 'diag', diag)
       call mpas_pool_get_subpool(block % structs, 'tend', tend)
       call mpas_pool_get_subpool(block % structs, 'tend_physics', tend_physics)
+      call mpas_pool_get_subpool(block % structs, 'tend_fdda', tend_fdda)
 #ifdef DO_PHYSICS
       call mpas_pool_get_subpool(block % structs, 'diag_physics', diag_physics)
 #endif
+      call mpas_pool_get_subpool(block % structs, 'fdda', fdda)
 
       !
       ! Retrieve dimensions
@@ -2172,6 +2181,17 @@ module atm_time_integration
          call post_add_tend_anal_incr(block % configs, block % structs, tend_ru_physics, &
                                       tend_rtheta_physics, tend_rho_physics)
       end if
+
+      !
+      ! FDDA - Four-dimensional data assimilation (Grid point nudging)
+      !
+      ! MW: Why are tend_ru_physics and tend_rtheta_physics global variables, but not tend_scalars?
+      if (trim(config_fdda_scheme) /= 'off') then
+         call apply_fdda( block, xtime_s, block % configs, mesh, state, 1, fdda, diag, diag_physics, tend, tend_physics, tend_fdda, &
+                          tend_ru_physics, tend_rtheta_physics)
+      end if
+
+
 
 
 

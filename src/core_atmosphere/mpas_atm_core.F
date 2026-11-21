@@ -626,6 +626,7 @@ module atm_core
       use mpas_timer, only : mpas_timer_start, mpas_timer_stop
       use mpas_atm_boundaries, only : mpas_atm_update_bdy_tend
       use mpas_atm_diagnostics_manager, only : mpas_atm_diag_update, mpas_atm_diag_compute, mpas_atm_diag_reset
+      use mpas_atm_fdda, only : mpas_atm_update_fdda_state
    
       implicit none
    
@@ -635,6 +636,7 @@ module atm_core
       real (kind=RKIND) :: dt
       logical, pointer :: config_do_restart
       logical, pointer :: config_apply_lbcs
+      character(len=StrKIND),pointer:: config_fdda_scheme
       type (block_type), pointer :: block_ptr
 
       type (MPAS_Time_Type) :: currTime
@@ -728,6 +730,7 @@ module atm_core
 #endif
 
       call mpas_pool_get_config(domain % blocklist % configs, 'config_apply_lbcs', config_apply_lbcs)
+      call mpas_pool_get_config(domain % blocklist % configs, 'config_fdda_scheme', config_fdda_scheme)
 
       !
       ! Read initial boundary state
@@ -747,6 +750,27 @@ module atm_core
             block_ptr => block_ptr % next
          end do
       end if
+
+      !
+      ! Read initial FDDA target state
+      !
+      if ( trim(config_fdda_scheme) /= 'off' .and. &
+          MPAS_stream_mgr_ringing_alarms(domain % streamManager, streamID='fdda', direction=MPAS_STREAM_INPUT, ierr=ierr)) then
+         block_ptr => domain % blocklist
+         do while (associated(block_ptr))
+            call mpas_atm_update_fdda_state(clock, domain % streamManager, block_ptr, .true., ierr)
+            if (ierr /= 0) then
+               currTime = mpas_get_clock_time(clock, MPAS_NOW, ierr)
+               call mpas_get_time(curr_time=currTime, dateTimeString=timeStamp)
+               call mpas_log_write('Failed to process FDDA data on or before '//trim(timeStamp), messageType=MPAS_LOG_ERR)
+               return
+            end if
+
+            block_ptr => block_ptr % next
+         end do
+      end if
+
+
 
       ! During integration, time level 1 stores the model state at the beginning of the
       !   time step, and time level 2 stores the state advanced dt in time by timestep(...)
@@ -776,9 +800,32 @@ module atm_core
             end do
          end if
 
+         !
+         ! Read future FDDA target state and shift time levels 
+         !
+         if ( itimestep.ne.1 .and. trim(config_fdda_scheme) /= 'off' .and. &
+             MPAS_stream_mgr_ringing_alarms(domain % streamManager, streamID='fdda', direction=MPAS_STREAM_INPUT, ierr=ierr)) then
+            block_ptr => domain % blocklist
+            do while (associated(block_ptr))
+               call mpas_atm_update_fdda_state(clock, domain % streamManager, block_ptr, .false., ierr)
+               if (ierr /= 0) then
+                  call mpas_log_write('Failed to process FDDA data at next time after '//trim(timeStamp), messageType=MPAS_LOG_ERR)
+                  return
+               end if
+
+               block_ptr => block_ptr % next
+            end do
+         end if
+
+
+
+
          ! Regardless of whether boundary tendencies were updated, above, we do not want to read the 'lbc_in' stream
          ! as a general input stream, below.
          call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='lbc_in', direction=MPAS_STREAM_INPUT, ierr=ierr)
+
+         ! MW: Similar to the 'lbc_in' stream, we want to reset the alarm for the fdda stream
+         call MPAS_stream_mgr_reset_alarms(domain % streamManager, streamID='fdda', direction=MPAS_STREAM_INPUT, ierr=ierr)
 
 
          !
@@ -818,6 +865,8 @@ module atm_core
          call mpas_timer_stop("time integration")   
          call mpas_log_write(' Timing for integration step: $r s', realArgs=(/real(integ_stop_time - integ_start_time, kind=RKIND)/))
 
+
+
          ! Move time level 2 fields back into time level 1 for next time step
          call mpas_pool_get_subpool(domain % blocklist % structs, 'state', state)
          call mpas_pool_shift_time_levels(state)
@@ -826,7 +875,6 @@ module atm_core
          itimestep = itimestep + 1
          call mpas_advance_clock(clock)
          currTime = mpas_get_clock_time(clock, MPAS_NOW, ierr)
-
 
          call mpas_dmpar_get_time(diag_start_time)
 
@@ -1041,7 +1089,7 @@ module atm_core
       call chemistry_step()
 #endif
 
-      call atm_timestep(domain, dt, currTime, itimestep, exchange_halo_group)
+      call atm_timestep(domain, dt, currTime, itimestep, xtime_s, exchange_halo_group)
 
    end subroutine atm_do_timestep
    
