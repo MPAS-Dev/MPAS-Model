@@ -118,7 +118,7 @@
  call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
  call mpas_pool_get_dimension(state,'index_nwfa',index_nwfa)
     
- call mpas_pool_get_array(diag,'pressure_base',pressure)
+ call mpas_pool_get_array(diag,'pressure',pressure)
 
  call mpas_pool_get_array(mesh,'nifa_gocart_clim',nifa_clim)
  call mpas_pool_get_array(mesh,'nwfa_gocart_clim',nwfa_clim)
@@ -773,7 +773,7 @@
  call mpas_pool_get_dimension(lbc_state,'index_lbc_nifa',index_nifa)
  call mpas_pool_get_dimension(lbc_state,'index_lbc_nwfa',index_nwfa)
 
- call mpas_pool_get_array(diag,'pressure_base',pressure)
+ call mpas_pool_get_array(diag,'pressure',pressure)
 
  call mpas_pool_get_array(mesh,'nifa_gocart_clim',nifa_clim)
  call mpas_pool_get_array(mesh,'nwfa_gocart_clim',nwfa_clim)
