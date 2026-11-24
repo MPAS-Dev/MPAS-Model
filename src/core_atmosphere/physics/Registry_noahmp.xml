@@ -4,12 +4,6 @@
 
  <dims>
 
-      <dim name="FIVE" definition="5"
-                description="A constant value of 5"/>
-
-      <dim name="SIXTY" definition="60"
-                description="A constant value of 60"/>
-
       <dim name="nSoilComps" definition="8"
                 description="The number of soil textures as needed as input in the NOAH-MP land surface model"/>
 
@@ -17,12 +11,18 @@
                 description="The number of snow layers used by the NOAHMP land-surface scheme"/>
 
       <dim name="nzSnowLevels" definition="nSoilLevels+nSnowLevels"
-                description="The number of snow layer depths used by the NOAHMP land-surface scheme"/>
+                description="The number of snow+soil layers used by the NOAHMP land-surface scheme"/>
+
+      <dim name="nCrops" definition="5"
+                description="The number of crop types as needed as input in the NOAH-MP land surface model"/>
+
+      <dim name="nRads" definition="2"
+                description="The number of shortwave band as needed as input in the NOAH-MP land surface model"/>
 
  </dims>
 
 
- <var_struct name="mesh" time_levs="1">
+ <var_struct name="sfc_input" time_levs="1">
 
       <var name="soilcomp" type="real" dimensions="nSoilComps nCells" units="unitless"
                 description="soil composition needed as input in the NOAH-MP land surface model"
@@ -44,6 +44,58 @@
                 description="soil texture class level 4 needed as input for the NOAH-MP land surface model"
                 packages="sf_noahmp_in"/>
 
+      <var name="croptype" type="real" dimensions="nCrops nCells" units="unitless"
+                description="fraction of ncrop types needed as input for the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
+
+      <var name="fdepthxy" type="real" dimensions="nCells" units="m"
+                description="f factor for MMF groundwater needed as input for the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
+                        
+      <var name="rechclim" type="real" dimensions="nCells" units="mm"
+                description="recharge climatology for MMF groundwater needed as input for the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
+                        
+      <var name="eqzwt" type="real" dimensions="nCells" units="m"
+                description="climatology water table for MMF groundwater needed as input for the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
+                        
+      <var name="riverbedxy" type="real" dimensions="nCells" units="m"
+                description="riverbed elevation for MMF groundwater needed as input for the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
+
+      <var name="irfract" type="real" dimensions="nCells" units="m"
+                description="total irrigation fraction needed as input for the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
+
+      <var name="sifract" type="real" dimensions="nCells" units="m"
+                description="sprinkler irrigation fraction needed as input for the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
+
+      <var name="mifract" type="real" dimensions="nCells" units="m"
+                description="micro irrigation fraction needed as input for the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
+
+      <var name="fifract" type="real" dimensions="nCells" units="m"
+                description="flood irrigation fraction needed as input for the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
+
+      <var name="planting" type="real" dimensions="nCells" units="day"
+                description="planting date needed as input for the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
+      
+      <var name="harvest" type="real" dimensions="nCells" units="day"
+                description="harvest date needed as input for the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
+      
+      <var name="season_gdd" type="real" dimensions="nCells" units="K"
+                description="total growing degree day needed as input for the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
+      
+      <var name="td_fraction" type="real" dimensions="nCells" units="fraction"
+                description="tile drainage fraction needed as input for the NOAH-MP land surface model"
+                packages="sf_noahmp_in"/>
+
  </var_struct>
 
 
@@ -57,126 +109,201 @@
       <nml_option name="config_noahmp_iopt_crs" type="integer" default_value="1"
            units="-"
            description="option for canopy stomatal resistance"
-           possible_values="0 or 1"/>
+           possible_values="1 to 2"/>
 
       <nml_option name="config_noahmp_iopt_btr" type="integer" default_value="1"
            units="-"
-           description="option for soil moisture in stomatal resistance"
-           possible_values="0 or 1"/>
+           description="option for soil moisture factor in stomatal resistance"
+           possible_values="1 to 3"/>
 
       <nml_option name="config_noahmp_iopt_runsrf" type="integer" default_value="3"
            units="-"
            description="option for surface runoff"
-           possible_values="0 or 1"/>
+           possible_values="1 to 8"/>
 
       <nml_option name="config_noahmp_iopt_runsub" type="integer" default_value="3"
            units="-"
            description="option for sub-surface option"
-           possible_values="0 or 1"/>
+           possible_values="1 to 8"/>
  
       <nml_option name="config_noahmp_iopt_sfc" type="integer" default_value="1"
            units="-"
            description="option for surface drag"
-           possible_values="0 or 1"/>
+           possible_values="1 to 2"/>
 
       <nml_option name="config_noahmp_iopt_frz" type="integer" default_value="1"
            units="-"
            description="option for supercooled water"
-           possible_values="0 or 1"/>
+           possible_values="1 to 2"/>
 
       <nml_option name="config_noahmp_iopt_inf" type="integer" default_value="1"
            units="-"
            description="option for frozen soil"
-           possible_values="0 or 1"/>
+           possible_values="1 to 2"/>
 
       <nml_option name="config_noahmp_iopt_rad" type="integer" default_value="3"
            units="-"
-           description="option for radiative transfer"
-           possible_values="0 or 1"/>
+           description="option for canopy radiative transfer"
+           possible_values="1 to 3"/>
 
       <nml_option name="config_noahmp_iopt_alb" type="integer" default_value="1"
            units="-"
            description="option for snow albedo"
-           possible_values="0 or 1"/>
+           possible_values="1 to 3"/>
 
       <nml_option name="config_noahmp_iopt_snf" type="integer" default_value="1"
            units="-"
-           description="option for pcp partition option"
-           possible_values="0 or 1"/>
+           description="option for rain-snow partitioning"
+           possible_values="1 to 5"/>
 
       <nml_option name="config_noahmp_iopt_tksno" type="integer" default_value="1"
            units="-"
            description="option for snow thermal conductivity"
-           possible_values="0 or 1"/>
+           possible_values="1 to 5"/>
 
       <nml_option name="config_noahmp_iopt_tbot" type="integer" default_value="2"
            units="-"
            description="option for lower boundary of soil temperature"
-           possible_values="0 or 1"/>
+           possible_values="1 to 2"/>
 
-      <nml_option name="config_noahmp_iopt_stc" type="integer" default_value="1"
+      <nml_option name="config_noahmp_iopt_stc" type="integer" default_value="3"
            units="-"
-           description="option for soil or snow time scheme"
-           possible_values="0 or 1"/>
+           description="option for soil or snow temperature time scheme"
+           possible_values="1 to 3"/>
 
       <nml_option name="config_noahmp_iopt_gla" type="integer" default_value="1"
            units="-"
-           description="option for glacier"
-           possible_values="0 or 1"/>
+           description="option for glacier ice phase change treatment"
+           possible_values="1 to 2"/>
 
       <nml_option name="config_noahmp_iopt_rsf" type="integer" default_value="4"
            units="-"
-           description="option for subrface resistance"
-           possible_values="0 or 1"/>
+           description="option for soil evaporation surface resistance"
+           possible_values="1 to 4"/>
 
       <nml_option name="config_noahmp_iopt_soil" type="integer" default_value="1"
            units="-"
            description="option for soil data"
-           possible_values="0 or 1"/>
+           possible_values="1 to 4"/>
 
       <nml_option name="config_noahmp_iopt_pedo" type="integer" default_value="1"
            units="-"
-           description="option for pedo transfer"
-           possible_values="0 or 1"/>
+           description="option for pedo-transfer function for soil property"
+           possible_values="only 1"/>
 
       <nml_option name="config_noahmp_iopt_crop" type="integer" default_value="0"
            units="-"
-           description="option for crop"
-           possible_values="0 or 1"/>
+           description="option for crop model"
+           possible_values="0 to 1"/>
 
       <nml_option name="config_noahmp_iopt_irr" type="integer" default_value="0"
            units="-"
-           description="option for irrigation"
-           possible_values="0 or 1"/>
+           description="option for irrigation trigger"
+           possible_values="0 to 3"/>
 
       <nml_option name="config_noahmp_iopt_irrm" type="integer" default_value="0"
            units="-"
            description="option for irrigaton method"
-           possible_values="0 or 1"/>
+           possible_values="0 to 3"/>
 
       <nml_option name="config_noahmp_iopt_infdv" type="integer" default_value="1"
            units=" "
-           description="option for dvic infiltration"
-           possible_values="0 or 1"/>
+           description="option for infiltration in dynamic VIC runoff scheme"
+           possible_values="1 to 3"/>
 
       <nml_option name="config_noahmp_iopt_tdrn" type="integer" default_value="0"
            units="-"
-           description="option for drainage option"
-           possible_values="or 1"/>
+           description="option for tile drainage"
+           possible_values="0 to 2"/>
+
+      <nml_option name="config_noahmp_iopt_compact" type="integer" default_value="2"
+           units="-"
+           description="option for snow compaction"
+           possible_values="1 to 2"/>
+
+      <nml_option name="config_noahmp_iopt_scf" type="integer" default_value="1"
+           units="-"
+           description="option for ground snow cover fraction"
+           possible_values="1 to 2"/>
+
+      <nml_option name="config_noahmp_iopt_wetland" type="integer" default_value="0"
+           units="-"
+           description="option for wetland scheme"
+           possible_values="0 to 2"/>
+
+      <nml_option name="config_noahmp_iopt_snicar_bnd" type="integer" default_value="1"
+           units="-"
+           description="option for SNICAR snow albedo scheme band number"
+           possible_values="1 to 2"/>
+
+      <nml_option name="config_noahmp_iopt_snicar_spec" type="integer" default_value="1"
+           units="-"
+           description="option for SNICAR snow albedo scheme solar spectrum type"
+           possible_values="1 to 6"/>
+
+      <nml_option name="config_noahmp_iopt_snicar_snwopts" type="integer" default_value="3"
+           units="-"
+           description="option for SNICAR snow albedo scheme snow optics"
+           possible_values="1 to 3"/>
+
+      <nml_option name="config_noahmp_iopt_snicar_dstopts" type="integer" default_value="1"
+           units="-"
+           description="option for SNICAR snow albedo scheme dust optics"
+           possible_values="1 to 3"/>
+
+      <nml_option name="config_noahmp_iopt_snicar_rt" type="integer" default_value="2"
+           units="-"
+           description="option for SNICAR snow albedo scheme radiative transfer solver"
+           possible_values="1 to 2"/>
+
+      <nml_option name="config_noahmp_iopt_snicar_shp" type="integer" default_value="3"
+           units="-"
+           description="option for SNICAR snow albedo scheme snow grain shape"
+           possible_values="1 to 4"/>
+
+      <nml_option name="config_noahmp_iopt_snicar_aer" type="logical" default_value="false"
+           units="-"
+           description="option for SNICAR snow albedo scheme with aerosol impact"
+           possible_values=".true. or .false."/>
+
+      <nml_option name="config_noahmp_iopt_snicar_bcmix" type="logical" default_value="false"
+           units="-"
+           description="option for SNICAR snow albedo scheme with bc-snow internal mixing"
+           possible_values=".true. or .false."/>
+
+      <nml_option name="config_noahmp_iopt_snicar_dstmix" type="logical" default_value="false"
+           units="-"
+           description="option for SNICAR snow albedo scheme with dust-snow internal mixing"
+           possible_values=".true. or .false."/>
+
+      <nml_option name="config_noahmp_iopt_snicar_oc" type="logical" default_value="false"
+           units="-"
+           description="option for SNICAR snow albedo scheme with organic carbon"
+           possible_values=".true. or .false."/>
+
+      <nml_option name="config_noahmp_iopt_snicar_tbl" type="logical" default_value="true"
+           units="-"
+           description="option for SNICAR snow albedo scheme using table aerosol deposition"
+           possible_values=".true. or .false."/>
+
+      <nml_option name="config_noahmp_soil_dt" type="real" default_value="0"
+           units="-"
+           description="Noah-MP soil process timestep (seconds)"
+           possible_values="0 or N * dt_mpas"/>
 
  </nml_record>
 
 
-  <var_struct name="diag_physics_noahmp" time_levs="1" packages="sf_noahmp_in">
+ <var_struct name="diag_physics_noahmp" time_levs="1" packages="sf_noahmp_in">
 
       <var name="irnumsi" type="integer" dimensions="nCells Time" units="-"
-                description="sprinkler irrigation event count"/>
+                description="sprinkler irrigation event count" missing_value="-9999"/>
 
       <var name="irnummi" type="integer" dimensions="nCells Time" units="-"
-                description="micro irrigation event count"/>
+                description="micro irrigation event count" missing_value="-9999"/>
 
       <var name="irnumfi" type="integer" dimensions="nCells Time" units="-"
-                description="flood irrigation event count"/>
+                description="flood irrigation event count" missing_value="-9999"/>
 
       <var name="isnowxy" type="integer" dimensions="nCells Time" units="-"
                 description="number of snow layers" missing_value="-9999"/>
@@ -196,29 +323,14 @@
       <var name="irsivol" type="real" dimensions="nCells Time" units="mm"
                 description="sprinkler irrigation water accumulated"/>
 
-      <var name="irmivol" type="real" dimensions="nCells Time" units="m"
+      <var name="irmivol" type="real" dimensions="nCells Time" units="mm"
                 description="micro irrigation water accumulated"/>
 
-      <var name="irfivol" type="real" dimensions="nCells Time" units="m"
+      <var name="irfivol" type="real" dimensions="nCells Time" units="mm"
                 description="flood irrigation water accumulated"/>
 
-      <var name="irrsplh" type="real" dimensions="nCells Time" units="Joules m ^{-2}"
-                description="sprinkler evaporation loss accumuated"/>
-
-      <var name="irfract" type="real" dimensions="nCells Time" units="-"
-                description="irrigation fraction"/>
-
-      <var name="sifract" type="real" dimensions="nCells Time" units="-"
-                description="sprinkler irrigation fraction"/>
-
-      <var name="mifract" type="real" dimensions="nCells Time" units="-"
-                description="micro irrigation fraction"/>
-
-      <var name="fifract" type="real" dimensions="nCells Time" units="-"
-                description="flood irrigation fraction"/>
-
-      <var name="loctim" type="real" dimensions="nCells Time" units="-"
-                description="local time"/>
+      <var name="irrsplh" type="real" dimensions="nCells Time" units="W m ^{-2}"
+                description="sprinkler evaporation loss latent heat flux"/>
 
       <var name="tvxy" type="real" dimensions="nCells Time" units="K"
                 description="vegetation leaf temperature" missing_value="-9999.0"/>
@@ -253,12 +365,6 @@
       <var name="alboldxy" type="real" dimensions="nCells Time" units="-"
                 description="snow albedo at last timestep" missing_value="-9999.0"/>
 
-      <var name="qrainxy" type="real" dimensions="nCells Time" units="mm s^{-1}"
-                description="rainfall on the ground" missing_value="-9999.0"/>
-
-      <var name="qsnowxy" type="real" dimensions="nCells Time" units="mm s^{-1}"
-                description="snowfall on the ground" missing_value="-9999.0"/>
-
       <var name="wslakexy" type="real" dimensions="nCells Time" units="mm"
                 description="lake water storage" missing_value="-9999.0"/>
 
@@ -271,47 +377,50 @@
       <var name="wtxy" type="real" dimensions="nCells Time" units="mm"
                 description="groundwater storage" missing_value="-9999.0"/>
 
-      <var name="lfmassxy" type="real" dimensions="nCells Time" units="g m^{-2}"
+      <var name="lfmassxy" type="real" dimensions="nCells Time" units="gC m^{-2}"
                 description="leaf mass" missing_value="-9999.0"/>
 
-      <var name="rtmassxy" type="real" dimensions="nCells Time" units="g m^{-2}"
+      <var name="rtmassxy" type="real" dimensions="nCells Time" units="gC m^{-2}"
                 description="mass of fine roots" missing_value="-9999.0"/>
 
-      <var name="stmassxy" type="real" dimensions="nCells Time" units="g m^{-2}"
+      <var name="stmassxy" type="real" dimensions="nCells Time" units="gC m^{-2}"
                 description="stem mass" missing_value="-9999.0"/>
 
-      <var name="woodxy" type="real" dimensions="nCells Time" units="g m^{-2}"
+      <var name="woodxy" type="real" dimensions="nCells Time" units="gC m^{-2}"
                 description="mass of wood" missing_value="-9999.0"/>
 
-      <var name="grainxy" type="real" dimensions="nCells Time" units="g m^{-2}"
+      <var name="grainxy" type="real" dimensions="nCells Time" units="gC m^{-2}"
                 description="mass of grain" missing_value="-9999.0"/>
 
-      <var name="gddxy" type="real" dimensions="nCells Time" units="-"
+      <var name="gddxy" type="real" dimensions="nCells Time" units="K"
                 description="growing degree days" missing_value="-9999.0"/>
 
-      <var name="stblcpxy" type="real" dimensions="nCells Time" units="g m^{-2}"
+      <var name="pgsxy" type="integer" dimensions="nCells Time" units="K"
+                description="crop growing stage" missing_value="-9999"/>
+
+      <var name="stblcpxy" type="real" dimensions="nCells Time" units="gC m^{-2}"
                 description="stable carbon pool" missing_value="-9999.0"/>
 
-      <var name="fastcpxy" type="real" dimensions="nCells Time" units="g m^{-2}"
+      <var name="fastcpxy" type="real" dimensions="nCells Time" units="gC m^{-2}"
                 description="short-lived carbon" missing_value="-9999.0"/>
 
-      <var name="xsaixy" type="real" dimensions="nCells Time" units="-"
+      <var name="xsaixy" type="real" dimensions="nCells Time" units="m2 m^{-2}"
                 description="stem area index" missing_value="-9999.0"/>
 
       <var name="taussxy" type="real" dimensions="nCells Time" units="-"
                 description="non-dimensional snow age"/>
 
       <var name="deeprechxy" type="real" dimensions="nCells Time" units="mm"
-                description="deep water table recharge"/>
+                description="deep water table recharge for MMF groundwater"/>
 
       <var name="rechxy" type="real" dimensions="nCells Time" units="mm"
-                description="water table recharge"/>
+                description="water table recharge for MMF groundwater"/>
 
       <var name="tsnoxy" type="real" dimensions="nSnowLevels nCells Time" units="K"
-                description="snow temperature" missing_value="-9999.0"/>
+                description="snow layer temperature" missing_value="-9999.0"/>
 
       <var name="zsnsoxy" type="real" dimensions="nzSnowLevels nCells Time" units="m"
-                description="layer-bottom depth from snow surf" missing_value="-9999.0"/>
+                description="layer-bottom depth from snow surface" missing_value="-9999.0"/>
 
       <var name="snicexy" type="real" dimensions="nSnowLevels nCells Time" units="mm"
                 description="snow layer ice" missing_value="-9999.0"/>
@@ -319,39 +428,141 @@
       <var name="snliqxy" type="real" dimensions="nSnowLevels nCells Time" units="mm"
                 description="snow layer liquid" missing_value="-9999.0"/>
 
-      <var name="acc_ssoil" type="real" dimensions="nCells Time" units="W m^{-2}"
-                description="accumulated ssoil between dt_soil"/>
+      <var name="qtdrain" type="real" dimensions="nCells Time" units="mm"
+                description="accumulated tile drainage"/>
 
-      <var name="acc_qinsur" type="real" dimensions="nCells Time" units ="mm s^{-1}"
-                description="accumulated qinsur between dt_soil"/>
+      <var name="acc_dwaterxy" type="real" dimensions="nCells Time" units ="mm"
+                description="accumulated canopy,snow,soil water change per soil timestep"/>
 
-      <var name="acc_qseva" type="real" dimensions="nCells Time" units ="mm s^{-1}"
-                description="accumulated qsevap between dt_soil"/>
+      <var name="acc_prcpxy" type="real" dimensions="nCells Time" units ="mm"
+                description="accumulated precipitation per soil timestep"/>
 
-      <var name="acc_dwater" type="real" dimensions="nCells Time" units ="mm"
-                description="accumulated canopy,snow,soil water change between dt_soil"/>
+      <var name="acc_ecanxy" type="real" dimensions="nCells Time" units ="mm"
+                description="accumulated net canopy evaporation per soil timestep"/>
 
-      <var name="acc_prcp" type="real" dimensions="nCells Time" units ="mm"
-                description="accumulated precipitation between dt_soil"/>
+      <var name="acc_etranxy" type="real" dimensions="nCells Time" units ="mm"
+                description="accumulated transpiration per soil timestep"/>
 
-      <var name="acc_ecan" type="real" dimensions="nCells Time" units ="mm"
-                description="accumulated net canopy evaporation between dt_soil"/>
+      <var name="acc_edirxy" type="real" dimensions="nCells Time" units ="mm"
+                description="accumulated net soil evaporation per soil timestep"/>
 
-      <var name="acc_etran" type="real" dimensions="nCells Time" units ="mm"
-                description="accumulated transpiration between dt_soil"/>
+      <var name="acc_etranixy" type="real" dimensions="nSoilLevels nCells Time" units ="m s^{-1}"
+                description="accumulated etrani per soil timestep"/>
 
-      <var name="acc_edir" type="real" dimensions="nCells Time" units ="mm"
-                description="accumulated net soil evaporation between dt_soil"/>
+      <var name="acc_ssoilxy" type="real" dimensions="nCells Time" units="W m^{-2}"
+                description="accumulated ground heat flux per dt_soil/dt_main"/>
 
-      <var name="acc_etrani" type="real" dimensions="nSoilLevels nCells Time" units ="mm s^{-1}"
-                description="accumulated etrani between dt_soil"/>
+      <var name="acc_qinsurxy" type="real" dimensions="nCells Time" units="m s^{-1}"
+                description="accumulated water flux into soil per dt_soil/dt_main"/>
 
-      <var name="gecros_state" type="real" dimensions="SIXTY nCells Time" units="-"
-                description="gecros crop"/>
+      <var name="acc_qsevaxy" type="real" dimensions="nCells Time" units="m s^{-1}"
+                description="accumulated soil surface evaporation per dt_soil/dt_main"/>
+
+      <var name="acc_glaflwxy" type="real" dimensions="nCells Time" units="mm"
+                description="accumulated glacier excessive flow per soil timestep"/>
+      
+      <var name="albsoildirxy" type="real" dimensions="nRads nCells Time" units="-"
+                description="soil albedo under direct radiation"/>
+
+      <var name="albsoildifxy" type="real" dimensions="nRads nCells Time" units="-"
+                description="soil albedo under diffuse radiation"/>
+
+      <var name="cropcat" type="integer" dimensions="nCells Time" units="-"
+                description="crop category"/>
+
+      <var name="smcwtdxy" type="real" dimensions="nCells Time" units="m3 m^{-3}"
+                description="soil moisture below the bottom of the column"/>
+
+      <var name="qrfsxy" type="real" dimensions="nCells Time" units="mm"
+                description="accumulated groundwater baseflow"/>
+
+      <var name="qspringsxy" type="real" dimensions="nCells Time" units="mm"
+                description="accumulated seeping water"/>
+
+      <var name="qslatxy" type="real" dimensions="nCells Time" units="mm"
+                description="accumulated lateral flow"/>
+
+      <var name="rivercondxy" type="real" dimensions="nCells Time" units="-"
+                description="river conductivity"/>
+
+      <var name="pexpxy" type="real" dimensions="nCells Time" units="-"
+                description="MMF groundwater exponential factor"/>
+
+      <var name="smoiseq" type="real" dimensions="nSoilLevels nCells Time" units="m3 m^{-3}"
+                description="equilibrium volumetric soil moisture"/>
+
+      <var name="stepwtd" type="integer" dimensions="nCells Time" units="-"
+                description="step of groundwater call"/>
+
+      <var name="fsatxy" type="real" dimensions="nCells Time" units="-"
+                description="saturated fraction of the grid"/>
+
+      <var name="wsurfxy" type="real" dimensions="nCells Time" units="mm"
+                description="wetland water storage"/>
+
+      <var name="snrdsxy" type="real" dimensions="nSnowLevels nCells Time" units="micron"
+                description="snow layer effective grain radius"/>
+
+      <var name="snfrxy" type="real" dimensions="nSnowLevels nCells Time" units="mm s^{-1}"
+                description="snow layer rate of snow freezing"/>
+
+      <var name="bcphixy" type="real" dimensions="nSnowLevels nCells Time" units="kg m^{2}"
+                description="mass of hydrophillic Black Carbon in snow"/>
+
+      <var name="bcphoxy" type="real" dimensions="nSnowLevels nCells Time" units="kg m^{2}"
+                description="mass of hydrophobic Black Carbon in snow"/>
+
+      <var name="ocphixy" type="real" dimensions="nSnowLevels nCells Time" units="kg m^{2}"
+                description="mass of hydrophillic Organic Carbon in snow"/>
+
+      <var name="ocphoxy" type="real" dimensions="nSnowLevels nCells Time" units="kg m^{2}"
+                description="mass of hydrophobic Organic Carbon in snow"/>
+
+      <var name="dust1xy" type="real" dimensions="nSnowLevels nCells Time" units="kg m^{2}"
+                description="mass of dust size bin 1 in snow"/>
+
+      <var name="dust2xy" type="real" dimensions="nSnowLevels nCells Time" units="kg m^{2}"
+                description="mass of dust size bin 2 in snow"/>
+
+      <var name="dust3xy" type="real" dimensions="nSnowLevels nCells Time" units="kg m^{2}"
+                description="mass of dust size bin 3 in snow"/>
+
+      <var name="dust4xy" type="real" dimensions="nSnowLevels nCells Time" units="kg m^{2}"
+                description="mass of dust size bin 4 in snow"/>
+
+      <var name="dust5xy" type="real" dimensions="nSnowLevels nCells Time" units="kg m^{2}"
+                description="mass of dust size bin 5 in snow"/>
+
+      <var name="concbcphixy" type="real" dimensions="nSnowLevels nCells Time" units="kg kg^{-1}"
+                description="mass concentration of hydrophillic Black Carbon in snow"/>
+
+      <var name="concbcphoxy" type="real" dimensions="nSnowLevels nCells Time" units="kg kg^{-1}"
+                description="mass concentration of hydrophobic Black Carbon in snow"/>
+
+      <var name="concocphixy" type="real" dimensions="nSnowLevels nCells Time" units="kg kg^{-1}"
+                description="mass concentration of hydrophillic Organic Carbon in snow"/>
+
+      <var name="concocphoxy" type="real" dimensions="nSnowLevels nCells Time" units="kg kg^{-1}"
+                description="mass concentration of hydrophobic Organic Carbon in snow"/>
+
+      <var name="concdust1xy" type="real" dimensions="nSnowLevels nCells Time" units="kg kg^{-1}"
+                description="mass concentration of dust size bin 1 in snow"/>
+
+      <var name="concdust2xy" type="real" dimensions="nSnowLevels nCells Time" units="kg kg^{-1}"
+                description="mass concentration of dust size bin 2 in snow"/>
+
+      <var name="concdust3xy" type="real" dimensions="nSnowLevels nCells Time" units="kg kg^{-1}"
+                description="mass concentration of dust size bin 3 in snow"/>
+
+      <var name="concdust4xy" type="real" dimensions="nSnowLevels nCells Time" units="kg kg^{-1}"
+                description="mass concentration of dust size bin 4 in snow"/>
+
+      <var name="concdust5xy" type="real" dimensions="nSnowLevels nCells Time" units="kg kg^{-1}"
+                description="mass concentration of dust size bin 5 in snow"/>
 
  </var_struct>
 
-
+      
  <var_struct name="output_noahmp" time_levs="1" packages="sf_noahmp_in">
 
       <var name="t2mvxy" type="real" dimensions="nCells Time" units="K"
@@ -372,29 +583,38 @@
       <var name="q2mxy" type="real" dimensions="nCells Time" units="kg kg^{-1}"
                 description="grid-mean 2-meter water vapor mixing ratio" missing_value="-9999.0"/>
 
+      <var name="qrainxy" type="real" dimensions="nCells Time" units="mm s^{-1}"
+                description="rainfall rate on the ground" missing_value="-9999.0"/>
+
+      <var name="qsnowxy" type="real" dimensions="nCells Time" units="mm s^{-1}"
+                description="snowfall rate on the ground" missing_value="-9999.0"/>
+
+      <var name="loctim" type="real" dimensions="nCells Time" units="-"
+                description="local time"/>
+
       <var name="tradxy" type="real" dimensions="nCells Time" units="K"
                 description="surface radiative temperature" missing_value="-9999.0"/>
 
-      <var name="neexy"  type="real" dimensions="nCells Time" units="g m^{-2} s^{-1} C"
+      <var name="neexy"  type="real" dimensions="nCells Time" units="gC m^{-2} s^{-1}"
                 description="net ecosystem exchange" missing_value="-9999.0"/>
 
-      <var name="gppxy"  type="real" dimensions="nCells Time" units="g m^{-2} s^{-1} C"
+      <var name="gppxy"  type="real" dimensions="nCells Time" units="gC m^{-2} s^{-1}"
                 description="gross primary productivity" missing_value="-9999.0"/>
 
-      <var name="nppxy"  type="real" dimensions="nCells Time" units="g m^{-2} s^{-1} C"
+      <var name="nppxy"  type="real" dimensions="nCells Time" units="gC m^{-2} s^{-1}"
                 description="net primary productivity" missing_value="-9999.0"/>
 
       <var name="fvegxy" type="real" dimensions="nCells Time" units="-"
                 description="NOAHMP vegetation fraction" missing_value="-9999.0"/>
 
-      <var name="runsfxy" type="real" dimensions="nCells Time" units="mm s^{-1}"
-                description="surface runoff" missing_value="-9999.0"/>
+      <var name="runsfxy" type="real" dimensions="nCells Time" units="mm"
+                description="surface runoff accumulated over dt_soil" missing_value="-9999.0"/>
 
-      <var name="runsbxy" type="real" dimensions="nCells Time" units="mm s^{-1}"
-                description="sub-surface runoff" missing_value="-9999.0"/>
+      <var name="runsbxy" type="real" dimensions="nCells Time" units="mm"
+                description="subsurface runoff accumulated over dt_soil" missing_value="-9999.0"/>
 
       <var name="ecanxy" type="real" dimensions="nCells Time" units="mm s^{-1}"
-                description="evaporation of intercepted water" missing_value="-9999.0"/>
+                description="evaporation of canopy intercepted water" missing_value="-9999.0"/>
 
       <var name="edirxy" type="real" dimensions="nCells Time" units="mm s^{-1}"
                 description="ground surface evaporation rate" missing_value="-9999.0"/>
@@ -409,7 +629,7 @@
                 description="total net longwave radiation" missing_value="-9999.0"/>
 
       <var name="aparxy" type="real" dimensions="nCells Time" units="W m^{-2}"
-                description="iphotosynthesis active energy by canopy" missing_value="-9999.0"/>
+                description="photosynthesis active energy by canopy" missing_value="-9999.0"/>
 
       <var name="psnxy" type="real" dimensions="nCells Time" units="umol CO2 m^{-2} s^{-1}"
                 description="total photosynthesis" missing_value="-9999.0"/>
@@ -445,16 +665,16 @@
                 description="bare-ground heat exchange coefficient" missing_value="-9999.0"/>
 
       <var name="shgxy" type="real" dimensions="nCells Time" units="W m^{-2}"
-                description="sensible heat flux: ground to canopy" missing_value="-9999.0"/>
+                description="sensible heat flux: ground to canopy air" missing_value="-9999.0"/>
 
       <var name="shcxy" type="real" dimensions="nCells Time" units="W m^{-2}"
-                description="sensible heat flux: leaf to canopy" missing_value="-9999.0"/>
+                description="sensible heat flux: leaf to canopy air" missing_value="-9999.0"/>
 
       <var name="shbxy" type="real" dimensions="nCells Time" units="W m^{-2}"
                 description="sensible heat flux: bare ground to atmosphere" missing_value="-9999.0"/>
 
       <var name="evgxy" type="real" dimensions="nCells Time" units="W m^{-2}"
-                description="latent heat flux: ground to canopy" missing_value="-9999.0"/>
+                description="latent heat flux: ground to canopy air" missing_value="-9999.0"/>
 
       <var name="evbxy" type="real" dimensions="nCells Time" units="W m^{-2}"
                 description="latent heat flux: bare ground to atmosphere" missing_value="-9999.0"/>
@@ -475,10 +695,10 @@
                 description="net longwave at bare fraction surface" missing_value="-9999.0"/>
 
       <var name="trxy" type="real" dimensions="nCells Time" units="mm s^{-1}"
-                description="canopy rain interception ratio" missing_value="-9999.0"/>
+                description="canopy transpiration rate" missing_value="-9999.0"/>
 
       <var name="evcxy" type="real" dimensions="nCells Time" units="W m^{-2}"
-                description="canopy evaporation" missing_value="-9999.0"/>
+                description="canopy intercepted water evaporation latent heat" missing_value="-9999.0"/>
 
       <var name="chleafxy" type="real" dimensions="nCells Time" units="m s^{-1}"
                 description="leaf exchange coefficient" missing_value="-9999.0"/>
@@ -487,10 +707,10 @@
                 description="under canopy exchange coefficient" missing_value="-9999.0"/>
 
       <var name="chv2xy" type="real" dimensions="nCells Time" units="m s^{-1}"
-                description="leaf exchange coefficient" missing_value="-9999.0"/>
+                description="2-m under-canopy exchange coefficient" missing_value="-9999.0"/>
 
       <var name="chb2xy" type="real" dimensions="nCells Time" units="m s^{-1}"
-                description="under canopy exchange coefficient" missing_value="-9999.0"/>
+                description="2-m bare ground exchange coefficient" missing_value="-9999.0"/>
 
       <var name="pahxy" type="real" dimensions="nCells Time" units="W m^{-2}"
                 description="precipitation advected energy" missing_value="-9999.0"/>
@@ -553,46 +773,34 @@
                 description="total liquid water (melt + rain through pack) out of snowpack bottom" missing_value="-9999.0"/>
 
       <var name="pondingxy" type="real" dimensions="nCells Time" units="mm"
-                description="surface ponding from complete pack melt"/>
+                description="surface ponding from very thin snowpack melt"/>
 
       <var name="fpicexy" type="real" dimensions="nCells Time" units="-"
                 description="fraction of ice in precipitation" missing_value="-9999.0"/>
 
-      <var name="qtdrain" type="real" dimensions="nCells Time" units="-"
-                description="tile drainage"/>
-
       <var name="rs" type="real" dimensions="nCells Time" units="s m^{-1}"
                 description="total stomatal resistance" missing_value="-9999.0"/>
 
-      <var name="rainlsm" type="real" dimensions="nCells Time" units="mm"
-                description="accumulated liquid precipitation into LSM" missing_value="-9999.0"/>
+      <var name="rainlsm" type="real" dimensions="nCells Time" units="mm s^{-1}"
+                description="liquid precipitation into LSM" missing_value="-9999.0"/>
 
-      <var name="snowlsm" type="real" dimensions="nCells Time" units="mm"
-                description="accumulated frozen precipitation into LSM" missing_value="-9999.0"/>
+      <var name="snowlsm" type="real" dimensions="nCells Time" units="mm s^{-1}"
+                description="frozen precipitation into LSM" missing_value="-9999.0"/>
 
       <var name="forctlsm" type="real" dimensions="nCells Time" units="K"
-                description="lowest model T into LSM" missing_value="-9999.0"/>
+                description="lowest model layer temperature into LSM" missing_value="-9999.0"/>
 
       <var name="forcqlsm" type="real" dimensions="nCells Time" units="kg kg^{-1}"
-                description="lowest model Q into LSM" missing_value="-9999.0"/>
+                description="lowest model layer specific humidity into LSM" missing_value="-9999.0"/>
 
       <var name="forcplsm" type="real" dimensions="nCells Time" units="Pa"
-                description="lowest model P into LSM" missing_value="-9999.0"/>
+                description="lowest model layer pressure into LSM" missing_value="-9999.0"/>
 
       <var name="forczlsm" type="real" dimensions="nCells Time" units="m"
-                description="lowest model Z into LSM" missing_value="-9999.0"/>
+                description="lowest model layer height into LSM" missing_value="-9999.0"/>
 
       <var name="forcwlsm" type="real" dimensions="nCells Time" units="m s^{-1}"
-                description="lowest model wind speed into LSM" missing_value="-9999.0"/>
-
-      <var name="acc_ssoilxy" type="real" dimensions="nCells Time" units="W m^{-2} s^{-1}"
-                description="accumulated ground heat flux"/>
-
-      <var name="acc_qinsurxy" type="real" dimensions="nCells Time" units="m s^{-1}"
-                description="accumulated water flux into soil"/>
-
-      <var name="acc_qsevaxy" type="real" dimensions="nCells Time" units="m s^{-1}"
-                description="accumulated soil surface evaporation"/>
+                description="lowest model layer wind speed into LSM" missing_value="-9999.0"/>
 
       <var name="eflxbxy" type="real" dimensions="nCells Time" units="W m^{-2}"
                 description="bottom soil heat flux" missing_value="-9999.0"/>
@@ -606,25 +814,7 @@
       <var name="canhsxy" type="real" dimensions="nCells Time" units="W m^{-2}"
                 description="canopy heat storage change due to canopy temperature change" missing_value="-9999.0"/>
 
-      <var name="acc_dwaterxy" type="real" dimensions="nCells Time" units="mm"
-	        description="accumulated snow,soil,canopy water change per soil timestep"/>
-
-      <var name="acc_prcpxy" type="real" dimensions="nCells Time" units="mm"
-	        description="accumulated precipitation per soil timestep"/>
-
-      <var name="acc_ecanxy" type="real" dimensions="nCells Time" units="mm"
-                description="accumulated net canopy evaporation per soil timestep"/>
-
-      <var name="acc_etranxy" type="real"  dimensions="nCells Time" units="mm"
-	        description="accumulated transpiration per soil timestep"/>
-
-      <var name="acc_edirxy" type="real" dimensions="nCells Time" units="mm"
-	        description="accumulated net ground (soil/snow) evaporation per soil timestep"/>
-
-      <var name="acc_etranixy" type="real" dimensions="nSoilLevels nCells Time" units="m s^{-1}"
-                description="accumulated  transpiration rate within soil timestep"/>
-
-</var_struct>
+ </var_struct>
 
 <!-- ========================================================================================================= -->
 
