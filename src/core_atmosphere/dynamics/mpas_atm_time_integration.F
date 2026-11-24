@@ -1917,6 +1917,7 @@ module atm_time_integration
       type (mpas_pool_type), pointer :: diag
       type (mpas_pool_type), pointer :: diag_physics
       type (mpas_pool_type), pointer :: mesh
+      type (mpas_pool_type), pointer :: sfc_input
       type (mpas_pool_type), pointer :: tend
       type (mpas_pool_type), pointer :: tend_physics
       type (mpas_pool_type), pointer :: lbc  ! regional_MPAS addition
@@ -1963,6 +1964,7 @@ module atm_time_integration
       !
       call mpas_pool_get_subpool(block % structs, 'state', state)
       call mpas_pool_get_subpool(block % structs, 'mesh', mesh)
+      call mpas_pool_get_subpool(block % structs, 'sfc_input', sfc_input)
       call mpas_pool_get_subpool(block % structs, 'diag', diag)
       call mpas_pool_get_subpool(block % structs, 'tend', tend)
       call mpas_pool_get_subpool(block % structs, 'tend_physics', tend_physics)
@@ -2808,7 +2810,7 @@ module atm_time_integration
         call mpas_timer_start('microphysics')
 !$OMP PARALLEL DO
         do thread=1,nThreads
-           call driver_microphysics ( block % configs, mesh, state, 2, diag, diag_physics, tend_physics, tend, itimestep, &
+           call driver_microphysics ( block % configs, mesh, sfc_input, state, 2, diag, diag_physics, tend_physics, tend, itimestep, &
                                       cellSolveThreadStart(thread), cellSolveThreadEnd(thread))
         end do
 !$OMP END PARALLEL DO

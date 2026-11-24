@@ -203,9 +203,11 @@
     qr_p,             &!rain mixing ratio                                                   [kg/kg]
     qi_p,             &!cloud ice mixing ratio                                              [kg/kg]
     qs_p,             &!snow mixing ratio                                                   [kg/kg]
-    qg_p               !graupel mixing ratio                                                [kg/kg]
+    qg_p,             &!graupel mixing ratio                                                [kg/kg]
+    qh_p               !hail mixing ratio                                                   [kg/kg]
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
+    nccn_p,           &!ccn                 number concentration                             [#/kg]
     nc_p,             &!cloud water droplet number concentration                             [#/kg]
     ni_p,             &!cloud ice crystal number concentration                               [#/kg]
     nr_p               !rain drop number concentration                                       [#/kg]
@@ -252,9 +254,12 @@
     f_qi,             &!parameter set to true to include the cloud ice mixing ratio.
     f_qs,             &!parameter set to true to include the snow mixing ratio.
     f_qg,             &!parameter set to true to include the graupel mixing ratio.
+    f_qh,             &!parameter set to true to include the hail mixing ratio.
     f_qoz              !parameter set to true to include the ozone mixing ratio.
 
  logical:: &
+    f_nccn,           &!parameter set to true to include the ccn number concentration.
+    f_nr,             &!parameter set to true to include the rain water number concentration.
     f_nc,             &!parameter set to true to include the cloud water number concentration.
     f_ni,             &!parameter set to true to include the cloud ice number concentration.
     f_nifa,           &!parameter set to true to include the number concentration of hygroscopic aerosols.
@@ -272,6 +277,8 @@
     snowncv_p,        &!
     graupelnc_p,      &!
     graupelncv_p,     &!
+    hailnc_p,      &!
+    hailncv_p,     &!
     sr_p
 
  integer:: & 
@@ -452,6 +459,7 @@
 
  real(kind=RKIND),dimension(:,:,:),allocatable:: &
     rqsblten_p,       &!tendency of snow mixing ratio due to PBL processes.
+    rnccnblten_p,     &!tendency of ccn water number concentration due to PBL processes.
     rncblten_p,       &!tendency of cloud liquid water number concentration due to PBL processes.
     rniblten_p,       &!tendency of cloud ice number concentration due to PBL processes.
     rnifablten_p,     &!tendency of ice-friendly aerosol number concentration due to PBL processes.

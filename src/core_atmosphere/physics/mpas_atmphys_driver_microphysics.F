@@ -152,18 +152,28 @@
        if(.not.allocated(evapprod_p)) allocate(evapprod_p(ims:ime,kms:kme,jms:jme))
 
     microp2_select: select case(trim(microp_scheme))
+       case("mp_udm")
+          if(.not.allocated(area_p)  ) allocate(area_p(ims:ime,jms:jme)   )
+          if(.not.allocated(xland_p)  ) allocate(xland_p(ims:ime,jms:jme)   )
+          if(.not.allocated(xice_p)  ) allocate(xice_p(ims:ime,jms:jme)   )
+          if(.not.allocated(qh_p)    ) allocate(qh_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(nccn_p)  ) allocate(nccn_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(nc_p)    ) allocate(nc_p(ims:ime,kms:kme,jms:jme)  )
+          if(.not.allocated(nr_p)    ) allocate(nr_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(nifa2d_p)) allocate(nifa2d_p(ims:ime,jms:jme))
+          if(.not.allocated(nwfa2d_p)) allocate(nwfa2d_p(ims:ime,jms:jme))
+          if(.not.allocated(nifa_p)  ) allocate(nifa_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(nwfa_p)  ) allocate(nwfa_p(ims:ime,kms:kme,jms:jme))
+          if(.not.allocated(hailnc_p) ) allocate(hailnc_p(ims:ime,jms:jme) )
+          if(.not.allocated(hailncv_p)) allocate(hailncv_p(ims:ime,jms:jme))
        case("mp_thompson","mp_thompson_aerosols")
           if(.not.allocated(ntc_p)) allocate(ntc_p(ims:ime,jms:jme))
           if(.not.allocated(muc_p)) allocate(muc_p(ims:ime,jms:jme))
           if(.not.allocated(ni_p) ) allocate(ni_p(ims:ime,kms:kme,jms:jme))
           if(.not.allocated(nr_p) ) allocate(nr_p(ims:ime,kms:kme,jms:jme))
-       case("mp_udm")
-          if(.not.allocated(qh_p)    ) allocate(qh_p(ims:ime,kms:kme,jms:jme))
-          if(.not.allocated(nccn_p)  ) allocate(nccn_p(ims:ime,kms:kme,jms:jme))
-          if(.not.allocated(nr_p)    ) allocate(nr_p(ims:ime,kms:kme,jms:jme))
 
           microp3_select: select case(trim(microp_scheme))
-             case("mp_thompson_aerosols","mp_udm")
+             case("mp_thompson_aerosols")
                 if(.not.allocated(nifa2d_p)) allocate(nifa2d_p(ims:ime,jms:jme))
                 if(.not.allocated(nwfa2d_p)) allocate(nwfa2d_p(ims:ime,jms:jme))
                 if(.not.allocated(nc_p)    ) allocate(nc_p(ims:ime,kms:kme,jms:jme)  )
@@ -236,24 +246,33 @@
        if(allocated(evapprod_p)) deallocate(evapprod_p)
 
     microp2_select: select case(trim(microp_scheme))
+       case("mp_udm")
+          if(allocated(xland_p)      ) deallocate(xland_p    )
+          if(allocated(xice_p)      ) deallocate(xice_p    )
+          if(allocated(area_p)  ) deallocate(area_p)
+          if(allocated(qh_p)  ) deallocate(qh_p)
+          if(allocated(nccn_p)) deallocate(nccn_p)
+          if(allocated(nc_p)    ) deallocate(nc_p    )
+          if(allocated(nr_p)  ) deallocate(nr_p)
+          if(allocated(nifa2d_p)) deallocate(nifa2d_p)
+          if(allocated(nwfa2d_p)) deallocate(nwfa2d_p)
+          if(allocated(nifa_p)  ) deallocate(nifa_p  )
+          if(allocated(nwfa_p)  ) deallocate(nwfa_p  )
+          if(allocated(hailnc_p) ) deallocate(hailnc_p )
+          if(allocated(hailncv_p)) deallocate(hailncv_p)
        case("mp_thompson","mp_thompson_aerosols")
           if(allocated(ntc_p)) deallocate(ntc_p)
           if(allocated(muc_p)) deallocate(muc_p)
           if(allocated(ni_p) ) deallocate(ni_p )
           if(allocated(nr_p) ) deallocate(nr_p )
-       case("mp_udm")
-          if(allocated(qh_p)  ) deallocate(qh_p)
-          if(allocated(nccn_p)) deallocate(nccn_p)
-          if(allocated(nr_p)  ) deallocate(nr_p)
 
           microp3_select: select case(trim(microp_scheme))
-             case("mp_thompson_aerosols","mp_udm")
+             case("mp_thompson_aerosols")
                 if(allocated(nifa2d_p)) deallocate(nifa2d_p)
                 if(allocated(nwfa2d_p)) deallocate(nwfa2d_p)
                 if(allocated(nc_p)    ) deallocate(nc_p    )
                 if(allocated(nifa_p)  ) deallocate(nifa_p  )
                 if(allocated(nwfa_p)  ) deallocate(nwfa_p  )
-
              case default
           end select microp3_select
        case default
@@ -280,8 +299,11 @@
  type(mpas_pool_type),intent(inout):: state
 
 !local pointer:
- logical,pointer:: do_restart
+ logical,pointer:: do_restart, if_aerosol_aware
+ real,pointer:: ccn_conc
  character(len=StrKIND),pointer:: microp_scheme
+ integer,pointer:: index_nifa,index_nwfa
+ real(kind=RKIND),dimension(:,:,:),pointer:: scalars
 
 !CCPP-compliant flags:
  character(len=StrKIND):: errmsg
@@ -315,15 +337,13 @@
                          hail_opt=hail_opt,errmsg=errmsg,errflg=errflg)
 
     case("mp_udm")
+       call mpas_pool_get_config(configs,'config_if_aerosol_aware',if_aerosol_aware)
+       call mpas_pool_get_config(configs,'config_ccn_conc',ccn_conc)
        call mp_udm_init(den0=rho_a,denr=rho_r,dens=rho_s,cl=cliq, cv=cpv,      &
-                         ccn0=ccn_conc,&
-                         NWFA2D=nwfa2d,                                        &
-                         NWFA=NWFA,                                            &
-                         NIFA=NIFA,                                            &
-                         if_aerosol_aware=config_flags%if_aerosol_aware,       &
-                         IDS=ids, IDE=ide, JDS=jds, JDE=jde, KDS=kds, KDE=kde, &
-                         IMS=ims, IME=ime, JMS=jms, JME=jme, KMS=kms, KME=kme, &
-                         ITS=its, ITE=ite, JTS=jts, JTE=jte, KTS=kts, KTE=kte)
+                         ccn0=ccn_conc,                                        &
+                         if_aerosol_aware=if_aerosol_aware,                    &
+                         f_nwfa=f_nwfa,f_nifa=f_nifa)
+       call init_thompson_aerosols_forMPAS(do_restart,dminfo,mesh,state,time_lev,diag_physics)
 
     case default
  end select microp_select
@@ -333,7 +353,7 @@
  end subroutine init_microphysics
 
 !=================================================================================================================
- subroutine driver_microphysics(configs,mesh,state,time_lev,diag,diag_physics,tend_physics,tend,itimestep,its,ite)
+ subroutine driver_microphysics(configs,mesh,sfc_input,state,time_lev,diag,diag_physics,tend_physics,tend,itimestep,its,ite)
 !=================================================================================================================
 
  use mpas_constants, only : rvord
@@ -341,6 +361,7 @@
 !input arguments:
  type(mpas_pool_type),intent(in):: configs
  type(mpas_pool_type),intent(in):: mesh
+ type(mpas_pool_type),intent(in):: sfc_input
 
  integer,intent(in):: time_lev
  integer,intent(in):: itimestep
@@ -357,7 +378,10 @@
  character(len=StrKIND),pointer:: microp_scheme
 
 !local variables and arrays:
- integer:: istep
+ integer:: istep, i, j
+ real,pointer:: ccn_conc
+ logical,pointer:: if_aerosol_aware
+ real(kind=RKIND),dimension(:),pointer    :: areaCell, xland, xice
 
 !CCPP-compliant flags:
  character(len=StrKIND):: errmsg
@@ -481,29 +505,49 @@
 
     case ("mp_udm")
        call mpas_timer_start('mp_udm')
+       call mpas_pool_get_config(configs,'config_ccn_conc',ccn_conc)
+       call mpas_pool_get_config(configs,'config_if_aerosol_aware',if_aerosol_aware)
+       call mpas_pool_get_array(mesh,'areaCell',areaCell)
+       call mpas_pool_get_array(sfc_input,'xland',xland)
+       call mpas_pool_get_array(sfc_input,'xice',xice)
+
+       do j = jts,jte
+       do i = its,ite
+          !area of grid-cell:
+          area_p(i,j)  = areaCell(i)
+          xland_p(i,j)  = xland(i)
+          xice_p(i,j)  = xice(i)
+       enddo
+       enddo
+
        call udm( &
                 th        = th_p        , q          = qv_p         , qc    = qc_p,   &
                 qr        = qr_p        , qi         = qi_p         , qs    = qs_p,   &
                 qg        = qg_p        , qh         = qh_p         , nn    = nccn_p, &
                 nc        = nc_p        , nr         = nr_p         , w   = w_p,    &
-                tke       = tke_p       , den        = rho_p        , pii = pi_p      &
+                tke       = tkepbl_p    , den        = rho_p        , pii = pi_p,     &
                 p         = pres_p      , delz       = dz_p         , delt = dt_microp , &
+                area      = area_p      , ccn0       = ccn_conc, &
                 g         = gravity     , cpd        = cp           , cpv = cpv     , &
                 rd        = R_d         , rv         = R_v          , t0c = svpt0   , &
                 ep1       = ep_1        , ep2        = ep_2         , qmin = epsilon, &
                 xls       = xls         , xlv0       = xlv          , xlf0 = xlf   , &
                 den0      = rho_a       , denr       = rho_w        , cliq = cliq  , &
-                cice      = cice        , psat       = psat         , rain= rainnc_p, &
-                xland     = xland       , xice       = xice         , &
-                rainncv   = rainncv_p   , snow       = snownc_p   , snowncv= snowncv_p , &
+                cice      = cice        , psat       = psat         , &
+                xland     = xland_p     , xice       = xice_p       , &
+                rain      = rainnc_p    , rainncv    = rainncv_p    , &
+                snow      = snownc_p    , snowncv    = snowncv_p    , sr   = sr_p, &
                 graupel   = graupelnc_p , graupelncv = graupelncv_p ,  &
-                hail      = hailnc_p    , hailncv    = hailncv_p , sr  = sr_p   , &
-                re_cloud  = recloud_p   , re_ice     = reice_p      , re_snow= resnow_p, &
+                hail      = hailnc_p    , hailncv    = hailncv_p , &
+                itimestep = itimestep   , if_aerosol_aware = if_aerosol_aware, &
+                nwfa      = nwfa_p      , nifa       = nifa_p,     &                    
+                nwfa2d    = nwfa2d_p    , nifa2d     = nifa2d_p,   &                      
                 has_reqc  = has_reqc    , has_reqi   = has_reqi ,has_reqs  = has_reqs  , &
-                errmsg    = errmsg      , errflg     = errflg                 , &
+                re_cloud  = recloud_p   , re_ice     = reice_p      , re_snow= resnow_p, &
                 ids = ids, ide = ide, jds = jds, jde = jde, kds = kds, kde = kde    , &
                 ims = ims, ime = ime, jms = jms, jme = jme, kms = kms, kme = kme    , &
-                its = its, ite = ite, jts = jts, jte = jte, kts = kts, kte = kte     &
+                its = its, ite = ite, jts = jts, jte = jte, kts = kts, kte = kte    , &
+                errmsg    = errmsg      , errflg     = errflg                  &
                )
        call mpas_timer_stop('mp_udm')
 
@@ -515,7 +559,7 @@
     !ensure that we only call compute_radar_reflectivity() if we are using an MPS that supports
     !the computation of simulated radar reflectivity:
     if(trim(microp_scheme) == "mp_wsm6"     .or. &
-    if(trim(microp_scheme) == "mp_udm"      .or. &
+       trim(microp_scheme) == "mp_udm"      .or. &
        trim(microp_scheme) == "mp_thompson" .or. &
        trim(microp_scheme) == "mp_thompson_aerosols") then
        call compute_radar_reflectivity(configs,diag_physics,its,ite)
@@ -562,6 +606,7 @@
  character(len=StrKIND),pointer:: microp_scheme
  integer,pointer:: nCellsSolve
  real,dimension(:),pointer:: graupelncv,rainncv,snowncv,sr
+ real,dimension(:),pointer:: hailncv
 
 !local variables and arrays:
  integer:: i,j
@@ -607,17 +652,19 @@
           sr(i)         = 0._RKIND
        enddo
 
-    case ("mp_udm")
+       microp2_select: select case(trim(microp_scheme))
+       case("mp_udm")
        do j = jts, jte
        do i = its, ite
           hailncv_p(i,j)    = 0._RKIND
           hailnc_p(i,j)     = 0._RKIND
        enddo
        enddo
-
        do i = its,ite
           hailncv(i)    = 0._RKIND
        enddo
+       case default
+       end select microp2_select
 
     case default
  end select microp_select
@@ -641,8 +688,8 @@
 
  real(kind=RKIND),pointer:: config_bucket_rainnc
  real(kind=RKIND),dimension(:),pointer:: precipw
- real(kind=RKIND),dimension(:),pointer:: graupelnc,rainnc,snownc
- real(kind=RKIND),dimension(:),pointer:: graupelncv,rainncv,snowncv,sr
+ real(kind=RKIND),dimension(:),pointer:: graupelnc,rainnc,snownc,hailnc
+ real(kind=RKIND),dimension(:),pointer:: graupelncv,rainncv,snowncv,sr,hailncv
 
 !local variables and arrays:
  integer:: i,j,k
@@ -657,6 +704,8 @@
  call mpas_pool_get_array(diag_physics,'precipw'   ,precipw   )
  call mpas_pool_get_array(diag_physics,'graupelnc' ,graupelnc )
  call mpas_pool_get_array(diag_physics,'graupelncv',graupelncv)
+ call mpas_pool_get_array(diag_physics,'hailnc' ,hailnc )
+ call mpas_pool_get_array(diag_physics,'hailncv',hailncv)
  call mpas_pool_get_array(diag_physics,'rainnc'    ,rainnc    )
  call mpas_pool_get_array(diag_physics,'rainncv'   ,rainncv   )
  call mpas_pool_get_array(diag_physics,'snownc'    ,snownc    )
@@ -707,13 +756,17 @@
           graupelnc(i) = graupelnc(i) + graupelncv(i)
        enddo
        enddo
-    case ("mp_udm")
-       do j = jts,jte
-       do i = its,ite
-          hailncv(i)    = hailnc_p(i,j)
-          hailnc(i)    = hailnc(i) + hailncv(i)
-       enddo
-       enddo
+
+       microp2_select: select case(trim(microp_scheme))
+          case("mp_udm")
+            do j = jts,jte
+            do i = its,ite
+               hailncv(i)    = hailnc_p(i,j)
+               hailnc(i)    = hailnc(i) + hailncv(i)
+            enddo
+            enddo
+          case default
+       end select microp2_select
 
     case default
  end select microp_select

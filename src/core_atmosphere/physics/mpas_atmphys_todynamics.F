@@ -123,8 +123,8 @@
                                   radt_sw_scheme
 
  integer:: i,iCell,k,n
- integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs
- integer,pointer:: index_nc,index_ni,index_nifa,index_nwfa
+ integer,pointer:: index_qv,index_qc,index_qr,index_qi,index_qs,index_qh
+ integer,pointer:: index_nc,index_nccn,inex_nr,index_ni,index_nifa,index_nwfa
  integer,pointer:: nCells,nCellsSolve,nEdges,nEdgesSolve
 
  real(kind=RKIND),dimension(:,:),pointer:: mass          ! time level 2 rho_zz
@@ -135,6 +135,7 @@
  real(kind=RKIND),dimension(:,:),pointer:: rthblten,rqvblten,rqcblten, &
                                            rqiblten,rqsblten,rublten,rvblten
  real(kind=RKIND),dimension(:,:),pointer:: rncblten,rniblten,rnifablten,rnwfablten
+ real(kind=RKIND),dimension(:,:),pointer:: rnccnblten
  real(kind=RKIND),dimension(:,:),pointer:: rthcuten,rqvcuten,rqccuten, &
                                            rqrcuten,rqicuten,rqscuten, &
                                            rucuten,rvcuten
@@ -171,6 +172,8 @@
  call mpas_pool_get_dimension(state,'index_qr',index_qr)
  call mpas_pool_get_dimension(state,'index_qi',index_qi)
  call mpas_pool_get_dimension(state,'index_qs',index_qs)
+ call mpas_pool_get_dimension(state,'index_qh',index_qh)
+ call mpas_pool_get_dimension(state,'index_nccn',index_nccn)
  call mpas_pool_get_dimension(state,'index_nc',index_nc)
  call mpas_pool_get_dimension(state,'index_ni',index_ni)
  call mpas_pool_get_dimension(state,'index_nifa',index_nifa)
@@ -184,6 +187,7 @@
  call mpas_pool_get_array(tend_physics,'rqiblten',rqiblten)
  call mpas_pool_get_array(tend_physics,'rqsblten',rqsblten)
  call mpas_pool_get_array(tend_physics,'rncblten',rncblten)
+ call mpas_pool_get_array(tend_physics,'rnccnblten',rnccnblten)
  call mpas_pool_get_array(tend_physics,'rniblten',rniblten)
  call mpas_pool_get_array(tend_physics,'rnifablten',rnifablten)
  call mpas_pool_get_array(tend_physics,'rnwfablten',rnwfablten)
@@ -234,6 +238,7 @@
  if(.not. associated(rqcblten)) allocate(rqcblten(0,0))
  if(.not. associated(rqiblten)) allocate(rqiblten(0,0))
  if(.not. associated(rqsblten)) allocate(rqsblten(0,0))
+ if(.not. associated(rnccnblten)) allocate(rnccnblten(0,0))
  if(.not. associated(rncblten)) allocate(rncblten(0,0))
  if(.not. associated(rniblten)) allocate(rniblten(0,0))
  if(.not. associated(rnifablten)) allocate(rnifablten(0,0))

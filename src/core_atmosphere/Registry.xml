@@ -874,6 +874,7 @@
 			<var name="rncmpten"/>
 			<var name="rnimpten"/>
 			<var name="rnrmpten"/>
+			<var name="rnccnmpten"/>
 			<var name="rnifampten"/>
 			<var name="rnwfampten"/>
 			<var name="rthcuten"/>
@@ -895,6 +896,7 @@
 			<var name="rqsblten"/>
 			<var name="rncblten"/>
 			<var name="rniblten"/>
+			<var name="rnccnblten"/>
 			<var name="rnifablten"/>
 			<var name="rnwfablten"/>
 			<var name="rthratensw"/>
@@ -2121,15 +2123,15 @@
 
                         <var name="tend_nwfa" name_in_code="nwfa" array_group="number" units="nb m^{-3} s^{-1}"
                              description="Tendency of water-friendly aerosol number concentration multiplied by dry air density divided by d(zeta)/dz"
-<<<<<<< HEAD
-                             packages="mp_thompson_aers_in"/>
+                             packages="mp_thompson_aers_in;mp_udm_in"/>
 
                         <var name="tend_tke" name_in_code="tke" array_group="turbulence" units="kg m^{-3} m^2 s^{-2} s^{-1}" 
                              description="Tendency of tke multiplied by dry air density divided by d(zeta)/dz"
                              packages="les"/>
-=======
-                             packages="mp_thompson_aers_in;mp_udm_in"/>
->>>>>>> 6df81ed8a ( 	modified:   core_atmosphere/Externals.cfg)
+
+                        <var name="tend_nccn" name_in_code="nccn" array_group="number" units="nb m^{-3} s^{-1}"
+                             description="Tendency of CCN concentration multiplied by dry air density divided by d(zeta)/dz"
+                             packages="mp_udm_in"/>
                 </var_array>
 #endif
         </var_struct>
@@ -2315,10 +2317,15 @@
                      description="logical for calculation of the effective radii for cloud water, cloud ice, and snow"
                      possible_values=".true. for calculating effective radii; .false. for using defaults in RRTMG radiation"/>
 
-                <nml_option name="ccn_conc" type="real" default_value="1.e8" 
+                <nml_option name="config_ccn_conc" type="real" default_value="1.e8" 
                      units="m-3"
                      description="inial value for ccn in udm microphysics scheme"
                      possible_values="Positive real values"/>
+
+                <nml_option name="config_if_aerosol_aware" type="logical" default_value="true" 
+                     units=""
+                     description="logial statement of cams aerosol for udm  microphysics scheme"
+                     possible_values=".true. to turn on aerosol coupling; .false. otherwise"/>
 
                 <nml_option name="config_ysu_pblmix" type="logical" default_value="false" in_defaults="false"
                      units="-"
@@ -2646,6 +2653,10 @@
 
                 <var name="graupelncv" type="real" dimensions="nCells Time" units="mm"
                      description="time-step grid-scale precipitation of graupel"
+                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_udm_in"/>
+
+                <var name="hailncv" type="real" dimensions="nCells Time" units="mm"
+                     description="time-step grid-scale precipitation of hail"
                      packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_udm_in"/>
 
                 <var name="rainnc" type="real" dimensions="nCells Time" units="mm"
@@ -3616,6 +3627,10 @@
                      description="tendency of graupel mixing ratio due to cloud microphysics"
                      packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_udm_in"/>
 
+                <var name="rqhmpten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
+                     description="tendency of hail mixing ratio due to cloud microphysics"
+                     packages="mp_thompson_in;mp_thompson_aers_in;mp_wsm6_in;mp_udm_in"/>
+
                 <var name="rnimpten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of cloud ice number concentration due to microphysics"
                      packages="mp_thompson_in;mp_thompson_aers_in"/>
@@ -3626,6 +3641,10 @@
 
                 <var name="rncmpten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of cloud water number concentration due to microphysics"
+                     packages="mp_thompson_aers_in;mp_udm_in"/>
+
+                <var name="rnccnmpten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of CCN concentration due to microphysics"
                      packages="mp_thompson_aers_in;mp_udm_in"/>
 
                 <var name="rnifampten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
@@ -3713,23 +3732,27 @@
 
                 <var name="rqsblten" type="real" dimensions="nVertLevels nCells Time" units="kg kg^{-1} s^{-1}"
                      description="tendency of snow mixing ratio due to pbl processes"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_ysu_in"/>
 
                 <var name="rncblten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of cloud liquid water number concentration due to pbl processes"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_ysu_in"/>
 
                 <var name="rniblten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of cloud ice number concentration due to pbl processes"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_ysu_in"/>
+
+                <var name="rnccnblten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
+                     description="tendency of CCN number concentration due to pbl processes"
+                     packages="bl_mynn_in;bl_ysu_in"/>
 
                 <var name="rnifablten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of ice-friendly aerosol number concentration due to pbl processes"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_ysu_in"/>
 
                 <var name="rnwfablten" type="real" dimensions="nVertLevels nCells Time" units="nb kg^{-1} s^{-1}"
                      description="tendency of water-friendly aerosol number concentration due to pbl processes"
-                     packages="bl_mynn_in"/>
+                     packages="bl_mynn_in;bl_ysu_in"/>
 
 	        <!-- MGD should we add packages to the field below? -->
 	        <var name="rublten_Edge" type="real"     dimensions="nVertLevels nEdges Time"/>

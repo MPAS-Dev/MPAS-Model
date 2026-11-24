@@ -199,7 +199,7 @@
  if(allocated(pwif_int)  ) deallocate(pwif_int  )
  if(allocated(sorted_arr)) deallocate(sorted_arr)
  
-!call mpas_log_write('--- end subroutine init_vinterp_gocart:')
+call mpas_log_write('nGocartLevels in vinterp  $i',intArgs=(/nGocartLevels/))
 
  end subroutine init_vinterp_gocart
 

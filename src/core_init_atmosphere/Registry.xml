@@ -386,6 +386,7 @@
                 <package name="met_stage_out" description="Active only if meteorological fields are being interpolated"/>
                 <package name="first_guess_field" description="3-d atmospheric or land-surface fields on first-guess levels"/>
                 <package name="mp_thompson_aers_in" description="initialization of GOCART-based Thompson water- and ice-friendly aerosols"/>
+                <package name="mp_udm_in" description="initialization of CAMS-based UDM water- and ice-friendly aerosols"/>
                 <package name="noahmp" description="Whether to process, read, and write static fields only required by Noah-MP"/>
         </packages>
 
@@ -599,7 +600,7 @@
                         <var name="v_init" packages="met_stage_out"/>
                         <var name="t_init" packages="met_stage_out"/>
                         <var name="qv_init" packages="met_stage_out"/>
-                        <var_array name="scalars" packages="met_stage_out;mp_thompson_aers_in"/>
+                        <var_array name="scalars" packages="met_stage_out;mp_udm_in;mp_thompson_aers_in"/>
                         <var name="u" packages="met_stage_out"/>
                         <var name="w" packages="met_stage_out"/>
                         <var name="dz" packages="met_stage_out"/>
@@ -1022,6 +1023,19 @@
                      description="effective orographic length for north-westerly flow (small-scale GWD)"
                      packages="gwd_gsl_stage_out"/>
 
+                <!-- CAMS aerosol fields -->
+                <var name="nifa_cams_clim" type="real" dimensions="nMonths nGocartLevels nCells" units="nb kg^{-1}"
+                     description="climatological cams ice-friendly number concentration"
+                     packages="mp_udm_in"/>
+
+                <var name="nwfa_cams_clim" type="real" dimensions="nMonths nGocartLevels nCells" units="nb kg^{-1}"
+                     description="climatological cams water-friendly number concentration"
+                     packages="mp_udm_in"/>
+
+                <var name="pwif_cams_clim" type="real"  dimensions="nMonths nGocartLevels nCells" units="Pa"
+                     description="climatological cams pressure levels"
+                     packages="mp_udm_in"/>
+
                 <!-- GOCART aerosol fields -->
                 <var name="nifa_gocart_clim" type="real" dimensions="nMonths nGocartLevels nCells" units="nb kg^{-1}"
                      description="climatological Gocart ice-friendly number concentration"
@@ -1165,12 +1179,12 @@
                              description="Rain water mixing ratio"/>
 
                         <var name="nifa" array_group="number" units="nb kg^{-1}"
-                             description="Gocart ice-friendly aerosol number concentration"
-                             packages="mp_thompson_aers_in"/>
+                             description="ice-friendly aerosol number concentration"
+                             packages="mp_thompson_aers_in;mp_udm_in"/>
 
                         <var name="nwfa" array_group="number" units="nb kg^{-1}"
-                             description="Gocart water-friendly aerosol number concentration"
-                             packages="mp_thompson_aers_in"/>
+                             description="water-friendly aerosol number concentration"
+                             packages="mp_thompson_aers_in;mp_udm_in"/>
                         <var name="tke" array_group="turbulence" units="m^2 s^{-2}"
                              description="Turbulent kinetic energy for the prognostic tke LES scheme"/>
                 </var_array>
@@ -1209,12 +1223,12 @@
                              description="Rain water mixing ratio on lateral boundary cells"/>
 
                         <var name="lbc_nifa" array_group="number" units="nb kg^{-1}"
-                             description="Gocart ice-friendly aerosol number concentration on lateral boundary cells"
-                             packages="mp_thompson_aers_in"/>
+                             description="ice-friendly aerosol number concentration on lateral boundary cells"
+                             packages="mp_thompson_aers_in;mp_udm_in"/>
 
                         <var name="lbc_nwfa" array_group="number" units="nb kg^{-1}"
-                             description="Gocart water-friendly aerosol number concentration on lateral boundary cells"
-                             packages="mp_thompson_aers_in"/>
+                             description="water-friendly aerosol number concentration on lateral boundary cells"
+                             packages="mp_thompson_aers_in;mp_udm_in"/>
                 </var_array>
 
         </var_struct>
