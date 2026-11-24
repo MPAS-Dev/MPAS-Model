@@ -451,20 +451,16 @@ use mpas_stream_manager
     endif
  endif
 
-!Output of misc namelist settings related to the UGWP suite
+!initialization of UGWP gravity wave drag suite
  if(trim(gwdo_scheme).eq.'bl_ugwp_gwdo') then
-    call mpas_pool_get_config(configs,'config_alpha_fd',alpha_fd)
-    call mpas_log_write('Turbulent orographic form drag coeff. alpha_fd = $r',         &
-            realArgs=(/alpha_fd/),masterOnly=.true.)
- endif
-
-!initialization of non-stationary gravity wave drag
- if(trim(gwdo_scheme).eq.'bl_ugwp_gwdo') then
-    ! Read in ugwp_oro_data
+    ! Read in ugwp_oro_data and output various namelist settings
     call MPAS_stream_mgr_read(stream_manager, streamID='ugwp_oro_data_in', whence=MPAS_STREAM_NEAREST, ierr=ierr)
     call MPAS_stream_mgr_reset_alarms(stream_manager, streamID='ugwp_oro_data_in', direction=MPAS_STREAM_INPUT, ierr=ierr)
+    call mpas_pool_get_config(configs,'config_alpha_fd',alpha_fd)
+    call mpas_log_write('Turbulent orographic form drag coeff. alpha_fd = $r',realArgs=(/alpha_fd/))
     if (ngw_scheme) then
-       call mpas_log_write('Initializing non-stationary GWD scheme',masterOnly=.true.)
+       ! Initialize non-stationary gravity wave drag
+       call mpas_log_write('Initializing non-stationary GWD scheme')
        call MPAS_stream_mgr_read(stream_manager, streamID='ugwp_ngw_in', whence=MPAS_STREAM_NEAREST, ierr=ierr)
        call MPAS_stream_mgr_reset_alarms(stream_manager, streamID='ugwp_ngw_in', direction=MPAS_STREAM_INPUT, ierr=ierr)
        call mpas_pool_get_config(configs,'config_knob_ugwp_tauamp', knob_ugwp_tauamp)
@@ -475,10 +471,10 @@ use mpas_stream_manager
        call mpas_pool_get_array(ngw_input,'ddy_j1tau'   ,ddy_j1tau   )
        call mpas_pool_get_array(ngw_input,'ddy_j2tau'   ,ddy_j2tau   )
        call mpas_pool_get_array(mesh,'latCell',latCell)
-       call mpas_log_write('--- Initializing UGWP non-stationary GWD parameters ---',masterOnly=.true.)
+       call mpas_log_write('--- Initializing UGWP non-stationary GWD parameters ---')
        call ugwpv1_ngw_init(latCell,nVertLevels,config_dt,rdzw,dzu,ntau_d1y,          &
                knob_ugwp_tauamp,ugwp_taulat,jindx1_tau,jindx2_tau,ddy_j1tau,ddy_j2tau)
-       call mpas_log_write('--- UGWP non-stationary GWD parameters initialized ---',masterOnly=.true.)
+       call mpas_log_write('--- UGWP non-stationary GWD parameters initialized ---')
     endif
  endif
 
