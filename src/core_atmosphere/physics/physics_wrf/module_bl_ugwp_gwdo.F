@@ -22,7 +22,7 @@
                  dusfc_fd,dvsfc_fd,ugwp_diags,ngw_scheme,xlatd,               &
                  jindx1_tau,jindx2_tau,ddy_j1tau,ddy_j2tau,r_DoY,             &
                  raincv,rainncv,ntau_d1y,ntau_d2t,days_limb,tau_limb,         &
-                 dudt_ngw,dvdt_ngw,dtdt_ngw,                                  &
+                 dudt_ngw,dvdt_ngw,dtdt_ngw,alpha_fd,                         &
                  var2dls,oc12dls,oa2d1ls,oa2d2ls,oa2d3ls,oa2d4ls,ol2d1ls,     &
                  ol2d2ls,ol2d3ls,ol2d4ls,var2dss,oc12dss,oa2d1ss,oa2d2ss,     &
                  oa2d3ss,oa2d4ss,ol2d1ss,ol2d2ss,ol2d3ss,ol2d4ss,             &
@@ -114,6 +114,7 @@
  real(kind=kind_phys),intent(in),dimension(ntau_d1y,ntau_d2t),optional:: &
                             tau_limb
  real(kind=kind_phys),intent(in)                           :: r_DoY
+ real(kind=kind_phys),intent(in)                           :: alpha_fd
 
  real(kind=kind_phys),intent(in),dimension(ims:ime,jms:jme):: &
                                                      var2dls,var2dss, &
@@ -349,6 +350,7 @@
                     ,oa2d3ss=oa2d3ss_hv,oa2d4ss=oa2d4ss_hv    &
                     ,ol2d1ss=ol2d1ss_hv,ol2d2ss=ol2d2ss_hv    &
                     ,ol2d3ss=ol2d3ss_hv,ol2d4ss=ol2d4ss_hv    &
+                    ,alpha_fd=alpha_fd                        &
                     ,g_=g,cp_=cp,rd_=rd,rv_=rv,fv_=ep1,pi_=pi &
                     ,dxmeter=dx_hv,deltim=dt                  &
                     ,its=its,ite=ite,kte=kte,kme=kte+1        &
