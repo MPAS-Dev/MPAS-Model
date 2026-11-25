@@ -655,7 +655,7 @@ contains
 
       ! local variables
 
-      integer :: iEdge, cell1, cell2, vertex1, vertex2, iVertex, iCell, i, k, kdiag
+      integer :: iEdge, cell1, cell2, vertex1, vertex2, iVertex, iCell, i, k
       real (kind=RKIND) :: r_dc, r_dv, u_diffusion, u_diffusion_les, kdiffu, r, edge_sign, u_mix_scale
       real (kind=RKIND) :: z1, z2, z3, z4, zm, z0, zp
       real (kind=RKIND), dimension(nVertLevels) :: u_mix
@@ -1394,9 +1394,9 @@ contains
       real (kind=RKIND), dimension(nVertLevels) :: t_mix
       real (kind=RKIND), dimension(nVertLevels+1) :: prandtl_1d_inverse, turb_vimp, turb_vflux
       real (kind=RKIND), dimension(nVertLevels) :: rho_k_at_w, zz_at_w
-      real (kind=RKIND), dimension(nVertLevels+1,num_scalars+1) :: turb_vimp_scalars, turb_vflux_scalars
+      real (kind=RKIND), dimension(nVertLevels+1,num_scalars) :: turb_vimp_scalars, turb_vflux_scalars
 
-      real (kind=RKIND) :: moisture_flux, heat_flux, theta_m_flux, surf_factor
+      real (kind=RKIND) :: moisture_flux, heat_flux, theta_m_flux
       real (kind=RKIND) :: qv_cell, theta_m_cell, theta_cell
 
       real (kind=RKIND) :: delta_q
