@@ -71,7 +71,7 @@
  integer,intent(in):: kte
  integer,intent(in):: itimestep
 
- real(kind=kind_phys),intent(in),dimension(its:ite,1:kte):: &
+ real(kind=kind_phys),intent(in),dimension(its:,:):: &
     dz3d,      &!
     u3d,       &!
     v3d,       &!
@@ -81,7 +81,7 @@
     t3d,       &!
     rho3d       !
 
- real(kind=kind_phys),intent(in),dimension(its:ite,1:kte):: &
+ real(kind=kind_phys),intent(in),dimension(its:,:),optional:: &
     pattern_spp !
 
 
@@ -139,7 +139,7 @@
     v1d2(i)   = v3d(i,kts+1)
  enddo
 
- if(f_spp) then
+ if(f_spp .and. present(pattern_spp)) then
     do i = its,ite
        rstoch1d(i) = pattern_spp(i,kts)
     enddo

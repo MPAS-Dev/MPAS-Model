@@ -1029,7 +1029,7 @@ module mpas_pv_diagnostics
          du_dz = calc_vertDeriv_one(val0, valm, z0-zm)
          !v
          val0 = dotProduct(velCell0, xyzLocal(:,2),3)
-         valm = dotProduct(velCellp, xyzLocal(:,2),3)
+         valm = dotProduct(velCellm, xyzLocal(:,2),3)
          dv_dz = calc_vertDeriv_one(val0, valm, z0-zm)
       else
          !u
