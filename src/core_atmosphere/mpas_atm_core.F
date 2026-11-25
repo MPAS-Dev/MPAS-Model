@@ -1038,7 +1038,7 @@ module atm_core
 #endif
 
 #ifdef DO_CHEMISTRY
-      call chemistry_step()
+      call chemistry_step(dt)
 #endif
 
       call atm_timestep(domain, dt, currTime, itimestep, exchange_halo_group)
