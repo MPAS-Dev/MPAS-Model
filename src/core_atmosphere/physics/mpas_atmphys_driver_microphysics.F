@@ -354,6 +354,7 @@
  logical,pointer:: do_restart
  character(len=StrKIND),pointer:: microp_scheme
  logical,pointer:: config_tempo_aerosolaware,config_tempo_hailaware
+ logical,pointer:: config_tempo_hailhyperaware
 
 !CCPP-compliant flags:
  character(len=StrKIND):: errmsg
@@ -371,19 +372,12 @@
  call mpas_pool_get_config(configs,'config_do_restart'   ,do_restart   )
  call mpas_pool_get_config(configs,'config_tempo_aerosolaware',config_tempo_aerosolaware)
  call mpas_pool_get_config(configs,'config_tempo_hailaware',config_tempo_hailaware)
+ call mpas_pool_get_config(configs,'config_tempo_hailhyperaware',config_tempo_hailhyperaware)
 
  microp_select: select case(trim(microp_scheme))
     case("mp_thompson","mp_thompson_aerosols")
        call thompson_init(l_mp_tables)
        call init_thompson_clouddroplets_forMPAS(mesh,sfc_input,diag_physics)
-
-    case("mp_tempo")
-       call tempo_init(aerosolaware_flag=config_tempo_aerosolaware, &
-            hailaware_flag=config_tempo_hailaware, tempo_cfgs=tempo_cfgs)
-
-       if(config_tempo_aerosolaware) then
-          call init_tempo_aerosols_forMPAS(do_restart,dminfo,mesh,state,time_lev,diag_physics)
-       endif
 
        microp2_select: select case(trim(microp_scheme))
           case("mp_thompson_aerosols")
@@ -391,6 +385,17 @@
 
           case default
        end select microp2_select
+
+    case("mp_tempo")
+       call tempo_init(aerosolaware_flag=config_tempo_aerosolaware, &
+            hailaware_flag=config_tempo_hailaware, &
+            hailhyperaware_flag=config_tempo_hailhyperaware, tempo_cfgs=tempo_cfgs, &
+            errflg=errflg, errmsg=errmsg)
+       if (errflg /= 0) call physics_error_fatal('--- tempo_init: '//trim(errmsg))
+
+       if(config_tempo_aerosolaware) then
+          call init_tempo_aerosols_forMPAS(do_restart,dminfo,mesh,state,time_lev,diag_physics)
+       endif
 
     case("mp_wsm6")
        call mp_wsm6_init(den0=rho_a,denr=rho_r,dens=rho_s,cl=cliq,cpv=cpv, &
@@ -404,7 +409,8 @@
  end subroutine init_microphysics
 
 !=================================================================================================================
- subroutine driver_microphysics(configs,mesh,state,time_lev,diag,diag_physics,tend_physics,tend,itimestep,its,ite)
+ subroutine driver_microphysics(configs,mesh,state,time_lev,diag,diag_physics,tend_physics,tend,itimestep,its,ite, &
+                                sfc_input)
 !=================================================================================================================
 
  use mpas_constants, only : rvord
@@ -423,6 +429,7 @@
  type(mpas_pool_type),intent(inout):: diag_physics
  type(mpas_pool_type),intent(inout):: tend_physics
  type(mpas_pool_type),intent(inout):: tend
+ type(mpas_pool_type),intent(in):: sfc_input
 
 !local pointers:
  character(len=StrKIND),pointer:: microp_scheme
@@ -430,6 +437,11 @@
 !local variables and arrays:
  integer:: istep
  integer:: i,j,k
+
+!land-ocean mask passed to TEMPO (1=land, 2=ocean), used for the constant cloud droplet number
+!concentration when the aerosol-aware option is off:
+ real(kind=RKIND),dimension(:),pointer:: xland
+ integer,dimension(ims:ime,jms:jme):: tempo_land
 
 !CCPP-compliant flags:
  character(len=StrKIND):: errmsg
@@ -478,12 +490,21 @@
        call mpas_timer_stop('mp_kessler')
 
     case ("mp_tempo")
+       ! surface emissions are added once per model time-step, before the n_microp substeps,
+       ! so the full model time-step dt_dyn is used (not dt_microp = dt_dyn/n_microp)
        if (allocated(nwfa_p) .and. allocated(nwfa2d_p)) then
-         call tempo_aerosol_surface_emissions(dt=dt_microp, nwfa=nwfa_p, nwfa2d=nwfa2d_p, &      
+         call tempo_aerosol_surface_emissions(dt=dt_dyn, nwfa=nwfa_p, nwfa2d=nwfa2d_p, &      
             ims=ims, ime=ime, jms=jms, jme=jme, kms=kms, kme=kme, kts=kts, its=its, ite=ite, jts=jts, jte=jte)
        endif
 
        call mpas_timer_start('mp_tempo')
+
+       call mpas_pool_get_array(sfc_input,'xland',xland)
+       do j = jts, jte
+       do i = its, ite
+          tempo_land(i,j) = nint(xland(i))
+       enddo
+       enddo
 
        istep = 1
        do while (istep .le. n_microp)
@@ -494,7 +515,8 @@
             qg      = qg_p       , ni         = ni_p      , nr     = nr_p    , &                 
             ng      = ng_p       , qb         = volg_p    , w      = w_p     , &
             nc      = nc_p       , nwfa       = nwfa_p    , nifa   = nifa_p  , &                 
-            pii     = pi_p       , p          = pres_p    , dz     = dz_p    , &                 
+            pii     = pi_p       , p          = pres_p    , dz     = dz_p    , &
+            land_input = tempo_land                                         , &
             ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde , &            
             ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme , &            
             its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte , &            
@@ -517,14 +539,46 @@
                tempo_driver_diags%snow_liquid_equiv_precip(i,j) + &
                tempo_driver_diags%graupel_liquid_equiv_precip(i,j)
             sr_p(i,j) = tempo_driver_diags%frozen_fraction(i,j)
+         enddo
+         enddo
+
+         ! optional TEMPO diagnostics are only allocated when their output flags are set in tempo_cfgs
+         if (allocated(tempo_driver_diags%refl10cm)) then
+            do j = jts, jte
             do k = kts, kte
+            do i = its, ite
                refl10cm_p(i,k,j) = tempo_driver_diags%refl10cm(i,k,j)
+            enddo
+            enddo
+            enddo
+         endif
+         if (allocated(tempo_driver_diags%re_cloud)) then
+            do j = jts, jte
+            do k = kts, kte
+            do i = its, ite
                recloud_p(i,k,j) = tempo_driver_diags%re_cloud(i,k,j)
+            enddo
+            enddo
+            enddo
+         endif
+         if (allocated(tempo_driver_diags%re_ice)) then
+            do j = jts, jte
+            do k = kts, kte
+            do i = its, ite
                reice_p(i,k,j) = tempo_driver_diags%re_ice(i,k,j)
+            enddo
+            enddo
+            enddo
+         endif
+         if (allocated(tempo_driver_diags%re_snow)) then
+            do j = jts, jte
+            do k = kts, kte
+            do i = its, ite
                resnow_p(i,k,j) = tempo_driver_diags%re_snow(i,k,j)
             enddo
-         enddo
-         enddo                
+            enddo
+            enddo
+         endif                
        istep = istep + 1
        enddo
        call mpas_timer_stop('mp_tempo')
