@@ -19,6 +19,9 @@
 <!-- soundings -->
 #include "Registry_soundings.xml"
 
+<!-- additional model-level diagnostics -->
+#include "Registry_modellevel.xml"
+
 <!-- ******************************* -->
 <!-- End includes from diagnostics -->
 <!-- ******************************* -->
