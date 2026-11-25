@@ -7308,26 +7308,28 @@ module atm_time_integration
       if(present(rk_step)) then
         if(rk_step /= 3) reconstruct_v = .false.
       end if
-
+      
       if (reconstruct_v) then
+        call mpas_timer_start('atm_compute_solve_diag_7313')
         !$acc parallel default(present)
-        !$acc loop gang
+        !$acc loop gang worker
         do iEdge = edgeStart,edgeEnd
           !$acc loop vector
           do k = 1,nVertLevels
             v(k,iEdge) = 0.0_RKIND
           end do
-          !$acc loop seq
-          do i=1,nEdgesOnEdge(iEdge)
-            eoe = edgesOnEdge(i,iEdge)
 !DIR$ IVDEP
-            !$acc loop vector
-            do k = 1,nVertLevels
+          !$acc loop vector
+          do k = 1,nVertLevels
+            !$acc loop seq
+            do i=1,nEdgesOnEdge(iEdge)
+              eoe = edgesOnEdge(i,iEdge)
               v(k,iEdge) = v(k,iEdge) + weightsOnEdge(i,iEdge) * u(k, eoe)
             end do
           end do
         end do
         !$acc end parallel
+        call mpas_timer_stop('atm_compute_solve_diag_7313')
       end if
 
       !
