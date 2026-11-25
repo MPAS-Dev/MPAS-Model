@@ -88,13 +88,13 @@
 !   Laura D. Fowler (laura@ucar.edu) / 2014-05-15.
 ! * renamed config_conv_deep_scheme to config_convection_scheme.
 !   Laura D. Fowler (laura@ucar.edu) / 2014-09-18.
-! * in the call to driver_convection, added block%configs needed for the implementation of the
-!   Grell-Freitas convection scheme.
-!   Laura D. Fowler (laura@ucar.edu) / 2016-03-30.
 ! * modified the call to the subroutines driver_sfclayer and driver_pbl for the implementation
 !   of the MYNN surface layer scheme and PBL schemes. itimestep and block%configs are added to
 !   the argument list.
 !   Laura D. Fowler (laura@ucar.edu) / 2015-01-06.
+! * in the call to driver_convection, added block%configs needed for the implementation of the
+!   Grell-Freitas convection scheme.
+!   Laura D. Fowler (laura@ucar.edu) / 2016-03-30.
 ! * now only call subroutine update_convection_step2 when config_convection_scheme is not off.
 !   Laura D. Fowler (laura@ucar.edu) / 2016-04-13.
 ! * modified call to driver_cloudiness to accomodate the calculation of the cloud fraction with the Thompson
