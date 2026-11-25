@@ -15,13 +15,16 @@
  use mpas_pool_routines
 
  use mpas_atmphys_utilities
+ use mpas_atmphys_p3_cumix,only: p3cu_add_ic_ice
  use module_mp_thompson, only: is_aerosol_aware,naCCN0,naCCN1,naIN0,naIN1,ntb_arc,ntb_arw,ntb_art,ntb_arr, &
                                ntb_ark,tnccn_act
 
  implicit none
  private
  public:: init_thompson_clouddroplets_forMPAS, &
-          init_thompson_aerosols_forMPAS
+          init_thompson_aerosols_forMPAS, &
+          init_p3_forMPAS, &
+          init_p3_aerosols_forMPAS
 
 !MPAS main initialization of the Thompson parameterization of cloud microphysics with nucleation of cloud
 !droplets based on distributions of CCNs and INs (aerosol-aware parameterization).
@@ -251,6 +254,222 @@
 !call mpas_log_write('--- end subroutine init_thompson_aerosols_forMPAS.')
 
  end subroutine init_thompson_aerosols_forMPAS
+
+!=================================================================================================================
+ subroutine init_p3_forMPAS(do_restart,dminfo,configs,state,time_lev)
+!=================================================================================================================
+!
+! Cold-start initialization of the P3 ice consistently with the ice of the initial conditions (p3cu_add_ic_ice):
+! * with config_p3_ic_bulk_ice, the bulk ice qi + qs + qg of the initial conditions (data assimilation analysis or
+!   forecast with another microphysics scheme) is added to the P3 ice as ice detrained by the convection scheme
+!   (config_p3_cu_ri, unrimed, dry), and qi, qs and qg are then set to zero (they stay zero for the whole run).
+!   Without it, qi, qs and qg are not allocated with P3 and the bulk ice of the initial conditions is not read.
+! * with triple-moment ice, the P3 ice of the initial conditions without p3_qzi (double-moment P3) gets p3_qzi.
+! The initial conditions from init_atmosphere have no ice (for any scheme), so that the P3 ice is then zero.
+! The aerosols (nwfa, nifa) are initialized separately in init_p3_aerosols_forMPAS, only if config_p3_aerosols.
+!
+!input variables:
+ type(dm_info),intent(in):: dminfo
+ type(mpas_pool_type),intent(in):: configs
+ logical,intent(in):: do_restart
+ integer,intent(in):: time_lev
+
+!inout variables:
+ type(mpas_pool_type),intent(inout):: state
+
+!local variables and pointers:
+ logical,pointer:: p3_ic_bulk_ice
+ integer,pointer:: index_qi,index_qs,index_qg
+ real(kind=RKIND):: qadd_max_local,qadd_max
+
+ real(kind=RKIND),dimension(:,:,:),pointer:: scalars
+ real(kind=RKIND),dimension(:,:),pointer  :: qi,qs,qg
+ real(kind=RKIND),dimension(:,:),allocatable:: qadd
+
+!-----------------------------------------------------------------------------------------------------------------
+
+!... if do_restart is true, the P3 scalars are read from the restart file and are not modified:
+ if(do_restart) return
+
+ call mpas_pool_get_config(configs,'config_p3_ic_bulk_ice',p3_ic_bulk_ice)
+ call mpas_pool_get_array(state,'scalars',scalars,time_lev)
+
+ if (p3_ic_bulk_ice) then
+    !the bulk qi, qs and qg scalars are allocated with P3 only with config_p3_ic_bulk_ice:
+    call mpas_pool_get_dimension(state,'index_qi',index_qi)
+    call mpas_pool_get_dimension(state,'index_qs',index_qs)
+    call mpas_pool_get_dimension(state,'index_qg',index_qg)
+    qi => scalars(index_qi,:,:)
+    qs => scalars(index_qs,:,:)
+    qg => scalars(index_qg,:,:)
+
+    allocate(qadd(size(scalars,2),size(scalars,3)))
+    qadd(:,:) = qi(:,:) + qs(:,:) + qg(:,:)
+    qadd_max_local = maxval(qadd)
+    call mpas_dmpar_max_real(dminfo,qadd_max_local,qadd_max)
+    call mpas_log_write('--- init_p3_forMPAS: bulk ice qi+qs+qg of the initial conditions added to the P3 ice,' // &
+                        ' max = $r kg/kg', realArgs=(/qadd_max/), masterOnly=.true.)
+    call p3cu_add_ic_ice(configs,state,scalars,qadd)
+    deallocate(qadd)
+    qi(:,:) = 0._RKIND
+    qs(:,:) = 0._RKIND
+    qg(:,:) = 0._RKIND
+ else
+    call p3cu_add_ic_ice(configs,state,scalars)
+ endif
+
+ end subroutine init_p3_forMPAS
+
+!=================================================================================================================
+ subroutine init_p3_aerosols_forMPAS(do_restart,dminfo,mesh,state,time_lev,diag_physics)
+!=================================================================================================================
+!
+! Initialization of the aerosols nwfa and nifa and of their surface source nwfa2d and nifa2d for P3 with predicted
+! aerosols (config_p3_aerosols; package mp_p3_aers_in), as in init_thompson_aerosols_forMPAS (same fields), except
+! that the CCN activation table of the Thompson scheme (CCN_ACTIVATE_DATA) is not read.
+!
+!input variables:
+ type(dm_info),intent(in):: dminfo
+ type(mpas_pool_type),intent(in):: mesh
+ logical,intent(in):: do_restart
+ integer,intent(in):: time_lev
+
+!inout variables:
+ type(mpas_pool_type),intent(inout):: diag_physics
+ type(mpas_pool_type),intent(inout):: state
+
+!local variables and pointers:
+ integer,pointer:: nCellsSolve,nVertLevels
+ integer,pointer:: index_nifa,index_nwfa
+
+ real(kind=RKIND),dimension(:),pointer    :: areaCell
+ real(kind=RKIND),dimension(:),pointer    :: nifa2d,nwfa2d
+ real(kind=RKIND),dimension(:,:),pointer  :: zgrid,zz
+ real(kind=RKIND),dimension(:,:),pointer  :: rho_zz,nifa,nwfa
+ real(kind=RKIND),dimension(:,:,:),pointer:: scalars
+
+ integer:: iCell, k
+
+ real(kind=RKIND):: airmass
+ real(kind=RKIND):: h_01
+ real(kind=RKIND):: niIN3,niCCN3
+ real(kind=RKIND):: nifa_max,nifa_min,global_nifa_max,global_nifa_min
+ real(kind=RKIND):: nwfa_max,nwfa_min,global_nwfa_max,global_nwfa_min
+ real(kind=RKIND),dimension(:,:),allocatable:: hgt
+
+!-----------------------------------------------------------------------------------------------------------------
+!... if do_restart is true, then we do not need to check the initialization of nwfa, nifa, and nwfa2d. If false,
+!    then, we proceed with the initialization:
+ if(do_restart) return
+
+ call mpas_pool_get_dimension(mesh,'nCellsSolve',nCellsSolve)
+ call mpas_pool_get_dimension(mesh,'nVertLevels',nVertLevels)
+
+ call mpas_pool_get_array(mesh,'areaCell',areaCell)
+ call mpas_pool_get_array(mesh,'zgrid'   ,zgrid   )
+ call mpas_pool_get_array(mesh,'zz'      ,zz      )
+
+ call mpas_pool_get_array(diag_physics,'nifa2d',nifa2d)
+ call mpas_pool_get_array(diag_physics,'nwfa2d',nwfa2d)
+
+ call mpas_pool_get_dimension(state,'index_nifa'  ,index_nifa  )
+ call mpas_pool_get_dimension(state,'index_nwfa'  ,index_nwfa  )
+
+ call mpas_pool_get_array(state,'scalars',scalars,time_lev)
+ nifa   => scalars(index_nifa,:,:)
+ nwfa   => scalars(index_nwfa,:,:)
+
+ call mpas_pool_get_array(state,'rho_zz',rho_zz,time_lev)
+
+ if(.not.allocated(hgt)) allocate(hgt(1:nVertLevels,1:nCellsSolve))
+ do iCell = 1, nCellsSolve
+    do k = 1, nVertLevels
+       hgt(k,iCell) = 0.5_RKIND * (zgrid(k,iCell)+zgrid(k+1,iCell))
+    enddo
+ enddo
+
+!... initialize the distribution of hygroscopic ("water friendly") aerosols if not already initialized using
+!    GOCART data:
+ global_nwfa_min = 0._RKIND
+ global_nwfa_max = 0._RKIND
+ nwfa_min = minval(nwfa(:,1:nCellsSolve))
+ nwfa_max = maxval(nwfa(:,1:nCellsSolve))
+ call mpas_dmpar_min_real(dminfo,nwfa_min,global_nwfa_min)
+ call mpas_dmpar_max_real(dminfo,nwfa_max,global_nwfa_max)
+ call mpas_log_write('--- global_nwfa_min = $r',realArgs=(/global_nwfa_min/))
+ call mpas_log_write('--- global_nwfa_max = $r',realArgs=(/global_nwfa_max/))
+
+ if(global_nwfa_min == 0._RKIND .and. global_nwfa_max == 0._RKIND) then
+    call mpas_log_write('--- initialize nwfa using an exponential distribution of CCN as a function of height.')
+    do iCell = 1, nCellsSolve
+       if(hgt(1,iCell).le.1000.0) then
+          h_01 = 0.8
+       elseif(hgt(1,iCell).ge.2500.0) then
+          h_01 = 0.01
+       else
+          h_01 = 0.8*cos(hgt(1,iCell)*0.001 - 1.0)
+       endif
+       niCCN3 = -1.0*ALOG(naCCN1/naCCN0)/h_01
+       nwfa(1,iCell) = naCCN1+naCCN0*exp(-((hgt(2,iCell)-hgt(1,iCell))/1000.)*niCCN3)
+       do k = 2, nVertLevels
+          nwfa(k,iCell) = naCCN1+naCCN0*exp(-((hgt(k,iCell)-hgt(1,iCell))/1000.)*niCCN3)
+       enddo
+    enddo
+ else
+    call mpas_log_write('--- initialize nwfa using the climatological GOCART data.')
+ endif
+
+!... initialize the distribution of nonhygroscopic ("ice friendly") aerosols if not already initialized using
+!    GOCART data:
+ global_nifa_min = 0._RKIND
+ global_nifa_max = 0._RKIND
+ nifa_min = minval(nifa(:,1:nCellsSolve))
+ nifa_max = maxval(nifa(:,1:nCellsSolve))
+ call mpas_dmpar_min_real(dminfo,nifa_min,global_nifa_min)
+ call mpas_dmpar_max_real(dminfo,nifa_max,global_nifa_max)
+ call mpas_log_write('--- global_nifa_min = $r',realArgs=(/global_nifa_min/))
+ call mpas_log_write('--- global_nifa_max = $r',realArgs=(/global_nifa_max/))
+
+ if(global_nifa_min == 0._RKIND .and. global_nifa_max == 0._RKIND) then
+    call mpas_log_write('--- initialize nifa using an exponential distribution of IN as a function of height.')
+    do iCell = 1, nCellsSolve
+       if(hgt(1,iCell).le.1000.0) then
+          h_01 = 0.8
+       elseif(hgt(1,iCell).ge.2500.0) then
+          h_01 = 0.01
+       else
+          h_01 = 0.8*cos(hgt(1,iCell)*0.001 - 1.0)
+       endif
+       niIN3 = -1.0*ALOG(naIN1/naIN0)/h_01
+       nifa(1,iCell) = naIN1+naIN0*exp(-((hgt(2,iCell)-hgt(1,iCell))/1000.)*niIN3)
+       do k = 2, nVertLevels
+          nifa(k,iCell) = naIN1+naIN0*exp(-((hgt(k,iCell)-hgt(1,iCell))/1000.)*niIN3)
+       enddo
+    enddo
+ else
+    call mpas_log_write('--- initialize nifa using the climatological GOCART data.')
+ endif
+
+!... scale the lowest level aerosol data into an emissions rate.  This is very far from ideal, but
+!... need higher emissions where larger amount of (climo) existing and lesser emissions where there
+!... exists fewer to begin as a first-order simplistic approach.  Later, proper connection to emission
+!... inventory would be better, but, for now, scale like this:
+!... where: Nwfa=50 per cc, emit 0.875E4 aerosols per second per grid box unit
+!... that was tested as ~(20kmx20kmx50m = 2.E10 m**3).
+
+ k = 1
+ do iCell = 1, nCellsSolve
+    airmass = rho_zz(k,iCell)*zz(k,iCell)
+    airmass = airmass*(zgrid(k+1,iCell)-zgrid(k,iCell))*areaCell(iCell) ! (in kg)
+    nwfa2d(iCell) = nwfa(k,iCell)*0.000196*airmass*0.5e-10
+    nifa2d(iCell) = 0._RKIND
+!   call mpas_log_write('$i $r $r $r',intArgs=(/iCell/),realArgs=(/airmass,nwfa2d(iCell),nifa2d(iCell)/))
+ enddo
+
+!... deallocate local arrays:
+ if(allocated(hgt)) deallocate(hgt)
+
+ end subroutine init_p3_aerosols_forMPAS
 
 !=================================================================================================================
  subroutine table_ccnAct(dminfo)

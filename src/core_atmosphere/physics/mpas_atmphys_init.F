@@ -19,6 +19,7 @@
  use mpas_atmphys_driver_radiation_sw,only: init_radiation_sw
  use mpas_atmphys_driver_sfclayer,only: init_sfclayer
  use mpas_atmphys_vars,only: f_qc,f_qr,f_qi,f_qs,f_qg,f_qoz,f_nc,f_ni,f_nifa,f_nwfa,f_nbca
+ use mpas_atmphys_interface,only: p3_allocate_work
 
  use mpas_atmphys_landuse
  use mpas_atmphys_o3climatology
@@ -255,6 +256,18 @@ use mpas_stream_manager
 !initialization of logical flags for cloud mixing ratios and number concentrations, and aerosols
 !number concentrations from the Thompson cloud microphysics:
  call init_physics_flags(state,f_qc,f_qr,f_qi,f_qs,f_qg,f_qoz,f_nc,f_ni,f_nifa,f_nwfa,f_nbca)
+
+!mp_p3: there is no bulk qi scalar, but qi_p (the sum over the P3 ice categories) is passed to the PBL,
+!convection, cloud fraction and radiation schemes, so f_qi is set to true. f_ni stays false: the PBL
+!schemes mix the P3 scalars directly (mpas_atmphys_p3_pblmix). f_qs and f_qg stay false, also when the
+!bulk qs and qg scalars are allocated (zero) with config_p3_ic_bulk_ice. The P3 work fields are allocated
+!here, outside OpenMP regions:
+ if(trim(config_microp_scheme) == 'mp_p3') then
+    f_qi = .true.
+    f_qs = .false.
+    f_qg = .false.
+    call p3_allocate_work(state)
+ endif
 
 !initialization of counters i_rainc and i_rainnc. i_rainc and i_rainnc track the number of
 !times the accumulated convective (rainc) and grid-scale (rainnc) rain exceed the prescribed

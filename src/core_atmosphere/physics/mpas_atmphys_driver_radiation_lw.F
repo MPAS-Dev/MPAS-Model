@@ -11,7 +11,7 @@
  use mpas_pool_routines
  use mpas_timer,only: mpas_timer_start,mpas_timer_stop
 
- use mpas_atmphys_driver_radiation_sw, only: radconst
+ use mpas_atmphys_driver_radiation_sw, only: radconst,p3_radiation_re
  use mpas_atmphys_constants
  use mpas_atmphys_manager, only: gmt,curr_julday,julday,year
  use mpas_atmphys_camrad_init
@@ -413,7 +413,7 @@
  radiation_lw_select: select case (trim(radt_lw_scheme))
     case("rrtmg_lw")
        microp_select: select case(microp_scheme)
-          case("mp_thompson","mp_thompson_aerosols","mp_wsm6")
+          case("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_p3")
              if(config_microp_re) then
                 call mpas_pool_get_array(diag_physics,'re_cloud',re_cloud)
                 call mpas_pool_get_array(diag_physics,'re_ice'  ,re_ice  )
@@ -428,6 +428,8 @@
                 enddo
                 enddo
                 enddo
+                !P3: all ice goes through the RRTMG snow optics, with the P3 effective radius (re_ice):
+                if(microp_scheme == "mp_p3") call p3_radiation_re(its,ite)
              else
                 ! These are set in module mpas_atmphys_manager and should not be set again
                 !has_reqc = 0
@@ -684,7 +686,7 @@
     case("rrtmg_lw")
 
        microp_select: select case(microp_scheme)
-          case("mp_thompson","mp_thompson_aerosols","mp_wsm6")
+          case("mp_thompson","mp_thompson_aerosols","mp_wsm6","mp_p3")
              call mpas_pool_get_array(diag_physics,'rre_cloud',rre_cloud)
              call mpas_pool_get_array(diag_physics,'rre_ice'  ,rre_ice  )
              call mpas_pool_get_array(diag_physics,'rre_snow' ,rre_snow )

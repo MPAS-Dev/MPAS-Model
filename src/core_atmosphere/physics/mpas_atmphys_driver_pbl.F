@@ -17,6 +17,7 @@
  use bl_mynn,only: bl_mynn_init
  use module_bl_mynn,only: mynn_bl_driver
  use module_bl_ysu
+ use mpas_atmphys_p3_pblmix,only: p3mix_p,rp3blten_p,p3pbl_mix_mynn,p3pbl_to_MPAS
 
  implicit none
  private
@@ -702,14 +703,23 @@
              enddo
           enddo
        endif
-       if(f_nc .and. f_nifa .and. f_nwfa) then
+       !mp_p3 always has nc, and has nifa and nwfa only with predicted aerosols (config_p3_aerosols):
+       if(f_nc) then
           call mpas_pool_get_array(tend_physics,'rncblten'  ,rncblten  )
+          do j = jts,jte
+             do k = kts,kte
+                do i = its,ite
+                   rncblten(k,i)   = rncblten_p(i,k,j)
+                enddo
+             enddo
+          enddo
+       endif
+       if(f_nifa .and. f_nwfa) then
           call mpas_pool_get_array(tend_physics,'rnifablten',rnifablten)
           call mpas_pool_get_array(tend_physics,'rnwfablten',rnwfablten)
           do j = jts,jte
              do k = kts,kte
                 do i = its,ite
-                   rncblten(k,i)   = rncblten_p(i,k,j)
                    rnifablten(k,i) = rnifablten_p(i,k,j)
                    rnwfablten(k,i) = rnwfablten_p(i,k,j)
                 enddo
@@ -720,6 +730,9 @@
     case default
 
  end select pbl_select
+
+!PBL tendencies of the P3 cloud microphysics prognostic scalars (mp_p3 only):
+ call p3pbl_to_MPAS(tend_physics,its,ite)
 
  end subroutine pbl_to_MPAS
  
@@ -845,6 +858,7 @@
                  ctopo2   = ctopo2_p   , flag_bep = flag_bep    , idiff    = idiff      , &
                  ysu_topdown_pblmix = ysu_pblmix ,                                        &
                  errmsg   = errmsg     , errflg   = errflg      ,                         &
+                 qmix3d   = p3mix_p    , rqmixblten3d = rp3blten_p ,                      &
                  ids = ids , ide = ide , jds = jds , jde = jde , kds = kds , kde = kde  , &
                  ims = ims , ime = ime , jms = jms , jme = jme , kms = kms , kme = kme  , &
                  its = its , ite = ite , jts = jts , jte = jte , kts = kts , kte = kte    &
@@ -958,6 +972,10 @@
                   errmsg = errmsg , errflg = errflg                                                       &
                           )
        call mpas_timer_stop('bl_mynn')
+
+       !mp_p3: mix the P3 prognostic scalars with the MYNN exchange coefficient, as MYNN mixes cloud ice
+       !(only if config_mynn_mixclouds = 1). p3mix_p is allocated only for mp_p3:
+       if(allocated(p3mix_p) .and. bl_mynn_cloudmix == 1) call p3pbl_mix_mynn(dt_pbl,its,ite)
 !      call mpas_log_write('--- exit subroutine mynn_bl_driver:')
 !      call mpas_log_write(' ')
 

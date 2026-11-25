@@ -22,6 +22,7 @@ OBJS = \
 	module_cu_ntiedtke.o           \
 	module_cu_kfeta.o              \
 	module_mp_kessler.o            \
+	module_mp_p3.o                 \
 	module_mp_thompson.o           \
 	module_mp_thompson_aerosols.o  \
 	module_mp_thompson_cldfra3.o   \
