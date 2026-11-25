@@ -102,4 +102,30 @@ module mpas_c_interfacing
  
     end subroutine mpas_f_to_c_string
 
+
+    !-----------------------------------------------------------------------
+    !  function mpas_f_to_c_string_ret
+    !
+    !> \brief Converts a Fortran string to a C null-terminated string as return
+    !> \author Anthony Islas
+    !> \date   5 July 2024
+    !> \details
+    !>  Converts a Fortran string to a C null-terminated string.
+    !>  The return will be the trimmed Fortran string with an additional
+    !>  character for c_null_char termination.
+    !
+    !-----------------------------------------------------------------------
+    function mpas_f_to_c_string_ret(fstring) result( cstring )
+    
+        use iso_c_binding, only : c_char, c_null_char
+        
+        implicit none
+        
+        character(len=*), intent(in) :: fstring
+        character(kind=c_char, len=len_trim( fstring ) + 1 ) :: cstring
+            
+        cstring = trim( fstring )//c_null_char
+ 
+    end function mpas_f_to_c_string_ret
+
 end module mpas_c_interfacing
