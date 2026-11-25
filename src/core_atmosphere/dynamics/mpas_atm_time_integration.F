@@ -3139,6 +3139,7 @@ module atm_time_integration
       theta_m_2(:,cellEnd+1) = 0.0_RKIND
       !$acc end kernels
 
+!$OMP BARRIER
       !$acc parallel default(present)
       !$acc loop gang worker
       do iEdge = edgeStart,edgeEnd
@@ -3180,6 +3181,7 @@ module atm_time_integration
          end do
       end do
       !$acc end parallel
+!$OMP BARRIER
 
 
    end subroutine atm_rk_integration_setup
