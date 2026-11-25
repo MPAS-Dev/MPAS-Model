@@ -469,9 +469,11 @@
 
        if(config_o3climatology) then
           !ozone mixing ratio:
+!$omp single
           do k = 1, num_oznLevels
              pin_p(k) = pin(k)
           enddo
+!$omp end single
           do j = jts,jte
           do k = 1, num_oznLevels
              do i = its,ite
@@ -491,7 +493,7 @@
                 p2d(i,k)  = pres_hyd_p(i,k,j) / 100._RKIND
              enddo
              enddo
-             call vinterp_ozn(1,ncols,ncols,nlevs,p2d,pin_p,num_oznlevels,o3clim_p(1,1,j),o32d)
+             call vinterp_ozn(1,ncols,ncols,nlevs,p2d,pin_p,num_oznlevels,o3clim_p(its:ite,1:num_oznLevels,j),o32d)
              do i = its,ite
              do k = kts,kte
                 o3vmr(k,i) = o32d(i,k)
@@ -501,9 +503,11 @@
           if(allocated(p2d))  deallocate(p2d)
           if(allocated(o32d)) deallocate(o32d)
        else
+!$omp single
           do k = 1, num_oznLevels
              pin_p(k) = 0.0_RKIND
           enddo
+!$omp end single
           do j = jts,jte
           do k = 1, num_oznLevels
              do i = its,ite
@@ -571,9 +575,11 @@
        endif
 
        !ozone mixing ratio:
+!$omp single
        do k = 1, num_oznlevels
           pin_p(k) = pin(k)
        enddo
+!$omp end single
        do n = 1, num_months
           do j = jts,jte
           do k = 1, num_oznlevels

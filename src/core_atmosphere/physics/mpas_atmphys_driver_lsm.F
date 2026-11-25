@@ -357,9 +357,11 @@
 
 !In Registry.xml, dzs is a function of nCells. In the Noah lsm scheme, dzs is independent
 !of cell locations:
+!$omp single
  do n = 1,num_soils
     dzs_p(n) = dzs(n,its)
  enddo
+!$omp end single
 
  do j = jts,jte
  do n = 1,num_soils
