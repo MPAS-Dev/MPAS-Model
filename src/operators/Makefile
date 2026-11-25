@@ -21,7 +21,7 @@ operators: $(OBJS) $(DEPS)
 mpas_vector_operations.o: $(DEPS)
 mpas_matrix_operations.o: $(DEPS)
 mpas_tensor_operations.o: mpas_vector_operations.o mpas_matrix_operations.o $(DEPS)
-mpas_rbf_interpolation.o: mpas_vector_operations.o
+mpas_rbf_interpolation.o: mpas_vector_operations.o mpas_matrix_operations.o
 mpas_vector_reconstruction.o: mpas_rbf_interpolation.o
 mpas_spline_interpolation:
 mpas_tracer_advection_helpers.o: mpas_geometry_utils.o $(DEPS)
