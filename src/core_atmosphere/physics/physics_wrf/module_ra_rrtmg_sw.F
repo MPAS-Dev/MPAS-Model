@@ -2582,6 +2582,8 @@
 ! Revised for F90 reformatting: MJIacono, AER, Jul 2006
 ! Revised to add exponential lookup table: MJIacono, AER, Aug 2007
 ! Reformulated some code to avoid potential fpes: MJIacono, AER, Nov 2008
+! Revised direct-beam terms to avoid 0/0 at k*mu0 = 1 and keep them within
+! physical limits: MPAS, Nov 2026
 !
 ! ------------------------------------------------------------------
 
@@ -2621,16 +2623,14 @@
 
       real(kind=rb) :: tblind
       real(kind=rb) :: za, za1, za2
-      real(kind=rb) :: zbeta, zdend, zdenr, zdent
-      real(kind=rb) :: ze1, ze2, zem1, zem2, zemm, zep1, zep2
+      real(kind=rb) :: zbeta, zdend
+      real(kind=rb) :: ze1, ze2, zem1, zem2, zemm
       real(kind=rb) :: zg, zg3, zgamma1, zgamma2, zgamma3, zgamma4, zgt
-      real(kind=rb) :: zr1, zr2, zr3, zr4, zr5
-      real(kind=rb) :: zrk, zrk2, zrkg, zrm1, zrp, zrp1, zrpp
-      real(kind=rb) :: zsr3, zt1, zt2, zt3, zt4, zt5, zto1
+      real(kind=rb) :: zrk, zrk2, zrkg, zrm1, zrp, zrp1
+      real(kind=rb) :: zsr3, zto1
       real(kind=rb) :: zw, zwcrit, zwo
       real(kind=rb) :: denom
-
-      real(kind=rb), parameter :: eps = 1.e-08_rb
+      real(kind=rb) :: zv, zx, zh2, zdd, zdenc, ztdif, zf
 
 !     ------------------------------------------------------------------
 
@@ -2729,18 +2729,7 @@
                zrp1 = 1._rb + zrp
                zrm1 = 1._rb - zrp
                zrk2 = 2._rb * zrk
-               zrpp = 1._rb - zrp*zrp
                zrkg = zrk + zgamma1
-               zr1  = zrm1 * (za2 + zrk * zgamma3)
-               zr2  = zrp1 * (za2 - zrk * zgamma3)
-               zr3  = zrk2 * (zgamma3 - za2 * prmuz )
-               zr4  = zrpp * zrkg
-               zr5  = zrpp * (zrk - zgamma1)
-               zt1  = zrp1 * (za1 + zrk * zgamma4)
-               zt2  = zrm1 * (za1 - zrk * zgamma4)
-               zt3  = zrk2 * (zgamma4 + za1 * prmuz )
-               zt4  = zr4
-               zt5  = zr5
 
 ! mji - reformulated code to avoid potential floating point exceptions
 !               zbeta = - zr5 / zr4
@@ -2750,7 +2739,8 @@
 ! Homogeneous reflectance and transmittance
 
                ze1 = min ( zrk * zto1, 500._rb)
-               ze2 = min ( zto1 / prmuz , 500._rb)
+               zv = zto1 / prmuz
+               ze2 = min ( zv , 500._rb)
 !
 ! Original
 !              zep1 = exp( ze1 )
@@ -2768,41 +2758,59 @@
 ! exponential for low tau
                if (ze1 .le. od_lo) then 
                   zem1 = 1._rb - ze1 + 0.5_rb * ze1 * ze1
-                  zep1 = 1._rb / zem1
                else
                   tblind = ze1 / (bpade + ze1)
                   itind = tblint * tblind + 0.5_rb
                   zem1 = exp_tbl(itind)
-                  zep1 = 1._rb / zem1
                endif
 
                if (ze2 .le. od_lo) then 
                   zem2 = 1._rb - ze2 + 0.5_rb * ze2 * ze2
-                  zep2 = 1._rb / zem2
                else
                   tblind = ze2 / (bpade + ze2)
                   itind = tblint * tblind + 0.5_rb
                   zem2 = exp_tbl(itind)
-                  zep2 = 1._rb / zem2
                endif
 
 ! collimated beam
-
-! mji - reformulated code to avoid potential floating point exceptions
-!               zdenr = zr4*zep1 + zr5*zem1
-!               pref(jk) = zw * (zr1*zep1 - zr2*zem1 - zr3*zem2) / zdenr
-!               zdent = zt4*zep1 + zt5*zem1
-!               ptra(jk) = zem2 - zem2 * zw * (zt1*zep1 - zt2*zem1 - zt3*zep2) / zdent
-
-               zdenr = zr4*zep1 + zr5*zem1
-               zdent = zt4*zep1 + zt5*zem1
-               if (zdenr .ge. -eps .and. zdenr .le. eps) then
-                  pref(jk) = eps
-                  ptra(jk) = zem2
+! Same direct-beam solution as before (Meador and Weaver 1980), rewritten to
+! avoid 0/0: the old form divided two terms that both go to zero at
+! k*mu0 = 1, which gave rounding noise in single precision. Here the common
+! factor (1 - k*mu0) is cancelled by hand:
+!   D    = (1+k*mu0)*(2*k + (g1-k)*zf)
+!   pref = w*[(a2+k*g3)*zf + 2*k*e1*zdd*(g3*zv - a2*tau)] / D
+!   ptra = e2 + w*[2*k*zdd*(a1*tau + g4*zv) - (a1-k*g4)*e2*zf] / D
+! with zv = tau/mu0, zf = 1 - e1**2, zdd = (e1 - e2)/(zv - k*tau),
+! e1 = zem1, e2 = zem2.
+               if (ze1 .le. od_lo) then
+                  zf = ze1 * (2._rb - ze1 * (2._rb - ze1 * &
+                       (1._rb - 0.25_rb * ze1)))
                else
-                  pref(jk) = zw * (zr1*zep1 - zr2*zem1 - zr3*zem2) / zdenr
-                  ptra(jk) = zem2 - zem2 * zw * (zt1*zep1 - zt2*zem1 - zt3*zep2) / zdent
+                  zf = (1._rb - zem1) * (1._rb + zem1)
                endif
+               zx = zv * zrm1
+               if (ze1 .le. od_lo .and. ze2 .le. od_lo) then
+! exact for the Taylor forms of zem1 and zem2
+                  zdd = 1._rb - 0.5_rb * (ze1 + ze2)
+               else if (abs(zx) .lt. 1._rb) then
+! sqrt(e1*e2)*sinh(h)/h with h = zx/2; even series, truncation error < 2e-8
+                  zh2 = 0.25_rb * zx * zx
+                  zdd = sqrt(zem1*zem2) * (1._rb + zh2*(1._rb/6._rb + &
+                        zh2*(1._rb/120._rb + zh2*(1._rb/5040._rb))))
+               else
+                  zdd = (zem1 - zem2) / zx
+               endif
+               zdenc = zw / (zrp1 * (zrk2 + (zgamma1 - zrk) * zf))
+               pref(jk) = zdenc * ( (za2 + zrk*zgamma3)*zf &
+                          + zrk2*zem1*zdd*(zgamma3*zv - za2*zto1) )
+               ztdif = zdenc * ( zrk2*zdd*(za1*zto1 + zgamma4*zv) &
+                       - (za1 - zrk*zgamma4)*zem2*zf )
+! Energy bounds (inactive for the exact solution): reflected and
+! scattered-transmitted parts of the beam are non-negative and do not exceed
+! what the layer removes from the direct beam.
+               pref(jk) = max(0._rb, min(pref(jk), 1._rb - zem2))
+               ztdif = max(0._rb, min(ztdif, 1._rb - zem2 - pref(jk)))
+               ptra(jk) = zem2 + ztdif
 !!
 
 ! diffuse beam
