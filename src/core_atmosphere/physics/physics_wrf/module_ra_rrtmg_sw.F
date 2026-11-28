@@ -8222,7 +8222,8 @@
              fac00, fac01, fac10, fac11, &
              selffac, selffrac, indself, forfac, forfrac, indfor, &
              pbbfd, pbbfu, pbbcd, pbbcu, puvfd, puvcd, pnifd, pnicd, &
-             pbbfddir, pbbcddir, puvfddir, puvcddir, pnifddir, pnicddir)
+             pbbfddir, pbbcddir, puvfddir, puvcddir, pnifddir, pnicddir, &
+             pbbfa, pbbca)
 ! ---------------------------------------------------------------------------
 !
 ! Purpose: Contains spectral loop to compute the shortwave radiative fluxes, 
@@ -8359,6 +8360,8 @@
       real(kind=rb), intent(out) :: pbbfu(:)
       real(kind=rb), intent(out) :: pbbfddir(:)
       real(kind=rb), intent(out) :: pbbcddir(:)
+      real(kind=rb), intent(out) :: pbbfa(:)      ! layer absorption, all sky (W/m2)
+      real(kind=rb), intent(out) :: pbbca(:)      ! layer absorption, clear sky (W/m2)
 
       real(kind=rb), intent(out) :: puvcd(:)
       real(kind=rb), intent(out) :: puvfd(:)
@@ -8426,6 +8429,7 @@
 
       real(kind=rb) :: zcd(nlayers+1,ngptsw), zcu(nlayers+1,ngptsw)
       real(kind=rb) :: zfd(nlayers+1,ngptsw), zfu(nlayers+1,ngptsw)
+      real(kind=rb) :: zabsf(nlayers+1), zabsc(nlayers+1)   ! layer absorption (W/m2)
 
 ! Inactive arrays
 !     real(kind=rb) :: zbbcd(nlayers+1), zbbcu(nlayers+1)
@@ -8458,6 +8462,8 @@
          pnifd(jk)=0._rb
          pnicddir(jk)=0._rb
          pnifddir(jk)=0._rb
+         zabsf(jk)=0._rb
+         zabsc(jk)=0._rb
       enddo
 
 
@@ -8763,6 +8769,15 @@
                pbbfddir(ikl) = pbbfddir(ikl) + zincflx(iw)*ztdbt_nodel(jk)
                pbbcddir(ikl) = pbbcddir(ikl) + zincflx(iw)*ztdbtc_nodel(jk)
             enddo
+! Sum the layer absorption over g-points. In single precision, the difference
+! of the broadband fluxes (about 1000 W/m2) can be inaccurate for thin layers.
+            do jk=1,klev
+               ikl=klev+1-jk
+               zabsf(ikl) = zabsf(ikl) + zincflx(iw) * &
+                  ((zfd(jk,iw)-zfd(jk+1,iw)) - (zfu(jk,iw)-zfu(jk+1,iw)))
+               zabsc(ikl) = zabsc(ikl) + zincflx(iw) * &
+                  ((zcd(jk,iw)-zcd(jk+1,iw)) - (zcu(jk,iw)-zcu(jk+1,iw)))
+            enddo
 
 ! Accumulate direct fluxes for UV/visible bands
                if (ibm >= 10 .and. ibm <= 13) then
@@ -8789,6 +8804,9 @@
 
 ! End loop on jb, spectral band
       enddo                    
+
+      pbbfa(1:klev+1) = zabsf(1:klev+1)
+      pbbca(1:klev+1) = zabsc(1:klev+1)
 
       end subroutine spcvmc_sw
 
@@ -9253,6 +9271,7 @@
       real(kind=rb) :: zbbfu(nlay+2)          ! temporary upward shortwave flux (w/m2)
       real(kind=rb) :: zbbfd(nlay+2)          ! temporary downward shortwave flux (w/m2)
       real(kind=rb) :: zbbcu(nlay+2)          ! temporary clear sky upward shortwave flux (w/m2)
+      real(kind=rb) :: zbbfa(nlay+2), zbbca(nlay+2)   ! layer absorption (W/m2)
       real(kind=rb) :: zbbcd(nlay+2)          ! temporary clear sky downward shortwave flux (w/m2)
       real(kind=rb) :: zbbfddir(nlay+2)       ! temporary downward direct shortwave flux (w/m2)
       real(kind=rb) :: zbbcddir(nlay+2)       ! temporary clear sky downward direct shortwave flux (w/m2)
@@ -9273,8 +9292,6 @@
       real(kind=rb) :: zniclnddir(nlay+2)     ! temporary clean sky near-IR downward direct shortwave flux (w/m2)
 
 ! Optional output fields 
-      real(kind=rb) :: swnflx(nlay+2)         ! Total sky shortwave net flux (W/m2)
-      real(kind=rb) :: swnflxc(nlay+2)        ! Clear sky shortwave net flux (W/m2)
       real(kind=rb) :: dirdflux(nlay+2)       ! Direct downward shortwave surface flux
       real(kind=rb) :: difdflux(nlay+2)       ! Diffuse downward shortwave surface flux
       real(kind=rb) :: uvdflx(nlay+2)         ! Total sky downward shortwave flux, UV/vis  
@@ -9521,7 +9538,8 @@
               fac00, fac01, fac10, fac11, &
               selffac, selffrac, indself, forfac, forfrac, indfor, &
               zbbfd, zbbfu, zbbcd, zbbcu, zuvfd, zuvcd, znifd, znicd, &
-              zbbfddir, zbbcddir, zuvfddir, zuvcddir, znifddir, znicddir)
+              zbbfddir, zbbcddir, zuvfddir, zuvcddir, znifddir, znicddir, &
+              zbbfa, zbbca)
 
 ! Transfer up and down, clear and total sky fluxes to output arrays.
 ! Vertical indexing goes from bottom to top; reverse here for GCM if necessary.
@@ -9558,16 +9576,11 @@
          enddo
 
 !  Total and clear sky net fluxes
-         do i = 1, nlayers+1
-            swnflxc(i) = swdflxc(iplon,i) - swuflxc(iplon,i)
-            swnflx(i) = swdflx(iplon,i) - swuflx(iplon,i)
-         enddo
-
 !  Total and clear sky heating rates
          do i = 1, nlayers
             zdpgcp = heatfac / pdp(i)
-            swhrc(iplon,i) = (swnflxc(i+1) - swnflxc(i)) * zdpgcp
-            swhr(iplon,i) = (swnflx(i+1) - swnflx(i)) * zdpgcp
+            swhrc(iplon,i) = zbbca(i) * zdpgcp
+            swhr(iplon,i) = zbbfa(i) * zdpgcp
          enddo
          swhrc(iplon,nlayers) = 0._rb
          swhr(iplon,nlayers) = 0._rb
@@ -9603,7 +9616,8 @@
                   fac00, fac01, fac10, fac11, &
                   selffac, selffrac, indself, forfac, forfrac, indfor, &
                   zbbclnd, zbbclnu, zbbcd, zbbcu, zuvclnd, zuvcd, zniclnd, znicd, &
-                  zbbclnddir, zbbcddir, zuvclnddir, zuvcddir, zniclnddir, znicddir)
+                  zbbclnddir, zbbcddir, zuvclnddir, zuvcddir, zniclnddir, znicddir, &
+                  zbbfa, zbbca)
 
             do i = 1, nlayers+1
                swuflxcln(iplon,i) = zbbclnu(i)
